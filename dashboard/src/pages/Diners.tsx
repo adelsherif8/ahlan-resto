@@ -1,0 +1,115 @@
+import { useEffect, useState } from "react";
+import { Search, Star } from "lucide-react";
+import { api } from "../config/api";
+import { Card, PageHeader, Pill, Input, Empty } from "../components/ui";
+
+export default function Diners() {
+  const [rows, setRows] = useState<any[]>([]);
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<any | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(
+      () => api.get("/api/diners", { params: { q } }).then((r) => setRows(r.data)).catch(() => {}),
+      200
+    );
+    return () => clearTimeout(t);
+  }, [q]);
+
+  async function open(id: string) {
+    const { data } = await api.get(`/api/diners/${id}`);
+    setSelected(data);
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title="Diners"
+        subtitle="Your guest CRM — the bot remembers all of this"
+        actions={
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-2.5 text-zinc-500" />
+            <Input placeholder="Search name, phone, tag…" className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+        }
+      />
+      <div className="grid gap-5 lg:grid-cols-5">
+        <div className="space-y-2 lg:col-span-3">
+          {rows.length === 0 ? (
+            <Card><Empty text="No diners found" /></Card>
+          ) : (
+            rows.map((d) => (
+              <Card
+                key={d.id}
+                className={`cursor-pointer px-4 py-3 transition hover:border-zinc-600 ${selected?.id === d.id ? "border-amber-500/60" : ""}`}
+              >
+                <div onClick={() => open(d.id)} className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      {d.name || d.phone_number}
+                      {d.is_vip && <Star size={13} className="fill-fuchsia-400 text-fuchsia-400" />}
+                    </div>
+                    <div className="text-xs text-zinc-500">
+                      {d.phone_number} · {d.visit_count} visits · EGP {Number(d.total_spend).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(d.tags || []).slice(0, 2).map((t: string) => (
+                      <span key={t} className="rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300">{t}</span>
+                    ))}
+                    <Pill value={d.status} />
+                  </div>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+
+        <div className="lg:col-span-2">
+          {selected ? (
+            <Card className="sticky top-0 p-5">
+              <div className="mb-1 flex items-center gap-2 text-lg font-semibold">
+                {selected.name || selected.phone_number}
+                {selected.is_vip && <Star size={15} className="fill-fuchsia-400 text-fuchsia-400" />}
+              </div>
+              <div className="mb-4 text-sm text-zinc-500">{selected.phone_number}</div>
+              <dl className="space-y-3 text-sm">
+                <Row k="Visits" v={String(selected.visit_count)} />
+                <Row k="Total spend" v={`EGP ${Number(selected.total_spend).toLocaleString()}`} />
+                {selected.allergies?.length > 0 && <Row k="Allergies ⚠️" v={selected.allergies.join(", ")} />}
+                {selected.preferences?.favorite_table && <Row k="Favorite table" v={selected.preferences.favorite_table} />}
+                {selected.preferences?.favorite_items?.length > 0 && <Row k="Always orders" v={selected.preferences.favorite_items.join(", ")} />}
+                {selected.preferences?.occasions?.birthday && <Row k="Birthday" v={selected.preferences.occasions.birthday} />}
+                {selected.notes && <Row k="Notes" v={selected.notes} />}
+              </dl>
+              <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">History</h3>
+              {selected.reservations?.length ? (
+                <div className="space-y-1.5">
+                  {selected.reservations.map((r: any) => (
+                    <div key={r.id} className="flex items-center justify-between rounded-lg bg-zinc-900 px-3 py-2 text-xs">
+                      <span>{r.date} {String(r.time_slot).slice(0, 5)} · {r.party_size}p</span>
+                      <Pill value={r.status} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-zinc-500">No reservations yet</div>
+              )}
+            </Card>
+          ) : (
+            <Card><Empty text="Select a diner to see their profile" /></Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className="text-zinc-500">{k}</dt>
+      <dd className="text-right">{v}</dd>
+    </div>
+  );
+}
