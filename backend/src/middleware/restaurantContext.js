@@ -33,6 +33,7 @@ export async function restaurantContext(req, res, next) {
     const cached = configCache.get(restaurantId);
     if (cached && Date.now() - cached.at < CACHE_MS) {
       req.repo = cached.repo;
+      req.tenantClient = cached.client;
       req.restaurant = cached.record;
       return next();
     }
@@ -49,9 +50,11 @@ export async function restaurantContext(req, res, next) {
     const key = decryptField(creds.key);
     if (!url || !key) return res.status(500).json({ error: "Restaurant DB not configured" });
 
-    const repo = supabaseRepo(tenantClient(url, key));
-    configCache.set(restaurantId, { record: data, repo, at: Date.now() });
+    const client = tenantClient(url, key);
+    const repo = supabaseRepo(client);
+    configCache.set(restaurantId, { record: data, repo, client, at: Date.now() });
     req.repo = repo;
+    req.tenantClient = client; // raw client (storage etc.)
     req.restaurant = data;
     next();
   } catch (err) {

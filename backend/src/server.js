@@ -14,6 +14,7 @@ import chatRoutes from "./routes/chatRoutes.js";
 import kpisRoutes from "./routes/kpisRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import eventsRoutes from "./routes/eventsRoutes.js";
+import usersRoutes from "./routes/usersRoutes.js";
 
 const app = express();
 app.use(cors());
@@ -33,6 +34,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/dashboard", kpisRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/events", eventsRoutes);
+app.use("/api/users", usersRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

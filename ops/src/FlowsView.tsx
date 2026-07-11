@@ -65,6 +65,7 @@ export default function FlowsView() {
 
   return (
     <div>
+      <RegressionPanel />
       {m && (
         <div className="mb-5 grid grid-cols-3 gap-3 md:grid-cols-9">
           <Metric label="msgs in" value={String(m.messages_in)} />
@@ -144,6 +145,57 @@ export default function FlowsView() {
         )}
       </div>
       </div>
+    </div>
+  );
+}
+
+function RegressionPanel() {
+  const [state, setState] = useState<any>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const load = () => ops.get("/api/ops/regression").then((r) => setState(r.data)).catch(() => {});
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function run() {
+    await ops.post("/api/ops/run-regression");
+    setOpen(true);
+    setState((s: any) => ({ ...(s || {}), status: "running" }));
+  }
+
+  const running = state?.status === "running";
+  const done = state?.status === "done";
+  return (
+    <div className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold">🧪 Regression suite</span>
+          {running && <span className="animate-pulse text-xs text-amber-400">running… ({state?.results?.length || 0}/20)</span>}
+          {done && (
+            <button onClick={() => setOpen((v) => !v)} className={`text-xs font-semibold ${state.failed ? "text-red-400" : "text-emerald-400"}`}>
+              {state.passed}/{state.passed + state.failed} passed {state.failed ? "❌" : "✅"} — {open ? "hide" : "details"}
+            </button>
+          )}
+          {!running && !done && <span className="text-xs text-zinc-500">20 cases through the real pipeline (~1 min, ~$0.01)</span>}
+        </div>
+        <button onClick={run} disabled={running} className="rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-amber-400 disabled:opacity-40">
+          Run
+        </button>
+      </div>
+      {open && done && (
+        <div className="mt-3 grid gap-1.5 md:grid-cols-2">
+          {state.results.map((r: any) => (
+            <div key={r.id} className={`rounded-lg border px-3 py-2 text-xs ${r.pass ? "border-zinc-800 bg-zinc-900" : "border-red-500/50 bg-red-500/10"}`}>
+              <div className="font-medium">{r.pass ? "✅" : "❌"} {r.name}</div>
+              {!r.pass && <div className="mt-0.5 text-red-300">{r.failures?.join("; ")}</div>}
+              {!r.pass && r.reply && <div className="mt-0.5 text-zinc-400">reply: {r.reply.slice(0, 120)}</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

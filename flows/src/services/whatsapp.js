@@ -91,6 +91,10 @@ export async function sendText(phoneNumberId, to, text) {
   return graphPost(phoneNumberId, { to, type: "text", text: { body: text.slice(0, 4096) } });
 }
 
+export async function sendImage(phoneNumberId, to, imageUrl, caption = "") {
+  return graphPost(phoneNumberId, { to, type: "image", image: { link: imageUrl, caption: caption.slice(0, 1024) } });
+}
+
 export async function sendReaction(phoneNumberId, to, messageId, emoji) {
   return graphPost(phoneNumberId, { to, type: "reaction", reaction: { message_id: messageId, emoji } });
 }

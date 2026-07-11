@@ -13,6 +13,7 @@ import Diners from "./pages/Diners";
 import Chats from "./pages/Chats";
 import Events from "./pages/Events";
 import Settings from "./pages/Settings";
+import Users from "./pages/Users";
 
 function Home() {
   const { token, role } = session();
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/chats" element={<ProtectedRoute roles={["manager", "host", "livechat"]}><Chats /></ProtectedRoute>} />
         <Route path="/events" element={<ProtectedRoute roles={["manager"]}><Events /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute roles={["manager"]}><Settings /></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute roles={["manager"]}><Users /></ProtectedRoute>} />
       </Route>
       <Route path="/" element={<Home />} />
       <Route path="*" element={<Home />} />

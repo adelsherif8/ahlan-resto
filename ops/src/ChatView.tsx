@@ -3,7 +3,7 @@ import { Send, Bot, RefreshCw } from "lucide-react";
 import { ops } from "./config";
 import { Card, Btn, Input } from "./ui";
 
-type Msg = { sender: string; message: string; at: string };
+type Msg = { sender: string; message: string; at: string; media_url?: string | null; media_type?: string | null };
 
 function getSessionId() {
   let sid = localStorage.getItem("ahlan_ops_session");
@@ -81,6 +81,8 @@ export default function ChatView() {
             <div key={i} className={`flex ${m.sender === "guest" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${m.sender === "guest" ? "bg-sky-500/20 text-sky-100" : "bg-amber-500/15 text-amber-100"}`}>
                 {m.sender !== "guest" && <div className="mb-0.5 text-[10px] uppercase tracking-wide opacity-60">{m.sender}</div>}
+                {m.media_url && m.media_type === "image" && <img src={m.media_url} alt="" className="mb-1.5 max-h-52 rounded-xl" />}
+                {m.media_url && m.media_type === "audio" && <audio controls src={m.media_url} className="mb-1.5 h-9 w-56" />}
                 {m.message}
               </div>
             </div>

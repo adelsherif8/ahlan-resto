@@ -8,7 +8,7 @@ import { logMessage, getSession, setSessionFlags, notifyDashboard } from "../ser
 import { appendHistory, getHistory } from "../services/history.js";
 import { sessionPrecheck, detectAffirmative, detectSelfCorrection } from "../services/precheck.js";
 import { processWaMedia } from "../services/media.js";
-import { sendText, markReadWithTyping } from "../services/whatsapp.js";
+import { sendText, sendImage, markReadWithTyping } from "../services/whatsapp.js";
 import { bump } from "../services/metrics.js";
 
 const HISTORY_TTL_MS = 60 * 60 * 1000; // fresh conversation after 1h of silence (removebuffer.json behavior, on read)
@@ -136,7 +136,7 @@ defineFlow({
     const pushed = await f.node("buffer_push", async () => {
       const hist = await getHistory(db, ctx.sessionId);
       const isNewSession = hist.length === 0;
-      const base = config.ai?.buffer_window_ms || (ctx.channel === "whatsapp" ? 8000 : 5000);
+      const base = ctx.fastWindow || config.ai?.buffer_window_ms || (ctx.channel === "whatsapp" ? 8000 : 5000);
       const r = await pushMessage(db, ctx.sessionId, finalText, messageId, { channel: ctx.channel, isNewSession, windowBase: base });
       return { ...r, next: `→ RESPOND flow fires after ${Math.round((r.window_ms || base) / 1000)}s of silence (or 25s cap) and routes to MASTER` };
     }, { input: { channel: ctx.channel, per_channel_default: ctx.channel === "whatsapp" ? "8s" : "5s", max_cap: `${MAX_CAP_MS / 1000}s` } });
@@ -233,16 +233,20 @@ defineFlow({
       return { delayed_ms: ms };
     }, { input: { configured: config.ai?.response_delay_ms || "default 800ms" } });
 
-    // ---- deliver (channel-aware, splits long replies) ----
+    // ---- deliver (channel-aware, splits long replies, sends photos) ----
     await f.node("deliver", async () => {
       const parts = splitReply(reply);
       for (const part of parts) {
         await deliverToChannel(ctx, part);
         await logMessage(db, ctx.sessionId, "ai", part, ctx.channel);
       }
+      for (const photo of routed?.photos || []) {
+        await deliverPhoto(ctx, photo);
+        await logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" });
+      }
       await appendHistory(db, ctx.sessionId, "ai", reply);
-      return { parts: parts.length, via: sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel, reply };
-    }, { input: { reply_length: reply.length, fast_path: routed?.fast_path || null } });
+      return { parts: parts.length, photos: routed?.photos?.length || 0, via: sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel, reply };
+    }, { input: { reply_length: reply.length, fast_path: routed?.fast_path || null, photos: routed?.photos?.length || 0 } });
 
     // ---- post_check: guest kept typing while we were thinking? answer that too ----
     const post = await f.node("post_check", async () => {
@@ -289,6 +293,13 @@ async function deliverToChannel(ctx, text) {
     });
   }
   // web channel needs no push — the durable poll reads chat_messages (logged by the caller)
+}
+
+async function deliverPhoto(ctx, photo) {
+  const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
+  if (route.channel === "whatsapp" && route.phoneNumberId) {
+    await sendImage(route.phoneNumberId, ctx.sessionId.replace(/^\+/, ""), photo.url, photo.caption).catch(() => {});
+  }
 }
 
 async function respondDirect(ctx, text) {

@@ -10,7 +10,15 @@ export default function Chats() {
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const loadSessions = () => api.get("/api/chat/sessions").then((r) => setSessions(r.data)).catch(() => {});
+  const loadSessions = () =>
+    api.get("/api/chat/sessions").then((r) => {
+      const rows = [...r.data].sort((a: any, b: any) =>
+        // needs-attention first, then most recent
+        (b.needs_attention ? 1 : 0) - (a.needs_attention ? 1 : 0) ||
+        String(b.last_message_at || "").localeCompare(String(a.last_message_at || ""))
+      );
+      setSessions(rows);
+    }).catch(() => {});
   useEffect(() => {
     loadSessions();
     const t = setInterval(loadSessions, 10000);

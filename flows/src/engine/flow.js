@@ -150,6 +150,49 @@ export async function runFlow(name, ctx, input, parentExec = null) {
   } finally {
     exec.finished_at = new Date().toISOString();
     exec.duration_ms = Date.now() - t0;
+    persistExecution(ctx, exec); // fire-and-forget; survives redeploys once 003 migration ran
+  }
+}
+
+function persistExecution(ctx, exec) {
+  const db = ctx?.tenant?.db;
+  if (!db) return;
+  const { _currentNode, ...row } = exec;
+  db.from("flow_executions")
+    .upsert({
+      id: row.id, flow: row.flow, session_id: row.session_id, trigger: row.trigger,
+      status: row.status, error: row.error, started_at: row.started_at,
+      finished_at: row.finished_at, duration_ms: row.duration_ms,
+      tokens_in: row.tokens_in, tokens_out: row.tokens_out, cost_usd: row.cost_usd,
+      nodes: row.nodes, children: row.children, parent_id: row.parent_id,
+    })
+    .then(({ error }) => {
+      if (error && !persistExecution.warned) {
+        persistExecution.warned = true;
+        log("execution persistence unavailable (run migration 003):", error.message);
+      }
+    });
+}
+
+// DB-backed reads (merged with the in-memory ring by the server)
+export async function listExecutionsDb(db, { flow, limit = 50 } = {}) {
+  try {
+    let q = db.from("flow_executions").select("id,flow,session_id,trigger,status,error,started_at,finished_at,duration_ms,tokens_in,tokens_out,cost_usd,children,parent_id").order("started_at", { ascending: false }).limit(limit);
+    if (flow) q = q.eq("flow", flow);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return (data || []).map((e) => ({ ...e, nodes: [] , _db: true }));
+  } catch {
+    return [];
+  }
+}
+
+export async function getExecutionDb(db, id) {
+  try {
+    const { data } = await db.from("flow_executions").select("*").eq("id", id).maybeSingle();
+    return data || null;
+  } catch {
+    return null;
   }
 }
 

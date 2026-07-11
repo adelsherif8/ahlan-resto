@@ -23,9 +23,11 @@ defineFlow({
     const context = await f.node("build_context", async () => {
       const { data: menuRows } = await db
         .from("menu_items")
-        .select("name,category,price,description,dietary_tags,available")
+        .select("name,category,price,description,dietary_tags,available,photo_url")
         .order("sort_order");
       const menu = (menuRows || []).filter((m) => m.available); // 86'd items don't exist
+
+      const { data: mf } = await db.from("message_full").select("conversation_summary").eq("phone_number", ctx.sessionId).maybeSingle();
 
       const { data: events } = await db
         .from("events")
@@ -55,6 +57,7 @@ defineFlow({
         events: events || [],
         upcomingReservation: upcoming?.[0] || null,
         handoffPending: !!session?.needs_attention,
+        summary: mf?.conversation_summary || null,
         visitTier: !diner || diner.visit_count === 0 ? "first-timer"
           : diner.visit_count < 3 ? "returning"
           : diner.is_vip ? "VIP" : "regular",
@@ -79,7 +82,7 @@ defineFlow({
       const bi = config.basic_info || {};
       const ai = config.ai || {};
       const menuText = context.menu
-        .map((m) => `${m.name} (${m.category}, ${m.price} ${config.payments?.currency || "EGP"}${m.dietary_tags?.length ? ", " + m.dietary_tags.join("/") : ""})${m.description ? " — " + m.description : ""}`)
+        .map((m) => `${m.name} (${m.category}, ${m.price} ${config.payments?.currency || "EGP"}${m.dietary_tags?.length ? ", " + m.dietary_tags.join("/") : ""}${m.photo_url ? ", 📷 has photo" : ""})${m.description ? " — " + m.description : ""}`)
         .join("\n");
 
       const system = `You are ${ai.name || "the host"} — the greeter at the door of ${config.name}, and the waiter who knows every dish by heart. You're a real hospitality person on WhatsApp, not a support bot.
@@ -120,6 +123,7 @@ GUEST CONTEXT (use silently — NEVER recite it back):
 - Allergies: ${diner?.allergies?.length ? diner.allergies.join(", ").toUpperCase() + " — HARD RULE: NEVER recommend or suggest any item whose dietary_tags contain these allergens. When asked for recommendations, pick ONLY safe items and don't mention the allergy. Only if they explicitly ask for an unsafe item, warn them once." : "none known"}
 - Their upcoming reservation: ${context.upcomingReservation ? `${context.upcomingReservation.code} on ${context.upcomingReservation.date} ${String(context.upcomingReservation.time_slot).slice(0, 5)} for ${context.upcomingReservation.party_size}` : "none"}
 - Detected mood: ${classification?.mood || "neutral"}
+${context.summary ? `- Earlier in this relationship (summary of older chats): ${context.summary}` : ""}
 
 ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been notified about this guest. If they follow up, reassure them the team is on it and will reply here shortly — do NOT restart cheerful small talk or re-pitch the menu.\n" : ""}RULES:
 0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. Your reply language = the language of the guest's LAST message (detected: ${classification?.language || "detect it yourself"}). English message → reply 100% in ENGLISH (at most one flavor word like "ahlan"). The Arabic/Franco snippets in these instructions are EXAMPLES for those languages only — never copy them into an English reply.
@@ -131,8 +135,10 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 6. If angry, or asking for a human, or you cannot answer from FACTS: apologize briefly, say the team is taking over, set needs_handoff=true with a 1–2 line handoff_briefing.
 7. If they mention their own name, set detected_name. If they mention an allergy or dietary restriction, set detected_allergies (array of lowercase allergens, e.g. ["nuts"]).
 8. Off-topic requests: one playful redirect back to the restaurant.
+9. If they ask for PHOTOS of food: set send_photos to up to 3 menu item names that are marked "📷 has photo" (best matches for what they asked). If none have photos, say photos are coming soon — never promise to send what you can't.
+10. If they asked a factual question about the restaurant you could NOT answer from FACTS (policy, service, amenity…), set suggested_faq = { "question": "<the generic question>", "context": "<what the guest actually said>" } so the owner can add the answer.
 
-Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null }`;
+Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "send_photos": string[]|null, "suggested_faq": {"question": string, "context": string}|null }`;
 
       const convo = (history || []).slice(-12).map((h) => ({
         role: h.role === "guest" ? "user" : "assistant",
@@ -158,6 +164,29 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         await db.from("diners").update({ allergies: merged }).eq("id", diner.id);
         effects.push(`allergies→${merged.join(",")}`);
       }
+      if (out.suggested_faq?.question) {
+        // don't re-suggest a question that's already pending
+        const { data: dupe } = await db.from("suggested_faqs").select("id").eq("status", "pending").ilike("question", out.suggested_faq.question).limit(1);
+        if (!dupe?.length) {
+          await db.from("suggested_faqs").insert({
+            question: out.suggested_faq.question,
+            context: out.suggested_faq.context || null,
+            session_id: ctx.sessionId,
+          }).then(() => {});
+          effects.push(`faq-suggested: ${out.suggested_faq.question.slice(0, 60)}`);
+        }
+      }
+      // rolling summary: long conversations get compressed so context stays sharp + cheap
+      if ((history || []).length >= 14) {
+        const older = history.slice(0, -6).map((h) => `${h.role}: ${h.message}`).join("\n").slice(0, 4000);
+        const sum = await chatJSON("gpt-4o-mini",
+          'Summarize this restaurant WhatsApp conversation in 2-3 sentences capturing: guest preferences, unresolved topics, promises made. JSON: {"summary": "..."}',
+          older, { maxTokens: 120 }).catch(() => null);
+        if (sum?.value?.summary) {
+          await db.from("message_full").update({ conversation_summary: sum.value.summary }).eq("phone_number", ctx.sessionId);
+          effects.push("summary-refreshed");
+        }
+      }
       if (out.needs_handoff) {
         await setSessionFlags(db, ctx.sessionId, {
           needs_attention: true,
@@ -176,6 +205,12 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       return { effects: effects.length ? effects : ["none"] };
     }, { input: { needs_handoff: !!out.needs_handoff, handoff_reason: out.handoff_reason, detected_name: out.detected_name } });
 
-    return { reply, handoff: !!out.needs_handoff };
+    const photos = (out.send_photos || [])
+      .map((name) => context.menu.find((m) => m.name.toLowerCase() === String(name).toLowerCase() && m.photo_url))
+      .filter(Boolean)
+      .slice(0, 3)
+      .map((m) => ({ url: m.photo_url, caption: `${m.name} — ${m.price} ${config.payments?.currency || "EGP"}` }));
+
+    return { reply, handoff: !!out.needs_handoff, photos };
   },
 });

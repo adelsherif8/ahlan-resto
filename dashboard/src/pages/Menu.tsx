@@ -15,6 +15,18 @@ export default function Menu() {
   const load = () => api.get("/api/menu").then((r) => setItems(r.data)).catch(() => {});
   useEffect(() => { load(); }, []);
 
+  async function uploadPhoto(item: any, file?: File) {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("photo", file);
+    try {
+      await api.post(`/api/menu/${item.id}/photo`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.error || "Upload failed");
+    }
+  }
+
   async function toggle86(item: any) {
     setItems((xs) => xs.map((x) => (x.id === item.id ? { ...x, available: !x.available } : x)));
     await api.patch(`/api/menu/${item.id}`, { available: !item.available }).catch(load);
@@ -60,14 +72,25 @@ export default function Menu() {
             <div className="space-y-2">
               {items.filter((i) => i.category === cat).map((item) => (
                 <Card key={item.id} className={`flex items-center justify-between gap-3 px-4 py-3 ${item.available ? "" : "opacity-50"}`}>
-                  <div>
-                    <div className="text-sm font-medium">
-                      {item.name}{" "}
-                      {(item.dietary_tags || []).map((t: string) => (
-                        <span key={t} title={t}>{TAG_EMOJI[t] || ""}</span>
-                      ))}
+                  <div className="flex items-center gap-3">
+                    <label className="group relative h-12 w-12 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900" title="Upload photo — the bot sends it to guests">
+                      {item.photo_url ? (
+                        <img src={item.photo_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-lg text-zinc-600">📷</span>
+                      )}
+                      <span className="absolute inset-0 hidden items-center justify-center bg-black/60 text-[10px] text-white group-hover:flex">upload</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadPhoto(item, e.target.files?.[0])} />
+                    </label>
+                    <div>
+                      <div className="text-sm font-medium">
+                        {item.name}{" "}
+                        {(item.dietary_tags || []).map((t: string) => (
+                          <span key={t} title={t}>{TAG_EMOJI[t] || ""}</span>
+                        ))}
+                      </div>
+                      {item.description && <div className="text-xs text-zinc-500">{item.description}</div>}
                     </div>
-                    {item.description && <div className="text-xs text-zinc-500">{item.description}</div>}
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-sm font-semibold tabular-nums">EGP {Number(item.price).toFixed(0)}</div>

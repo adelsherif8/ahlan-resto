@@ -3,9 +3,10 @@ import cors from "cors";
 import { PORT, log, llmReady } from "./config.js";
 import { resolveRestaurant } from "./services/tenant.js";
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
-import { runFlow, listFlows, listExecutions, getExecution } from "./engine/flow.js";
+import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
 import { metrics } from "./services/metrics.js";
+import { runRegression, regressionStatus } from "./services/regression.js";
 import { handleFlushFailure } from "./flows/buffering.js";
 
 // register flows
@@ -105,6 +106,12 @@ function opsAuth(req, res, next) {
 app.get("/api/ops/verify", opsAuth, (_req, res) => res.json({ ok: true }));
 app.get("/api/metrics", opsAuth, (_req, res) => res.json(metrics()));
 
+app.post("/api/ops/run-regression", opsAuth, (_req, res) => {
+  runRegression(); // async — poll status
+  res.json({ started: true });
+});
+app.get("/api/ops/regression", opsAuth, (_req, res) => res.json(regressionStatus()));
+
 app.post("/api/ops/run-janitor", opsAuth, async (_req, res) => {
   try {
     const tenant = await resolveRestaurant();
@@ -130,12 +137,30 @@ app.get("/api/flows", opsAuth, (_req, res) => {
   );
 });
 
-app.get("/api/executions", opsAuth, (req, res) => {
-  res.json(listExecutions({ flow: req.query.flow ? String(req.query.flow) : undefined, limit: Number(req.query.limit) || 50 }));
+app.get("/api/executions", opsAuth, async (req, res) => {
+  const flow = req.query.flow ? String(req.query.flow) : undefined;
+  const limit = Number(req.query.limit) || 50;
+  const mem = listExecutions({ flow, limit });
+  let merged = mem;
+  try {
+    const tenant = await resolveRestaurant();
+    const dbRows = await listExecutionsDb(tenant.db, { flow, limit });
+    const seen = new Set(mem.map((e) => e.id));
+    merged = [...mem, ...dbRows.filter((e) => !seen.has(e.id))]
+      .sort((a, b) => (a.started_at < b.started_at ? 1 : -1))
+      .slice(0, limit);
+  } catch {}
+  res.json(merged);
 });
 
-app.get("/api/executions/:id", opsAuth, (req, res) => {
-  const e = getExecution(req.params.id);
+app.get("/api/executions/:id", opsAuth, async (req, res) => {
+  let e = getExecution(req.params.id);
+  if (!e) {
+    try {
+      const tenant = await resolveRestaurant();
+      e = await getExecutionDb(tenant.db, req.params.id);
+    } catch {}
+  }
   if (!e) return res.status(404).json({ error: "Not found" });
   res.json(e);
 });

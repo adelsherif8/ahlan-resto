@@ -4,6 +4,7 @@ import {
   ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame,
 } from "lucide-react";
 import { session } from "../config/api";
+import NotificationBell from "./NotificationBell";
 
 const NAV = [
   { to: "/overview", label: "Overview", icon: LayoutDashboard, roles: ["admin", "manager"] },
@@ -15,6 +16,7 @@ const NAV = [
   { to: "/diners", label: "Diners", icon: Users, roles: ["admin", "manager", "host"] },
   { to: "/chats", label: "Chats", icon: MessageCircle, roles: ["admin", "manager", "host", "livechat"] },
   { to: "/events", label: "Events", icon: PartyPopper, roles: ["admin", "manager"] },
+  { to: "/users", label: "Staff", icon: Users, roles: ["admin", "manager"] },
   { to: "/settings", label: "Settings", icon: Settings, roles: ["admin", "manager"] },
 ];
 
@@ -35,10 +37,11 @@ export default function DashboardLayout() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 text-zinc-950">
             <Flame size={18} />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="text-sm font-bold leading-tight">Ahlan Resto</div>
-            <div className="max-w-[140px] truncate text-xs text-zinc-400">{restaurant || "Dashboard"}</div>
+            <div className="max-w-[120px] truncate text-xs text-zinc-400">{restaurant || "Dashboard"}</div>
           </div>
+          <NotificationBell />
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
           {items.map(({ to, label, icon: Icon }) => (

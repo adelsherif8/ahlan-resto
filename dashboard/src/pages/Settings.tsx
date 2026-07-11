@@ -5,10 +5,24 @@ import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
 export default function Settings() {
   const [config, setConfig] = useState<any | null>(null);
   const [saved, setSaved] = useState("");
+  const [suggested, setSuggested] = useState<any[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
 
   useEffect(() => {
     api.get("/api/settings").then((r) => setConfig(r.data)).catch(() => {});
+    api.get("/api/settings/suggested-faqs").then((r) => setSuggested(r.data)).catch(() => {});
   }, []);
+
+  async function actOnSuggestion(id: string, action: "approve" | "dismiss") {
+    const { data } = await api.post(`/api/settings/suggested-faqs/${id}`, { action, answer: answers[id] || undefined }).catch((e) => {
+      alert(e.response?.data?.error || "Failed");
+      return { data: null };
+    });
+    if (data) {
+      setSuggested((xs) => xs.filter((s) => s.id !== id));
+      if (data.faqs) setConfig((c: any) => ({ ...c, faqs: data.faqs }));
+    }
+  }
 
   if (!config) return <Empty text="Loading…" />;
 
@@ -99,6 +113,41 @@ export default function Settings() {
           </Field>
         </div>
       </Card>
+
+      <Card className="mb-5 p-5">
+        <SectionTitle title="Offers (the bot may mention ONLY these)" saved={saved === "ai_offers"} onSave={() => saveSection("ai", config.ai)} />
+        <div className="space-y-2">
+          {(ai.offers || []).map((o: string, i: number) => (
+            <div key={i} className="flex gap-2">
+              <Input className="flex-1" value={o} onChange={(e) => {
+                const offers = [...(ai.offers || [])]; offers[i] = e.target.value; upd("ai", { offers });
+              }} />
+              <Btn variant="danger" className="px-2.5 py-1 text-xs" onClick={() => upd("ai", { offers: (ai.offers || []).filter((_: any, j: number) => j !== i) })}>✕</Btn>
+            </div>
+          ))}
+          <Btn variant="ghost" onClick={() => upd("ai", { offers: [...(ai.offers || []), ""] })}>+ Add offer</Btn>
+        </div>
+      </Card>
+
+      {suggested.length > 0 && (
+        <Card className="mb-5 border-amber-500/40 p-5">
+          <h2 className="mb-1 text-sm font-semibold text-amber-300">🤖 Suggested by the bot — guests asked, it couldn't answer</h2>
+          <p className="mb-4 text-xs text-zinc-500">Write the answer and approve → becomes a FAQ the bot uses instantly.</p>
+          <div className="space-y-4">
+            {suggested.map((s) => (
+              <div key={s.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+                <div className="text-sm font-medium">{s.question}</div>
+                {s.context && <div className="mt-0.5 text-xs text-zinc-500">guest said: "{s.context}"</div>}
+                <div className="mt-2 flex gap-2">
+                  <Input className="flex-1" placeholder="Your answer…" value={answers[s.id] || ""} onChange={(e) => setAnswers({ ...answers, [s.id]: e.target.value })} />
+                  <Btn className="px-3 py-1.5 text-xs" onClick={() => actOnSuggestion(s.id, "approve")}>Approve</Btn>
+                  <Btn variant="ghost" className="px-3 py-1.5 text-xs" onClick={() => actOnSuggestion(s.id, "dismiss")}>Dismiss</Btn>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-5">
         <SectionTitle title="FAQs (the bot answers from these)" saved={saved === "faqs"} onSave={() => saveSection("faqs", config.faqs)} />

@@ -1,9 +1,35 @@
 import { Router } from "express";
+import multer from "multer";
 import { requireAuth } from "../middleware/auth.js";
 import { restaurantContext } from "../middleware/restaurantContext.js";
 
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const router = Router();
 router.use(requireAuth, restaurantContext);
+
+// Photo upload → tenant storage → menu_items.photo_url (the bot sends these to guests)
+router.post("/:id/photo", upload.single("photo"), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "photo file required" });
+    if (!req.tenantClient) return res.status(501).json({ error: "Photo upload needs real mode (tenant storage)" });
+    const item = await req.repo.get("menu_items", req.params.id);
+    if (!item) return res.status(404).json({ error: "Item not found" });
+
+    const BUCKET = "menu-photos";
+    const ext = (req.file.mimetype.split("/")[1] || "jpg").split(";")[0];
+    const path = `${req.params.id}.${ext}`;
+    let up = await req.tenantClient.storage.from(BUCKET).upload(path, req.file.buffer, { contentType: req.file.mimetype, upsert: true });
+    if (up.error) {
+      await req.tenantClient.storage.createBucket(BUCKET, { public: true }).catch(() => {});
+      up = await req.tenantClient.storage.from(BUCKET).upload(path, req.file.buffer, { contentType: req.file.mimetype, upsert: true });
+      if (up.error) throw new Error(up.error.message);
+    }
+    const { data: pub } = req.tenantClient.storage.from(BUCKET).getPublicUrl(path);
+    const photo_url = `${pub.publicUrl}?v=${Date.now()}`;
+    const row = await req.repo.update("menu_items", req.params.id, { photo_url });
+    res.json(row);
+  } catch (e) { next(e); }
+});
 
 router.get("/", async (req, res, next) => {
   try {

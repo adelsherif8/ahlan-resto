@@ -82,6 +82,28 @@ export default function Diners() {
                 {selected.preferences?.occasions?.birthday && <Row k="Birthday" v={selected.preferences.occasions.birthday} />}
                 {selected.notes && <Row k="Notes" v={selected.notes} />}
               </dl>
+              <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">Edit (the bot uses these)</h3>
+              <EditRow label="Allergies (comma-sep)" value={(selected.allergies || []).join(", ")} onSave={async (v) => {
+                const allergies = v.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+                await api.patch(`/api/diners/${selected.id}`, { allergies });
+                setSelected({ ...selected, allergies });
+              }} />
+              <EditRow label="Tags (comma-sep)" value={(selected.tags || []).join(", ")} onSave={async (v) => {
+                const tags = v.split(",").map((x) => x.trim()).filter(Boolean);
+                await api.patch(`/api/diners/${selected.id}`, { tags });
+                setSelected({ ...selected, tags });
+              }} />
+              <EditRow label="Notes" value={selected.notes || ""} onSave={async (v) => {
+                await api.patch(`/api/diners/${selected.id}`, { notes: v });
+                setSelected({ ...selected, notes: v });
+              }} />
+              <label className="mt-2 flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={!!selected.is_vip} onChange={async (e) => {
+                  await api.patch(`/api/diners/${selected.id}`, { is_vip: e.target.checked });
+                  setSelected({ ...selected, is_vip: e.target.checked });
+                }} />
+                VIP (extra-warm treatment from the bot)
+              </label>
               <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">History</h3>
               {selected.reservations?.length ? (
                 <div className="space-y-1.5">
@@ -100,6 +122,26 @@ export default function Diners() {
             <Card><Empty text="Select a diner to see their profile" /></Card>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function EditRow({ label, value, onSave }: { label: string; value: string; onSave: (v: string) => Promise<void> }) {
+  const [v, setV] = useState(value);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => setV(value), [value]);
+  return (
+    <div className="mb-2">
+      <div className="mb-1 text-xs text-zinc-500">{label}</div>
+      <div className="flex gap-2">
+        <Input className="flex-1" value={v} onChange={(e) => setV(e.target.value)} />
+        <button
+          onClick={async () => { await onSave(v); setSaved(true); setTimeout(() => setSaved(false), 1500); }}
+          className="rounded-xl border border-zinc-700 px-3 text-xs text-zinc-300 hover:bg-zinc-800"
+        >
+          {saved ? "✓" : "Save"}
+        </button>
       </div>
     </div>
   );
