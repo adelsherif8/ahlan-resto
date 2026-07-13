@@ -129,6 +129,24 @@ export default function Settings() {
         </div>
       </Card>
 
+      <Card className="mb-5 p-5">
+        <SectionTitle title="Tonight's specials (the bot pitches these — auto-expire on the date)" saved={saved === "ai_specials"} onSave={() => saveSection("ai", config.ai)} />
+        <div className="space-y-2">
+          {(ai.specials || []).map((s: any, i: number) => (
+            <div key={i} className="flex gap-2">
+              <Input className="flex-1" placeholder="e.g. Lamb Ouzi for two — 950 EGP, tonight only" value={s?.text || ""} onChange={(e) => {
+                const specials = [...(ai.specials || [])]; specials[i] = { ...specials[i], text: e.target.value }; upd("ai", { specials });
+              }} />
+              <Input type="date" className="w-40" title="Last day it's valid (empty = until removed)" value={s?.until || ""} onChange={(e) => {
+                const specials = [...(ai.specials || [])]; specials[i] = { ...specials[i], until: e.target.value || undefined }; upd("ai", { specials });
+              }} />
+              <Btn variant="danger" className="px-2.5 py-1 text-xs" onClick={() => upd("ai", { specials: (ai.specials || []).filter((_: any, j: number) => j !== i) })}>✕</Btn>
+            </div>
+          ))}
+          <Btn variant="ghost" onClick={() => upd("ai", { specials: [...(ai.specials || []), { text: "" }] })}>+ Add special</Btn>
+        </div>
+      </Card>
+
       {suggested.length > 0 && (
         <Card className="mb-5 border-amber-500/40 p-5">
           <h2 className="mb-1 text-sm font-semibold text-amber-300">🤖 Suggested by the bot — guests asked, it couldn't answer</h2>

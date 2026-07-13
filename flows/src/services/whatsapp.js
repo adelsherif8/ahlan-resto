@@ -125,6 +125,15 @@ export async function sendList(phoneNumberId, to, bodyText, buttonLabel, section
   });
 }
 
+// Real map pin — much better than a link on WhatsApp
+export async function sendLocation(phoneNumberId, to, lat, lng, name = "", address = "") {
+  return graphPost(phoneNumberId, {
+    to,
+    type: "location",
+    location: { latitude: lat, longitude: lng, name: String(name).slice(0, 100), address: String(address).slice(0, 200) },
+  });
+}
+
 export async function sendReaction(phoneNumberId, to, messageId, emoji) {
   return graphPost(phoneNumberId, { to, type: "reaction", reaction: { message_id: messageId, emoji } });
 }

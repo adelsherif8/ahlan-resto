@@ -123,7 +123,26 @@ function opsAuth(req, res, next) {
   res.status(401).json({ error: "ops token required" });
 }
 app.get("/api/ops/verify", opsAuth, (_req, res) => res.json({ ok: true }));
-app.get("/api/metrics", opsAuth, (_req, res) => res.json(metrics()));
+app.get("/api/metrics", opsAuth, async (_req, res) => {
+  const m = metrics();
+  // conversation outcomes from the tenant DB (supabase-js returns errors, doesn't throw —
+  // a count is just null until the relevant migration has run)
+  try {
+    const t = await resolveRestaurant();
+    const cnt = async (table, apply) => {
+      let q = t.db.from(table).select("id", { count: "exact", head: true });
+      if (apply) q = apply(q);
+      const { count } = await q;
+      return count ?? 0;
+    };
+    m.sessions_total = await cnt("chat_sessions");
+    m.handoffs_open = await cnt("chat_sessions", (q) => q.eq("needs_attention", true));
+    m.staff_takeovers = await cnt("chat_sessions", (q) => q.eq("ai_enabled", false));
+    m.replies_rated_up = await cnt("chat_messages", (q) => q.eq("rating", 1));
+    m.replies_rated_down = await cnt("chat_messages", (q) => q.eq("rating", -1));
+  } catch {}
+  res.json(m);
+});
 
 app.post("/api/ops/run-regression", opsAuth, (_req, res) => {
   runRegression(); // async — poll status

@@ -28,9 +28,15 @@ defineFlow({
     const context = await f.node("build_context", async () => {
       const { data: menuRows } = await db
         .from("menu_items")
-        .select("name,category,price,description,dietary_tags,available,photo_url")
+        .select("*")
         .order("sort_order");
       const menu = (menuRows || []).filter((m) => m.available); // 86'd items don't exist
+
+      const todayISO = new Date().toLocaleDateString("en-CA");
+      // tonight's specials from config (staff post them in Settings; code filters expiry)
+      const specials = (config.ai?.specials || [])
+        .filter((s) => s?.text && (!s.until || s.until >= todayISO))
+        .map((s) => s.text);
 
       const { data: mf } = await db.from("message_full").select("conversation_summary").eq("phone_number", ctx.sessionId).maybeSingle();
 
@@ -78,6 +84,7 @@ defineFlow({
       const h = hoursToday(config.hours, config.basic_info?.timezone);
       return {
         hoursNow: h,
+        specials,
         hoursHuman: humanizeWeek(config.hours),
         todayHuman: (h.ranges || []).map((r) => `${fmt12(r.open)} – ${fmt12(r.close)}`).join(", ") || "closed today",
         isNewConversation: (history || []).length === 0,
@@ -145,6 +152,7 @@ FACTS — the ONLY things you know (never invent anything beyond this):
 - Services: dine-in yes · delivery ${bi.services?.delivery === true ? "YES" : bi.services?.delivery === false ? "no" : "not set"} · pickup ${bi.services?.pickup === true ? "YES" : bi.services?.pickup === false ? "no" : "not set"}
 - House policies: alcohol ${bi.policies?.alcohol ?? "not set"} · shisha ${bi.policies?.shisha ?? "not set"} · kids ${bi.policies?.kids ?? "not set"} · smoking ${bi.policies?.smoking ?? "not set"}
 - NEVER imply discounts/deals/offers exist unless listed here: ${JSON.stringify(ai.offers || [])}
+- TONIGHT'S SPECIALS (mention when relevant — never invent others): ${context.specials.length ? context.specials.join("; ") : "none tonight"}
 - MENU (available right now — if an item is not listed, it is NOT available tonight):
 ${menuText || "(menu not loaded)"}
 - UPCOMING EVENTS: ${context.events.length ? context.events.map((e) => `${e.title} on ${e.date}${e.start_time ? " at " + String(e.start_time).slice(0, 5) : ""}${e.price ? " (EGP " + e.price + ")" : ""}`).join("; ") : "none announced"}
@@ -183,8 +191,12 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
    NEVER capture sensitive info (health beyond food restrictions, religion, politics, private drama). Passing mentions ("my friend loves pasta") are NOT the guest's own preferences.
 12. QUICK REPLIES: when your reply naturally offers a small set of next steps or choices, set quick_replies to 2-3 SHORT tap-labels (max 20 chars each, in the GUEST'S language — e.g. ["Book a table", "See the menu"] or ["احجزلي", "المنيو"]). Skip them for flowing conversation; never more than 3, never mid-story.
 13. If they ask to SEE THE MENU / "what do you have": reply with a 1-line appetizing teaser and set send_menu_list=true — we send a tappable menu; NEVER paste the full menu as text.
+14. WAITLIST: if the guest asks to join tonight's waitlist (or wants a table right now and accepts waiting) AND gave a party size, set add_to_waitlist = {"party_size": n, "name": <their name if known>}. When you set it you MAY tell them they're on the list (we really add them). Never invent wait times.
+15. FEEDBACK: if they describe a PAST visit experience — praise or complaint — set detected_feedback = {"sentiment": "positive"|"negative", "text": "<their words, short>"}. For complaints: apologize once, genuinely; serious ones also get needs_handoff=true.
+16. LOCATION PIN: if they ask where you are or for directions, answer briefly AND set send_location_pin=true (we drop a real map pin on WhatsApp).
+17. REACTION: set react_emoji to ONE emoji (❤️ 🎉 😂 👏) ONLY for a strongly emotional guest moment (engagement, big news, a genuinely funny joke). This is rare — default null.
 
-Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "suggested_faq": {"question": string, "context": string}|null }`;
+Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string}|null, "send_location_pin": boolean, "react_emoji": string|null, "suggested_faq": {"question": string, "context": string}|null }`;
 
       // mood/VIP routing: frustrated, urgent or VIP guests get the bigger model
       const model = classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip
@@ -223,6 +235,30 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           await db.from("diners").update({ preferences: merged }).eq("id", diner.id);
           effects.push("memory-updated");
         }
+      }
+      const party = Number(out.add_to_waitlist?.party_size);
+      if (party > 0 && party <= 50) {
+        await db.from("waitlist").insert({
+          phone_number: ctx.sessionId,
+          name: out.add_to_waitlist.name || diner?.name || diner?.wa_profile_name || null,
+          party_size: Math.round(party),
+        });
+        await notifyDashboard(db, "waitlist", `Waitlist: party of ${Math.round(party)}`,
+          `${out.add_to_waitlist.name || diner?.name || ctx.sessionId} added via chat`, ctx.sessionId);
+        effects.push("waitlist-added");
+      }
+      if (out.detected_feedback?.text && ["positive", "negative"].includes(out.detected_feedback.sentiment)) {
+        await db.from("feedback").insert({
+          phone_number: ctx.sessionId,
+          comments: String(out.detected_feedback.text).slice(0, 800),
+          sentiment: out.detected_feedback.sentiment,
+          escalated: out.detected_feedback.sentiment === "negative",
+        });
+        if (out.detected_feedback.sentiment === "negative") {
+          await notifyDashboard(db, "feedback", "Negative feedback from a guest",
+            `${diner?.name || ctx.sessionId}: ${String(out.detected_feedback.text).slice(0, 140)}`, ctx.sessionId);
+        }
+        effects.push(`feedback-${out.detected_feedback.sentiment}`);
       }
       if (out.suggested_faq?.question) {
         // don't re-suggest a question that's already pending
@@ -278,8 +314,13 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
 
     const quickReplies = (out.quick_replies || []).map((q) => String(q).trim().slice(0, 20)).filter(Boolean).slice(0, 3);
     const menuList = out.send_menu_list ? buildMenuList(context.menu) : null;
+    const loc = config.basic_info?.location;
+    const locationPin = out.send_location_pin && loc?.lat && loc?.lng
+      ? { lat: loc.lat, lng: loc.lng, name: config.name, address: config.basic_info?.address || "", maps: config.basic_info?.google_maps || "" }
+      : null;
+    const reactEmoji = typeof out.react_emoji === "string" && out.react_emoji.trim() ? out.react_emoji.trim().slice(0, 8) : null;
 
-    return { reply, handoff: !!out.needs_handoff, photos, quickReplies, menuList };
+    return { reply, handoff: !!out.needs_handoff, photos, quickReplies, menuList, locationPin, reactEmoji };
   },
 });
 
@@ -423,9 +464,14 @@ function buildMenuText(menu, message, history, currency) {
   const line = (m, full) => {
     const tags = m.dietary_tags?.length ? ", " + m.dietary_tags.join("/") : "";
     const photo = m.photo_url ? ", 📷 has photo" : "";
+    const star = m.bestseller ? " ⭐bestseller" : "";
+    const spice = m.spice_level ? ` 🌶${m.spice_level}/3` : "";
+    const extra = full
+      ? `${m.ingredients ? ` [ingredients: ${m.ingredients}]` : ""}${m.pairs_with ? ` [pairs well with: ${m.pairs_with}]` : ""}`
+      : "";
     return full
-      ? `${m.name} (${m.category}, ${m.price} ${currency}${tags}${photo})${m.description ? " — " + m.description : ""}`
-      : `${m.name} (${m.price} ${currency}${tags}${photo})`;
+      ? `${m.name} (${m.category}, ${m.price} ${currency}${tags}${photo})${star}${spice}${m.description ? " — " + m.description : ""}${extra}`
+      : `${m.name} (${m.price} ${currency}${tags}${photo})${star}${spice}`;
   };
   if (menu.length <= MENU_FULL_LIMIT) return menu.map((m) => line(m, true)).join("\n");
 

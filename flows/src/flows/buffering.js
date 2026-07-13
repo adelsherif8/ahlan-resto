@@ -8,7 +8,7 @@ import { logMessage, getSession, setSessionFlags, notifyDashboard } from "../ser
 import { appendHistory, getHistory } from "../services/history.js";
 import { sessionPrecheck, detectAffirmative, detectSelfCorrection } from "../services/precheck.js";
 import { processWaMedia } from "../services/media.js";
-import { sendText, sendImage, sendButtons, sendList, markReadWithTyping, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
+import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction, markReadWithTyping, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
 import { bump } from "../services/metrics.js";
 
 const HISTORY_TTL_MS = 60 * 60 * 1000; // fresh conversation after 1h of silence (removebuffer.json behavior, on read)
@@ -248,6 +248,11 @@ defineFlow({
       const isWa = (sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel) === "whatsapp";
       const qrs = routed?.quickReplies || [];
       const list = routed?.menuList || null;
+      // emoji reaction on the guest's message — lands before the text reply, like a human
+      if (routed?.reactEmoji && isWa && String(burst.last_message_id || "").startsWith("wamid.")) {
+        const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
+        if (pnid) await sendReaction(pnid, ctx.sessionId.replace(/^\+/, ""), burst.last_message_id, routed.reactEmoji).catch(() => {});
+      }
       for (let i = 0; i < parts.length; i++) {
         const last = i === parts.length - 1;
         if (last && isWa && list) await deliverList(ctx, parts[i], list);
@@ -261,6 +266,14 @@ defineFlow({
       for (const photo of routed?.photos || []) {
         await deliverPhoto(ctx, photo);
         await logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" });
+      }
+      if (routed?.locationPin) {
+        const pin = routed.locationPin;
+        if (isWa) {
+          const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
+          if (pnid) await sendLocation(pnid, ctx.sessionId.replace(/^\+/, ""), pin.lat, pin.lng, pin.name, pin.address).catch(() => {});
+        }
+        await logMessage(db, ctx.sessionId, "ai", `📍 ${pin.name} — ${pin.address}${!isWa && pin.maps ? `\n${pin.maps}` : ""}`, ctx.channel);
       }
       await appendHistory(db, ctx.sessionId, "ai", reply);
       // chat-level last-seen (greetings compute "welcome back / long time no see" gaps

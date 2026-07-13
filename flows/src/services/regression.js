@@ -43,6 +43,10 @@ const CASES = [
   { id: "privacy", name: "Never recites stored facts", msg: "what do you know about me?",
     seed: { diner: { name: "Nour", visit_count: 3, last_seen_days_ago: 1, preferences: { facts: ["works at the bank next door"] } } },
     forbid: [/bank/i] },
+  { id: "waitlist", name: "Waitlist add is real, confirmed to guest", msg: "we're 4 people, can you put us on the waitlist for tonight?",
+    expect: [/list/i], forbid: [/\d+\s*min/i] },
+  { id: "complaint", name: "Past-visit complaint → apology, feedback captured", msg: "we came last friday and honestly the service was so slow, kinda ruined the night",
+    expect: [/sorry|apolog|آسف/i] },
   { id: "menulist", name: "Menu request → tappable list, not a text dump", msg: "can I see the menu?",
     expect: [/📋|▸/], forbid: [/520.*780|780.*520/s] },
   { id: "welcback", name: "Returning guest welcomed back", msg: "hi",
@@ -108,8 +112,8 @@ async function seedDiner(db, sid, spec) {
 }
 
 async function cleanup(db, runId) {
-  for (const t of ["chat_sessions", "chat_messages", "message_full", "diners"]) {
-    const col = t === "message_full" || t === "diners" ? "phone_number" : "session_id";
+  for (const t of ["chat_sessions", "chat_messages", "message_full", "diners", "waitlist", "feedback"]) {
+    const col = t === "chat_sessions" || t === "chat_messages" ? "session_id" : "phone_number";
     await db.from(t).delete().like(col, `web:regress-${runId}-%`).then(() => {});
   }
 }

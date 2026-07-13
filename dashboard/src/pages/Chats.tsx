@@ -54,6 +54,11 @@ export default function Chats() {
     loadSessions();
   }
 
+  async function rateReply(m: any, rating: number) {
+    setMessages((xs) => xs.map((x) => (x.id === m.id ? { ...x, rating: rating === 0 ? null : rating } : x)));
+    await api.post(`/api/chat/messages/${m.id}/rate`, { rating }).catch(() => {});
+  }
+
   async function toggleAi() {
     if (!active) return;
     const next = !active.ai_enabled;
@@ -137,11 +142,27 @@ export default function Chats() {
                         <audio controls src={m.media_url} className="mb-1.5 h-9 w-56" />
                       )}
                       {m.message}
-                      {m.created_at && (
-                        <div className="mt-0.5 text-right text-[9px] opacity-40">
-                          {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </div>
-                      )}
+                      <div className="mt-0.5 flex items-center justify-end gap-1.5">
+                        {m.sender === "ai" && (
+                          <>
+                            <button
+                              title="Good reply"
+                              onClick={() => rateReply(m, m.rating === 1 ? 0 : 1)}
+                              className={`text-[11px] transition ${m.rating === 1 ? "opacity-100" : "opacity-30 hover:opacity-70"}`}
+                            >👍</button>
+                            <button
+                              title="Bad reply — flag for review"
+                              onClick={() => rateReply(m, m.rating === -1 ? 0 : -1)}
+                              className={`text-[11px] transition ${m.rating === -1 ? "opacity-100" : "opacity-30 hover:opacity-70"}`}
+                            >👎</button>
+                          </>
+                        )}
+                        {m.created_at && (
+                          <span className="text-[9px] opacity-40">
+                            {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

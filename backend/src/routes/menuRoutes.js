@@ -57,7 +57,7 @@ router.post("/", async (req, res, next) => {
 router.patch("/:id", async (req, res, next) => {
   try {
     const patch = {};
-    for (const k of ["name", "category", "price", "description", "dietary_tags", "available", "sort_order", "photo_url"])
+    for (const k of ["name", "category", "price", "description", "dietary_tags", "available", "sort_order", "photo_url", "ingredients", "spice_level", "bestseller", "pairs_with"])
       if (k in req.body) patch[k] = req.body[k];
     const row = await req.repo.update("menu_items", req.params.id, patch);
     if (!row) return res.status(404).json({ error: "Not found" });

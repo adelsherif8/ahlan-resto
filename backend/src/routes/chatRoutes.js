@@ -98,6 +98,17 @@ router.post("/sessions/:sessionId/messages", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Staff quality signal on AI replies (👍=1 / 👎=-1, 0 clears) — feeds prompt fixes + metrics
+router.post("/messages/:id/rate", async (req, res, next) => {
+  try {
+    const rating = Number(req.body?.rating);
+    if (![1, -1, 0].includes(rating)) return res.status(400).json({ error: "rating must be 1, -1 or 0" });
+    const row = await req.repo.update("chat_messages", req.params.id, { rating: rating === 0 ? null : rating });
+    if (!row) return res.status(404).json({ error: "Not found" });
+    res.json(row);
+  } catch (e) { next(e); }
+});
+
 // Toggle AI per conversation (handoff / hand-back)
 router.patch("/sessions/:id", async (req, res, next) => {
   try {
