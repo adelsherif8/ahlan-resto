@@ -181,8 +181,15 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
    - their birthday or anniversary → detected_preferences.occasion = {"type":"birthday"|"anniversary","date":"MM-DD"} (compute MM-DD from TODAY IS if they say "next Friday")
    - other durable personal facts (kids, works nearby, hates cilantro) → detected_facts: short third-person snippets, max 8 words each.
    NEVER capture sensitive info (health beyond food restrictions, religion, politics, private drama). Passing mentions ("my friend loves pasta") are NOT the guest's own preferences.
+12. QUICK REPLIES: when your reply naturally offers a small set of next steps or choices, set quick_replies to 2-3 SHORT tap-labels (max 20 chars each, in the GUEST'S language — e.g. ["Book a table", "See the menu"] or ["احجزلي", "المنيو"]). Skip them for flowing conversation; never more than 3, never mid-story.
+13. If they ask to SEE THE MENU / "what do you have": reply with a 1-line appetizing teaser and set send_menu_list=true — we send a tappable menu; NEVER paste the full menu as text.
 
-Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "suggested_faq": {"question": string, "context": string}|null }`;
+Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "suggested_faq": {"question": string, "context": string}|null }`;
+
+      // mood/VIP routing: frustrated, urgent or VIP guests get the bigger model
+      const model = classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip
+        ? "gpt-4.1"
+        : "gpt-4.1-mini";
 
       const convo = (history || []).slice(-12).map((h) => ({
         role: h.role === "guest" ? "user" : "assistant",
@@ -192,8 +199,8 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       }));
       convo.push({ role: "user", content: message });
 
-      return chatJSON("gpt-4.1-mini", system, convo, { temperature: 0.6, maxTokens: 500 });
-    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket } });
+      return chatJSON(model, system, convo, { temperature: 0.6, maxTokens: 500 });
+    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, model: classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip ? "gpt-4.1 (mood/VIP escalation)" : "gpt-4.1-mini" } });
 
     const out = llmOut.value || {};
     const reply = (out.reply || "One second! 🙌").slice(0, 3500);
@@ -269,9 +276,30 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       if (photos.length === 3) break;
     }
 
-    return { reply, handoff: !!out.needs_handoff, photos };
+    const quickReplies = (out.quick_replies || []).map((q) => String(q).trim().slice(0, 20)).filter(Boolean).slice(0, 3);
+    const menuList = out.send_menu_list ? buildMenuList(context.menu) : null;
+
+    return { reply, handoff: !!out.needs_handoff, photos, quickReplies, menuList };
   },
 });
+
+// WhatsApp list message: one tappable row per category (10-row API cap).
+// Tapping a row sends the category name back as a normal message — the bot answers it.
+function buildMenuList(menu) {
+  const cats = [...new Set(menu.map((m) => m.category).filter(Boolean))].slice(0, 10);
+  if (!cats.length) return null;
+  return {
+    button: "View menu 🍽",
+    sections: [{
+      title: "Our menu",
+      rows: cats.map((c) => ({
+        id: `cat_${String(c).replace(/[^\w]/g, "").slice(0, 20)}`,
+        title: String(c).slice(0, 24),
+        description: `${menu.filter((m) => m.category === c).length} dishes`,
+      })),
+    }],
+  };
+}
 
 // MEMORY block — what we know about this guest, with hard anti-creepiness rules.
 // Only lines with real data are included; empty memory = no block at all.

@@ -98,6 +98,33 @@ export async function sendImage(phoneNumberId, to, imageUrl, caption = "") {
   return graphPost(phoneNumberId, { to, type: "image", image: { link: imageUrl, caption: caption.slice(0, 1024) } });
 }
 
+// Quick-reply buttons (max 3, 20-char titles). Tapping one sends its title back
+// as a normal message — ingest already parses interactive button replies.
+export async function sendButtons(phoneNumberId, to, bodyText, labels) {
+  const buttons = labels.slice(0, 3).map((l, i) => ({
+    type: "reply",
+    reply: { id: `qr_${i}_${String(l).replace(/[^\w]/g, "").slice(0, 12)}`, title: String(l).slice(0, 20) },
+  }));
+  return graphPost(phoneNumberId, {
+    to,
+    type: "interactive",
+    interactive: { type: "button", body: { text: bodyText.slice(0, 1024) }, action: { buttons } },
+  });
+}
+
+// List message (10 rows total across sections). Tapping a row sends its title back.
+export async function sendList(phoneNumberId, to, bodyText, buttonLabel, sections) {
+  return graphPost(phoneNumberId, {
+    to,
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: { text: bodyText.slice(0, 1024) },
+      action: { button: String(buttonLabel).slice(0, 20), sections },
+    },
+  });
+}
+
 export async function sendReaction(phoneNumberId, to, messageId, emoji) {
   return graphPost(phoneNumberId, { to, type: "reaction", reaction: { message_id: messageId, emoji } });
 }

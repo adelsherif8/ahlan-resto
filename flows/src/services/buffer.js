@@ -111,6 +111,7 @@ export async function claimBurst(db, sessionId) {
   return {
     merged: messages.join("\n").trim(),
     count: messages.length,
+    last_message_id: rows.at(-1)?.wa_message_id || null,
     window_ms: meta ? Date.now() - meta.firstAt : null,
     channel: meta?.channel || "web",
     signature,

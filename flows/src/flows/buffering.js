@@ -8,7 +8,7 @@ import { logMessage, getSession, setSessionFlags, notifyDashboard } from "../ser
 import { appendHistory, getHistory } from "../services/history.js";
 import { sessionPrecheck, detectAffirmative, detectSelfCorrection } from "../services/precheck.js";
 import { processWaMedia } from "../services/media.js";
-import { sendText, sendImage, markReadWithTyping, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
+import { sendText, sendImage, sendButtons, sendList, markReadWithTyping, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
 import { bump } from "../services/metrics.js";
 
 const HISTORY_TTL_MS = 60 * 60 * 1000; // fresh conversation after 1h of silence (removebuffer.json behavior, on read)
@@ -231,17 +231,32 @@ defineFlow({
 
     // ---- humanize_delay ----
     await f.node("humanize_delay", async () => {
+      // refresh the WhatsApp typing indicator so long thinks never look dead
+      const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
+      if (route.channel === "whatsapp" && String(burst.last_message_id || "").startsWith("wamid.")) {
+        const pnid = route.phoneNumberId || WA_PHONE_NUMBER_ID;
+        if (pnid) markReadWithTyping(pnid, burst.last_message_id).catch(() => {});
+      }
       const ms = Math.min(Number(config.ai?.response_delay_ms) || 800, 4000);
       await new Promise((r) => setTimeout(r, ms));
       return { delayed_ms: ms };
     }, { input: { configured: config.ai?.response_delay_ms || "default 800ms" } });
 
-    // ---- deliver (channel-aware, splits long replies, sends photos) ----
+    // ---- deliver (channel-aware, splits long replies, sends photos/buttons/lists) ----
     await f.node("deliver", async () => {
       const parts = splitReply(reply);
-      for (const part of parts) {
-        await deliverToChannel(ctx, part);
-        await logMessage(db, ctx.sessionId, "ai", part, ctx.channel);
+      const isWa = (sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel) === "whatsapp";
+      const qrs = routed?.quickReplies || [];
+      const list = routed?.menuList || null;
+      for (let i = 0; i < parts.length; i++) {
+        const last = i === parts.length - 1;
+        if (last && isWa && list) await deliverList(ctx, parts[i], list);
+        else if (last && isWa && qrs.length) await deliverButtons(ctx, parts[i], qrs);
+        else await deliverToChannel(ctx, parts[i]);
+        // the log mirrors what the guest sees (buttons/list rows as ▸ lines; also the web fallback)
+        const suffix = last && list ? `\n📋 ${list.sections[0].rows.map((r) => "▸ " + r.title).join("  ")}`
+          : last && qrs.length ? `\n${qrs.map((q) => "▸ " + q).join("  ")}` : "";
+        await logMessage(db, ctx.sessionId, "ai", parts[i] + suffix, ctx.channel);
       }
       for (const photo of routed?.photos || []) {
         await deliverPhoto(ctx, photo);
@@ -251,7 +266,7 @@ defineFlow({
       // chat-level last-seen (greetings compute "welcome back / long time no see" gaps
       // from it) — stamped AFTER the reply so FRIENDLY saw the PREVIOUS interaction time
       await db.from("diners").update({ last_seen_at: new Date().toISOString() }).eq("phone_number", ctx.sessionId);
-      return { parts: parts.length, photos: routed?.photos?.length || 0, via: sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel, reply };
+      return { parts: parts.length, photos: routed?.photos?.length || 0, buttons: qrs.length, menu_list: !!list, via: sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel, reply };
     }, { input: { reply_length: reply.length, fast_path: routed?.fast_path || null, photos: routed?.photos?.length || 0 } });
 
     // ---- post_check: guest kept typing while we were thinking? answer that too ----
@@ -316,6 +331,23 @@ async function deliverPhoto(ctx, photo) {
 export async function deliverStaffReply(ctx, text) {
   await deliverToChannel(ctx, text);
   await appendHistory(ctx.tenant.db, ctx.sessionId, "staff", text);
+}
+
+// Interactive senders — fall back to plain text if the interactive send fails.
+async function deliverButtons(ctx, text, labels) {
+  const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
+  const phoneNumberId = route.phoneNumberId || WA_PHONE_NUMBER_ID;
+  if (!phoneNumberId) return deliverToChannel(ctx, text);
+  await sendButtons(phoneNumberId, ctx.sessionId.replace(/^\+/, ""), text, labels)
+    .catch(() => deliverToChannel(ctx, text));
+}
+
+async function deliverList(ctx, text, list) {
+  const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
+  const phoneNumberId = route.phoneNumberId || WA_PHONE_NUMBER_ID;
+  if (!phoneNumberId) return deliverToChannel(ctx, text);
+  await sendList(phoneNumberId, ctx.sessionId.replace(/^\+/, ""), text, list.button, list.sections)
+    .catch(() => deliverToChannel(ctx, text));
 }
 
 // WhatsApp sends the sender's profile name on every message — keep it on the diner.

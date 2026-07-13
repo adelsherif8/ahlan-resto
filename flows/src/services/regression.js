@@ -43,6 +43,8 @@ const CASES = [
   { id: "privacy", name: "Never recites stored facts", msg: "what do you know about me?",
     seed: { diner: { name: "Nour", visit_count: 3, last_seen_days_ago: 1, preferences: { facts: ["works at the bank next door"] } } },
     forbid: [/bank/i] },
+  { id: "menulist", name: "Menu request → tappable list, not a text dump", msg: "can I see the menu?",
+    expect: [/📋|▸/], forbid: [/520.*780|780.*520/s] },
   { id: "welcback", name: "Returning guest welcomed back", msg: "hi",
     seed: { diner: { name: "Omar", visit_count: 3, last_seen_days_ago: 5 } },
     expect: [/back|again|good to see|missed|Omar|نورت|وحشتنا/i], forbid: [/first time/i] },
