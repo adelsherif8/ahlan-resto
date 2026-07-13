@@ -12,6 +12,10 @@ export const TEST_RESTO_SUPABASE_KEY = process.env.TEST_RESTO_SUPABASE_KEY || ""
 
 export const DEMO_MODE = !SUPABASE_AHLAN_URL && !TEST_RESTO_SUPABASE_URL;
 
+// Flows service — staff replies are relayed there for channel delivery + AI history
+export const FLOWS_URL = process.env.FLOWS_URL || "";
+export const FLOWS_OPS_TOKEN = process.env.FLOWS_OPS_TOKEN || "";
+
 export function log(...args) {
   console.log(new Date().toISOString().slice(11, 19), ...args);
 }

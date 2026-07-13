@@ -46,7 +46,7 @@ export default function Diners() {
                 <div onClick={() => open(d.id)} className="flex items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-medium">
-                      {d.name || d.phone_number}
+                      {d.name || d.wa_profile_name || d.phone_number}
                       {d.is_vip && <Star size={13} className="fill-fuchsia-400 text-fuchsia-400" />}
                     </div>
                     <div className="text-xs text-zinc-500">
@@ -69,7 +69,7 @@ export default function Diners() {
           {selected ? (
             <Card className="sticky top-0 p-5">
               <div className="mb-1 flex items-center gap-2 text-lg font-semibold">
-                {selected.name || selected.phone_number}
+                {selected.name || selected.wa_profile_name || selected.phone_number}
                 {selected.is_vip && <Star size={15} className="fill-fuchsia-400 text-fuchsia-400" />}
               </div>
               <div className="mb-4 text-sm text-zinc-500">{selected.phone_number}</div>

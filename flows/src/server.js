@@ -7,7 +7,8 @@ import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, get
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
 import { metrics } from "./services/metrics.js";
 import { runRegression, regressionStatus } from "./services/regression.js";
-import { handleFlushFailure } from "./flows/buffering.js";
+import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
+import { getSession } from "./services/chatlog.js";
 
 // register flows
 import "./flows/friendly.js";
@@ -91,6 +92,24 @@ app.get("/api/web/poll", async (req, res) => {
       .limit(60);
     if (error) throw new Error(error.message);
     res.json((data || []).map((m) => ({ sender: m.sender, message: m.message, at: m.created_at, media_url: m.media_url, media_type: m.media_type })));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ================= staff reply relay (called by the restaurant backend) =================
+// Delivers a dashboard staff reply to the guest's channel (WhatsApp when live; web needs
+// no push — the durable poll reads chat_messages) and appends it to AI history so the
+// bot knows what the team promised when it's handed back. Token-locked like ops.
+app.post("/api/staff/reply", (req, res, next) => opsAuth(req, res, next), async (req, res) => {
+  try {
+    const { sessionId, message } = req.body || {};
+    if (!sessionId || !message) return res.status(400).json({ error: "sessionId and message required" });
+    const tenant = await resolveRestaurant();
+    const session = await getSession(tenant.db, String(sessionId));
+    const channel = session?.channel || (String(sessionId).startsWith("web:") ? "web" : "whatsapp");
+    await deliverStaffReply({ sessionId: String(sessionId), tenant, channel }, String(message).slice(0, 3500));
+    res.json({ delivered: true, channel });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

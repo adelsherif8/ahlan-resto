@@ -73,12 +73,12 @@ export default function Chats() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-medium">{s.phone_number || s.session_id}</span>
+                    <span className="truncate text-sm font-medium">{s.diner_name || s.phone_number || s.session_id}</span>
                     {s.needs_attention && <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />}
                   </div>
                   <div className="truncate text-xs text-zinc-500">{s.last_message}</div>
                   <div className="mt-0.5 text-[10px] text-zinc-600">
-                    {s.session_type || "chat"} · AI {s.ai_enabled ? "on" : "off"}
+                    {s.diner_name ? `${s.phone_number || s.session_id} · ` : ""}{s.session_type || "chat"} · AI {s.ai_enabled ? "on" : "off"}
                   </div>
                 </div>
               </button>
@@ -93,7 +93,10 @@ export default function Chats() {
             <>
               <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
                 <div>
-                  <div className="text-sm font-semibold">{active.phone_number || active.session_id}</div>
+                  <div className="text-sm font-semibold">
+                    {active.diner_name || active.phone_number || active.session_id}
+                    {active.diner_name && <span className="ml-2 text-xs font-normal text-zinc-500">{active.phone_number || active.session_id}</span>}
+                  </div>
                   {active.handoff_briefing && (
                     <div className="mt-0.5 max-w-md text-xs text-amber-300">🤝 {active.handoff_briefing}</div>
                   )}

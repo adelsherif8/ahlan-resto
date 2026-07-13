@@ -15,19 +15,27 @@ function cost(model, tin, tout) {
   return (tin * pi + tout * po) / 1e6;
 }
 
+const RETRYABLE = new Set([429, 500, 502, 503, 529]);
+
 async function chat(model, messages, { json = false, temperature = 0.4, maxTokens = 700 } = {}) {
   if (!llmReady) throw new Error("OPENAI_API_KEY not set");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-      ...(json ? { response_format: { type: "json_object" } } : {}),
-    }),
-  });
+  let res;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        ...(json ? { response_format: { type: "json_object" } } : {}),
+      }),
+    }).catch((e) => ({ ok: false, status: 0, text: async () => e.message }));
+    if (res.ok) break;
+    if (attempt >= 1 || (!RETRYABLE.has(res.status) && res.status !== 0)) break;
+    await new Promise((r) => setTimeout(r, 800)); // one retry on rate-limit/5xx/network blip
+  }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`OpenAI ${res.status}: ${body.slice(0, 200)}`);
@@ -54,15 +62,29 @@ export async function chatText(model, system, user, opts = {}) {
 }
 
 export async function chatJSON(model, system, user, opts = {}) {
-  const r = await chat(model, [
+  const messages = [
     { role: "system", content: system },
     ...(Array.isArray(user) ? user : [{ role: "user", content: user }]),
-  ], { ...opts, json: true });
-  let value = {};
+  ];
+  const r = await chat(model, messages, { ...opts, json: true });
   try {
-    value = JSON.parse(r.text);
+    return { value: JSON.parse(r.text), __usage: r.__usage };
+  } catch {}
+  // invalid JSON → one corrective re-ask (cost of both calls attributed to the node)
+  const r2 = await chat(model, [
+    ...messages,
+    { role: "assistant", content: r.text },
+    { role: "user", content: "That was not valid JSON. Reply again with ONLY the valid JSON object — no prose, no code fences." },
+  ], { ...opts, json: true });
+  const usage = {
+    model,
+    tokens_in: r.__usage.tokens_in + r2.__usage.tokens_in,
+    tokens_out: r.__usage.tokens_out + r2.__usage.tokens_out,
+    cost_usd: r.__usage.cost_usd + r2.__usage.cost_usd,
+  };
+  try {
+    return { value: JSON.parse(r2.text), __usage: usage };
   } catch {
-    throw new Error(`LLM returned invalid JSON: ${r.text.slice(0, 120)}`);
+    throw new Error(`LLM returned invalid JSON twice: ${r2.text.slice(0, 120)}`);
   }
-  return { value, __usage: r.__usage };
 }

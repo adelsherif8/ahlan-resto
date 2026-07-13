@@ -8,7 +8,7 @@ import { logMessage, getSession, setSessionFlags, notifyDashboard } from "../ser
 import { appendHistory, getHistory } from "../services/history.js";
 import { sessionPrecheck, detectAffirmative, detectSelfCorrection } from "../services/precheck.js";
 import { processWaMedia } from "../services/media.js";
-import { sendText, sendImage, markReadWithTyping } from "../services/whatsapp.js";
+import { sendText, sendImage, markReadWithTyping, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
 import { bump } from "../services/metrics.js";
 
 const HISTORY_TTL_MS = 60 * 60 * 1000; // fresh conversation after 1h of silence (removebuffer.json behavior, on read)
@@ -126,7 +126,10 @@ defineFlow({
     // ---- log_inbound ----
     await f.node("log_inbound", async () => {
       await logMessage(db, ctx.sessionId, "guest", finalText, ctx.channel, norm.media);
-      return { logged: true, text: finalText.slice(0, 120) };
+      if (ctx.channel === "whatsapp" && event.profileName) {
+        await saveWaProfileName(db, ctx.sessionId, event.profileName);
+      }
+      return { logged: true, text: finalText.slice(0, 120), wa_profile_name: event.profileName || null };
     }, { input: { sessionId: ctx.sessionId, media: norm.media } });
 
     // reactions: visible to staff, no bot reply
@@ -245,6 +248,9 @@ defineFlow({
         await logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" });
       }
       await appendHistory(db, ctx.sessionId, "ai", reply);
+      // chat-level last-seen (greetings compute "welcome back / long time no see" gaps
+      // from it) — stamped AFTER the reply so FRIENDLY saw the PREVIOUS interaction time
+      await db.from("diners").update({ last_seen_at: new Date().toISOString() }).eq("phone_number", ctx.sessionId);
       return { parts: parts.length, photos: routed?.photos?.length || 0, via: sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel, reply };
     }, { input: { reply_length: reply.length, fast_path: routed?.fast_path || null, photos: routed?.photos?.length || 0 } });
 
@@ -286,9 +292,10 @@ function splitReply(reply) {
 
 async function deliverToChannel(ctx, text) {
   const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
-  if (route.channel === "whatsapp" && route.phoneNumberId) {
+  const phoneNumberId = route.phoneNumberId || WA_PHONE_NUMBER_ID;
+  if (route.channel === "whatsapp" && phoneNumberId) {
     const to = ctx.sessionId.replace(/^\+/, "");
-    await sendText(route.phoneNumberId, to, text).catch(async (e) => {
+    await sendText(phoneNumberId, to, text).catch(async (e) => {
       await ctx.tenant.db.from("pending_message_queue").insert({ phone_number: ctx.sessionId, payload: { text }, attempts: 1, next_attempt_at: new Date(Date.now() + 5 * 60000).toISOString(), last_error: e.message }).catch(() => {});
     });
   }
@@ -297,8 +304,27 @@ async function deliverToChannel(ctx, text) {
 
 async function deliverPhoto(ctx, photo) {
   const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
-  if (route.channel === "whatsapp" && route.phoneNumberId) {
-    await sendImage(route.phoneNumberId, ctx.sessionId.replace(/^\+/, ""), photo.url, photo.caption).catch(() => {});
+  const phoneNumberId = route.phoneNumberId || WA_PHONE_NUMBER_ID;
+  if (route.channel === "whatsapp" && phoneNumberId) {
+    await sendImage(phoneNumberId, ctx.sessionId.replace(/^\+/, ""), photo.url, photo.caption).catch(() => {});
+  }
+}
+
+// Staff replies from the restaurant dashboard: deliver to the guest's channel and
+// enter AI history, so a later hand-back never contradicts what the team promised.
+// (The backend already logged the chat_messages row — no logMessage here.)
+export async function deliverStaffReply(ctx, text) {
+  await deliverToChannel(ctx, text);
+  await appendHistory(ctx.tenant.db, ctx.sessionId, "staff", text);
+}
+
+// WhatsApp sends the sender's profile name on every message — keep it on the diner.
+// Soft identity for greetings/CRM; guest-confirmed diners.name always outranks it.
+async function saveWaProfileName(db, phone, profileName) {
+  const name = String(profileName).slice(0, 80);
+  const { data } = await db.from("diners").update({ wa_profile_name: name }).eq("phone_number", phone).select("id");
+  if (!data?.length) {
+    await db.from("diners").insert({ phone_number: phone, status: "lead", wa_profile_name: name });
   }
 }
 

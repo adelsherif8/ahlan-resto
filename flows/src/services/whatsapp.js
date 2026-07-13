@@ -8,6 +8,9 @@ import { log } from "../config.js";
 export const WA_TOKEN = process.env.WA_TOKEN || "";
 export const WA_APP_SECRET = process.env.WA_APP_SECRET || "";
 export const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN || "ahlan-verify";
+// our WhatsApp Business number's phone-number-id — fallback for outbound sends when the
+// in-memory session route is gone (staff replies after a redeploy, cron messages later)
+export const WA_PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID || "";
 export const WA_SKIP_SIGNATURE = process.env.WA_SKIP_SIGNATURE === "1";
 export const DRY_RUN = process.env.DRY_RUN === "1" || !WA_TOKEN;
 const GRAPH = "https://graph.facebook.com/v24.0";

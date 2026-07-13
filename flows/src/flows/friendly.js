@@ -5,6 +5,11 @@ import { chatJSON } from "../services/llm.js";
 import { hoursToday } from "../services/tenant.js";
 import { setSessionFlags, notifyDashboard, getSession } from "../services/chatlog.js";
 
+// rolling-summary cooldown: refresh at most once per 10 min per session
+// (history is capped at 20 turns, so a turn-count gate alone would stall at the cap)
+const SUMMARY_COOLDOWN_MS = 10 * 60_000;
+const lastSummaryAt = new Map(); // sessionId -> ts
+
 defineFlow({
   name: "friendly",
   description: "Host agent — general questions, menu, hours, FAQs, occasions, handoff",
@@ -45,6 +50,26 @@ defineFlow({
         .in("status", ["confirmed", "reminded", "pending"])
         .limit(1);
 
+      // dining RIGHT NOW = a reservation today marked arrived/seated (staff or ARRIVAL flow)
+      const { data: atTable } = await db
+        .from("reservations")
+        .select("code,party_size,time_slot,occasion")
+        .eq("diner_phone", ctx.sessionId)
+        .eq("date", today)
+        .in("status", ["arrived", "seated"])
+        .limit(1);
+
+      // relationship situation — pure code, from CRM facts
+      const lastTouchMs = Math.max(
+        diner?.last_seen_at ? new Date(diner.last_seen_at).getTime() : 0,
+        diner?.last_visit_at ? new Date(diner.last_visit_at).getTime() : 0
+      );
+      const gapDays = lastTouchMs ? Math.round((Date.now() - lastTouchMs) / 86400000) : null;
+      const situation = atTable?.[0] ? "dining_now"
+        : gapDays === null && (diner?.visit_count || 0) === 0 ? "first_timer"
+        : gapDays !== null && gapDays > 45 ? "long_time_no_see"
+        : "returning";
+
       const session = await getSession(db, ctx.sessionId);
 
       const h = hoursToday(config.hours, config.basic_info?.timezone);
@@ -56,6 +81,11 @@ defineFlow({
         menu,
         events: events || [],
         upcomingReservation: upcoming?.[0] || null,
+        diningNow: atTable?.[0] || null,
+        situation,
+        gapDays,
+        greetName: diner?.name || diner?.wa_profile_name || null,
+        greetNameSource: diner?.name ? "guest-confirmed" : diner?.wa_profile_name ? "WhatsApp profile (unconfirmed — may be a nickname/handle; use casually, skip if it looks like junk or a business name)" : null,
         handoffPending: !!session?.needs_attention,
         summary: mf?.conversation_summary || null,
         visitTier: !diner || diner.visit_count === 0 ? "first-timer"
@@ -81,9 +111,7 @@ defineFlow({
     const llmOut = await f.node("reply_llm", async () => {
       const bi = config.basic_info || {};
       const ai = config.ai || {};
-      const menuText = context.menu
-        .map((m) => `${m.name} (${m.category}, ${m.price} ${config.payments?.currency || "EGP"}${m.dietary_tags?.length ? ", " + m.dietary_tags.join("/") : ""}${m.photo_url ? ", 📷 has photo" : ""})${m.description ? " — " + m.description : ""}`)
-        .join("\n");
+      const menuText = buildMenuText(context.menu, message, history, config.payments?.currency || "EGP");
 
       const system = `You are ${ai.name || "the host"} — the greeter at the door of ${config.name}, and the waiter who knows every dish by heart. You're a real hospitality person on WhatsApp, not a support bot.
 Personality: ${ai.personality || "warm and friendly"}.
@@ -91,9 +119,8 @@ Personality: ${ai.personality || "warm and friendly"}.
 VOICE & BEHAVIOR (this is what makes you feel human):
 - Talk like a real Egyptian restaurant host texting: short, warm, alive. Casual rhythm, contractions, natural slang when the guest uses it.
 - BANNED phrases: "How can I assist you today", "I'm here to help", "feel free to", "How can I make your day", "don't hesitate", robotic sign-offs. A waiter never talks like that.
-- Greet like the door — but ONLY on the FIRST message of a conversation${context.isNewConversation ? " (this IS the first message)" : " (this conversation already started — do NOT greet again, no 'Ahlan wa sahlan' openers, just continue naturally)"}. Use their name naturally ONCE if you know it.
-- On a bare "hi": welcome them and ask what they're in the mood for — don't dump menu pitches yet.
-- NEVER ask "first time with us?" if they already told you, or if GUEST CONTEXT says returning/regular/VIP.
+- Greet like the door — but ONLY on the FIRST message of a conversation${context.isNewConversation ? " (this IS the first message)" : " (this conversation already started — do NOT greet again, no welcome openers, just continue naturally)"}. GREETING & RELATIONSHIP below tells you exactly WHO you're greeting — match it.
+- NEVER ask "first time with us?" if they already told you, or if GREETING & RELATIONSHIP says returning/long_time_no_see/dining_now.
 - Sell like a waiter who loves the food: describe taste and texture ("the short rib falls off the bone — 12 hours slow"), suggest pairings, HAVE favorites when asked (pick from our real menu and say why). Opinions about our menu: encouraged. Facts: only from FACTS below.
 - When a group has constraints (vegan / no spice / allergy), recommend ONLY dishes that fit everyone — a good waiter never suggests something half the table can't eat.
 - At most ONE natural follow-up question, the kind a host actually asks ("عيد ميلاد ولا خروجة عادية؟ 😄", "first time with us?").
@@ -118,6 +145,11 @@ ${menuText || "(menu not loaded)"}
 - UPCOMING EVENTS: ${context.events.length ? context.events.map((e) => `${e.title} on ${e.date}${e.start_time ? " at " + String(e.start_time).slice(0, 5) : ""}${e.price ? " (EGP " + e.price + ")" : ""}`).join("; ") : "none announced"}
 - FAQs: ${JSON.stringify(config.faqs || [])}
 
+GREETING & RELATIONSHIP (facts from our CRM — phrase them naturally, NEVER recite them):
+- Who this is: ${situationGuide(context, config)}
+- Name to greet with: ${context.greetName ? `"${context.greetName}" (source: ${context.greetNameSource})` : "unknown — don't demand it; capture it naturally if they offer it"}
+- Opening style: ${(config.ai?.greeting || "").trim() ? `the house greeting is "${config.ai.greeting.trim()}" — adapt it to the guest's language and the situation, never copy it robotically` : `no house greeting configured — open naturally in your personality and the guest's language; NEVER use brand words, slogans or greeting words that aren't in FACTS or your personality`}
+
 GUEST CONTEXT (use silently — NEVER recite it back):
 - Name: ${diner?.name || "unknown"} | Tier: ${context.visitTier}${diner?.is_vip ? " (VIP — extra warm)" : ""}
 - Allergies: ${diner?.allergies?.length ? diner.allergies.join(", ").toUpperCase() + " — HARD RULE: NEVER recommend or suggest any item whose dietary_tags contain these allergens. When asked for recommendations, pick ONLY safe items and don't mention the allergy. Only if they explicitly ask for an unsafe item, warn them once." : "none known"}
@@ -126,7 +158,7 @@ GUEST CONTEXT (use silently — NEVER recite it back):
 ${context.summary ? `- Earlier in this relationship (summary of older chats): ${context.summary}` : ""}
 
 ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been notified about this guest. If they follow up, reassure them the team is on it and will reply here shortly — do NOT restart cheerful small talk or re-pitch the menu.\n" : ""}RULES:
-0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. Your reply language = the language of the guest's LAST message (detected: ${classification?.language || "detect it yourself"}). English message → reply 100% in ENGLISH (at most one flavor word like "ahlan"). The Arabic/Franco snippets in these instructions are EXAMPLES for those languages only — never copy them into an English reply.
+0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. Your reply language = the language of the guest's LAST message (detected: ${classification?.language || "detect it yourself"}). English message → reply 100% in ENGLISH (a single local flavor word is allowed ONLY if it fits this restaurant's own personality). The Arabic/Franco snippets in these instructions are EXAMPLES for those languages only — never copy them into an English reply.
 1. عربي → عربي مصري. Franco-Arabizi → reply FULLY in Franco, Latin letters ONLY (e.g. "lazem tegarrab el Mushroom Shawarma, ta3mo gamed"). NEVER answer Franco with Arabic script. ALWAYS keep menu item names in English.
 2. 1–3 short sentences. WhatsApp tone, warm, ${ai.personality ? "on-personality" : "friendly"}. Emojis welcome but max 2.
 3. NEVER invent menu items, prices, events, or policies. Item not in the menu list = "not available tonight".
@@ -142,7 +174,9 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
 
       const convo = (history || []).slice(-12).map((h) => ({
         role: h.role === "guest" ? "user" : "assistant",
-        content: h.message,
+        // staff takeover replies enter history too — mark them so the AI knows what
+        // the team already promised and never contradicts it
+        content: h.role === "staff" ? `[Reply sent by a HUMAN staff member — treat as a promise already made to the guest]: ${h.message}` : h.message,
       }));
       convo.push({ role: "user", content: message });
 
@@ -177,7 +211,9 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         }
       }
       // rolling summary: long conversations get compressed so context stays sharp + cheap
-      if ((history || []).length >= 14) {
+      if ((history || []).length >= 14 && Date.now() - (lastSummaryAt.get(ctx.sessionId) || 0) > SUMMARY_COOLDOWN_MS) {
+        lastSummaryAt.set(ctx.sessionId, Date.now());
+        if (lastSummaryAt.size > 2000) lastSummaryAt.clear();
         const older = history.slice(0, -6).map((h) => `${h.role}: ${h.message}`).join("\n").slice(0, 4000);
         const sum = await chatJSON("gpt-4o-mini",
           'Summarize this restaurant WhatsApp conversation in 2-3 sentences capturing: guest preferences, unresolved topics, promises made. JSON: {"summary": "..."}',
@@ -205,12 +241,83 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       return { effects: effects.length ? effects : ["none"] };
     }, { input: { needs_handoff: !!out.needs_handoff, handoff_reason: out.handoff_reason, detected_name: out.detected_name } });
 
-    const photos = (out.send_photos || [])
-      .map((name) => context.menu.find((m) => m.name.toLowerCase() === String(name).toLowerCase() && m.photo_url))
-      .filter(Boolean)
-      .slice(0, 3)
-      .map((m) => ({ url: m.photo_url, caption: `${m.name} — ${m.price} ${config.payments?.currency || "EGP"}` }));
+    const photos = [];
+    for (const want of out.send_photos || []) {
+      const m = findMenuPhoto(context.menu, want);
+      if (m && !photos.some((p) => p.url === m.photo_url)) {
+        photos.push({ url: m.photo_url, caption: `${m.name} — ${m.price} ${config.payments?.currency || "EGP"}` });
+      }
+      if (photos.length === 3) break;
+    }
 
     return { reply, handoff: !!out.needs_handoff, photos };
   },
 });
+
+// per-situation hosting stance — facts computed in code, the LLM only phrases them
+function situationGuide(context, config) {
+  switch (context.situation) {
+    case "dining_now":
+      return `a guest sitting AT THEIR TABLE in the restaurant RIGHT NOW (reservation ${context.diningNow?.code || ""}). Do NOT pitch the menu or ask what they're in the mood for — ask how the meal is going / help immediately. Physical requests (waiter, bill, wrong order, complaint) = set needs_handoff=true with urgency, the team is meters away.`;
+    case "long_time_no_see":
+      return `a guest we haven't seen in ~${context.gapDays} days — ONE warm "we missed you / long time" line (never guilt-trip), then if UPCOMING EVENTS or offers exist, mention what's new since.`;
+    case "returning":
+      return `a returning guest — welcome them BACK like you remember them. They know the place; zero first-timer talk.`;
+    default:
+      return `a first-time contact — give a genuine first welcome TO ${config.name} (mention the restaurant name naturally once), then ONE easy hosting question. Don't overwhelm.`;
+  }
+}
+
+// tolerant of emoji, casing, punctuation and plurals in LLM-returned dish names
+function normName(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function findMenuPhoto(menu, name) {
+  const n = normName(name);
+  if (!n) return null;
+  const withPhotos = menu.filter((m) => m.photo_url);
+  return (
+    withPhotos.find((m) => normName(m.name) === n) ||
+    withPhotos.find((m) => normName(m.name) === n.replace(/s$/, "")) ||
+    withPhotos.find((m) => normName(m.name).includes(n) || n.includes(normName(m.name))) ||
+    null
+  );
+}
+
+// Small menus go in full. Past MENU_FULL_LIMIT items, only the categories the guest is
+// actually talking about keep descriptions; the rest compress to name+price+dietary tags
+// (tags stay — the allergy hard rule needs them) so prompt size stays flat on big menus.
+const MENU_FULL_LIMIT = 40;
+function buildMenuText(menu, message, history, currency) {
+  const line = (m, full) => {
+    const tags = m.dietary_tags?.length ? ", " + m.dietary_tags.join("/") : "";
+    const photo = m.photo_url ? ", 📷 has photo" : "";
+    return full
+      ? `${m.name} (${m.category}, ${m.price} ${currency}${tags}${photo})${m.description ? " — " + m.description : ""}`
+      : `${m.name} (${m.price} ${currency}${tags}${photo})`;
+  };
+  if (menu.length <= MENU_FULL_LIMIT) return menu.map((m) => line(m, true)).join("\n");
+
+  const recent = normName(
+    [message, ...(history || []).slice(-6).filter((h) => h.role === "guest").map((h) => h.message)].join(" ")
+  );
+  const hotCategories = new Set();
+  for (const m of menu) {
+    const cat = normName(m.category || "");
+    if ((cat && recent.includes(cat)) || (normName(m.name) && recent.includes(normName(m.name)))) {
+      hotCategories.add(m.category);
+    }
+  }
+  const out = [];
+  const compressed = new Map();
+  for (const m of menu) {
+    if (hotCategories.has(m.category)) out.push(line(m, true));
+    else {
+      if (!compressed.has(m.category)) compressed.set(m.category, []);
+      compressed.get(m.category).push(line(m, false));
+    }
+  }
+  for (const [cat, items] of compressed) out.push(`${cat}: ${items.join(" · ")}`);
+  return out.join("\n");
+}

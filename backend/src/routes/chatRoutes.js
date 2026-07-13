@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { restaurantContext } from "../middleware/restaurantContext.js";
+import { FLOWS_URL, FLOWS_OPS_TOKEN, log } from "../config/env.js";
 
 const router = Router();
 router.use(requireAuth, restaurantContext);
@@ -8,7 +9,16 @@ router.use(requireAuth, restaurantContext);
 router.get("/sessions", async (req, res, next) => {
   try {
     const rows = await req.repo.list("chat_sessions", { order: "last_message_at" });
-    res.json(rows);
+    // attach the diner's name (guest-confirmed first, WhatsApp profile as fallback)
+    let byPhone = new Map();
+    try {
+      const diners = await req.repo.list("diners");
+      byPhone = new Map(diners.map((d) => [d.phone_number, d]));
+    } catch {}
+    res.json(rows.map((s) => {
+      const d = byPhone.get(s.phone_number || s.session_id);
+      return { ...s, diner_name: d?.name || d?.wa_profile_name || null };
+    }));
   } catch (e) { next(e); }
 });
 
@@ -23,8 +33,8 @@ router.get("/sessions/:sessionId/messages", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// Staff reply. In demo mode it just logs to the thread; in production this will
-// also forward to the flows service which delivers via WhatsApp/IG.
+// Staff reply: logged to the thread, then relayed to the flows service which delivers
+// to the guest's channel (WhatsApp/IG) and enters it into the AI's history.
 router.post("/sessions/:sessionId/messages", async (req, res, next) => {
   try {
     const { message } = req.body || {};
@@ -43,7 +53,22 @@ router.post("/sessions/:sessionId/messages", async (req, res, next) => {
         last_message_at: new Date().toISOString(),
         needs_attention: false,
       });
-    res.status(201).json(row);
+
+    let delivery = { delivered: false, reason: "FLOWS_URL not set (demo mode)" };
+    if (FLOWS_URL) {
+      try {
+        const r = await fetch(`${FLOWS_URL}/api/staff/reply`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(FLOWS_OPS_TOKEN ? { "x-ops-token": FLOWS_OPS_TOKEN } : {}) },
+          body: JSON.stringify({ sessionId: req.params.sessionId, message }),
+        });
+        delivery = r.ok ? await r.json() : { delivered: false, reason: `flows ${r.status}` };
+      } catch (e) {
+        delivery = { delivered: false, reason: e.message };
+        log("staff reply relay failed:", e.message);
+      }
+    }
+    res.status(201).json({ ...row, delivery });
   } catch (e) { next(e); }
 });
 
