@@ -22,6 +22,31 @@ router.get("/sessions", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Everything the AI knows about this guest — powers the live-chat context panel.
+// Same data FRIENDLY reads, so staff taking over sees exactly what the bot saw.
+router.get("/sessions/:sessionId/context", async (req, res, next) => {
+  try {
+    const sid = req.params.sessionId;
+    const sessions = await req.repo.list("chat_sessions", { where: { session_id: sid } });
+    let diner = null, upcoming = null, summary = null;
+    try {
+      const diners = await req.repo.list("diners", { where: { phone_number: sid } });
+      diner = diners[0] || null;
+    } catch {}
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      upcoming = (await req.repo.list("reservations", { order: "date" }))
+        .filter((r) => r.diner_phone === sid && r.date >= today &&
+          ["pending", "confirmed", "reminded", "arrived", "seated"].includes(r.status))[0] || null;
+    } catch {}
+    try {
+      const mf = await req.repo.list("message_full", { where: { phone_number: sid } });
+      summary = mf[0]?.conversation_summary || null;
+    } catch {}
+    res.json({ session: sessions[0] || null, diner, upcoming_reservation: upcoming, summary });
+  } catch (e) { next(e); }
+});
+
 router.get("/sessions/:sessionId/messages", async (req, res, next) => {
   try {
     const rows = await req.repo.list("chat_messages", {
@@ -52,6 +77,7 @@ router.post("/sessions/:sessionId/messages", async (req, res, next) => {
         last_message: message,
         last_message_at: new Date().toISOString(),
         needs_attention: false,
+        ai_enabled: false, // staff replied → auto-takeover so two voices never talk over each other
       });
 
     let delivery = { delivered: false, reason: "FLOWS_URL not set (demo mode)" };

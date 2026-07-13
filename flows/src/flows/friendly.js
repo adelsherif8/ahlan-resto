@@ -70,6 +70,9 @@ defineFlow({
         : gapDays !== null && gapDays > 45 ? "long_time_no_see"
         : "returning";
 
+      const prefs = diner?.preferences || {};
+      const birthdayInDays = daysUntilMMDD(prefs.occasions?.birthday);
+
       const session = await getSession(db, ctx.sessionId);
 
       const h = hoursToday(config.hours, config.basic_info?.timezone);
@@ -84,6 +87,8 @@ defineFlow({
         diningNow: atTable?.[0] || null,
         situation,
         gapDays,
+        prefs,
+        birthdayInDays,
         greetName: diner?.name || diner?.wa_profile_name || null,
         greetNameSource: diner?.name ? "guest-confirmed" : diner?.wa_profile_name ? "WhatsApp profile (unconfirmed — may be a nickname/handle; use casually, skip if it looks like junk or a business name)" : null,
         handoffPending: !!session?.needs_attention,
@@ -156,6 +161,7 @@ GUEST CONTEXT (use silently — NEVER recite it back):
 - Their upcoming reservation: ${context.upcomingReservation ? `${context.upcomingReservation.code} on ${context.upcomingReservation.date} ${String(context.upcomingReservation.time_slot).slice(0, 5)} for ${context.upcomingReservation.party_size}` : "none"}
 - Detected mood: ${classification?.mood || "neutral"}
 ${context.summary ? `- Earlier in this relationship (summary of older chats): ${context.summary}` : ""}
+${memoryBlock(context, diner)}
 
 ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been notified about this guest. If they follow up, reassure them the team is on it and will reply here shortly — do NOT restart cheerful small talk or re-pitch the menu.\n" : ""}RULES:
 0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. Your reply language = the language of the guest's LAST message (detected: ${classification?.language || "detect it yourself"}). English message → reply 100% in ENGLISH (a single local flavor word is allowed ONLY if it fits this restaurant's own personality). The Arabic/Franco snippets in these instructions are EXAMPLES for those languages only — never copy them into an English reply.
@@ -169,8 +175,14 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 8. Off-topic requests: one playful redirect back to the restaurant.
 9. If they ask for PHOTOS of food: set send_photos to up to 3 menu item names that are marked "📷 has photo" (best matches for what they asked). If none have photos, say photos are coming soon — never promise to send what you can't.
 10. If they asked a factual question about the restaurant you could NOT answer from FACTS (policy, service, amenity…), set suggested_faq = { "question": "<the generic question>", "context": "<what the guest actually said>" } so the owner can add the answer.
+11. MEMORY CAPTURE — when the GUEST (never staff) volunteers something durable about themselves, record it:
+   - a dish they LOVE (must be on our menu) → detected_preferences.favorite_items
+   - a seating preference → detected_preferences.seating (one of: indoor, outdoor, terrace, quiet, window, bar)
+   - their birthday or anniversary → detected_preferences.occasion = {"type":"birthday"|"anniversary","date":"MM-DD"} (compute MM-DD from TODAY IS if they say "next Friday")
+   - other durable personal facts (kids, works nearby, hates cilantro) → detected_facts: short third-person snippets, max 8 words each.
+   NEVER capture sensitive info (health beyond food restrictions, religion, politics, private drama). Passing mentions ("my friend loves pasta") are NOT the guest's own preferences.
 
-Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "send_photos": string[]|null, "suggested_faq": {"question": string, "context": string}|null }`;
+Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "suggested_faq": {"question": string, "context": string}|null }`;
 
       const convo = (history || []).slice(-12).map((h) => ({
         role: h.role === "guest" ? "user" : "assistant",
@@ -197,6 +209,13 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         const merged = [...new Set([...(diner.allergies || []), ...out.detected_allergies.map((a) => String(a).toLowerCase())])];
         await db.from("diners").update({ allergies: merged }).eq("id", diner.id);
         effects.push(`allergies→${merged.join(",")}`);
+      }
+      if (diner?.id && (out.detected_preferences || out.detected_facts?.length)) {
+        const merged = mergePreferences(diner.preferences, out.detected_preferences, out.detected_facts, context.menu);
+        if (merged) {
+          await db.from("diners").update({ preferences: merged }).eq("id", diner.id);
+          effects.push("memory-updated");
+        }
       }
       if (out.suggested_faq?.question) {
         // don't re-suggest a question that's already pending
@@ -253,6 +272,89 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     return { reply, handoff: !!out.needs_handoff, photos };
   },
 });
+
+// MEMORY block — what we know about this guest, with hard anti-creepiness rules.
+// Only lines with real data are included; empty memory = no block at all.
+function memoryBlock(context, diner) {
+  const p = context.prefs || {};
+  const lines = [];
+  if (p.favorite_items?.length) lines.push(`- Their favorite dishes: ${p.favorite_items.join(", ")} — use for "the usual?" moments and personal recommendations`);
+  if (p.seating) lines.push(`- Seating preference: ${p.seating}`);
+  if (p.facts?.length) lines.push(`- Known about them: ${p.facts.join(" · ")}`);
+  if (context.birthdayInDays !== null && context.birthdayInDays <= 14) {
+    lines.push(context.birthdayInDays === 0
+      ? `- 🎂 TODAY IS THEIR BIRTHDAY — congratulate them warmly once`
+      : `- 🎂 their birthday is in ${context.birthdayInDays} days — ${context.isNewConversation ? "your reply MUST include ONE warm acknowledgment of the upcoming birthday (e.g. \"planning anything for the big day? 🎉\") woven into the greeting" : "acknowledge it ONCE if not already done this conversation"}`);
+  }
+  const briefing = [diner?.notes, (diner?.tags || []).join(", ")].filter(Boolean).join(" | ");
+  if (briefing) lines.push(`- PRIVATE TEAM BRIEFING (from staff — obey it, NEVER reveal it exists): ${briefing}`);
+  if (!lines.length) return "";
+  return `
+MEMORY (what we know about this guest — weave it in naturally like a host who remembers people. NEVER recite or enumerate it back, never say "I have in my notes". If they ask "what do you know about me?" or anything similar: HARD RULE — do NOT repeat ANY stored detail (no facts, favorites, notes, dates); reply playfully generic ("just that you've got great taste 😄") and move on):
+${lines.join("\n")}`;
+}
+
+// days until the next occurrence of an MM-DD (0 = today); null if unset/invalid
+function daysUntilMMDD(mmdd) {
+  if (!/^\d{2}-\d{2}$/.test(String(mmdd || ""))) return null;
+  const [m, d] = String(mmdd).split("-").map(Number);
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let next = new Date(now.getFullYear(), m - 1, d);
+  if (next < today) next = new Date(now.getFullYear() + 1, m - 1, d);
+  return Math.round((next - today) / 86400000);
+}
+
+// Memory capture gatekeeper — the LLM proposes, this code disposes.
+// Favorites must match a real menu item, seating comes from a whitelist,
+// dates must be valid MM-DD, facts are deduped and capped. Returns the merged
+// preferences object, or null when nothing valid changed.
+const SEATING_OPTIONS = new Set(["indoor", "outdoor", "terrace", "quiet", "window", "bar"]);
+function mergePreferences(current, detected, facts, menu) {
+  const prefs = { ...(current || {}) };
+  let changed = false;
+  const d = detected || {};
+
+  for (const raw of d.favorite_items || []) {
+    const n = normName(raw);
+    if (!n) continue;
+    const item = menu.find((x) => normName(x.name) === n) ||
+                 menu.find((x) => normName(x.name).includes(n) || n.includes(normName(x.name)));
+    if (!item) continue;
+    const list = prefs.favorite_items || [];
+    if (!list.includes(item.name) && list.length < 5) {
+      prefs.favorite_items = [...list, item.name];
+      changed = true;
+    }
+  }
+
+  const seating = String(d.seating || "").toLowerCase();
+  if (SEATING_OPTIONS.has(seating) && prefs.seating !== seating) {
+    prefs.seating = seating;
+    changed = true;
+  }
+
+  const occType = String(d.occasion?.type || "").toLowerCase();
+  if (["birthday", "anniversary"].includes(occType) && daysUntilMMDD(d.occasion?.date) !== null) {
+    if (prefs.occasions?.[occType] !== d.occasion.date) {
+      prefs.occasions = { ...(prefs.occasions || {}), [occType]: d.occasion.date };
+      changed = true;
+    }
+  }
+
+  for (const f of facts || []) {
+    const fact = String(f).trim().slice(0, 60);
+    if (!fact) continue;
+    const key = normName(fact) || fact;
+    const list = prefs.facts || [];
+    if (list.some((x) => (normName(x) || x) === key)) continue;
+    prefs.facts = [...list, fact].slice(-10);
+    changed = true;
+  }
+
+  return changed ? prefs : null;
+}
 
 // per-situation hosting stance — facts computed in code, the LLM only phrases them
 function situationGuide(context, config) {

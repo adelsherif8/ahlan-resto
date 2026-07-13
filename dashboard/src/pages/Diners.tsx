@@ -21,6 +21,13 @@ export default function Diners() {
     setSelected(data);
   }
 
+  async function savePrefs(patch: any) {
+    if (!selected) return;
+    const preferences = { ...(selected.preferences || {}), ...patch };
+    await api.patch(`/api/diners/${selected.id}`, { preferences });
+    setSelected({ ...selected, preferences });
+  }
+
   return (
     <div>
       <PageHeader
@@ -80,6 +87,8 @@ export default function Diners() {
                 {selected.preferences?.favorite_table && <Row k="Favorite table" v={selected.preferences.favorite_table} />}
                 {selected.preferences?.favorite_items?.length > 0 && <Row k="Always orders" v={selected.preferences.favorite_items.join(", ")} />}
                 {selected.preferences?.occasions?.birthday && <Row k="Birthday" v={selected.preferences.occasions.birthday} />}
+                {selected.preferences?.seating && <Row k="Prefers seating" v={selected.preferences.seating} />}
+                {selected.preferences?.facts?.length > 0 && <Row k="Known facts" v={selected.preferences.facts.join(" · ")} />}
                 {selected.notes && <Row k="Notes" v={selected.notes} />}
               </dl>
               <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">Edit (the bot uses these)</h3>
@@ -97,6 +106,22 @@ export default function Diners() {
                 await api.patch(`/api/diners/${selected.id}`, { notes: v });
                 setSelected({ ...selected, notes: v });
               }} />
+              <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">Memory (captured by the bot — correct it here)</h3>
+              <EditRow label="Favorite dishes (comma-sep)" value={(selected.preferences?.favorite_items || []).join(", ")} onSave={(v) =>
+                savePrefs({ favorite_items: v.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 5) })
+              } />
+              <EditRow label="Seating preference (indoor / outdoor / terrace / quiet / window / bar)" value={selected.preferences?.seating || ""} onSave={(v) =>
+                savePrefs({ seating: v.trim().toLowerCase() || undefined })
+              } />
+              <EditRow label="Birthday (MM-DD)" value={selected.preferences?.occasions?.birthday || ""} onSave={(v) =>
+                savePrefs({ occasions: { ...(selected.preferences?.occasions || {}), birthday: v.trim() || undefined } })
+              } />
+              <EditRow label="Anniversary (MM-DD)" value={selected.preferences?.occasions?.anniversary || ""} onSave={(v) =>
+                savePrefs({ occasions: { ...(selected.preferences?.occasions || {}), anniversary: v.trim() || undefined } })
+              } />
+              <EditRow label="Facts about them (comma-sep, max 10)" value={(selected.preferences?.facts || []).join(", ")} onSave={(v) =>
+                savePrefs({ facts: v.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10) })
+              } />
               <label className="mt-2 flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={!!selected.is_vip} onChange={async (e) => {
                   await api.patch(`/api/diners/${selected.id}`, { is_vip: e.target.checked });
