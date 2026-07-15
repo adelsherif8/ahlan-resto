@@ -195,8 +195,9 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 15. FEEDBACK: if they describe a PAST visit experience — praise or complaint — set detected_feedback = {"sentiment": "positive"|"negative", "text": "<their words, short>"}. For complaints: apologize once, genuinely; serious ones also get needs_handoff=true.
 16. LOCATION PIN: if they ask where you are or for directions, answer briefly AND set send_location_pin=true (we drop a real map pin on WhatsApp).
 17. REACTION: set react_emoji to ONE emoji (❤️ 🎉 😂 👏) ONLY for a strongly emotional guest moment (engagement, big news, a genuinely funny joke). This is rare — default null.
+18. STAFF ALERT (your host's notebook): when something happens the TEAM should know about, set staff_alert = {"type": "<2-4 words>", "note": "<one factual third-person line, max 120 chars>"}. Worth alerting: engagement/anniversary celebration coming · big group intent · an upset regular · VIP planning a visit · special request (cake, surprise, decoration) · guest asked for a manager. NOT worth alerting: routine questions, menu chat, normal bookings (those already notify). Sparing — most messages have staff_alert null.
 
-Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string}|null, "send_location_pin": boolean, "react_emoji": string|null, "suggested_faq": {"question": string, "context": string}|null }`;
+Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string}|null, "send_location_pin": boolean, "react_emoji": string|null, "staff_alert": {"type": string, "note": string}|null, "suggested_faq": {"question": string, "context": string}|null }`;
 
       // mood/VIP routing: frustrated, urgent or VIP guests get the bigger model
       const model = classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip
@@ -229,12 +230,28 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         await db.from("diners").update({ allergies: merged }).eq("id", diner.id);
         effects.push(`allergies→${merged.join(",")}`);
       }
+      // memory + AI notes share one preferences write so they never clobber each other
+      let prefsPatch = null;
       if (diner?.id && (out.detected_preferences || out.detected_facts?.length)) {
-        const merged = mergePreferences(diner.preferences, out.detected_preferences, out.detected_facts, context.menu);
-        if (merged) {
-          await db.from("diners").update({ preferences: merged }).eq("id", diner.id);
-          effects.push("memory-updated");
+        prefsPatch = mergePreferences(diner.preferences, out.detected_preferences, out.detected_facts, context.menu);
+        if (prefsPatch) effects.push("memory-updated");
+      }
+      if (out.staff_alert?.note) {
+        const note = String(out.staff_alert.note).trim().slice(0, 140);
+        const type = String(out.staff_alert.type || "note").trim().slice(0, 40);
+        if (note && diner?.id) {
+          const base = prefsPatch || diner.preferences || {};
+          const stamp = new Date().toISOString().slice(0, 10);
+          prefsPatch = { ...base, ai_notes: [...(base.ai_notes || []), `[${stamp}] ${note}`].slice(-5) };
         }
+        if (note) {
+          await notifyDashboard(db, "ai_note", `🤖 ${type}`,
+            `${diner?.name || diner?.wa_profile_name || ctx.sessionId}: ${note}`, ctx.sessionId);
+          effects.push(`ai-note: ${type}`);
+        }
+      }
+      if (prefsPatch && diner?.id) {
+        await db.from("diners").update({ preferences: prefsPatch }).eq("id", diner.id);
       }
       const party = Number(out.add_to_waitlist?.party_size);
       if (party > 0 && party <= 50) {
@@ -350,6 +367,7 @@ function memoryBlock(context, diner) {
   if (p.favorite_items?.length) lines.push(`- Their favorite dishes: ${p.favorite_items.join(", ")} — use for "the usual?" moments and personal recommendations`);
   if (p.seating) lines.push(`- Seating preference: ${p.seating}`);
   if (p.facts?.length) lines.push(`- Known about them: ${p.facts.join(" · ")}`);
+  if (p.ai_notes?.length) lines.push(`- Your own recent observations (you noted these for the team): ${p.ai_notes.join(" · ")}`);
   if (context.birthdayInDays !== null && context.birthdayInDays <= 14) {
     lines.push(context.birthdayInDays === 0
       ? `- 🎂 TODAY IS THEIR BIRTHDAY — congratulate them warmly once`

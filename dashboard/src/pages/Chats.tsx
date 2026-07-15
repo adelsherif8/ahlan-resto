@@ -236,6 +236,13 @@ function GuestPanel({ ctx, onSaved }: { ctx: any; onSaved: () => void }) {
       {d?.preferences?.facts?.length > 0 && (
         <PanelBlock title="Known about them">{d.preferences.facts.join(" · ")}</PanelBlock>
       )}
+      {d?.preferences?.ai_notes?.length > 0 && (
+        <PanelBlock title="🤖 AI observations">
+          {d.preferences.ai_notes.map((n: string, i: number) => (
+            <div key={i}>{n}</div>
+          ))}
+        </PanelBlock>
+      )}
       {d?.tags?.length > 0 && <PanelBlock title="Tags">{d.tags.join(", ")}</PanelBlock>}
       {ctx.summary && <PanelBlock title="AI conversation summary">{ctx.summary}</PanelBlock>}
 

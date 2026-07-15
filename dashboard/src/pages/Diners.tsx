@@ -89,6 +89,7 @@ export default function Diners() {
                 {selected.preferences?.occasions?.birthday && <Row k="Birthday" v={selected.preferences.occasions.birthday} />}
                 {selected.preferences?.seating && <Row k="Prefers seating" v={selected.preferences.seating} />}
                 {selected.preferences?.facts?.length > 0 && <Row k="Known facts" v={selected.preferences.facts.join(" · ")} />}
+                {selected.preferences?.ai_notes?.length > 0 && <Row k="🤖 AI observations" v={selected.preferences.ai_notes.join(" · ")} />}
                 {selected.notes && <Row k="Notes" v={selected.notes} />}
               </dl>
               <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">Edit (the bot uses these)</h3>
