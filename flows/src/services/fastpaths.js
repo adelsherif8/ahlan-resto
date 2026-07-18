@@ -14,7 +14,7 @@ function lang(message, sticky) {
 // ---- closing detection ----
 // NOTE: deliberately does NOT match bare affirmatives (tamam/ok/👍 alone) — those may be
 // a reservation confirmation, and the closer must never swallow a confirm.
-const CLOSERS = /^((ok|okay|tamam|tmam|khalas|great|perfect|awesome|طيب|تمام)[\s,]*)?(thanks|thank ?you|thx|ty|shokran|shukran|شكرا|شكراً|مرسي|mersi|merci|bye|goodbye|good ?night|tsbah 3ala kher|تصبح على خير|🙏|❤️)[\s!.😊🙏❤️👍]*$/i;
+const CLOSERS = /^((ok|okay|tamam|tmam|khalas|great|perfect|awesome|طيب|تمام)[\s,]*)?(thanks|thank ?you|thx|ty|shokran|shukran|شكرا|شكراً|مرسي|mersi|merci|bye|goodbye|good ?night|tsbah 3ala kher|تصبح على خير|🙏|❤️)([\s,]*(ya\s?)?(basha|pasha|fandem|habibi|habibty|gamil|باشا|يا باشا|فندم|حبيبي|يا جميل))?[\s!.😊🙏❤️👍]*$/i;
 
 export function detectCloser(message, sticky) {
   const t = message.trim();
@@ -38,9 +38,15 @@ function fmtRanges(ranges) {
   return ranges.map((r) => `${r.open}–${r.close}`).join(", ");
 }
 
+// day-specific hours ("friday", "tomorrow") — the template only knows TODAY; weekly needs the LLM
+const DAY_PAT = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|weekend|bokra|بكرة|بكره|الويكند|الجمعة|الجمعه|السبت|الأحد|الاحد|الاثنين|الإثنين|الثلاثاء|الأربعاء|الاربعاء|الخميس)\b/i;
+// compound messages ("...and do you have vegan food?") — the template would swallow the other half
+const COMPOUND_PAT = /(\?[^?]*\?)|\b(and|also|plus|kaman|كمان|وكذلك)\b|(^|\s)و\s/i;
+
 export function matchFaq(message, config, sticky) {
   // only fire on short, single-topic questions — anything nuanced goes to the LLM
   if (message.length > 90 || message.split("\n").length > 2) return null;
+  if (DAY_PAT.test(message) || COMPOUND_PAT.test(message)) return null;
   // nuanced hours questions (kitchen close, last order, specific days) need the LLM's judgment
   if (/\b(kitchen|last order|مطبخ|اخر طلب|آخر طلب)\b/i.test(message)) return null;
   const l = lang(message, sticky);

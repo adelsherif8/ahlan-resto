@@ -24,6 +24,8 @@ export function setSessionLanguage(sessionId, l) {
 const spam = new Map(); // sessionId -> { count, windowStart, cooled }
 // dead-letter state
 const failures = new Map(); // sessionId -> consecutive failures
+// button pacing: never two buttoned replies in a row (host, not phone menu)
+const lastHadButtons = new Map(); // sessionId -> boolean
 
 defineFlow({
   name: "ingest",
@@ -246,8 +248,11 @@ defineFlow({
     await f.node("deliver", async () => {
       const parts = splitReply(reply);
       const isWa = (sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel) === "whatsapp";
-      const qrs = routed?.quickReplies || [];
+      let qrs = routed?.quickReplies || [];
       const list = routed?.menuList || null;
+      if (qrs.length && lastHadButtons.get(ctx.sessionId)) qrs = []; // pacing: no back-to-back buttons
+      lastHadButtons.set(ctx.sessionId, qrs.length > 0 || !!list);
+      if (lastHadButtons.size > 2000) lastHadButtons.clear();
       // emoji reaction on the guest's message — lands before the text reply, like a human
       if (routed?.reactEmoji && isWa && String(burst.last_message_id || "").startsWith("wamid.")) {
         const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
