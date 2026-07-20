@@ -84,15 +84,17 @@ Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
     if (!cls.bucket || (cls.confidence ?? 0) < 0.35) cls.bucket = "friendly";
 
     const result = await f.node("dispatch", async () => {
-      // v1: reservation/arrival/events/order agents not built yet → FRIENDLY handles
-      // with full context (its prompt collects reservation details + hands off to staff).
-      return f.flow("friendly", {
+      // RESERVATION agent takes its bucket + any mid-booking session; FRIENDLY handles the rest
+      // (arrival/events/order agents land next — FRIENDLY covers them with handoffs for now).
+      const agent = cls.bucket === "reservation" || precheck.active_flow === "reservation" ? "reservation" : "friendly";
+      return f.flow(agent, {
         message,
         diner,
         history: input.history,
+        precheck,
         classification: { ...cls, requested_bucket: cls.bucket, sticky_language: input.stickyLanguage || null, self_correction: precheck.is_self_correction || false },
       });
-    }, { input: { bucket: cls.bucket, confidence: cls.confidence, active_flow: precheck.active_flow || "none", agent: "friendly (v1 handles all buckets)" } });
+    }, { input: { bucket: cls.bucket, confidence: cls.confidence, active_flow: precheck.active_flow || "none", agent: cls.bucket === "reservation" || precheck.active_flow === "reservation" ? "reservation" : "friendly" } });
 
     return { ...result, bucket: cls.bucket, mood: cls.mood, language: cls.language };
   },

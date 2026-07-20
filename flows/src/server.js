@@ -12,6 +12,7 @@ import { getSession } from "./services/chatlog.js";
 
 // register flows
 import "./flows/friendly.js";
+import "./flows/reservation.js";
 import "./flows/master.js";
 import "./flows/buffering.js";
 import "./flows/janitor.js";

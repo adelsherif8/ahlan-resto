@@ -27,6 +27,14 @@ const CASES = [
   { id: "vibe", name: "Vibe from config", msg: "what's the vibe like?", expect: [/dim|music|terrace|warm|modern/i] },
   { id: "burst", name: "Burst merge + correction", msgs: ["hey", "table for 3 tonight", "no wait make it 4"], expect: [/4/] },
   { id: "empathy", name: "Empathy in guest's language", msg: "rough day today, need comfort food", expect: [/sorry|rough|tough|hear that|hang in/i], forbid: [new RegExp(AR)] },
+  // ---- reservation agent (sequential turns — each waits for the reply) ----
+  { id: "bookflow", name: "Full booking → real R-code", turns: ["book a table for 2 tomorrow", "9 pm", "yes confirm it"],
+    expect: [/R-[A-Z2-9]{4}/] },
+  { id: "cancelflow", name: "Cancel is two-step then real", turns: ["I need to cancel my reservation", "yes cancel it"],
+    seed: { diner: { name: "Tarek", visit_count: 2 }, reservation: { daysAhead: 2, time_slot: "20:00", party_size: 4, status: "confirmed" } },
+    expect: [/cancel/i] },
+  { id: "bigparty", name: "Large party → manager handoff", msg: "book a table for 25 people next thursday at 9pm",
+    expect: [/team|manager|personally|هيتواصل|فريق/i], forbid: [/R-[A-Z2-9]{4}/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
     expect: [/vegan|shawarma|edamame/i, /valet|parking/i] },
@@ -84,19 +92,38 @@ async function lastAiReply(db, sid) {
   return data?.[0]?.message || null;
 }
 
+async function aiCount(db, sid) {
+  const { count } = await db.from("chat_messages").select("id", { count: "exact", head: true }).eq("session_id", sid).eq("sender", "ai");
+  return count || 0;
+}
+
 async function runCase(tenant, c, runId) {
   const sid = `web:regress-${runId}-${c.id}`;
   const ctx = { sessionId: sid, tenant, channel: "web", trigger: "regression", fastWindow: 1500 };
   if (c.seed?.diner) await seedDiner(tenant.db, sid, c.seed.diner);
-  for (const m of c.msgs || [c.msg]) {
-    await runFlow("ingest", ctx, { message: m });
-    if ((c.msgs || []).length > 1) await new Promise((r) => setTimeout(r, 400));
+  if (c.seed?.reservation) await seedReservation(tenant.db, sid, c.seed);
+  if (c.turns) {
+    // sequential conversation: each turn waits for its reply (unlike msgs, which burst-merge)
+    let prev = 0;
+    for (const m of c.turns) {
+      await runFlow("ingest", ctx, { message: m });
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const n = await aiCount(tenant.db, sid);
+        if (n > prev) { prev = n; break; }
+      }
+    }
+  } else {
+    for (const m of c.msgs || [c.msg]) {
+      await runFlow("ingest", ctx, { message: m });
+      if ((c.msgs || []).length > 1) await new Promise((r) => setTimeout(r, 400));
+    }
   }
   let reply = null;
   for (let i = 0; i < 20; i++) {
-    await new Promise((r) => setTimeout(r, 2500));
     reply = await lastAiReply(tenant.db, sid);
     if (reply) break;
+    await new Promise((r) => setTimeout(r, 2500));
   }
   const failures = [];
   if (!reply) failures.push("NO REPLY in 50s");
@@ -124,11 +151,22 @@ async function seedDiner(db, sid, spec) {
   await db.from("diners").insert({ phone_number: sid, status: "customer", ...d });
 }
 
+async function seedReservation(db, sid, seed) {
+  const r = seed.reservation;
+  const date = new Date(Date.now() + (r.daysAhead || 1) * 86400000).toLocaleDateString("en-CA");
+  await db.from("reservations").insert({
+    code: `R-RG${sid.slice(-2).toUpperCase()}`, diner_phone: sid, diner_name: seed.diner?.name || null,
+    party_size: r.party_size || 2, date, time_slot: r.time_slot || "20:00", status: r.status || "confirmed",
+  });
+}
+
 async function cleanup(db, runId) {
-  for (const t of ["chat_sessions", "chat_messages", "message_full", "diners", "waitlist", "feedback"]) {
+  for (const t of ["chat_sessions", "chat_messages", "message_full", "diners", "waitlist", "feedback", "temp_reservation"]) {
     const col = t === "chat_sessions" || t === "chat_messages" ? "session_id" : "phone_number";
     await db.from(t).delete().like(col, `web:regress-${runId}-%`).then(() => {});
   }
+  await db.from("reservations").delete().like("diner_phone", `web:regress-${runId}-%`).then(() => {});
+  await db.from("notifications").delete().like("ref_id", `web:regress-${runId}-%`).then(() => {});
 }
 
 export async function runRegression() {

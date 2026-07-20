@@ -37,7 +37,7 @@ export async function sessionPrecheck(db, sessionId, history) {
       if (age > SESSION_TTL_MS && t.session_status !== "archived") {
         await db.from("temp_reservation").update({ session_status: "archived" }).eq("phone_number", sessionId);
         out.session_expired = true;
-      } else if (["incomplete", "quoted", "awaiting_confirm", "awaiting_deposit"].includes(t.session_status)) {
+      } else if (["incomplete", "quoted", "awaiting_confirm", "awaiting_deposit", "awaiting_cancel_confirm"].includes(t.session_status)) {
         out.active_flow = "reservation";
         out.stage = t.stage || t.session_status;
         if ((t.turns_in_stage || 0) >= 5) out.circuit_breaker = true;
