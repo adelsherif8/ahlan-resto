@@ -79,12 +79,15 @@ Existing upcoming reservations: ${s.upcoming.length}
 Return JSON only:
 {"intent": "book"|"confirm"|"cancel"|"modify"|"info"|"abandon"|"other",
  "party_size": number|null,
- "date": "YYYY-MM-DD"|null  (COMPUTE from TODAY: "tomorrow"/"bokra" = next day, "friday" = the NEXT Friday, "today"/"tonight" = today),
+ "date": "YYYY-MM-DD"|null  (COMPUTE from TODAY: "tomorrow"/"bokra"/"بكرة" = next day, "friday" = the NEXT Friday, "today"/"tonight" = today; "yesterday"/"امبارح" = that PAST date — return it, validation handles it),
  "time": "HH:MM" 24h|null   (dinner context: bare "8" or "9" = 20:00/21:00; "8 el sob7" = 08:00),
- "section_pref": "indoor"|"outdoor"|"terrace"|null, "occasion": string|null,
- "special_requests": string|null, "name": string|null}
-intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/tamam/confirm/👍). "cancel" = wants to cancel (in-progress OR existing booking). "modify" = change an EXISTING booking. "info" = asking about their existing booking, giving no new details. "abandon" = never mind / leave it. Everything that gives or asks about slots = "book".`;
-          const r = await chatJSON("gpt-4o-mini", sys, s.message, { temperature: 0, maxTokens: 160 });
+ "section_pref": "indoor"|"outdoor"|"terrace"|"bar"|null, "occasion": string|null,
+ "special_requests": string|null, "name": string|null, "third_party": boolean, "side_question": string|null}
+FRANCO/ARABIC SLOT EXAMPLES (parse these correctly): "tarabeza l 4" / "l 2" / "li 5" = party_size (l/li = for) · "4 anfar"/"anfar"/"nafar"/"nas"/"afrad"/"اشخاص"/"افراد" = people · "el sa3a 8" / "الساعة ٨" = 20:00 evening · Arabic numerals ٠-٩ are digits · "el gom3a"/"الجمعة" = Friday.
+intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/ya/yep/yh/tamam/ekked/اكد/ماشي/👍/ok). CORRECTIONS ARE NOT ABANDON: "la la khaleha 5" / "no wait make it 5" / "actually 9pm" = "book" (they're fixing a detail). "abandon" ONLY for explicit never-mind ("khalas mesh 3ayez", "never mind", "سيبها خلاص" with NO new details). "cancel" = wants to cancel (in-progress OR existing booking). "modify" = change an EXISTING booking. "info" = asking about their existing booking, giving no new details. Everything that gives or asks about slots = "book".
+third_party=true when they ask about SOMEONE ELSE'S booking (a name that isn't self-introduction: "Ahmed's reservation", "the booking under X").
+side_question = any NON-booking question in the same message ("also do you have vegan food?") — copy it verbatim, else null.`;
+          const r = await chatJSON("gpt-4.1-mini", sys, s.message, { temperature: 0, maxTokens: 200 });
           return r;
         }, { input: { message: s.message, stage: s.session?.session_status || "none" } });
         const ex = value.value || {};
@@ -121,6 +124,14 @@ intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/tamam/confirm/
             db.from("restaurant_tables").select("*").then((r) => r.data || []),
             db.from("reservations").select("*").eq("date", s.slots.date).then((r) => r.data || []),
           ]);
+          // no single table can EVER seat this party → team handoff, not an endless "try another day"
+          const biggest = Math.max(0, ...tables.filter((t) => t.status !== "blocked").map((t) => t.capacity));
+          if (s.slots.party_size > biggest) {
+            const briefing = `Party of ${s.slots.party_size} (biggest table seats ${biggest}) — needs combined tables/manager. ${s.slots.date} ${s.slots.time}.`;
+            await setSessionFlags(db, ctx.sessionId, { needs_attention: true, handoff_reason: "party exceeds table size", handoff_briefing: briefing });
+            await notifyDashboard(db, "handoff", "Big group — combine tables", `${diner?.name || ctx.sessionId}: ${briefing}`, ctx.sessionId);
+            return { outcome: { kind: "large_party", party: s.slots.party_size, max: biggest }, sessionPatch: { ...baseSessionPatch(s, "archived"), quoted: null } };
+          }
           const avail = computeAvailability({
             tables, reservations: dayRes, hours: config.hours, policy,
             dateISO: s.slots.date, time: s.slots.time, party: s.slots.party_size,
@@ -204,15 +215,24 @@ intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/tamam/confirm/
       .addNode("cancel", async (s) => {
         return f.node("cancel", async () => {
           const sess = s.session;
-          // step 2 of the two-step: they already saw "cancel R-XXXX?" and said yes
-          if (sess?.session_status === "awaiting_cancel_confirm" && (s.isAffirmative || s.extraction?.intent === "confirm" || s.extraction?.intent === "cancel")) {
+          // step 2 of the two-step: they already saw "cancel R-XXXX?"
+          if (sess?.session_status === "awaiting_cancel_confirm") {
+            const NEG = /\b(no|nah|keep|kept|khalli|khaleeha|seebha|mesh 3ayez|el3'i|لا|خلي|خليها|سيبها|مش عايز)\b/i;
+            const saidNo = NEG.test(s.message) && !/\b(cancel it|الغيه|الغيها|el3'ih)\b/i.test(s.message);
+            const saidYes = !saidNo && (s.isAffirmative || s.extraction?.intent === "confirm" || s.extraction?.intent === "cancel");
             const target = s.upcoming.find((r) => r.id === sess.quoted?.cancel_id);
-            if (target) {
+            if (saidNo || !target) {
+              // anything that isn't a clear yes KEEPS the reservation — cancel is destructive
+              return { outcome: target ? { kind: "kept_reservation", reservation: target } : { kind: "nothing_to_cancel" }, sessionPatch: { ...baseSessionPatch(s, "archived"), quoted: null } };
+            }
+            if (saidYes) {
               await db.from("reservations").update({ status: "cancelled", cancelled_reason: "guest_request" }).eq("id", target.id);
               await notifyDashboard(db, "reservation", `Cancelled ${target.code}`,
                 `${target.diner_name || ctx.sessionId} cancelled ${target.date} ${String(target.time_slot).slice(0, 5)} × ${target.party_size}`, ctx.sessionId);
               return { outcome: { kind: "cancelled", reservation: target }, sessionPatch: { ...baseSessionPatch(s, "archived"), quoted: null } };
             }
+            // unclear answer → ask once more, still holding the reservation
+            return { outcome: { kind: "cancel_check", reservation: target, multiple: false, all: s.upcoming }, sessionPatch: { ...baseSessionPatch(s, "awaiting_cancel_confirm"), quoted: sess.quoted } };
           }
           // cancelling an in-progress (unconfirmed) session = just drop it
           if (!s.upcoming.length) {
@@ -263,11 +283,13 @@ intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/tamam/confirm/
       })
       .addNode("info", async (s) => {
         return f.node("info", async () => ({
-          outcome: s.upcoming.length
+          outcome: s.extraction?.third_party
+            ? { kind: "third_party_refusal" }
+            : s.upcoming.length
             ? { kind: "info", all: s.upcoming }
             : { kind: "no_reservation" },
           sessionPatch: null,
-        }), { input: { upcoming: s.upcoming.length } });
+        }), { input: { upcoming: s.upcoming.length, third_party: !!s.extraction?.third_party } });
       })
       .addNode("handoff", async (s) => {
         return f.node("handoff", async () => {
@@ -305,11 +327,21 @@ intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/tamam/confirm/
       const sess = s.session;
       const slots = s.slots || {};
 
+      if (ex.third_party) return "info"; // privacy path — info node handles the refusal
       if (sess?.session_status === "awaiting_cancel_confirm") return "cancel";
       if (ex.intent === "cancel") return "cancel";
       if (ex.intent === "abandon") return "cancel";
-      if (ex.intent === "confirm" || (s.isAffirmative && ["quoted", "awaiting_confirm"].includes(sess?.session_status))) return "confirm";
+      const quotedStage = ["quoted", "awaiting_confirm"].includes(sess?.session_status);
+      if (ex.intent === "confirm" || (s.isAffirmative && quotedStage)) {
+        if (quotedStage) return "confirm";
+        // "yes/tamam" mid-collect: keep collecting instead of "yes to what?" loops
+        if (slots.party_size || slots.date || slots.time) {
+          return !slots.party_size || !slots.date || !slots.time ? "collect" : "quote";
+        }
+        return "confirm"; // truly nothing → playful nothing_to_confirm
+      }
       if (ex.intent === "modify" && s.upcoming.length) return "modify";
+      if (ex.intent === "modify" && !s.upcoming.length) return "info"; // "change my booking" with none → say so, don't start collecting
       if (ex.intent === "info" && !ex.party_size && !ex.date && !ex.time) return "info";
       if (slots.party_size && slots.party_size > maxParty) return "handoff";
       if (!slots.party_size || !slots.date || !slots.time) return "collect";
@@ -349,8 +381,22 @@ intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/tamam/confirm/
       return { persisted: true, status: result.sessionPatch.session_status };
     }, { input: { has_patch: !!result.sessionPatch } });
 
+    // multi-intent: "book a table — also do you have vegan food?" → FRIENDLY answers
+    // the side question as a second message part (its own side effects included)
+    let sideAnswer = null;
+    const sideQ = result.extraction?.side_question;
+    if (sideQ && !["large_party"].includes(result.outcome?.kind)) {
+      try {
+        const fr = await f.flow("friendly", {
+          message: sideQ, diner, history: input.history,
+          classification: { ...classification, requested_bucket: "friendly" },
+        });
+        sideAnswer = fr?.reply || null;
+      } catch { /* side question is best-effort */ }
+    }
+
     return {
-      reply: result.reply || "One second! 🙌",
+      reply: (result.reply || "One second! 🙌") + (sideAnswer ? `\n\n${sideAnswer}` : ""),
       quickReplies: result.quickReplies || [],
       handoff: result.outcome?.kind === "large_party",
       photos: [],
@@ -372,18 +418,23 @@ async function phraseReply(s, config, classification) {
   const o = s.outcome || { kind: "ask_missing", missing: "party_size" };
   const lang = classification?.language || "en";
   const sys = `You are ${config.ai?.name || "the host"}, the booking assistant of ${config.name} on WhatsApp. Personality: ${config.ai?.personality || "warm"}.
-Write ONE short reply (1-3 sentences, max 2 emojis) for the OUTCOME below. Reply in the guest's language: ${lang} (franco = Latin letters only; NEVER Arabic script for franco/en). Dish/section names stay as given.
+Write ONE short reply (1-3 sentences, max 2 emojis) for the OUTCOME below. LANGUAGE = MIRROR THE GUEST'S MESSAGE EXACTLY:
+- Guest wrote ARABIC SCRIPT → reply 100% in Arabic script (مصري). NEVER Franco to an Arabic-script guest.
+- Guest wrote ENGLISH → reply 100% in English. NEVER Franco words ("emta", "3ayez") to an English guest.
+- Guest wrote FRANCO (Latin letters with 3/7/2 digits) → Egyptian Franco in Latin letters only.
+Section/table names and the R-code stay in Latin letters always.
 HARD RULES: use ONLY the facts in OUTCOME — never invent times, tables, codes or policies. Dates: phrase naturally ("Friday Jul 24"). Times: 12h format ("8 PM").
 OUTCOME KINDS:
-- ask_missing: ask ONLY for the missing field (party_size→"How many people?", date→"What day?", time→"What time?"). If problems includes date_in_past, gently point it out. One question only.
+- ask_missing: ask ONLY for the missing field (party_size→"How many people?", date→"What day?", time→"What time?"). If problems includes date_in_past you MUST playfully note that date already passed ("unless you've got a time machine 😄") before asking for a real day. One question only.
 - quoted: state the exact offer (date, time, party, section) + ask to confirm. quick_replies: ["Confirm ✅","Change time"].
-- confirmed: celebrate 🎉 + give the code + date/time/party/table number. If occasion=birthday add ONE warm birthday line.
+- confirmed: celebrate 🎉 + date/time/party/table number. The reservation CODE is MANDATORY — every confirmed reply MUST contain the exact code string (e.g. "R-7HK4") verbatim in Latin letters, whatever the language.
 - already_confirmed: reassure — it's booked, restate code.
 - duplicate_exists: they already have <code> that day — ask if they want to change it instead. quick_replies: ["Modify it","Keep it"].
-- gone_at_confirm: apologize — the slot was just taken; offer the alternatives list (if empty, offer another day).
+- gone_at_confirm: FIRST sentence must clearly say that exact slot was JUST taken by someone else (apologize) — never re-offer the same slot or re-ask to confirm it; THEN offer the alternatives list (if empty, offer another day).
 - unavailable: that exact slot isn't free; offer the alternatives (times list). If reason=closed_that_day say closed that day; outside_hours = outside opening hours. quick_replies from up to 3 alternatives.
 - cancel_check: confirm cancelling <code> on <date> <time> for <party>? ONE clear question. quick_replies: ["Yes, cancel","Keep it"].
 - cancelled: warm goodbye, mention they can rebook anytime.
+- kept_reservation: great — the booking STAYS exactly as it was (restate code+date/time briefly). Never sound like anything changed.
 - session_dropped: no problem, we dropped the request — door's open.
 - nothing_to_cancel / nothing_to_modify / no_reservation: friendly "nothing found" + offer to book.
 - nothing_to_confirm: "yes to what? 😄" — playfully offer to book a table.
@@ -391,11 +442,34 @@ OUTCOME KINDS:
 - modified: confirm the change with new details + code.
 - modify_unavailable: couldn't move it — KEPT the original (state it) + offer alternatives.
 - too_big / large_party: for groups that size the team takes over personally — they'll reply right here shortly.
+- third_party_refusal: kindly but firmly — for privacy you can ONLY manage bookings made from THIS number; their friend should message us directly.
+FRANCO TONE: Egyptian colloquial in Latin letters ("kam wa7ed hatkono?", "emta ya basha?") — never transliterated formal Arabic.
+NEVER, under any outcome except confirmed/already_confirmed/modified, say or imply the booking is done — no "7agezt", "booked", "حجزتلك", "reserved".
 Return JSON: {"reply": string, "quick_replies": string[]|null}`;
+  const BOOKED_CLAIM = /\b(booked|reserved|confirmed your|i'?ve confirmed|7agezt|hagezt|حجزتلك|حجزت لك|اتحجز|تم الحجز|تم تأكيد)\b/i;
+  const SAFE_KINDS = new Set(["confirmed", "already_confirmed", "modified"]);
   try {
-    const r = await chatJSON("gpt-4.1-mini", sys, `OUTCOME: ${JSON.stringify(o)}\nGuest message: ${s.message}`, { temperature: 0.5, maxTokens: 260 });
+    const user = `OUTCOME: ${JSON.stringify(o)}\nGuest message: ${s.message}`;
+    let r = await chatJSON("gpt-4.1-mini", sys, user, { temperature: 0.5, maxTokens: 260 });
+    // CODE GUARD (script): Arabic-script guest must get an Arabic-script reply; Latin guest never gets Arabic script
+    const AR = /[؀-ۿ]/;
+    const FRANCO_MARK = /[a-z][237][a-z]|\b[237][a-z]{2,}/i; // 3ayez / ma3lesh / 7agz-style digit-letters
+    const guestAr = AR.test(s.message);
+    const guestFranco = !guestAr && FRANCO_MARK.test(s.message);
+    const reply0 = r.value?.reply || "";
+    const wrongScript = (guestAr && !AR.test(reply0)) || (!guestAr && AR.test(reply0));
+    const francoToEnglish = !guestAr && !guestFranco && FRANCO_MARK.test(reply0); // EN guest, Franco reply
+    if (wrongScript || francoToEnglish) {
+      const want = guestAr ? "ARABIC SCRIPT — rewrite fully in Arabic script (مصري)"
+        : guestFranco ? "FRANCO — rewrite in Egyptian Franco, Latin letters"
+        : "plain ENGLISH — rewrite fully in English, no Franco words";
+      r = await chatJSON("gpt-4.1-mini", sys, `${user}\nSYSTEM CHECK: your reply used the wrong language. The guest wrote in ${want}. Same meaning, same JSON shape.`, { temperature: 0.4, maxTokens: 260 });
+    }
     const v = r.value || {};
-    const out = { reply: (v.reply || fallbackPhrase(o)).slice(0, 900), quickReplies: (v.quick_replies || []).map((q) => String(q).slice(0, 20)).slice(0, 3) };
+    let reply = (v.reply || fallbackPhrase(o)).slice(0, 900);
+    // CODE GUARD: a non-confirmed outcome must never read as a completed booking
+    if (!SAFE_KINDS.has(o.kind) && BOOKED_CLAIM.test(reply)) reply = fallbackPhrase(o);
+    const out = { reply, quickReplies: (v.quick_replies || []).map((q) => String(q).slice(0, 20)).slice(0, 3) };
     out.__usage = r.__usage;
     return out;
   } catch {
@@ -411,6 +485,11 @@ function fallbackPhrase(o) {
     case "confirmed": return `Booked! 🎉 ${o.code} — ${o.reservation.date} ${String(o.reservation.time_slot).slice(0, 5)} for ${o.reservation.party_size}.`;
     case "cancel_check": return `Cancel ${o.reservation.code} on ${o.reservation.date}? Reply yes to confirm.`;
     case "cancelled": return "Cancelled — sad to miss you! Book again anytime 💛";
+    case "kept_reservation": return `Perfect — your reservation stays exactly as planned${o.reservation?.code ? ` (${o.reservation.code})` : ""} 🙌`;
+    case "session_dropped": return "No problem — dropped it. The door's always open 💛";
+    case "nothing_to_confirm": return "Yes to what? 😄 Want me to book you a table? Just say people, day and time.";
+    case "third_party_refusal": return "For privacy I can only manage bookings made from this number — ask them to message us directly 🙏";
+    case "large_party": return "For a group that size the team takes over personally — they'll reply right here shortly 🙌";
     default: return "Got it — the team will follow up right here if anything's needed 🙌";
   }
 }
