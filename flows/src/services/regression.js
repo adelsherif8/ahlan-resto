@@ -33,6 +33,9 @@ const CASES = [
   { id: "cancelflow", name: "Cancel is two-step then real", turns: ["I need to cancel my reservation", "yes cancel it"],
     seed: { diner: { name: "Tarek", visit_count: 2 }, reservation: { daysAhead: 2, time_slot: "20:00", party_size: 4, status: "confirmed" } },
     expect: [/cancel/i] },
+  { id: "modifyflow", name: "Move existing booking → really moved", turns: ["can you move my booking to 9pm?"],
+    seed: { diner: { name: "Farida", visit_count: 3 }, reservation: { daysAhead: 2, time_slot: "19:00", party_size: 2, status: "confirmed" } },
+    expect: [/9\s?pm|21:00|٩/i], forbid: [/how many people|كام واحد|kam/i] },
   { id: "bigparty", name: "Large party → manager handoff", msg: "book a table for 25 people next thursday at 9pm",
     expect: [/team|manager|personally|هيتواصل|فريق/i], forbid: [/R-[A-Z2-9]{4}/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----

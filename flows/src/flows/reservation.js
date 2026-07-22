@@ -84,7 +84,7 @@ Return JSON only:
  "section_pref": "indoor"|"outdoor"|"terrace"|"bar"|null, "occasion": string|null,
  "special_requests": string|null, "name": string|null, "third_party": boolean, "side_question": string|null}
 FRANCO/ARABIC SLOT EXAMPLES (parse these correctly): "tarabeza l 4" / "l 2" / "li 5" = party_size (l/li = for) · "4 anfar"/"anfar"/"nafar"/"nas"/"afrad"/"اشخاص"/"افراد" = people · "el sa3a 8" / "الساعة ٨" = 20:00 evening · Arabic numerals ٠-٩ are digits · "el gom3a"/"الجمعة" = Friday.
-intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/ya/yep/yh/tamam/ekked/اكد/ماشي/👍/ok). CORRECTIONS ARE NOT ABANDON: "la la khaleha 5" / "no wait make it 5" / "actually 9pm" = "book" (they're fixing a detail). "abandon" ONLY for explicit never-mind ("khalas mesh 3ayez", "never mind", "سيبها خلاص" with NO new details). "cancel" = wants to cancel (in-progress OR existing booking). "modify" = change an EXISTING booking. "info" = asking about their existing booking, giving no new details. Everything that gives or asks about slots = "book".
+intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/ya/yep/yh/tamam/ekked/اكد/ماشي/👍/ok). CORRECTIONS ARE NOT ABANDON: "la la khaleha 5" / "no wait make it 5" / "actually 9pm" = "book" (they're fixing a detail). "abandon" ONLY for explicit never-mind ("khalas mesh 3ayez", "never mind", "سيبها خلاص" with NO new details). "cancel" = wants to cancel (in-progress OR existing booking). "modify" = change an EXISTING confirmed booking — when the guest HAS upcoming reservations, treat change/move words about "el 7agz / my booking / حجزي" as modify: "ne2adem l 9?" / "3adel el 7agz" / "نقدم الساعة؟" / "can we move it to 9?" / "push it an hour". IN MODIFY CONTEXT a bare number after نقدم/ne2adem/move-to is a TIME (l 9 = 21:00), NEVER a party size — party only changes with people-words (anfar/nas/people/اشخاص). "info" = asking about their existing booking, giving no new details. Everything else that gives or asks about slots = "book".
 third_party=true when they ask about SOMEONE ELSE'S booking (a name that isn't self-introduction: "Ahmed's reservation", "the booking under X").
 side_question = any NON-booking question in the same message ("also do you have vegan food?") — copy it verbatim, else null.`;
           const r = await chatJSON("gpt-4.1-mini", sys, s.message, { temperature: 0, maxTokens: 200 });
@@ -253,8 +253,10 @@ side_question = any NON-booking question in the same message ("also do you have 
         return f.node("modify", async () => {
           const target = s.upcoming[0];
           if (!target) return { outcome: { kind: "nothing_to_modify" }, sessionPatch: null };
+          // a bare number in a modify message is a TIME unless people-words are present
+          const PEOPLE_WORDS = /\b(people|persons?|ppl|guests?|anfar|nafar|nas|afrad|شخص|اشخاص|أشخاص|افراد|أفراد|نفر|واحد)\b/i;
           const want = {
-            party_size: s.extraction?.party_size || target.party_size,
+            party_size: s.extraction?.party_size && PEOPLE_WORDS.test(s.message) ? s.extraction.party_size : target.party_size,
             date: s.slots.date || target.date,
             time: s.slots.time || String(target.time_slot).slice(0, 5),
           };
@@ -331,6 +333,15 @@ side_question = any NON-booking question in the same message ("also do you have 
       if (sess?.session_status === "awaiting_cancel_confirm") return "cancel";
       if (ex.intent === "cancel") return "cancel";
       if (ex.intent === "abandon") return "cancel";
+      // CODE BACKSTOP: change/move words + an existing booking = modify, whatever the LLM said.
+      // (Mid-collect corrections stay in the booking flow — only fires when no session is active.)
+      const MODIFY_HINT = /\b(ne2adem|n2adem|ne2a5ar|n2a5ar|ne2akhar|3adel|3addel|ghayyar|move|change|reschedule|shift|postpone|push (it|the)|عدل|عدّل|غير|غيّر|نقدم|نقدّم|نأخر|أجل|بدّل|بدل)\b/i;
+      const BOOKING_REF = /\b(7agz|el ?7agz|booking|reservation|ma3ad|el ?ma3ad|حجز|حجزي|الحجز|المعاد|معادي)\b/i;
+      const sessionActive = sess && ["incomplete", "quoted", "awaiting_confirm"].includes(sess.session_status);
+      if (MODIFY_HINT.test(s.message) && !sessionActive) {
+        if (s.upcoming.length && (BOOKING_REF.test(s.message) || ex.intent === "modify" || ex.time || ex.date)) return "modify";
+        if (!s.upcoming.length && BOOKING_REF.test(s.message)) return "info"; // "change my booking" with none
+      }
       const quotedStage = ["quoted", "awaiting_confirm"].includes(sess?.session_status);
       if (ex.intent === "confirm" || (s.isAffirmative && quotedStage)) {
         if (quotedStage) return "confirm";
