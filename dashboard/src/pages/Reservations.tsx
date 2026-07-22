@@ -13,18 +13,35 @@ const NEXT_ACTIONS: Record<string, { label: string; to: string }[]> = {
 
 export default function Reservations() {
   const [rows, setRows] = useState<any[]>([]);
+  const [live, setLive] = useState<any[]>([]);
+  const [tableCount, setTableCount] = useState(0);
+  const [filter, setFilter] = useState<"active" | "ended" | "all">("active");
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ diner_name: "", diner_phone: "", party_size: "2", time_slot: "20:00", occasion: "", special_requests: "" });
 
   const load = () => api.get("/api/reservations", { params: { date } }).then((r) => setRows(r.data)).catch(() => {});
   useEffect(() => { load(); }, [date]);
+  useEffect(() => {
+    const loadLive = () => api.get("/api/reservations/live").then((r) => setLive(r.data)).catch(() => {});
+    loadLive();
+    api.get("/api/tables").then((r) => setTableCount((r.data || []).length)).catch(() => {});
+    const t = setInterval(() => { loadLive(); load(); }, 10000);
+    return () => clearInterval(t);
+  }, [date]);
+
+  const ENDED = ["cancelled", "no_show", "completed"];
+  const filtered = useMemo(
+    () => rows.filter((r) => filter === "all" ? true : filter === "ended" ? ENDED.includes(r.status) : !ENDED.includes(r.status)),
+    [rows, filter]
+  );
+  const aiBooked = rows.filter((r) => r.source === "whatsapp" && !ENDED.includes(r.status)).length;
 
   const slots = useMemo(() => {
     const bySlot: Record<string, any[]> = {};
-    for (const r of rows) (bySlot[String(r.time_slot).slice(0, 5)] ||= []).push(r);
+    for (const r of filtered) (bySlot[String(r.time_slot).slice(0, 5)] ||= []).push(r);
     return Object.entries(bySlot).sort(([a], [b]) => (a < b ? -1 : 1));
-  }, [rows]);
+  }, [filtered]);
 
   async function setStatus(id: string, status: string) {
     await api.patch(`/api/reservations/${id}`, { status });
@@ -43,7 +60,7 @@ export default function Reservations() {
     <div>
       <PageHeader
         title="Reservations"
-        subtitle={`${rows.length} bookings · ${rows.reduce((s, r) => s + (["cancelled", "no_show"].includes(r.status) ? 0 : r.party_size), 0)} covers`}
+        subtitle={`${rows.length} bookings · ${rows.reduce((s, r) => s + (["cancelled", "no_show"].includes(r.status) ? 0 : r.party_size), 0)} covers${aiBooked ? ` · 🤖 ${aiBooked} booked by the AI` : ""}`}
         actions={
           <>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -51,6 +68,39 @@ export default function Reservations() {
           </>
         }
       />
+
+      {live.length > 0 && (
+        <Card className="mb-5 border-emerald-500/40 p-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-300">
+            ⚡ Booking with the AI right now ({live.length})
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {live.map((s) => (
+              <div key={s.phone_number} className="rounded-xl bg-zinc-900 px-3 py-2 text-xs">
+                <span className="font-medium">{s.name || s.phone_number}</span>
+                <span className="text-zinc-400">
+                  {" — "}
+                  {s.quoted
+                    ? `quoted: ${s.quoted.date} ${String(s.quoted.time).slice(0, 5)} × ${s.quoted.party} (waiting for yes)`
+                    : `${s.party_size ? s.party_size + " people" : "party ?"} · ${s.date || "day ?"} · ${s.time_slot ? String(s.time_slot).slice(0, 5) : "time ?"}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <div className="mb-4 flex gap-2">
+        {([["active", "Active"], ["ended", "Cancelled & done"], ["all", "All"]] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setFilter(k)}
+            className={`rounded-full px-3 py-1 text-xs transition ${filter === k ? "bg-amber-500/20 text-amber-300" : "bg-zinc-900 text-zinc-500 hover:text-zinc-300"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {showNew && (
         <Card className="mb-5 p-5">
@@ -80,20 +130,36 @@ export default function Reservations() {
         <div className="space-y-5">
           {slots.map(([slot, list]) => (
             <div key={slot}>
-              <div className="mb-2 text-sm font-semibold text-amber-400">{slot}</div>
+              <div className="mb-2 flex items-baseline gap-2 text-sm font-semibold text-amber-400">
+                {slot}
+                {tableCount > 0 && (
+                  <span className="text-[11px] font-normal text-zinc-500">
+                    {list.filter((r) => !ENDED.includes(r.status)).length}/{tableCount} tables
+                  </span>
+                )}
+              </div>
               <div className="space-y-2">
                 {list.map((r) => (
                   <Card key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-48">
                       <div className="text-sm font-medium">
-                        {r.diner_name || r.diner_phone} <span className="text-zinc-500">· {r.party_size}p · {r.code}</span>
+                        {r.diner_display || r.diner_name || r.diner_phone}{" "}
+                        <span className="text-zinc-500">· {r.party_size}p · {r.code}</span>
+                        {r.table_number && (
+                          <span className="ml-2 rounded-md bg-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-300" title={r.table_section || ""}>
+                            {r.table_number}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-zinc-500">
-                        {r.source}
-                        {r.occasion ? ` · ${r.occasion} 🎂` : ""}
+                        {r.source === "whatsapp" ? "🤖 AI" : r.source}
+                        {r.occasion && r.occasion !== "none" ? ` · ${r.occasion} 🎂` : ""}
                         {r.deposit_status === "paid" ? " · deposit ✓" : r.deposit_status === "pending" ? " · deposit pending" : ""}
                         {r.special_requests ? ` · "${r.special_requests}"` : ""}
                       </div>
+                      {r.diner_allergies && (
+                        <div className="mt-0.5 text-xs font-medium text-red-400">⚠️ {r.diner_allergies.join(", ")}</div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Pill value={r.status} />

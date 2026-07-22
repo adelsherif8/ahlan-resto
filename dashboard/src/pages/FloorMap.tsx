@@ -22,11 +22,24 @@ const TABLE_STYLES: Record<string, string> = {
 
 export default function FloorMap() {
   const [tables, setTables] = useState<any[]>([]);
+  const [nextByTable, setNextByTable] = useState<Record<string, any>>({});
 
   const load = () => api.get("/api/tables").then((r) => setTables(r.data)).catch(() => {});
+  const loadBookings = () =>
+    api.get("/api/reservations", { params: { date: new Date().toLocaleDateString("en-CA") } }).then((r) => {
+      const now = new Date().toTimeString().slice(0, 5);
+      const next: Record<string, any> = {};
+      for (const res of r.data || []) {
+        if (!res.table_id || !["confirmed", "reminded", "arrived"].includes(res.status)) continue;
+        const t = String(res.time_slot).slice(0, 5);
+        if (t < now && res.status === "confirmed") continue; // already past
+        if (!next[res.table_id] || t < String(next[res.table_id].time_slot).slice(0, 5)) next[res.table_id] = res;
+      }
+      setNextByTable(next);
+    }).catch(() => {});
   useEffect(() => {
-    load();
-    const t = setInterval(load, 10000);
+    load(); loadBookings();
+    const t = setInterval(() => { load(); loadBookings(); }, 10000);
     return () => clearInterval(t);
   }, []);
 
@@ -65,6 +78,11 @@ export default function FloorMap() {
                   <div className="text-lg font-bold">{t.table_number}</div>
                   <div className="text-[11px] opacity-80">{t.capacity} seats{t.vip ? " ★" : ""}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-wide opacity-70">{t.status}</div>
+                  {nextByTable[t.id] && (
+                    <div className="mt-0.5 truncate text-[10px] text-amber-300" title={`${nextByTable[t.id].diner_display || nextByTable[t.id].diner_phone} — ${nextByTable[t.id].code}`}>
+                      📅 {String(nextByTable[t.id].time_slot).slice(0, 5)} ×{nextByTable[t.id].party_size}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
