@@ -36,6 +36,12 @@ const CASES = [
   { id: "modifyflow", name: "Move existing booking → really moved", turns: ["can you move my booking to 9pm?"],
     seed: { diner: { name: "Farida", visit_count: 3 }, reservation: { daysAhead: 2, time_slot: "19:00", party_size: 2, status: "confirmed" } },
     expect: [/9\s?pm|21:00|٩/i], forbid: [/how many people|كام واحد|kam/i] },
+  { id: "imhere", name: "Arrival: marked arrived + welcomed", turns: ["hey we're here, standing outside!"],
+    seed: { diner: { name: "Nadia", visit_count: 2 }, reservation: { daysAhead: 0, time_slot: "now", party_size: 2, status: "confirmed" } },
+    expect: [/welcome|أهلا|اهلا|host|expecting|ahlan/i] },
+  { id: "runninglate", name: "Running late → grace hold", turns: ["so sorry, traffic is crazy, we'll be 10 minutes late"],
+    seed: { diner: { name: "Hany", visit_count: 1 }, reservation: { daysAhead: 0, time_slot: "23:30", party_size: 2, status: "confirmed" } },
+    expect: [/no stress|held|hold|ماسكين|محجوز|worry/i] },
   { id: "bigparty", name: "Large party → manager handoff", msg: "book a table for 25 people next thursday at 9pm",
     expect: [/team|manager|personally|هيتواصل|فريق/i], forbid: [/R-[A-Z2-9]{4}/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
@@ -91,8 +97,10 @@ async function lastAiReply(db, sid) {
     .eq("session_id", sid)
     .eq("sender", "ai")
     .order("created_at", { ascending: false })
-    .limit(1);
-  return data?.[0]?.message || null;
+    .limit(3);
+  // skip attachment-style lines (location pins / photo captions) — grade the text reply
+  const text = (data || []).find((m) => m.message && !m.message.startsWith("📍"));
+  return text?.message || data?.[0]?.message || null;
 }
 
 async function aiCount(db, sid) {
@@ -155,10 +163,16 @@ async function seedDiner(db, sid, spec) {
 }
 
 async function seedReservation(db, sid, seed) {
-  const r = seed.reservation;
-  const date = new Date(Date.now() + (r.daysAhead || 1) * 86400000).toLocaleDateString("en-CA");
+  let r = seed.reservation;
+  // Cairo-day, not UTC-day — the arrival agent checks "today" in restaurant time
+  const date = new Date(Date.now() + (r.daysAhead ?? 1) * 86400000).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
+  // time_slot "now" = current Cairo time (arrival cases must not trip the early-arrival guard)
+  if (r.time_slot === "now") {
+    const c = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+    r = { ...r, time_slot: `${String(c.getHours()).padStart(2, "0")}:${String(c.getMinutes()).padStart(2, "0")}` };
+  }
   await db.from("reservations").insert({
-    code: `R-RG${sid.slice(-2).toUpperCase()}`, diner_phone: sid, diner_name: seed.diner?.name || null,
+    code: `R-S${Math.random().toString(36).slice(2, 7).toUpperCase()}`, diner_phone: sid, diner_name: seed.diner?.name || null,
     party_size: r.party_size || 2, date, time_slot: r.time_slot || "20:00", status: r.status || "confirmed",
   });
 }

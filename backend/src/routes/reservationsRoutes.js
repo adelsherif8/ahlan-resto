@@ -86,6 +86,7 @@ router.post("/", async (req, res, next) => {
       special_requests: req.body.special_requests || null,
       status: req.body.status || "confirmed",
       source: req.body.source || "dashboard",
+      table_id: req.body.table_id || null,
       deposit_status: "none",
       updated_at: new Date().toISOString(),
     });

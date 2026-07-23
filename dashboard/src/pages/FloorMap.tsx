@@ -49,6 +49,26 @@ export default function FloorMap() {
     await api.patch(`/api/tables/${table.id}`, { status: next }).catch(load);
   }
 
+  // one-tap walk-in: seats a party on a free table + records it as a real reservation
+  async function walkIn(e: React.MouseEvent, table: any) {
+    e.stopPropagation();
+    const party = Number(prompt(`Walk-in party size for ${table.table_number}?`, "2"));
+    if (!party || party < 1) return;
+    const now = new Date();
+    await api.post("/api/reservations", {
+      diner_name: "Walk-in",
+      diner_phone: `walkin:${now.getTime().toString(36)}`,
+      party_size: party,
+      date: now.toLocaleDateString("en-CA"),
+      time_slot: now.toTimeString().slice(0, 5),
+      status: "seated",
+      source: "walk_in",
+      table_id: table.id,
+    }).catch(() => {});
+    await api.patch(`/api/tables/${table.id}`, { status: "seated" }).catch(() => {});
+    load(); loadBookings();
+  }
+
   const sections = [...new Set(tables.map((t) => t.section))];
 
   return (
@@ -73,8 +93,17 @@ export default function FloorMap() {
                 <button
                   key={t.id}
                   onClick={() => cycle(t)}
-                  className={`aspect-square rounded-2xl border-2 p-2 text-center transition hover:scale-[1.03] ${TABLE_STYLES[t.status] || TABLE_STYLES.free}`}
+                  className={`relative aspect-square rounded-2xl border-2 p-2 text-center transition hover:scale-[1.03] ${TABLE_STYLES[t.status] || TABLE_STYLES.free}`}
                 >
+                  {t.status === "free" && (
+                    <span
+                      onClick={(e) => walkIn(e, t)}
+                      title="Seat a walk-in here"
+                      className="absolute right-1 top-1 rounded-md bg-zinc-800/80 px-1.5 text-[11px] text-zinc-300 hover:bg-zinc-700"
+                    >
+                      +👥
+                    </span>
+                  )}
                   <div className="text-lg font-bold">{t.table_number}</div>
                   <div className="text-[11px] opacity-80">{t.capacity} seats{t.vip ? " ★" : ""}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-wide opacity-70">{t.status}</div>

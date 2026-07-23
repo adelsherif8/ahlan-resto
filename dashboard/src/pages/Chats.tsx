@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Send, Bot, BotOff, Instagram, MessageCircle } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
@@ -28,6 +29,16 @@ export default function Chats() {
     const t = setInterval(loadSessions, 10000);
     return () => clearInterval(t);
   }, []);
+
+  // deep-link from a reservation card: /chats?session=<phone>
+  const [params] = useSearchParams();
+  useEffect(() => {
+    const want = params.get("session");
+    if (want && !active && sessions.length) {
+      const s = sessions.find((x) => x.session_id === want || x.phone_number === want);
+      if (s) setActive(s);
+    }
+  }, [sessions, params]);
 
   useEffect(() => {
     if (!active) return;

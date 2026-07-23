@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, MessageCircle } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Pill, Btn, Input, Select, Empty } from "../components/ui";
 
@@ -12,6 +13,7 @@ const NEXT_ACTIONS: Record<string, { label: string; to: string }[]> = {
 };
 
 export default function Reservations() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [live, setLive] = useState<any[]>([]);
   const [tableCount, setTableCount] = useState(0);
@@ -162,6 +164,15 @@ export default function Reservations() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
+                      {r.source === "whatsapp" && (
+                        <button
+                          title="Open the WhatsApp conversation this booking came from"
+                          onClick={() => navigate(`/chats?session=${encodeURIComponent(r.diner_phone)}`)}
+                          className="rounded-lg border border-zinc-700 p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                        >
+                          <MessageCircle size={14} />
+                        </button>
+                      )}
                       <Pill value={r.status} />
                       {(NEXT_ACTIONS[r.status] || []).map((a) => (
                         <Btn key={a.to} variant={a.to === "cancelled" || a.to === "no_show" ? "danger" : "ghost"} className="px-2.5 py-1.5 text-xs" onClick={() => setStatus(r.id, a.to)}>

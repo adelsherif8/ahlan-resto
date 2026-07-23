@@ -84,7 +84,7 @@ Return JSON only:
  "section_pref": "indoor"|"outdoor"|"terrace"|"bar"|null, "occasion": string|null,
  "special_requests": string|null, "name": string|null, "third_party": boolean, "side_question": string|null}
 FRANCO/ARABIC SLOT EXAMPLES (parse these correctly): "tarabeza l 4" / "l 2" / "li 5" = party_size (l/li = for) · "4 anfar"/"anfar"/"nafar"/"nas"/"afrad"/"اشخاص"/"افراد" = people · "el sa3a 8" / "الساعة ٨" = 20:00 evening · Arabic numerals ٠-٩ are digits · "el gom3a"/"الجمعة" = Friday.
-intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/ya/yep/yh/tamam/ekked/اكد/ماشي/👍/ok). CORRECTIONS ARE NOT ABANDON: "la la khaleha 5" / "no wait make it 5" / "actually 9pm" = "book" (they're fixing a detail). "abandon" ONLY for explicit never-mind ("khalas mesh 3ayez", "never mind", "سيبها خلاص" with NO new details). "cancel" = wants to cancel (in-progress OR existing booking). "modify" = change an EXISTING confirmed booking — when the guest HAS upcoming reservations, treat change/move words about "el 7agz / my booking / حجزي" as modify: "ne2adem l 9?" / "3adel el 7agz" / "نقدم الساعة؟" / "can we move it to 9?" / "push it an hour". IN MODIFY CONTEXT a bare number after نقدم/ne2adem/move-to is a TIME (l 9 = 21:00), NEVER a party size — party only changes with people-words (anfar/nas/people/اشخاص). "info" = asking about their existing booking, giving no new details. Everything else that gives or asks about slots = "book".
+intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/ya/yep/yh/tamam/ekked/اكد/ماشي/👍/ok). CORRECTIONS ARE NOT ABANDON: "la la khaleha 5" / "no wait make it 5" / "actually 9pm" = "book" (they're fixing a detail). "abandon" ONLY for explicit never-mind ("khalas mesh 3ayez", "never mind", "سيبها خلاص" with NO new details). "cancel" = wants to cancel (in-progress OR existing booking). "modify" = change an EXISTING confirmed booking — when the guest HAS upcoming reservations, treat change/move words about "el 7agz / my booking / حجزي" as modify: "ne2adem l 9?" / "3adel el 7agz" / "نقدم الساعة؟" / "can we move it to 9?" / "push it an hour". IN MODIFY CONTEXT a bare number after نقدم/ne2adem/move-to is a TIME (l 9 = 21:00), NEVER a party size — party only changes with people-words (anfar/nas/people/اشخاص). "info" = asking about their existing booking, giving no new details. "waitlist" = explicitly asks to JOIN THE WAITLIST ("put us on the waitlist", "حطنا على الويتنج"). Everything else that gives or asks about slots = "book".
 third_party=true when they ask about SOMEONE ELSE'S booking (a name that isn't self-introduction: "Ahmed's reservation", "the booking under X").
 side_question = any NON-booking question in the same message ("also do you have vegan food?") — copy it verbatim, else null.`;
           const r = await chatJSON("gpt-4.1-mini", sys, s.message, { temperature: 0, maxTokens: 200 });
@@ -283,6 +283,20 @@ side_question = any NON-booking question in the same message ("also do you have 
           return { outcome: { kind: "modified", reservation: updated || { ...target, ...want }, table: avail.table }, sessionPatch: { ...baseSessionPatch(s, "archived"), quoted: null } };
         }, { input: { upcoming: s.upcoming.length } });
       })
+      .addNode("waitlist", async (s) => {
+        return f.node("waitlist", async () => {
+          const party = s.slots.party_size;
+          if (!party) return { outcome: { kind: "waitlist_need_party" }, sessionPatch: baseSessionPatch(s, "incomplete") };
+          await db.from("waitlist").insert({
+            phone_number: ctx.sessionId,
+            name: diner?.name || diner?.wa_profile_name || null,
+            party_size: Math.min(Math.round(party), 50),
+          });
+          await notifyDashboard(db, "waitlist", `Waitlist: party of ${party}`,
+            `${diner?.name || ctx.sessionId} joined via chat`, ctx.sessionId);
+          return { outcome: { kind: "waitlisted", party }, sessionPatch: { ...baseSessionPatch(s, "archived"), quoted: null } };
+        }, { input: { party: s.slots.party_size } });
+      })
       .addNode("info", async (s) => {
         return f.node("info", async () => ({
           outcome: s.extraction?.third_party
@@ -311,8 +325,9 @@ side_question = any NON-booking question in the same message ("also do you have 
       .addEdge(START, "extract")
       .addConditionalEdges("extract", (s) => decide(s), {
         collect: "collect", quote: "quote", confirm: "confirm",
-        cancel: "cancel", modify: "modify", info: "info", handoff: "handoff",
+        cancel: "cancel", modify: "modify", info: "info", handoff: "handoff", waitlist: "waitlist",
       })
+      .addEdge("waitlist", "phrase")
       .addEdge("collect", "phrase")
       .addEdge("quote", "phrase")
       .addEdge("confirm", "phrase")
@@ -351,6 +366,7 @@ side_question = any NON-booking question in the same message ("also do you have 
         }
         return "confirm"; // truly nothing → playful nothing_to_confirm
       }
+      if (ex.intent === "waitlist" || /\b(waitlist|waiting list|ويتنج|الانتظار|لستة الانتظار)\b/i.test(s.message)) return "waitlist";
       if (ex.intent === "modify" && s.upcoming.length) return "modify";
       if (ex.intent === "modify" && !s.upcoming.length) return "info"; // "change my booking" with none → say so, don't start collecting
       if (ex.intent === "info" && !ex.party_size && !ex.date && !ex.time) return "info";
@@ -454,6 +470,8 @@ OUTCOME KINDS:
 - modify_unavailable: couldn't move it — KEPT the original (state it) + offer alternatives.
 - too_big / large_party: for groups that size the team takes over personally — they'll reply right here shortly.
 - third_party_refusal: kindly but firmly — for privacy you can ONLY manage bookings made from THIS number; their friend should message us directly.
+- waitlisted: they're ON the waitlist (party of <party>) — the team pings them the moment a table frees up. You MAY say "you're on the list".
+- waitlist_need_party: ask how many people, one question.
 FRANCO TONE: Egyptian colloquial in Latin letters ("kam wa7ed hatkono?", "emta ya basha?") — never transliterated formal Arabic.
 NEVER, under any outcome except confirmed/already_confirmed/modified, say or imply the booking is done — no "7agezt", "booked", "حجزتلك", "reserved".
 Return JSON: {"reply": string, "quick_replies": string[]|null}`;
@@ -500,6 +518,8 @@ function fallbackPhrase(o) {
     case "session_dropped": return "No problem — dropped it. The door's always open 💛";
     case "nothing_to_confirm": return "Yes to what? 😄 Want me to book you a table? Just say people, day and time.";
     case "third_party_refusal": return "For privacy I can only manage bookings made from this number — ask them to message us directly 🙏";
+    case "waitlisted": return `You're on the waitlist${o.party ? ` (party of ${o.party})` : ""} — we'll ping you the moment a table frees up 🙌`;
+    case "waitlist_need_party": return "How many people should I put on the waitlist?";
     case "large_party": return "For a group that size the team takes over personally — they'll reply right here shortly 🙌";
     default: return "Got it — the team will follow up right here if anything's needed 🙌";
   }

@@ -214,15 +214,15 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       }));
       convo.push({ role: "user", content: message });
 
-      const r = await chatJSON(model, system, convo, { temperature: 0.6, maxTokens: 500 });
+      let r = await chatJSON(model, system, convo, { temperature: 0.6, maxTokens: 500 });
       // script guarantee (code, not prompt): Latin-script guest message must never get
-      // an Arabic-script reply — one corrective re-ask if the model slipped
+      // an Arabic-script reply — up to two corrective re-asks (single-token slips happen)
       const arScript = /[؀-ۿ]/;
-      if (!arScript.test(message) && arScript.test(r.value?.reply || "")) {
+      for (let attempt = 0; attempt < 2 && !arScript.test(message) && arScript.test(r.value?.reply || ""); attempt++) {
         const r2 = await chatJSON(model, system, [
           ...convo,
           { role: "assistant", content: JSON.stringify(r.value) },
-          { role: "user", content: "SYSTEM CHECK: the guest wrote in LATIN letters but your reply used Arabic script. Rewrite the ENTIRE reply (and any quick_replies) with the same meaning using ONLY Latin letters — English or Franco-Arabizi to match the guest. Return the same JSON shape." },
+          { role: "user", content: "SYSTEM CHECK: the guest wrote in LATIN letters but your reply contains Arabic-script characters. Rewrite the ENTIRE reply (and any quick_replies) with the same meaning using ONLY Latin letters — English or Franco-Arabizi to match the guest. Not a single Arabic-script character is allowed. Return the same JSON shape." },
         ], { temperature: 0.4, maxTokens: 500 });
         r2.__usage = {
           model,
@@ -230,7 +230,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           tokens_out: r.__usage.tokens_out + r2.__usage.tokens_out,
           cost_usd: r.__usage.cost_usd + r2.__usage.cost_usd,
         };
-        return r2;
+        r = r2;
       }
       return r;
     }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, model: classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip ? "gpt-4.1 (mood/VIP escalation)" : "gpt-4.1-mini" } });
