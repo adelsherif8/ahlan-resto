@@ -19,10 +19,12 @@ type Kpis = {
 
 export default function Overview() {
   const [kpis, setKpis] = useState<Kpis | null>(null);
+  const [agent, setAgent] = useState<any | null>(null);
 
   useEffect(() => {
     const load = () => api.get("/api/dashboard/kpis").then((r) => setKpis(r.data)).catch(() => {});
     load();
+    api.get("/api/dashboard/agent-stats").then((r) => setAgent(r.data)).catch(() => {});
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, []);
@@ -49,6 +51,25 @@ export default function Overview() {
         <div className="mb-5 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           {kpis.needs_attention} conversation{kpis.needs_attention > 1 ? "s" : ""} need a human — check Chats.
         </div>
+      )}
+      {agent && (
+        <Card className="mb-5 border-emerald-500/30 p-5">
+          <h2 className="mb-3 text-sm font-semibold text-emerald-300">🤖 Reservation agent — last {agent.days} days</h2>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+            {[
+              { label: "AI bookings", value: agent.ai_bookings },
+              { label: "AI covers", value: agent.ai_covers },
+              { label: "Arrivals handled", value: agent.arrivals_handled },
+              { label: "Abandoned leads", value: agent.abandoned_leads },
+              { label: "Walk-ins / manual", value: `${agent.walk_ins} / ${agent.manual_bookings}` },
+            ].map((s) => (
+              <div key={s.label}>
+                <div className="text-2xl font-bold tabular-nums">{s.value}</div>
+                <div className="mt-0.5 text-[11px] uppercase tracking-wide text-zinc-500">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((s) => (

@@ -16,7 +16,8 @@ export default function Reservations() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [live, setLive] = useState<any[]>([]);
-  const [tableCount, setTableCount] = useState(0);
+  const [tables, setTables] = useState<any[]>([]);
+  const [view, setView] = useState<"list" | "timeline">("list");
   const [filter, setFilter] = useState<"active" | "ended" | "all">("active");
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
   const [showNew, setShowNew] = useState(false);
@@ -27,7 +28,7 @@ export default function Reservations() {
   useEffect(() => {
     const loadLive = () => api.get("/api/reservations/live").then((r) => setLive(r.data)).catch(() => {});
     loadLive();
-    api.get("/api/tables").then((r) => setTableCount((r.data || []).length)).catch(() => {});
+    api.get("/api/tables").then((r) => setTables(r.data || [])).catch(() => {});
     const t = setInterval(() => { loadLive(); load(); }, 10000);
     return () => clearInterval(t);
   }, [date]);
@@ -92,7 +93,7 @@ export default function Reservations() {
         </Card>
       )}
 
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex items-center gap-2">
         {([["active", "Active"], ["ended", "Cancelled & done"], ["all", "All"]] as const).map(([k, label]) => (
           <button
             key={k}
@@ -102,7 +103,29 @@ export default function Reservations() {
             {label}
           </button>
         ))}
+        <div className="ml-auto flex gap-1 rounded-full bg-zinc-900 p-1">
+          {([["list", "☰ List"], ["timeline", "▦ Timeline"]] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setView(k)}
+              className={`rounded-full px-3 py-1 text-xs transition ${view === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {view === "timeline" && (
+        <Timeline
+          tables={tables}
+          rows={rows.filter((r) => !ENDED.includes(r.status))}
+          onAssign={async (resId: string, tableId: string) => {
+            await api.patch(`/api/reservations/${resId}`, { table_id: tableId }).catch(() => {});
+            load();
+          }}
+        />
+      )}
 
       {showNew && (
         <Card className="mb-5 p-5">
@@ -126,7 +149,7 @@ export default function Reservations() {
         </Card>
       )}
 
-      {rows.length === 0 ? (
+      {view === "list" && (rows.length === 0 ? (
         <Card><Empty text="No reservations for this date" /></Card>
       ) : (
         <div className="space-y-5">
@@ -134,9 +157,9 @@ export default function Reservations() {
             <div key={slot}>
               <div className="mb-2 flex items-baseline gap-2 text-sm font-semibold text-amber-400">
                 {slot}
-                {tableCount > 0 && (
+                {tables.length > 0 && (
                   <span className="text-[11px] font-normal text-zinc-500">
-                    {list.filter((r) => !ENDED.includes(r.status)).length}/{tableCount} tables
+                    {list.filter((r) => !ENDED.includes(r.status)).length}/{tables.length} tables
                   </span>
                 )}
               </div>
@@ -186,7 +209,88 @@ export default function Reservations() {
             </div>
           ))}
         </div>
-      )}
+      ))}
     </div>
+  );
+}
+
+// ---- Timeline: tables × hours, bookings as draggable blocks ----
+const T_START = 12 * 60;           // 12:00
+const T_END = 25 * 60;             // 01:00 next day
+const PX_PER_HALF = 44;            // px per 30 min
+const BLOCK_STYLES: Record<string, string> = {
+  pending: "bg-zinc-600/70 border-zinc-500",
+  confirmed: "bg-amber-500/70 border-amber-400",
+  reminded: "bg-amber-500/70 border-amber-400",
+  arrived: "bg-sky-500/70 border-sky-400",
+  seated: "bg-emerald-500/70 border-emerald-400",
+};
+
+function Timeline({ tables, rows, onAssign }: { tables: any[]; rows: any[]; onAssign: (resId: string, tableId: string) => void }) {
+  const toMin = (t: string) => {
+    const [h, m] = String(t).slice(0, 5).split(":").map(Number);
+    const v = h * 60 + (m || 0);
+    return v < T_START ? v + 1440 : v; // 00:30 belongs to the overnight tail
+  };
+  const width = ((T_END - T_START) / 30) * PX_PER_HALF;
+  const hours: number[] = [];
+  for (let t = T_START; t <= T_END; t += 60) hours.push(t);
+  const unassigned = rows.filter((r) => !r.table_id);
+  const block = (r: any) => {
+    const start = toMin(r.time_slot);
+    const end = r.end_slot ? toMin(r.end_slot) : start + 105;
+    return (
+      <div
+        key={r.id}
+        draggable
+        onDragStart={(e) => e.dataTransfer.setData("resId", r.id)}
+        title={`${r.diner_display || r.diner_name || r.diner_phone} · ${r.party_size}p · ${r.code}${r.diner_allergies ? ` · ⚠️ ${r.diner_allergies.join(",")}` : ""}`}
+        className={`absolute top-1 flex h-7 cursor-grab items-center overflow-hidden rounded-lg border px-1.5 text-[11px] font-medium text-zinc-950 ${BLOCK_STYLES[r.status] || BLOCK_STYLES.pending}`}
+        style={{ left: ((start - T_START) / 30) * PX_PER_HALF, width: Math.max(((end - start) / 30) * PX_PER_HALF - 2, 40) }}
+      >
+        {r.party_size}p {(r.diner_display || r.diner_name || "").split(" ")[0]}{r.occasion && r.occasion !== "none" ? " 🎂" : ""}
+      </div>
+    );
+  };
+  return (
+    <Card className="mb-5 overflow-x-auto p-4">
+      <div style={{ width: width + 64 }}>
+        <div className="mb-1 flex">
+          <div className="w-16 shrink-0" />
+          <div className="relative h-5" style={{ width }}>
+            {hours.map((t) => (
+              <span key={t} className="absolute text-[10px] text-zinc-500" style={{ left: ((t - T_START) / 30) * PX_PER_HALF }}>
+                {String(Math.floor((t % 1440) / 60)).padStart(2, "0")}:00
+              </span>
+            ))}
+          </div>
+        </div>
+        {unassigned.length > 0 && (
+          <div className="flex items-center border-b border-dashed border-zinc-700">
+            <div className="w-16 shrink-0 py-2 text-[11px] text-amber-400">no table</div>
+            <div className="relative h-9" style={{ width }}>{unassigned.map(block)}</div>
+          </div>
+        )}
+        {tables.map((t) => (
+          <div
+            key={t.id}
+            className="flex items-center border-b border-zinc-800/60"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              const resId = e.dataTransfer.getData("resId");
+              if (resId) onAssign(resId, t.id);
+            }}
+          >
+            <div className="w-16 shrink-0 py-2 text-[11px] text-zinc-400">
+              {t.table_number} <span className="text-zinc-600">·{t.capacity}</span>
+            </div>
+            <div className="relative h-9" style={{ width }}>
+              {rows.filter((r) => r.table_id === t.id).map(block)}
+            </div>
+          </div>
+        ))}
+        <div className="mt-2 text-[10px] text-zinc-600">Drag a block onto another table row to reassign it.</div>
+      </div>
+    </Card>
   );
 }

@@ -62,6 +62,31 @@ function buildSlotHistogram(rows) {
     .map(([slot, covers]) => ({ slot, covers }));
 }
 
+// Reservation-agent performance over the last N days — the founder's ROI numbers
+router.get("/agent-stats", async (req, res, next) => {
+  try {
+    const days = Number(req.query.days) || 7;
+    const cutoff = Date.now() - days * 86400000;
+    let resAll = [], notifs = [];
+    try { resAll = await req.repo.list("reservations"); } catch {}
+    try { notifs = await req.repo.list("notifications"); } catch {}
+    const recent = resAll.filter((r) => new Date(r.created_at).getTime() > cutoff);
+    const ai = recent.filter((r) => r.source === "whatsapp");
+    const aiActive = ai.filter((r) => !["cancelled", "no_show"].includes(r.status));
+    const nRecent = (type) => notifs.filter((n) => n.type === type && new Date(n.created_at).getTime() > cutoff).length;
+    res.json({
+      days,
+      ai_bookings: ai.length,
+      ai_covers: aiActive.reduce((s, r) => s + (r.party_size || 0), 0),
+      ai_cancelled: ai.filter((r) => r.status === "cancelled").length,
+      manual_bookings: recent.filter((r) => r.source === "dashboard").length,
+      walk_ins: recent.filter((r) => r.source === "walk_in").length,
+      abandoned_leads: nRecent("abandoned_booking"),
+      arrivals_handled: nRecent("arrival"),
+    });
+  } catch (e) { next(e); }
+});
+
 router.get("/notifications", async (req, res, next) => {
   try {
     const rows = await req.repo.list("notifications", { order: "created_at" });
