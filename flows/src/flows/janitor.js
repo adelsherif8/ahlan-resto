@@ -2,6 +2,9 @@
 // Note: conversation freshness is enforced on READ (1h TTL in respond/load_history);
 // the janitor keeps the tables small and kills strays.
 import { defineFlow } from "../engine/flow.js";
+import { sendText, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
+import { logMessage } from "../services/chatlog.js";
+import { appendHistory } from "../services/history.js";
 
 const CONVERSATION_MAX_AGE_H = 24; // delete message_full rows idle > 24h (read-TTL already gives 1h freshness)
 const BUFFER_MAX_AGE_MIN = 10;     // stray buffer rows older than 10 min = orphans
@@ -50,18 +53,36 @@ defineFlow({
       return { deleted: data?.length || 0, reason: "a 'table ready' ping from yesterday must never send" };
     }, { input: { max_age_hours: QUEUE_MAX_AGE_H } });
 
-    // a guest who got mid-booking (or even quoted!) and went silent is a warm lead —
-    // archive the session (drops off the live strip) but TELL the team, don't lose it
+    // a guest who got mid-booking (or even quoted!) and went silent is a warm lead.
+    // Round 1: the BOT re-pings once (guest messaged <2h ago → the 24h WA window is open).
+    // Round 2 (still silent 90min later): archive + hand the lead to staff.
     await f.node("sweep_abandoned_bookings", async () => {
       const cutoff = new Date(Date.now() - ABANDONED_BOOKING_MIN * 60_000).toISOString();
       const { data: stale } = await db.from("temp_reservation")
         .select("*")
         .in("session_status", ["incomplete", "quoted", "awaiting_confirm"])
         .lt("updated_at", cutoff);
-      let notified = 0;
+      let recovered = 0, notified = 0;
       for (const s of stale || []) {
         if (String(s.phone_number).startsWith("web:")) { // test/web sessions: archive quietly
           await db.from("temp_reservation").update({ session_status: "archived" }).eq("phone_number", s.phone_number);
+          continue;
+        }
+        const quotedStage = ["quoted", "awaiting_confirm"].includes(s.session_status);
+        if (quotedStage && (s.recovery_attempts || 0) === 0) {
+          // bot recovery ping (once) — keep the session alive for another round
+          const when = [s.date, s.time_slot ? String(s.time_slot).slice(0, 5) : null].filter(Boolean).join(" ");
+          const text = `Still holding your table for ${s.party_size || "you"}${when ? ` on ${when}` : ""} 😊 Want me to book it? Just say yes — or "leave it" and I'll let it go.`;
+          try {
+            if (WA_PHONE_NUMBER_ID) await sendText(WA_PHONE_NUMBER_ID, s.phone_number.replace(/^\+/, ""), text);
+            await logMessage(db, s.phone_number, "ai", text, "whatsapp");
+            await appendHistory(db, s.phone_number, "ai", text);
+          } catch { /* delivery best-effort */ }
+          await db.from("temp_reservation").update({
+            recovery_attempts: (s.recovery_attempts || 0) + 1,
+            updated_at: new Date().toISOString(),
+          }).eq("phone_number", s.phone_number);
+          recovered++;
           continue;
         }
         const { data: d } = await db.from("diners").select("name,wa_profile_name").eq("phone_number", s.phone_number).maybeSingle();
@@ -74,13 +95,13 @@ defineFlow({
         await db.from("notifications").insert({
           type: "abandoned_booking",
           title: `⏳ Almost booked: ${who}`,
-          body: `${details} — got as far as "${s.session_status}" then went quiet. Worth a message?`,
+          body: `${details} — got as far as "${s.session_status}"${s.recovery_attempts ? " (bot re-pinged, no answer)" : ""} then went quiet. Worth a message?`,
           ref_id: s.phone_number,
         });
         await db.from("temp_reservation").update({ session_status: "archived" }).eq("phone_number", s.phone_number);
         notified++;
       }
-      return { swept: stale?.length || 0, staff_notified: notified, after_minutes: ABANDONED_BOOKING_MIN };
+      return { swept: stale?.length || 0, bot_recovery_pings: recovered, staff_notified: notified, after_minutes: ABANDONED_BOOKING_MIN };
     }, { input: { silence_min: ABANDONED_BOOKING_MIN } });
 
     return { done: true };

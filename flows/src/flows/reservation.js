@@ -364,6 +364,8 @@ side_question = any NON-booking question in the same message ("also do you have 
         if (slots.party_size || slots.date || slots.time) {
           return !slots.party_size || !slots.date || !slots.time ? "collect" : "quote";
         }
+        // "Confirm ✅" on a reminder (existing booking, no session) → restate it, don't quiz them
+        if (s.upcoming.length) return "info";
         return "confirm"; // truly nothing → playful nothing_to_confirm
       }
       if (ex.intent === "waitlist" || /\b(waitlist|waiting list|ويتنج|الانتظار|لستة الانتظار)\b/i.test(s.message)) return "waitlist";

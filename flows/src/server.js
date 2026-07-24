@@ -14,6 +14,7 @@ import { getSession } from "./services/chatlog.js";
 import "./flows/friendly.js";
 import "./flows/reservation.js";
 import "./flows/arrival.js";
+import "./flows/reminders.js";
 import "./flows/master.js";
 import "./flows/buffering.js";
 import "./flows/janitor.js";
@@ -152,6 +153,16 @@ app.post("/api/ops/run-regression", opsAuth, (_req, res) => {
 });
 app.get("/api/ops/regression", opsAuth, (_req, res) => res.json(regressionStatus()));
 
+app.post("/api/ops/run-reminders", opsAuth, async (_req, res) => {
+  try {
+    const tenant = await resolveRestaurant();
+    const { exec } = await runFlow("reminders", { sessionId: "reminders", tenant, trigger: "manual" }, {});
+    res.json({ ok: exec.status === "ok", executionId: exec.id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post("/api/ops/run-janitor", opsAuth, async (_req, res) => {
   try {
     const tenant = await resolveRestaurant();
@@ -224,6 +235,16 @@ setInterval(async () => {
     log("janitor error:", e.message);
   }
 }, 3600_000);
+
+// reservation reminders every 15 min (T-3h window, WA-window aware)
+setInterval(async () => {
+  try {
+    const tenant = await resolveRestaurant();
+    await runFlow("reminders", { sessionId: "reminders", tenant, trigger: "schedule" }, {});
+  } catch (e) {
+    log("reminders error:", e.message);
+  }
+}, 900_000);
 
 // boot sweep: flush bursts stranded by a previous restart
 resolveRestaurant()
