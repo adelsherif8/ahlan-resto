@@ -43,6 +43,22 @@ const DAY_PAT = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tom
 // compound messages ("...and do you have vegan food?") — the template would swallow the other half
 const COMPOUND_PAT = /(\?[^?]*\?)|\b(and|also|plus|kaman|كمان|وكذلك)\b|(^|\s)و\s/i;
 
+// Guest tapped a category in the WhatsApp menu list (message = the category name):
+// full deterministic listing — every dish, price, flags. Zero LLM, zero teasing.
+export async function matchMenuCategory(db, message, currency = "EGP") {
+  const probe = String(message).trim().split("\n")[0].trim();
+  if (!probe || probe.length > 24 || /[?؟]/.test(probe)) return null;
+  const { data } = await db.from("menu_items").select("*").order("sort_order");
+  const items = (data || []).filter((m) => m.available);
+  const cat = [...new Set(items.map((m) => m.category))].find((c) => String(c).toLowerCase() === probe.toLowerCase());
+  if (!cat) return null;
+  const list = items.filter((m) => m.category === cat);
+  const lines = list.map((m) =>
+    `• ${m.name} — ${m.price} ${currency}${m.bestseller ? " ⭐" : ""}${m.spice_level ? " " + "🌶".repeat(m.spice_level) : ""}${m.description ? `\n   ${m.description}` : ""}`
+  );
+  return { reply: `🍽 ${cat}\n\n${lines.join("\n")}`, kind: "menu_category", language: null };
+}
+
 export function matchFaq(message, config, sticky) {
   // only fire on short, single-topic questions — anything nuanced goes to the LLM
   if (message.length > 90 || message.split("\n").length > 2) return null;

@@ -3,7 +3,7 @@
 // the classification is still real so Executions show true routing + the handoff hints work.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
-import { detectCloser, matchFaq } from "../services/fastpaths.js";
+import { detectCloser, matchFaq, matchMenuCategory } from "../services/fastpaths.js";
 import { bump } from "../services/metrics.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm)\W*$/i;
@@ -51,6 +51,8 @@ defineFlow({
       if (closer) { bump("closer_hits"); return closer; }
       const faq = matchFaq(message, ctx.tenant.config, sticky);
       if (faq) { bump("faq_hits"); return faq; }
+      const catList = await matchMenuCategory(db, message, ctx.tenant.config.payments?.currency || "EGP");
+      if (catList) { bump("menu_category_hits"); return catList; }
       return { kind: "none — needs classification + LLM" };
     }, { input: { message, sticky_language: input.stickyLanguage || null } });
 
