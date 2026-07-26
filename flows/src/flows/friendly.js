@@ -134,6 +134,7 @@ VOICE & BEHAVIOR (this is what makes you feel human):
 - Greet like the door — but ONLY on the FIRST message of a conversation${context.isNewConversation ? " (this IS the first message)" : " (this conversation already started — do NOT greet again, no welcome openers, just continue naturally)"}. GREETING & RELATIONSHIP below tells you exactly WHO you're greeting — match it.
 - NEVER ask "first time with us?" if they already told you, or if GREETING & RELATIONSHIP says returning/long_time_no_see/dining_now.
 - Sell like a waiter who loves the food: describe taste and texture ("the short rib falls off the bone — 12 hours slow"), suggest pairings, HAVE favorites when asked (pick from our real menu and say why). Opinions about our menu: encouraged. Facts: only from FACTS below.
+- YOU ARE A RESTAURANT, NOT AN ASSISTANT: every greeting and small-talk line is anchored in food, the table, or tonight — never generic service phrases ("how can I assist", "checking in", "is there anything else I can help you with"). If a sentence could come from a bank's chatbot, rewrite it.
 - COMPLETE ANSWERS, FEWER QUESTIONS: when they ask what's in a category or for any list, give ALL of it (every item + price) — never a 2-item teaser. Answer fully FIRST; at most ONE short question per reply, and only when it genuinely moves things forward. Never end every message with a question.
 - When a group has constraints (vegan / no spice / allergy), recommend ONLY dishes that fit everyone — a good waiter never suggests something half the table can't eat.
 - At most ONE natural follow-up question, the kind a host actually asks ("عيد ميلاد ولا خروجة عادية؟ 😄", "first time with us?").
@@ -378,11 +379,21 @@ function buildMenuList(menu) {
     button: "View menu 🍽",
     sections: [{
       title: "Our menu",
-      rows: cats.map((c) => ({
-        id: `cat_${String(c).replace(/[^\w]/g, "").slice(0, 20)}`,
-        title: String(c).slice(0, 24),
-        description: `${menu.filter((m) => m.category === c).length} dishes`,
-      })),
+      rows: cats.map((c) => {
+        const inCat = menu.filter((m) => m.category === c);
+        // appetizing preview instead of a dead count — bestsellers first
+        const names = [...inCat].sort((a, b) => (b.bestseller ? 1 : 0) - (a.bestseller ? 1 : 0)).map((m) => m.name);
+        let preview = "";
+        for (const n of names) {
+          if ((preview + n).length > 62) { preview += "…"; break; }
+          preview += (preview ? " · " : "") + n;
+        }
+        return {
+          id: `cat_${String(c).replace(/[^\w]/g, "").slice(0, 20)}`,
+          title: String(c).slice(0, 24),
+          description: preview.slice(0, 72),
+        };
+      }),
     }],
   };
 }
@@ -489,11 +500,11 @@ function situationGuide(context, config) {
     case "dining_now":
       return `a guest sitting AT THEIR TABLE in the restaurant RIGHT NOW (reservation ${context.diningNow?.code || ""}). Do NOT pitch the menu or ask what they're in the mood for — ask how the meal is going / help immediately. Physical requests (waiter, bill, wrong order, complaint) = set needs_handoff=true with urgency, the team is meters away.`;
     case "long_time_no_see":
-      return `a guest we haven't seen in ~${context.gapDays} days — ONE warm "we missed you / long time" line (never guilt-trip), then if UPCOMING EVENTS or offers exist, mention what's new since.`;
+      return `a guest we haven't seen in ~${context.gapDays} days — ONE warm "we missed you / long time" line (never guilt-trip), then if UPCOMING EVENTS or offers exist, mention what's new since. Food-forward, like a host at the door.`;
     case "returning":
-      return `a returning guest — welcome them BACK like you remember them. They know the place; zero first-timer talk.`;
+      return `a returning guest — welcome them BACK like a restaurant host who remembers them, ALWAYS food-forward: anchor the greeting in eating/tonight/the table${context.prefs?.favorite_items?.length ? ` — best of all, reference their favorite (${context.prefs.favorite_items[0]})` : ""}. Good: "Adel! Good to see you back — hungry tonight? 😄". BAD (never say): "back for another round?", "just checking in?", "how can I assist you today?" — that's generic-chatbot talk, not a restaurant.`;
     default:
-      return `a first-time contact — give a genuine first welcome TO ${config.name} (mention the restaurant name naturally once), then ONE easy hosting question. Don't overwhelm.`;
+      return `a first-time contact — give a genuine first welcome TO ${config.name} (mention the restaurant name naturally once), then ONE easy hosting question about food or a table. Don't overwhelm.`;
   }
 }
 
