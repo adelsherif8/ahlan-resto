@@ -33,13 +33,20 @@ const NAV = [
 export default function DashboardLayout() {
   const nav = useNavigate();
   const { role, name, restaurant } = session();
-  const items = NAV.filter((n) => role === "admin" || n.roles.includes(role));
+  // casual = orders-first, no reservations page (walk-in + waitlist world)
+  const CASUAL_ORDER = ["/overview", "/orders", "/menu", "/floor", "/waitlist", "/chats", "/diners", "/events", "/users", "/settings"];
+  const items = NAV
+    .filter((n) => role === "admin" || n.roles.includes(role))
+    .filter((n) => (rtype === "casual" ? n.to !== "/reservations" : true))
+    .sort((a, b) => (rtype === "casual" ? CASUAL_ORDER.indexOf(a.to) - CASUAL_ORDER.indexOf(b.to) : 0));
   const [brand, setBrand] = useState<{ primary?: string; logo_url?: string; name?: string }>({});
+  const [rtype, setRtype] = useState<string>("fine");
 
   useEffect(() => {
     api.get("/api/settings").then((r) => {
       const b = r.data?.basic_info?.brand || {};
       setBrand({ ...b, name: r.data?.name });
+      setRtype(r.data?.basic_info?.restaurant_type || "fine");
       if (b.primary) {
         document.documentElement.style.setProperty("--accent", b.primary);
         document.documentElement.style.setProperty("--accent-contrast", contrastFor(b.primary));

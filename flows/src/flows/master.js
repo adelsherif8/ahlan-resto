@@ -88,8 +88,13 @@ Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
     const result = await f.node("dispatch", async () => {
       // RESERVATION agent takes its bucket + any mid-booking session; FRIENDLY handles the rest
       // (arrival/events/order agents land next — FRIENDLY covers them with handoffs for now).
-      const agent = cls.bucket === "reservation" || precheck.active_flow === "reservation" ? "reservation"
-        : cls.bucket === "arrival" ? "arrival"
+      // restaurant_type drives the flagship flow: casual = walk-in only (no reservation
+      // agent, waitlist via FRIENDLY) + ORDER agent; fine = reservation agent, orders via staff
+      const rtype = ctx.tenant.config.basic_info?.restaurant_type || "fine";
+      const reservable = rtype !== "casual" && ctx.tenant.config.ai?.reservations_enabled !== false;
+      const agent = cls.bucket === "order" && rtype === "casual" ? "order"
+        : (cls.bucket === "reservation" || precheck.active_flow === "reservation") && reservable ? "reservation"
+        : cls.bucket === "arrival" && reservable ? "arrival"
         : "friendly";
       return f.flow(agent, {
         message,

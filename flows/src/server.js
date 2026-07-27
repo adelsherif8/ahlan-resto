@@ -14,6 +14,7 @@ import { getSession } from "./services/chatlog.js";
 import "./flows/friendly.js";
 import "./flows/reservation.js";
 import "./flows/arrival.js";
+import "./flows/order.js";
 import "./flows/reminders.js";
 import "./flows/master.js";
 import "./flows/buffering.js";

@@ -22,7 +22,11 @@ const TABLE_STYLES: Record<string, string> = {
 
 export default function FloorMap() {
   const [tables, setTables] = useState<any[]>([]);
+  const [casual, setCasual] = useState(false);
   const [nextByTable, setNextByTable] = useState<Record<string, any>>({});
+  useEffect(() => {
+    api.get("/api/settings").then((r) => setCasual(r.data?.basic_info?.restaurant_type === "casual")).catch(() => {});
+  }, []);
 
   const load = () => api.get("/api/tables").then((r) => setTables(r.data)).catch(() => {});
   const loadBookings = () =>
@@ -70,6 +74,10 @@ export default function FloorMap() {
   }
 
   const sections = [...new Set(tables.map((t) => t.section))];
+  // casual mode: busy simply means RED — one glance tells the door what's free
+  const styles = casual
+    ? { ...TABLE_STYLES, seated: "border-red-500/60 bg-red-500/15 text-red-300", bill: "border-red-500/60 bg-red-500/15 text-red-300", reserved: "border-red-500/60 bg-red-500/15 text-red-300" }
+    : TABLE_STYLES;
 
   return (
     <div>
@@ -78,7 +86,7 @@ export default function FloorMap() {
         subtitle="Tap a table to advance its state: free → seated → bill → cleaning → free"
       />
       <div className="mb-4 flex flex-wrap gap-3 text-xs">
-        {Object.entries(TABLE_STYLES).map(([status, cls]) => (
+        {Object.entries(styles).map(([status, cls]) => (
           <span key={status} className={`rounded-full border px-2.5 py-1 ${cls}`}>{status}</span>
         ))}
       </div>
@@ -93,7 +101,7 @@ export default function FloorMap() {
                 <button
                   key={t.id}
                   onClick={() => cycle(t)}
-                  className={`relative aspect-square rounded-2xl border-2 p-2 text-center transition hover:scale-[1.03] ${TABLE_STYLES[t.status] || TABLE_STYLES.free}`}
+                  className={`relative aspect-square rounded-2xl border-2 p-2 text-center transition hover:scale-[1.03] ${styles[t.status] || styles.free}`}
                 >
                   {t.status === "free" && (
                     <span

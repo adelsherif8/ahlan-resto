@@ -49,6 +49,17 @@ export default function Settings() {
         <SectionTitle title="Restaurant info" saved={saved === "basic_info"} onSave={() => saveSection("basic_info", config.basic_info)} />
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Name"><Input value={bi.name || ""} onChange={(e) => upd("basic_info", { name: e.target.value })} /></Field>
+          <Field label="Restaurant type (sets the whole experience)">
+            <div className="flex gap-1 rounded-full bg-zinc-900 p-1">
+              {([["casual", "🍔 Fast casual"], ["fine", "🍷 Fine dining"]] as const).map(([k, label]) => (
+                <button key={k} type="button"
+                  onClick={() => upd("basic_info", { restaurant_type: k })}
+                  className={`rounded-full px-3 py-1 text-xs transition ${(bi.restaurant_type || "fine") === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Field>
           <Field label="Instagram"><Input value={bi.contact?.instagram || ""} onChange={(e) => upd("basic_info", { contact: { ...bi.contact, instagram: e.target.value } })} /></Field>
           <Field label="Address"><Input value={bi.address || ""} onChange={(e) => upd("basic_info", { address: e.target.value })} /></Field>
           <Field label="Phone"><Input value={bi.contact?.phone || ""} onChange={(e) => upd("basic_info", { contact: { ...bi.contact, phone: e.target.value } })} /></Field>
