@@ -115,6 +115,17 @@ export default function Settings() {
             <Input value={bi.brand?.logo_url || ""} placeholder="https://…/logo.png"
               onChange={(e) => upd("basic_info", { brand: { ...bi.brand, logo_url: e.target.value } })} />
           </Field>
+          <Field label="Theme">
+            <div className="flex gap-1 rounded-full bg-zinc-900 p-1">
+              {(["dark", "light"] as const).map((m) => (
+                <button key={m} type="button"
+                  onClick={() => upd("basic_info", { brand: { ...bi.brand, mode: m } })}
+                  className={`rounded-full px-3 py-1 text-xs capitalize transition ${(bi.brand?.mode || "dark") === m ? "bg-zinc-700 text-zinc-100" : "text-zinc-500"}`}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          </Field>
           {bi.brand?.logo_url && (
             <Field label="Preview">
               <img src={bi.brand.logo_url} alt="logo" className="h-10 w-10 rounded-lg bg-white object-contain p-0.5" />

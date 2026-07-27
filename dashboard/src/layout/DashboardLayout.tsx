@@ -44,6 +44,7 @@ export default function DashboardLayout() {
         document.documentElement.style.setProperty("--accent", b.primary);
         document.documentElement.style.setProperty("--accent-contrast", contrastFor(b.primary));
       }
+      document.documentElement.dataset.theme = b.mode === "light" ? "light" : "dark";
       if (r.data?.name) document.title = r.data.name;
     }).catch(() => {});
   }, []);
