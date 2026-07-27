@@ -2,6 +2,9 @@
 
 :root {
   color-scheme: dark;
+  /* per-restaurant brand accent — overridden at runtime from config.basic_info.brand */
+  --accent: #f59e0b;
+  --accent-contrast: #1c1917;
 }
 
 body {

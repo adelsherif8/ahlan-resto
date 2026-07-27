@@ -70,7 +70,7 @@ export function Btn({
   className?: string; disabled?: boolean; type?: "button" | "submit";
 }) {
   const styles = {
-    primary: "bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold",
+    primary: "font-semibold brightness-100 hover:brightness-110",
     ghost: "border border-zinc-700 text-zinc-200 hover:bg-zinc-800",
     danger: "bg-red-500/90 text-white hover:bg-red-500",
   }[variant];
@@ -80,6 +80,7 @@ export function Btn({
       disabled={disabled}
       onClick={onClick}
       className={`rounded-xl px-3.5 py-2 text-sm transition disabled:opacity-40 ${styles} ${className}`}
+      style={variant === "primary" ? { backgroundColor: "var(--accent)", color: "var(--accent-contrast)" } : undefined}
     >
       {children}
     </button>

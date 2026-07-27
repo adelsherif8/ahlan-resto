@@ -97,6 +97,34 @@ export default function Settings() {
       </Card>
 
       <Card className="mb-5 p-5">
+        <SectionTitle title="Branding (your colors & logo — applied across the dashboard)" saved={saved === "basic_info_brand"} onSave={() => saveSection("basic_info", config.basic_info)} />
+        <div className="grid gap-3 md:grid-cols-3">
+          <Field label="Brand color">
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={bi.brand?.primary || "#f59e0b"}
+                onChange={(e) => upd("basic_info", { brand: { ...bi.brand, primary: e.target.value } })}
+                className="h-9 w-14 cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900"
+              />
+              <Input value={bi.brand?.primary || ""} placeholder="#ea0000" className="w-28"
+                onChange={(e) => upd("basic_info", { brand: { ...bi.brand, primary: e.target.value } })} />
+            </div>
+          </Field>
+          <Field label="Logo URL (square works best)">
+            <Input value={bi.brand?.logo_url || ""} placeholder="https://…/logo.png"
+              onChange={(e) => upd("basic_info", { brand: { ...bi.brand, logo_url: e.target.value } })} />
+          </Field>
+          {bi.brand?.logo_url && (
+            <Field label="Preview">
+              <img src={bi.brand.logo_url} alt="logo" className="h-10 w-10 rounded-lg bg-white object-contain p-0.5" />
+            </Field>
+          )}
+        </div>
+        <p className="mt-2 text-xs text-zinc-500">Save, then refresh — the sidebar, buttons and highlights take your color.</p>
+      </Card>
+
+      <Card className="mb-5 p-5">
         <SectionTitle title="Reservation policy" saved={saved === "reservation_policy"} onSave={() => saveSection("reservation_policy", config.reservation_policy)} />
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Slot size (min)"><Input type="number" value={rp.slot_minutes || 30} onChange={(e) => upd("reservation_policy", { slot_minutes: Number(e.target.value) })} /></Field>
