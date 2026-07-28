@@ -8,7 +8,7 @@ import { logMessage, getSession, setSessionFlags, notifyDashboard } from "../ser
 import { appendHistory, getHistory } from "../services/history.js";
 import { sessionPrecheck, detectAffirmative, detectSelfCorrection } from "../services/precheck.js";
 import { processWaMedia } from "../services/media.js";
-import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction, markReadWithTyping, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
+import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction, sendDocument, markReadWithTyping, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
 import { bump } from "../services/metrics.js";
 
 const HISTORY_TTL_MS = 60 * 60 * 1000; // fresh conversation after 1h of silence (removebuffer.json behavior, on read)
@@ -271,6 +271,13 @@ defineFlow({
       for (const photo of routed?.photos || []) {
         await deliverPhoto(ctx, photo);
         await logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" });
+      }
+      if (routed?.menuDoc) {
+        if (isWa) {
+          const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
+          if (pnid) await sendDocument(pnid, ctx.sessionId.replace(/^\+/, ""), routed.menuDoc.url, routed.menuDoc.caption).catch(() => {});
+        }
+        await logMessage(db, ctx.sessionId, "ai", `📄 ${routed.menuDoc.caption}${!isWa ? `\n${routed.menuDoc.url}` : ""}`, ctx.channel);
       }
       if (routed?.locationPin) {
         const pin = routed.locationPin;

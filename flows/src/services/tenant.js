@@ -62,6 +62,7 @@ function shapeConfig(r) {
     payments: r.payments || {},
     ai: r.ai || {},
     faqs: r.faqs || [],
+    menu_config: r.menu_config || {},
   };
 }
 

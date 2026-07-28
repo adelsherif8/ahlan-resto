@@ -80,6 +80,28 @@ defineFlow({
       const prefs = diner?.preferences || {};
       const birthdayInDays = daysUntilMMDD(prefs.occasions?.birthday);
 
+      // ORDER HISTORY → memory: the real "usual" comes from receipts, not just words
+      let usualFromOrders = null;
+      let lastOrder = null;
+      const { data: pastOrders } = await db
+        .from("orders")
+        .select("items,order_type,created_at,status")
+        .eq("phone_number", ctx.sessionId)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(15);
+      if (pastOrders?.length) {
+        const counts = {};
+        for (const o of pastOrders) for (const it of o.items || []) counts[it.name] = (counts[it.name] || 0) + (Number(it.qty) || 1);
+        const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+        if (top && top[1] >= 2) usualFromOrders = { name: top[0], times: top[1] };
+        const lo = pastOrders[0];
+        lastOrder = {
+          items: (lo.items || []).map((i) => `${i.qty}× ${i.name}`).join(", "),
+          when: String(lo.created_at).slice(0, 10),
+        };
+      }
+
       const session = await getSession(db, ctx.sessionId);
 
       const h = hoursToday(config.hours, config.basic_info?.timezone);
@@ -97,6 +119,8 @@ defineFlow({
         gapDays,
         prefs,
         birthdayInDays,
+        usualFromOrders,
+        lastOrder,
         greetName: diner?.name || diner?.wa_profile_name || null,
         greetNameSource: diner?.name ? "guest-confirmed" : diner?.wa_profile_name ? "WhatsApp profile (unconfirmed — may be a nickname/handle; use casually, skip if it looks like junk or a business name)" : null,
         handoffPending: !!session?.needs_attention,
@@ -281,7 +305,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, model: classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip ? "gpt-4.1 (mood/VIP escalation)" : "gpt-4.1-mini" } });
 
     const out = llmOut.value || {};
-    const reply = (out.reply || "One second! 🙌").slice(0, 3500);
+    let reply = (out.reply || "One second! 🙌").slice(0, 3500);
 
     // ---- side_effects ----
     await f.node("side_effects", async () => {
@@ -401,16 +425,35 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     }
 
     const quickReplies = (out.quick_replies || []).map(trimLabel).filter(Boolean).slice(0, 3);
-    const menuList = out.send_menu_list ? buildMenuList(context.menu) : null;
+    // menu display mode is per-restaurant: tappable list (default) | full text | PDF
+    const mc = config.menu_config || {};
+    const menuMode = mc.display === "pdf" && mc.pdf_url ? "pdf" : mc.display === "text" ? "text" : "list";
+    let menuList = null;
+    let menuDoc = null;
+    if (out.send_menu_list) {
+      if (menuMode === "pdf") menuDoc = { url: mc.pdf_url, caption: `${config.name} — menu 📄` };
+      else if (menuMode === "text") reply = `${reply}\n\n${fullMenuText(context.menu, config.payments?.currency || "EGP")}`.slice(0, 3900);
+      else menuList = buildMenuList(context.menu);
+    }
     const loc = config.basic_info?.location;
     const locationPin = out.send_location_pin && loc?.lat && loc?.lng
       ? { lat: loc.lat, lng: loc.lng, name: config.name, address: config.basic_info?.address || "", maps: config.basic_info?.google_maps || "" }
       : null;
     const reactEmoji = typeof out.react_emoji === "string" && out.react_emoji.trim() ? out.react_emoji.trim().slice(0, 8) : null;
 
-    return { reply, handoff: !!out.needs_handoff, photos, quickReplies, menuList, locationPin, reactEmoji };
+    return { reply, handoff: !!out.needs_handoff, photos, quickReplies, menuList, menuDoc, locationPin, reactEmoji };
   },
 });
+
+// full menu as ONE readable message (menu_config.display = "text")
+function fullMenuText(menu, currency) {
+  const cats = [...new Set(menu.map((m) => m.category).filter(Boolean))];
+  return cats.map((c) => {
+    const items = menu.filter((m) => m.category === c)
+      .map((m) => `• ${m.name} — ${m.price} ${currency}${m.bestseller ? " ⭐" : ""}`);
+    return `🍽 ${c}\n${items.join("\n")}`;
+  }).join("\n\n");
+}
 
 // WhatsApp list message: one tappable row per category (10-row API cap).
 // Tapping a row sends the category name back as a normal message — the bot answers it.
@@ -445,7 +488,9 @@ function buildMenuList(menu) {
 function memoryBlock(context, diner) {
   const p = context.prefs || {};
   const lines = [];
-  if (p.favorite_items?.length) lines.push(`- Their favorite dishes: ${p.favorite_items.join(", ")} — use for "the usual?" moments and personal recommendations`);
+  if (p.favorite_items?.length) lines.push(`- Their favorite dishes (they told us): ${p.favorite_items.join(", ")} — use for "the usual?" moments and personal recommendations`);
+  if (context.usualFromOrders) lines.push(`- Their USUAL from real order history: ${context.usualFromOrders.name} (ordered ${context.usualFromOrders.times}×) — the strongest "the usual?" signal; if they say "the usual" or "same as always", THIS is what they mean`);
+  if (context.lastOrder) lines.push(`- Their last order (${context.lastOrder.when}): ${context.lastOrder.items} — "same as last time" refers to this`);
   if (p.seating) lines.push(`- Seating preference: ${p.seating}`);
   if (p.facts?.length) lines.push(`- Known about them: ${p.facts.join(" · ")}`);
   if (p.ai_notes?.length) lines.push(`- Your own recent observations (you noted these for the team): ${p.ai_notes.join(" · ")}`);
@@ -544,7 +589,7 @@ function situationGuide(context, config) {
     case "long_time_no_see":
       return `a guest we haven't seen in ~${context.gapDays} days — ONE warm "we missed you / long time" line (never guilt-trip), then if UPCOMING EVENTS or offers exist, mention what's new since. Food-forward, like a host at the door.`;
     case "returning":
-      return `a returning guest — welcome them BACK warmly by name, simple and human: "Welcome back, Adel! What can we get you today? 😄"${context.prefs?.favorite_items?.length ? ` (you MAY casually reference their usual ${context.prefs.favorite_items[0]} — it's THEIR favorite, that's memory not marketing)` : ""}. BAD (never say): "back for another round?", "just checking in?", "hit me up if you wanna…", or ANY dish pitch they didn't ask for.`;
+      return `a returning guest — welcome them BACK warmly by name, simple and human: "Welcome back, Adel! What can we get you today? 😄"${context.usualFromOrders || context.prefs?.favorite_items?.length ? ` (you MAY casually reference their usual ${context.usualFromOrders?.name || context.prefs.favorite_items[0]} — it's THEIR history, that's memory not marketing: "The usual ${context.usualFromOrders?.name || context.prefs.favorite_items[0]}? 😄")` : ""}. BAD (never say): "back for another round?", "just checking in?", "hit me up if you wanna…", or ANY dish pitch they didn't ask for.`;
     default:
       return `a first-time contact — a simple genuine welcome TO ${config.name} ("Hello! Welcome to ${config.name} — what can we get you today?"), nothing more. No menu pitching, no product talk. Don't overwhelm.`;
   }

@@ -75,7 +75,7 @@ Buckets:
 - "reservation": wants/asks about booking, changing, cancelling a table ("table for 4", "احجزلي", "cancel my booking")
 - "arrival": is at/near the restaurant now ("I'm here", "wa2eft barra", "running late 10 min")
 - "events": asks about parties/DJ nights/special events or wants to RSVP
-- "order": wants to order food for delivery/pickup/pre-order
+- "order": wants to order food for delivery/pickup/pre-order/dine-in ("same as last time", "the usual please", "نفس الطلب", asking where their order is)
 - "friendly": everything else — greetings, menu questions, hours, location, complaints, chit-chat (DEFAULT when unsure)
 Also detect mood: happy|neutral|frustrated|urgent|confused, and language: en|ar|franco|mixed.
 Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;

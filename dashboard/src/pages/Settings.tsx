@@ -147,6 +147,30 @@ export default function Settings() {
       </Card>
 
       <Card className="mb-5 p-5">
+        <SectionTitle title="Menu display (how the bot shows the menu)" saved={saved === "menu_config"} onSave={() => saveSection("menu_config", config.menu_config || {})} />
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="When a guest asks for the menu">
+            <div className="flex gap-1 rounded-full bg-zinc-900 p-1">
+              {([["list", "📱 Tappable list"], ["text", "💬 One message"], ["pdf", "📄 PDF"]] as const).map(([k, label]) => (
+                <button key={k} type="button"
+                  onClick={() => upd("menu_config", { display: k })}
+                  className={`rounded-full px-3 py-1 text-xs transition ${((config.menu_config || {}).display || "list") === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Field>
+          {(config.menu_config || {}).display === "pdf" && (
+            <Field label="Menu PDF URL (your designed menu)">
+              <Input value={(config.menu_config || {}).pdf_url || ""} placeholder="https://…/menu.pdf"
+                onChange={(e) => upd("menu_config", { pdf_url: e.target.value })} />
+            </Field>
+          )}
+        </div>
+        <p className="mt-2 text-xs text-zinc-500">List: categories the guest taps. One message: the whole menu as text. PDF: your designed menu file, sent as a document.</p>
+      </Card>
+
+      <Card className="mb-5 p-5">
         <SectionTitle title="Reservation policy" saved={saved === "reservation_policy"} onSave={() => saveSection("reservation_policy", config.reservation_policy)} />
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Slot size (min)"><Input type="number" value={rp.slot_minutes || 30} onChange={(e) => upd("reservation_policy", { slot_minutes: Number(e.target.value) })} /></Field>

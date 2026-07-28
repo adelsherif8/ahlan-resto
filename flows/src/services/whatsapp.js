@@ -125,6 +125,15 @@ export async function sendList(phoneNumberId, to, bodyText, buttonLabel, section
   });
 }
 
+// Document (e.g. the restaurant's designed PDF menu)
+export async function sendDocument(phoneNumberId, to, link, caption = "", filename = "menu.pdf") {
+  return graphPost(phoneNumberId, {
+    to,
+    type: "document",
+    document: { link, caption: String(caption).slice(0, 1024), filename },
+  });
+}
+
 // Real map pin — much better than a link on WhatsApp
 export async function sendLocation(phoneNumberId, to, lat, lng, name = "", address = "") {
   return graphPost(phoneNumberId, {

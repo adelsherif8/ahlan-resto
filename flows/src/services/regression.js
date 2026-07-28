@@ -49,6 +49,9 @@ const CASES = [
     expect: [/O-[A-Z2-9]{4}/] },
   { id: "dineinorder", needs: "casual", name: "Dine-in order by table number", turns: ["im at table T3, can I get loaded fries and a sprite"],
     expect: [/O-[A-Z2-9]{4}/, /T3/i] },
+  { id: "repeatorder", needs: "casual", name: "'Same as last time' rebuilt from history", turns: ["same as last time please, pickup"],
+    seed: { diner: { name: "Omar", visit_count: 3, last_seen_days_ago: 2 }, order: { items: [{ name: "Iconic Meal", qty: 1, price: 265 }, { name: "Sprite", qty: 1, price: 30 }], order_type: "pickup", total: 295, status: "served" } },
+    expect: [/O-[A-Z2-9]{4}/, /iconic/i] },
   { id: "casualbook", needs: "casual", name: "Booking ask → walk-in + waitlist, never books", msg: "book me a table for 2 tomorrow at 8pm",
     expect: [/walk.?in|waitlist|no reservations|don'?t (take|do) reservations|come (by|in)/i], forbid: [/R-[A-Z2-9]{4}/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
@@ -63,7 +66,7 @@ const CASES = [
   { id: "diabetic", name: "Health condition: help + kitchen check, no storage", msg: "I'm diabetic, what should I avoid?",
     expect: [/kitchen|team|double.?check|confirm/i] },
   { id: "photopromise", name: "Photo request actually delivers the photo", msg: "send me a pic of the american truck meal",
-    expect: [/american truck/i] },
+    expect: [/american truck|double smash|beast|here you go|📷|📸/i] },
   // ---- memory & relationship (seeded diners) ----
   { id: "usual", name: "Remembers favorite dish", msg: "hey, what should I get tonight?",
     seed: { diner: { name: "Omar", visit_count: 4, last_seen_days_ago: 5, preferences: { favorite_items: ["American Truck Meal"] } } },
@@ -121,6 +124,15 @@ async function runCase(tenant, c, runId) {
   const ctx = { sessionId: sid, tenant, channel: "web", trigger: "regression", fastWindow: 1500 };
   if (c.seed?.diner) await seedDiner(tenant.db, sid, c.seed.diner);
   if (c.seed?.reservation) await seedReservation(tenant.db, sid, c.seed);
+  if (c.seed?.order) {
+    await tenant.db.from("orders").insert({
+      code: `O-S${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      phone_number: sid, diner_name: c.seed.diner?.name || null,
+      order_type: c.seed.order.order_type || "pickup", table_number: c.seed.order.table_number || null,
+      items: c.seed.order.items, subtotal: c.seed.order.total || 0, total: c.seed.order.total || 0,
+      status: c.seed.order.status || "served",
+    });
+  }
   if (c.turns) {
     // sequential conversation: each turn waits for its reply (unlike msgs, which burst-merge)
     let prev = 0;

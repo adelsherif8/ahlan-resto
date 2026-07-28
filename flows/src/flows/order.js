@@ -42,12 +42,12 @@ defineFlow({
       const sys = `Extract a food order from one WhatsApp message to a fast-casual restaurant. MENU (only these exist): ${menuNames}
 Recent conversation may add context: ${JSON.stringify((input.history || []).slice(-4).map((h) => h.message?.slice(0, 80)))}
 Return JSON only:
-{"intent": "order"|"cancel_order"|"status"|"other",
+{"intent": "order"|"repeat_last"|"cancel_order"|"status"|"other",
  "items": [{"name": "<closest MENU name>", "qty": number}]|null,
  "order_type": "pickup"|"delivery"|"dine_in"|null (dine_in when they mention a table / being inside),
  "table_number": string|null ("t3"/"table 3" → "T3"),
  "pickup_time": string|null, "notes": string|null (sauce prefs, no onions, etc.)}
-Rules: qty defaults 1; ONLY names from MENU (closest match); "cancel_order" = wants to cancel an order; "status" = asking where their order is.`;
+Rules: qty defaults 1; ONLY names from MENU (closest match); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
       return chatJSON("gpt-4.1-mini", sys, input.message, { temperature: 0, maxTokens: 220 });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -69,25 +69,42 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); "cancel_order" = wa
       }
 
       // build the order — CODE matches every item against the real menu and prices it
-      const wanted = (e.items || []).slice(0, 12);
-      if (!wanted.length) return { kind: "ask_items" };
-      const items = [];
-      const unknown = [];
-      for (const w of wanted) {
-        const n = normName(w.name);
-        const hit = loaded.menu.find((m) => normName(m.name) === n) ||
-                    loaded.menu.find((m) => normName(m.name).includes(n) || n.includes(normName(m.name)));
-        if (!hit) { unknown.push(w.name); continue; }
-        const qty = Math.min(Math.max(Math.round(Number(w.qty) || 1), 1), 20);
-        items.push({ id: hit.id, name: hit.name, qty, price: Number(hit.price) });
+      let items = [];
+      let unknown = [];
+      let typeHint = null;
+      if (e.intent === "repeat_last") {
+        // rebuild from their real history at CURRENT prices; unavailable items are dropped honestly
+        const { data: prev } = await db.from("orders").select("*")
+          .eq("phone_number", ctx.sessionId).neq("status", "cancelled")
+          .order("created_at", { ascending: false }).limit(1);
+        const last = prev?.[0];
+        if (!last?.items?.length) return { kind: "no_history" };
+        for (const it of last.items) {
+          const hit = loaded.menu.find((m) => normName(m.name) === normName(it.name));
+          if (hit) items.push({ id: hit.id, name: hit.name, qty: Math.min(Number(it.qty) || 1, 20), price: Number(hit.price) });
+          else unknown.push(it.name);
+        }
+        if (!items.length) return { kind: "no_history" };
+        if (["pickup", "delivery"].includes(last.order_type)) typeHint = last.order_type; // dine-in table changes — always re-ask
+      } else {
+        const wanted = (e.items || []).slice(0, 12);
+        if (!wanted.length) return { kind: "ask_items" };
+        for (const w of wanted) {
+          const n = normName(w.name);
+          const hit = loaded.menu.find((m) => normName(m.name) === n) ||
+                      loaded.menu.find((m) => normName(m.name).includes(n) || n.includes(normName(m.name)));
+          if (!hit) { unknown.push(w.name); continue; }
+          const qty = Math.min(Math.max(Math.round(Number(w.qty) || 1), 1), 20);
+          items.push({ id: hit.id, name: hit.name, qty, price: Number(hit.price) });
+        }
+        if (!items.length) return { kind: "nothing_matched", unknown };
       }
-      if (!items.length) return { kind: "nothing_matched", unknown };
 
       // delivery only if the restaurant actually offers it (config fact, never assumed)
       const deliveryOn = config.basic_info?.services?.delivery !== false;
       if (e.order_type === "delivery" && !deliveryOn) return { kind: "no_delivery", items };
       // dine-in must reference a real table
-      let orderType = ["pickup", "delivery", "dine_in"].includes(e.order_type) ? e.order_type : null;
+      let orderType = ["pickup", "delivery", "dine_in"].includes(e.order_type) ? e.order_type : typeHint;
       let tableNumber = null;
       if (e.table_number) {
         const t = String(e.table_number).toUpperCase().replace(/\s+/g, "");
@@ -130,6 +147,7 @@ OUTCOMES:
 - too_late_to_cancel: it's already READY — can't cancel now; the team can help at the counter.
 - no_open_order: no active order found — want to start one?
 - no_delivery: we don't do delivery — pickup or dine-in works great though.
+- no_history: no past orders on this number yet — invite them to make their first one (it becomes their "usual").
 Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       return chatJSON("gpt-4.1-mini", sys, `OUTCOME: ${JSON.stringify(outcome)}\nGuest: ${input.message}`, { temperature: 0.5, maxTokens: 240 });
     }, { input: { outcome_kind: outcome.kind } });
