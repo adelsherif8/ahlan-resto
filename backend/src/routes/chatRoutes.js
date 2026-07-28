@@ -115,20 +115,33 @@ router.post("/messages/:id/rate", async (req, res, next) => {
 router.delete("/sessions/:sessionId/reset", async (req, res, next) => {
   try {
     const sid = req.params.sessionId;
-    const wiped = {};
-    for (const [table, col] of [
+    const TARGETS = [
       ["chat_messages", "session_id"], ["chat_sessions", "session_id"],
       ["message_full", "phone_number"], ["temp_reservation", "phone_number"],
       ["diners", "phone_number"], ["waitlist", "phone_number"], ["feedback", "phone_number"],
       ["orders", "phone_number"], ["reservations", "diner_phone"], ["notifications", "ref_id"],
-    ]) {
+    ];
+    const wiped = {};
+    const failed = [];
+    for (const [table, col] of TARGETS) {
       try {
-        const rows = await req.repo.list(table, { where: { [col]: sid } });
-        for (const r of rows) await req.repo.remove(table, r.id);
-        wiped[table] = rows.length;
-      } catch { wiped[table] = "skipped"; }
+        if (req.tenantClient) {
+          // delete BY THE NATURAL COLUMN — message_full/temp_reservation are keyed by
+          // phone_number and have no id, so an id-based delete silently leaves memory behind
+          const { data, error } = await req.tenantClient.from(table).delete().eq(col, sid).select("*");
+          if (error) throw new Error(error.message);
+          wiped[table] = (data || []).length;
+        } else {
+          const rows = await req.repo.list(table, { where: { [col]: sid } });
+          for (const r of rows) await req.repo.remove(table, r.id);
+          wiped[table] = rows.length;
+        }
+      } catch (e) {
+        wiped[table] = `FAILED: ${e.message}`;
+        failed.push(table);
+      }
     }
-    res.json({ ok: true, wiped });
+    res.json({ ok: failed.length === 0, wiped, failed });
   } catch (e) { next(e); }
 });
 
