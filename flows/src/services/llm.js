@@ -20,12 +20,13 @@ const RETRYABLE = new Set([429, 500, 502, 503, 529]);
 async function chat(model, messages, { json = false, temperature = 0.4, maxTokens = 700 } = {}) {
   if (!llmReady) throw new Error("OPENAI_API_KEY not set");
   let res;
+  let useModel = model;
   for (let attempt = 0; ; attempt++) {
     res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
+        model: useModel,
         messages,
         temperature,
         max_tokens: maxTokens,
@@ -33,13 +34,16 @@ async function chat(model, messages, { json = false, temperature = 0.4, maxToken
       }),
     }).catch((e) => ({ ok: false, status: 0, text: async () => e.message }));
     if (res.ok) break;
-    if (attempt >= 1 || (!RETRYABLE.has(res.status) && res.status !== 0)) break;
-    await new Promise((r) => setTimeout(r, 800)); // one retry on rate-limit/5xx/network blip
+    // rate-limited on the big model → a smaller reply beats NO reply, every time
+    if (res.status === 429 && useModel === "gpt-4.1") { useModel = "gpt-4.1-mini"; continue; }
+    if (attempt >= 2 || (!RETRYABLE.has(res.status) && res.status !== 0)) break;
+    await new Promise((r) => setTimeout(r, res.status === 429 ? 2500 : 800));
   }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`OpenAI ${res.status}: ${body.slice(0, 200)}`);
   }
+  const model_ = useModel;
   const data = await res.json();
   const usage = data.usage || {};
   return {

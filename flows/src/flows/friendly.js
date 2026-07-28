@@ -4,6 +4,7 @@ import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { hoursToday } from "../services/tenant.js";
 import { setSessionFlags, notifyDashboard, getSession } from "../services/chatlog.js";
+import { todayISO } from "../services/availability.js";
 
 // rolling-summary cooldown: refresh at most once per 10 min per session
 // (history is capped at 20 turns, so a turn-count gate alone would stall at the cap)
@@ -32,10 +33,11 @@ defineFlow({
         .order("sort_order");
       const menu = (menuRows || []).filter((m) => m.available); // 86'd items don't exist
 
-      const todayISO = new Date().toLocaleDateString("en-CA");
+      // "today" in the RESTAURANT'S timezone — the server clock lives in UTC
+      const today = todayISO(config.basic_info?.timezone || "Africa/Cairo");
       // tonight's specials from config (staff post them in Settings; code filters expiry)
       const specials = (config.ai?.specials || [])
-        .filter((s) => s?.text && (!s.until || s.until >= todayISO))
+        .filter((s) => s?.text && (!s.until || s.until >= today))
         .map((s) => s.text);
 
       const { data: mf } = await db.from("message_full").select("conversation_summary").eq("phone_number", ctx.sessionId).maybeSingle();
@@ -47,7 +49,6 @@ defineFlow({
         .order("date")
         .limit(5);
 
-      const today = new Date().toLocaleDateString("en-CA");
       const { data: upcoming } = await db
         .from("reservations")
         .select("code,date,time_slot,party_size,status,occasion")
@@ -165,7 +166,7 @@ ${menuText || "(menu not loaded)"}
 GREETING & RELATIONSHIP (facts from our CRM — phrase them naturally, NEVER recite them):
 - Who this is: ${situationGuide(context, config)}
 - Name to greet with: ${context.greetName ? `"${context.greetName}" (source: ${context.greetNameSource})` : "unknown — don't demand it; capture it naturally if they offer it"}
-- Opening style: ${(config.ai?.greeting || "").trim() ? `the house opener is "${config.ai.greeting.trim()}" — it sets the OPENING WORDS ONLY, never your whole message. You MUST still compose the rest yourself: greet by name when a greet-name exists ("Welcome back, Adel! 👋"), say the restaurant's NAME for a first-timer's welcome, and follow the situation above. Pasting the house opener alone is WRONG.` : `no house greeting configured — open naturally in your personality and the guest's language; NEVER use brand words, slogans or greeting words that aren't in FACTS or your personality`}
+- Opening style: ${(config.ai?.greeting || "").trim() ? `the house opener "${config.ai.greeting.trim()}" is for FIRST-TIMERS ONLY (start their welcome with its spirit, then your own words). RETURNING guests are greeted like a human who knows them: by name, directly ("Welcome back, Adel! 👋…") — NEVER prepend the house opener or re-welcome them "to ${config.name}". Vary your wording between conversations; never sound copy-pasted.` : `no house greeting configured — open naturally in your personality and the guest's language; NEVER use brand words, slogans or greeting words that aren't in FACTS or your personality`}
 
 GUEST CONTEXT (use silently — NEVER recite it back):
 - Name: ${diner?.name || "unknown"} | Tier: ${context.visitTier}${diner?.is_vip ? " (VIP — extra warm)" : ""}
@@ -207,8 +208,9 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 
 Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string}|null, "send_location_pin": boolean, "react_emoji": string|null, "staff_alert": {"type": string, "note": string}|null, "suggested_faq": {"question": string, "context": string}|null }`;
 
-      // mood/VIP routing: frustrated, urgent or VIP guests get the bigger model
-      const model = classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip
+      // mood/VIP routing + first impressions: frustrated, urgent, VIP — and the FIRST
+      // reply of any conversation (greetings are worth the bigger model) — get gpt-4.1
+      const model = classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip || context.isNewConversation
         ? "gpt-4.1"
         : "gpt-4.1-mini";
 
@@ -237,6 +239,43 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           cost_usd: r.__usage.cost_usd + r2.__usage.cost_usd,
         };
         r = r2;
+      }
+      // GREETING CONTRACT — the LLM authors every word, code only verifies the draft:
+      // first reply of a conversation must greet by name (when known), welcome
+      // first-timers to the restaurant BY NAME, and contain zero bot-isms/pitching.
+      if (context.isNewConversation) {
+        const draft = r.value?.reply || "";
+        const BOTISM = /what'?s your vibe|checking in|hit me up|how can i assist|back for another round|just say the word|quick rec/i;
+        const PITCH = /\b(is|are) (a|the) (beast|legend|must[- ]try)|you gotta try|don'?t miss|craving (that|our)/i;
+        // name/restaurant enforcement ONLY when the guest actually just said hi —
+        // a first-message QUESTION must keep its ANSWER, never become a greeting
+        const BARE_GREETING = /^(hi+|hey+|hello+|yo+|hala|ahlan|ezayak|ezayek|ezay|salam|هاي|اهلا|أهلا|اهلين|هلا|السلام عليكم|ازيك|ازيكم|مرحبا|صباح الخير|مساء الخير|good (morning|evening|afternoon))[\s!.😊👋🙌❤️🔥]*$/i;
+        const bareGreeting = message.trim().length <= 25 && BARE_GREETING.test(message.trim());
+        const firstName = (context.greetName || "").split(" ")[0];
+        const missName = bareGreeting && firstName && context.situation !== "first_timer" && !draft.toLowerCase().includes(firstName.toLowerCase());
+        const missRest = bareGreeting && context.situation === "first_timer" && !draft.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase());
+        if (BOTISM.test(draft) || PITCH.test(draft) || missName || missRest) {
+          const wants = bareGreeting
+            ? [
+                firstName && context.situation !== "first_timer" ? `greet them by name ("${firstName}")` : null,
+                context.situation === "first_timer" ? `welcome them TO ${config.name} (say the restaurant name)` : null,
+                "warm and simple like a real host",
+                "NO dish pitching, NO assistant phrases",
+              ].filter(Boolean).join("; ")
+            : "KEEP ALL the substance and the actual answer of your reply exactly — only remove the bot-ish/marketing phrasing";
+          const r2 = await chatJSON(model, system, [
+            ...convo,
+            { role: "assistant", content: JSON.stringify(r.value) },
+            { role: "user", content: `SYSTEM CHECK: this is the FIRST reply of a conversation and it broke the greeting contract. Rewrite in your own natural words: ${wants}. Same JSON shape.` },
+          ], { temperature: 0.5, maxTokens: 500 });
+          r2.__usage = {
+            model,
+            tokens_in: r.__usage.tokens_in + r2.__usage.tokens_in,
+            tokens_out: r.__usage.tokens_out + r2.__usage.tokens_out,
+            cost_usd: r.__usage.cost_usd + r2.__usage.cost_usd,
+          };
+          r = r2;
+        }
       }
       return r;
     }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, model: classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip ? "gpt-4.1 (mood/VIP escalation)" : "gpt-4.1-mini" } });

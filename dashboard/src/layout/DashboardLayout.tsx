@@ -33,14 +33,14 @@ const NAV = [
 export default function DashboardLayout() {
   const nav = useNavigate();
   const { role, name, restaurant } = session();
+  const [brand, setBrand] = useState<{ primary?: string; logo_url?: string; name?: string }>({});
+  const [rtype, setRtype] = useState<string>("fine");
   // casual = orders-first, no reservations page (walk-in + waitlist world)
   const CASUAL_ORDER = ["/overview", "/orders", "/menu", "/floor", "/waitlist", "/chats", "/diners", "/events", "/users", "/settings"];
   const items = NAV
     .filter((n) => role === "admin" || n.roles.includes(role))
     .filter((n) => (rtype === "casual" ? n.to !== "/reservations" : true))
     .sort((a, b) => (rtype === "casual" ? CASUAL_ORDER.indexOf(a.to) - CASUAL_ORDER.indexOf(b.to) : 0));
-  const [brand, setBrand] = useState<{ primary?: string; logo_url?: string; name?: string }>({});
-  const [rtype, setRtype] = useState<string>("fine");
 
   useEffect(() => {
     api.get("/api/settings").then((r) => {
