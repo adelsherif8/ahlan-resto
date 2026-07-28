@@ -95,7 +95,12 @@ export async function sendText(phoneNumberId, to, text) {
 }
 
 export async function sendImage(phoneNumberId, to, imageUrl, caption = "") {
-  return graphPost(phoneNumberId, { to, type: "image", image: { link: imageUrl, caption: caption.slice(0, 1024) } });
+  // WhatsApp image links accept ONLY jpeg/png — .webp (e.g. CDN product shots) is
+  // silently rejected. Convert through an image proxy at send time.
+  const link = /\.webp(\?|$)/i.test(imageUrl)
+    ? `https://images.weserv.nl/?url=${encodeURIComponent(imageUrl.replace(/^https?:\/\//, ""))}&output=jpg&q=85`
+    : imageUrl;
+  return graphPost(phoneNumberId, { to, type: "image", image: { link, caption: caption.slice(0, 1024) } });
 }
 
 // Quick-reply buttons (max 3, 20-char titles). Tapping one sends its title back

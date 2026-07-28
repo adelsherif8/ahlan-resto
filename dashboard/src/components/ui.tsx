@@ -54,10 +54,11 @@ const PILL_COLORS: Record<string, string> = {
 };
 
 export function Pill({ value }: { value: string }) {
-  const cls = PILL_COLORS[value] || "bg-zinc-500/15 text-zinc-300";
+  const v = String(value ?? "");
+  const cls = PILL_COLORS[v] || "bg-zinc-500/15 text-zinc-300";
   return (
     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}>
-      {value.replaceAll("_", " ")}
+      {v.replaceAll("_", " ")}
     </span>
   );
 }

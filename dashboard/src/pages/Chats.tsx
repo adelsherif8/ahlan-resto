@@ -51,7 +51,7 @@ export default function Chats() {
     return () => { clearInterval(t); clearInterval(tc); };
   }, [active?.session_id]);
 
-  useEffect(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), [messages.length]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -149,12 +149,12 @@ export default function Chats() {
                 {messages.map((m) => (
                   <div key={m.id} className={`flex ${m.sender === "guest" ? "justify-start" : "justify-end"}`}>
                     <div
-                      className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${
+                      className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm text-zinc-100 ${
                         m.sender === "guest"
-                          ? "bg-zinc-800 text-zinc-100"
+                          ? "bg-zinc-800"
                           : m.sender === "ai"
-                          ? "bg-amber-500/15 text-amber-100"
-                          : "bg-sky-500/20 text-sky-100"
+                          ? "bg-amber-500/15"
+                          : "bg-sky-500/20"
                       }`}
                     >
                       {m.sender !== "guest" && (
@@ -218,7 +218,7 @@ function GuestPanel({ ctx, onSaved }: { ctx: any; onSaved: () => void }) {
   const d = ctx?.diner;
   const s = ctx?.session;
   const [notes, setNotes] = useState("");
-  useEffect(() => setNotes(d?.notes || ""), [d?.id]);
+  useEffect(() => { setNotes(d?.notes || ""); }, [d?.id]);
   if (!ctx) return <Empty text="Loading context…" />;
 
   const bdays = daysUntilMMDD(d?.preferences?.occasions?.birthday);

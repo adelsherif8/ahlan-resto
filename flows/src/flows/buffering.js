@@ -346,7 +346,8 @@ async function deliverPhoto(ctx, photo) {
   const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
   const phoneNumberId = route.phoneNumberId || WA_PHONE_NUMBER_ID;
   if (route.channel === "whatsapp" && phoneNumberId) {
-    await sendImage(phoneNumberId, ctx.sessionId.replace(/^\+/, ""), photo.url, photo.caption).catch(() => {});
+    await sendImage(phoneNumberId, ctx.sessionId.replace(/^\+/, ""), photo.url, photo.caption)
+      .catch((e) => console.log(`photo send FAILED for ${ctx.sessionId}: ${e.message} (${photo.url.slice(0, 80)})`));
   }
 }
 

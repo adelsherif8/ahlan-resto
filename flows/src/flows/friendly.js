@@ -278,7 +278,11 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         const firstName = (context.greetName || "").split(" ")[0];
         const missName = bareGreeting && firstName && context.situation !== "first_timer" && !draft.toLowerCase().includes(firstName.toLowerCase());
         const missRest = bareGreeting && context.situation === "first_timer" && !draft.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase());
-        if (BOTISM.test(draft) || PITCH.test(draft) || missName || missRest) {
+        const broken = (d) =>
+          BOTISM.test(d) || PITCH.test(d) ||
+          (bareGreeting && firstName && context.situation !== "first_timer" && !d.toLowerCase().includes(firstName.toLowerCase())) ||
+          (bareGreeting && context.situation === "first_timer" && !d.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase()));
+        if (broken(draft)) {
           const wants = bareGreeting
             ? [
                 firstName && context.situation !== "first_timer" ? `greet them by name ("${firstName}")` : null,
@@ -299,6 +303,14 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
             cost_usd: r.__usage.cost_usd + r2.__usage.cost_usd,
           };
           r = r2;
+          // still broken after the rewrite? keep the model's own words but guarantee
+          // the welcome/name by prefixing — a guest must never be greeted anonymously
+          if (bareGreeting && broken(r.value?.reply || "")) {
+            const prefix = context.situation === "first_timer"
+              ? (config.ai?.greeting || `Welcome to ${config.name}!`).trim()
+              : `Welcome back${firstName ? `, ${firstName}` : ""}!`;
+            r.value = { ...(r.value || {}), reply: `${prefix} ${(r.value?.reply || "").replace(/^(hey|hi|hello)[!,. ]*/i, "")}`.trim() };
+          }
         }
       }
       return r;

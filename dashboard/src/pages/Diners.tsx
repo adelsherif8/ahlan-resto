@@ -156,7 +156,7 @@ export default function Diners() {
 function EditRow({ label, value, onSave }: { label: string; value: string; onSave: (v: string) => Promise<void> }) {
   const [v, setV] = useState(value);
   const [saved, setSaved] = useState(false);
-  useEffect(() => setV(value), [value]);
+  useEffect(() => { setV(value); }, [value]);
   return (
     <div className="mb-2">
       <div className="mb-1 text-xs text-zinc-500">{label}</div>
