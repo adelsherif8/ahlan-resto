@@ -109,6 +109,29 @@ router.post("/messages/:id/rate", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Full guest reset — wipes EVERYTHING about this number (chats, memory, orders,
+// reservations, waitlist, feedback, notifications) so it becomes a brand-new guest.
+// Testing/demo tool; destructive by design.
+router.delete("/sessions/:sessionId/reset", async (req, res, next) => {
+  try {
+    const sid = req.params.sessionId;
+    const wiped = {};
+    for (const [table, col] of [
+      ["chat_messages", "session_id"], ["chat_sessions", "session_id"],
+      ["message_full", "phone_number"], ["temp_reservation", "phone_number"],
+      ["diners", "phone_number"], ["waitlist", "phone_number"], ["feedback", "phone_number"],
+      ["orders", "phone_number"], ["reservations", "diner_phone"], ["notifications", "ref_id"],
+    ]) {
+      try {
+        const rows = await req.repo.list(table, { where: { [col]: sid } });
+        for (const r of rows) await req.repo.remove(table, r.id);
+        wiped[table] = rows.length;
+      } catch { wiped[table] = "skipped"; }
+    }
+    res.json({ ok: true, wiped });
+  } catch (e) { next(e); }
+});
+
 // Toggle AI per conversation (handoff / hand-back)
 router.patch("/sessions/:id", async (req, res, next) => {
   try {

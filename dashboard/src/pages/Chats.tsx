@@ -125,6 +125,20 @@ export default function Chats() {
                     <div className="mt-0.5 max-w-md text-xs text-amber-300">🤝 {active.handoff_briefing}</div>
                   )}
                 </div>
+                <button
+                  title="Reset this guest completely — deletes chats, memory, orders and reservations so they start fresh (testing tool)"
+                  onClick={async () => {
+                    if (!confirm(`Fully reset ${active.diner_name || active.session_id}? This wipes their chats, memory, orders and reservations.`)) return;
+                    await api.delete(`/api/chat/sessions/${encodeURIComponent(active.session_id)}/reset`).catch(() => {});
+                    setActive(null);
+                    setMessages([]);
+                    setCtx(null);
+                    loadSessions();
+                  }}
+                  className="mr-2 rounded-lg border border-red-500/40 px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
+                >
+                  🗑 Reset guest
+                </button>
                 <Btn variant={active.ai_enabled ? "ghost" : "primary"} className="px-3 py-1.5 text-xs" onClick={toggleAi}>
                   <span className="flex items-center gap-1.5">
                     {active.ai_enabled ? <><Bot size={14} /> AI on — take over</> : <><BotOff size={14} /> AI off — hand back</>}
