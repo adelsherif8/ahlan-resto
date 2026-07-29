@@ -151,6 +151,9 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       if (e.order_type === "delivery" && !deliveryOn) return { kind: "no_delivery", items };
 
       let orderType = ["pickup", "delivery", "dine_in"].includes(e.order_type) ? e.order_type : typeHint;
+      // naming a table IS dining in — don't ask them how they're eating when they
+      // already told us where they're sitting
+      if (!orderType && e.table_number) orderType = "dine_in";
       let tableNumber = null;
       if (e.table_number) {
         const t = String(e.table_number).toUpperCase().replace(/\s+/g, "");
@@ -179,23 +182,28 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       };
 
       // ================= GATES, in the order a cashier actually asks =================
+      // While gathering, echo back what's already on the order so the guest can see
+      // it building. Item lines and a subtotal only — the TOTAL isn't knowable until
+      // the type settles which charges apply, and quoting one early would be a lie.
+      const running = items.length ? { items, subtotal: items.reduce((s, i) => s + i.price * i.qty, 0), currency } : null;
+
       // 1) HOW they're eating — this decides the whole rest of the conversation
       if (!orderType) {
         await savePending();
-        return { kind: "ask_order_type", items, delivery: deliveryOn };
+        return { kind: "ask_order_type", items, running, delivery: deliveryOn };
       }
       // 2) WHERE — table / address / branch, all resolved before we take a single item
-      if (orderType === "dine_in" && !tableNumber) { await savePending(); return { kind: "ask_table", items }; }
+      if (orderType === "dine_in" && !tableNumber) { await savePending(); return { kind: "ask_table", items, running }; }
       if (orderType === "delivery" && !address && !mapLink && !sharedPin) {
         await savePending({ address, map_link: mapLinkRaw });
-        return { kind: "ask_address", items, saved: saved.map((s) => s.text) };
+        return { kind: "ask_address", items, running, saved: saved.map((s) => s.text) };
       }
       if (branches.length > 1 && !branch) {
         await savePending();
         // if they shared their location, lead with the closest branch (code-computed)
         const loc = freshLocation(diner);
         const near = loc ? nearestBranches(branches, loc.lat, loc.lng, 3).map((b) => `${b.name} (${b.km} km)`) : null;
-        return { kind: "ask_branch", items, branches: branches.map((b) => b.name), nearest: near };
+        return { kind: "ask_branch", items, running, branches: branches.map((b) => b.name), nearest: near };
       }
       // 3) WHAT — now the menu means something, because we know where it's going
       if (!items.length) return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
@@ -224,8 +232,11 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         return { kind: "ask_payment", items, bill, currency, methods: payMethods, branch: branchInfo?.name || null, order_type: orderType, address, table_number: tableNumber };
       }
 
-      // 7) CONFIRM — the guest sees the full bill and says yes before anything is written
-      const confirmed = e.intent === "confirm" || loaded.pending?.awaiting_confirm === false;
+      // 7) CONFIRM — the guest sees the full bill and says yes before anything is written.
+      // Only a yes to a bill WE actually showed counts: the extractor reads "cash" as
+      // intent=confirm, which would otherwise place the order the moment they pick a
+      // payment method, before they've ever seen a total.
+      const confirmed = loaded.pending?.awaiting_confirm === true && e.intent === "confirm";
       if (!confirmed) {
         await savePending({ address, map_link: mapLinkRaw, payment_method: payment, awaiting_confirm: true });
         return {
@@ -296,7 +307,7 @@ OUTCOMES:
 - confirm_order: one line asking them to confirm before it goes to the kitchen. The full bill is below. quick_replies: ["Confirm ✅","Change something"].
 - ask_address: if saved[] has addresses, DON'T make them retype — read their saved address(es) back and ask if it's going there or somewhere new. Otherwise ask for the address: they can type it out or paste a Google Maps link 🔗. Never say "pin". quick_replies: each saved address (shortened), then "New address".
 - ask_items: the full menu PDF is attached automatically — say it's below/attached and ask what they'd like. NEVER ask "what would you like?" on its own as if they can already see the menu.
-- ask_order_type: FIRST question of every order — are they eating in, picking up, or want delivery? (omit delivery if delivery is false). quick_replies: ["Dine-in","Pickup","Delivery"] as applicable.
+- ask_order_type: FIRST question of every order — are they eating in, picking up, or want delivery? (omit delivery if delivery is false). If "running" is present their items are listed under your reply automatically, so acknowledge what they picked; if it is absent, promise NOTHING about a bill or a list — there is nothing attached yet. quick_replies: ["Dine-in","Pickup","Delivery"] as applicable.
 - ask_table: which table are they at? (they can read the number off the table)
 - bad_table: that table number doesn't exist — ask them to double-check what's on the table.
 - nothing_matched: none of that matched the menu (list unknown) — suggest tapping the menu.
@@ -327,6 +338,16 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       no_open_order: "No active order found — want to start one? 🍔",
     };
     let reply = value.value?.reply || fallback[outcome.kind] || fallback.ask_items;
+
+    // Mid-gather: show the lines and a subtotal, never a TOTAL we can't stand behind yet.
+    if (outcome.running?.items?.length) {
+      const money = (n) => `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${currency}`;
+      const lines = outcome.running.items.map((it) => {
+        const mods = [...Object.entries(it.choices || {}).map(([k, v]) => `${k}: ${v}`), it.notes || null].filter(Boolean);
+        return `• ${it.qty}× ${it.name} — ${money(it.price * it.qty)}${mods.length ? `\n   ↳ ${mods.join(" · ")}` : ""}`;
+      });
+      reply = `${reply}\n\n🧾 ${lines.join("\n")}\nSubtotal: ${money(outcome.running.subtotal)}`;
+    }
 
     // The bill is rendered by CODE and appended — the model never writes a number.
     // A model that ignored the money rule anyway gets its stray totals dropped here.

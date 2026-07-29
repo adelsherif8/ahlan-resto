@@ -81,7 +81,8 @@ Buckets:
 - "reservation": wants/asks about booking, changing, cancelling a table ("table for 4", "احجزلي", "cancel my booking")
 - "arrival": is at/near the restaurant now ("I'm here", "wa2eft barra", "running late 10 min")
 - "events": asks about parties/DJ nights/special events or wants to RSVP
-- "order": wants to order food for delivery/pickup/pre-order/dine-in ("same as last time", "the usual please", "نفس الطلب", asking where their order is)
+- "order": wants food MADE now — placing/changing/cancelling an order, or chasing one ("2 burgers for pickup", "same as last time", "the usual please", "نفس الطلب", "where's my order")
+  NOT "order": a QUESTION about the menu — price, total, calories, ingredients, what's available ("how much is X?", "total for 2 burgers?", "بكام"). Naming a dish is not ordering it; asking what something costs is "friendly".
 - "friendly": everything else — greetings, menu questions, hours, location, complaints, chit-chat (DEFAULT when unsure)
 CONTINUATION RULE (most important): ORDER IN PROGRESS is ${precheck.active_flow === "order" ? `YES, stage "${precheck.stage}"` : "no"}. When an order is in progress, the guest is answering us — a drink name, a branch, "T3", "pickup", "card", "yes", an address — ALL of that is bucket "order", never friendly. Only route elsewhere if they clearly changed the subject (asking hours, complaining, booking a table).
 OUR LAST MESSAGE: ${JSON.stringify(String(input.lastAiMessage || "").slice(0, 300))}

@@ -9,6 +9,8 @@ const AR = "[\\u0600-\\u06FF]";
 const CASES = [
   { id: "price", name: "Exact price from DB", msg: "how much is the loaded fries?", expect: [/99/] },
   { id: "math", name: "Price math", msg: "total for 2 american truck meals and a coke?", expect: [/530/] },
+  { id: "runningsub", needs: "casual", name: "Named items show a subtotal while we gather the rest", turns: ["2 american truck meals"],
+    expect: [/500/, /subtotal/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "gf", name: "Dietary honesty when tags absent", msg: "which meals are gluten free?", expect: [/kitchen|team|confirm|double.?check|sure/i] },
   { id: "desserts", name: "Honest about missing category", msg: "what desserts do you have?", expect: [/no |don['’]?t|not |مفيش|بس عندنا/i], forbid: [/kunafa|cheesecake|fondant/i] },
   { id: "location", name: "Address + maps from config", msg: "where are you located?", expect: [/90th|new cairo/i] },
@@ -56,7 +58,7 @@ const CASES = [
     expect: [/dine.?in|eating in|eat in/i, /pick.?up|takeaway/i, /deliver/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "combochoice", needs: "casual", name: "A meal asks which drink, from the real menu", turns: ["an iconic meal for pickup from Maadi"],
     expect: [/drink/i, /coca|sprite|fanta/i], forbid: [/O-[A-Z2-9]{4}/] },
-  { id: "itemnotes", needs: "casual", name: "Per-item modifier reaches the ticket", turns: ["one iconic burger no onion, pickup from Maadi", "cash", "yes confirm"],
+  { id: "itemnotes", needs: "casual", name: "Per-item modifier reaches the ticket", turns: ["one loaded fries no onion, pickup from Maadi", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /no onion/i] },
   { id: "currencyclean", needs: "casual", name: "Bill uses the configured currency only", turns: ["2 fries for pickup from Maadi"],
     expect: [/EGP/], forbid: [/[₱$€£₹]/] },
@@ -66,9 +68,9 @@ const CASES = [
     expect: [/branch/i, /maadi|sheraton|new cairo/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "branchflow", needs: "casual", name: "Branch answer completes the order", turns: ["can I get an iconic meal for pickup", "Maadi", "sprite", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /maadi/i] },
-  { id: "paygate", needs: "casual", name: "Payment is asked before any ticket exists", turns: ["1 iconic meal pickup from Maadi"],
+  { id: "paygate", needs: "casual", name: "Payment is asked before any ticket exists", turns: ["1 iconic meal pickup from Maadi", "sprite"],
     expect: [/pay|cash|card|instapay/i], forbid: [/O-[A-Z2-9]{4}/] },
-  { id: "confirmgate", needs: "casual", name: "Confirmation required before the kitchen sees it", turns: ["1 iconic meal pickup from Maadi", "cash"],
+  { id: "confirmgate", needs: "casual", name: "Confirmation required before the kitchen sees it", turns: ["1 iconic meal pickup from Maadi", "sprite", "cash"],
     expect: [/confirm/i], forbid: [/O-[A-Z2-9]{4}/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
@@ -103,8 +105,8 @@ const CASES = [
     expect: [/list/i], forbid: [/\d+\s*min/i] },
   { id: "complaint", name: "Past-visit complaint → apology, feedback captured", msg: "we came last friday and honestly the service was so slow, kinda ruined the night",
     expect: [/sorry|apolog|آسف/i] },
-  { id: "menulist", name: "Menu request → tappable list, not a text dump", msg: "can I see the menu?",
-    expect: [/📋|▸/], forbid: [/520.*780|780.*520/s] },
+  { id: "menulist", name: "Menu request → PDF document + link, not a text dump", msg: "can I see the menu?",
+    expect: [/📄|\.pdf|full menu/i], forbid: [/520.*780|780.*520/s] },
   { id: "welcback", name: "Returning guest welcomed back", msg: "hi",
     seed: { diner: { name: "Omar", visit_count: 3, last_seen_days_ago: 5 } },
     expect: [/back|again|good to see|missed|Omar|نورت|وحشتنا/i], forbid: [/first time/i] },
@@ -223,7 +225,9 @@ async function cleanup(db, runId) {
   await db.from("notifications").delete().like("ref_id", `web:regress-${runId}-%`).then(() => {});
 }
 
-export async function runRegression() {
+// `only` runs a subset by id — for re-checking the cases you just touched without
+// paying for the whole suite. Omit it for the full run.
+export async function runRegression({ only } = {}) {
   if (state.status === "running") return state;
   const runId = Date.now().toString(36);
   state = { status: "running", started_at: new Date().toISOString(), finished_at: null, passed: 0, failed: 0, results: [] };
@@ -231,7 +235,12 @@ export async function runRegression() {
     const tenant = await resolveRestaurant();
     const rtype = tenant.config.basic_info?.restaurant_type || "fine";
     const reservable = rtype !== "casual" && tenant.config.ai?.reservations_enabled !== false;
-    const queue = [...CASES];
+    const picked = only?.length ? CASES.filter((c) => only.includes(c.id)) : CASES;
+    if (only?.length) {
+      const unknown = only.filter((id) => !CASES.some((c) => c.id === id));
+      if (unknown.length) throw new Error(`unknown case id(s): ${unknown.join(", ")}`);
+    }
+    const queue = [...picked];
     await Promise.all(
       Array.from({ length: 4 }, async () => {
         while (queue.length) {
