@@ -179,7 +179,7 @@ FACTS — the ONLY things you know (never invent anything beyond this):
 - Payment methods: ${(config.payments?.methods || []).join(", ") || "n/a"}
 - Services: dine-in yes · delivery ${bi.services?.delivery === true ? "YES" : bi.services?.delivery === false ? "no" : "not set"} · pickup ${bi.services?.pickup === true ? "YES" : bi.services?.pickup === false ? "no" : "not set"}
 - House policies: alcohol ${bi.policies?.alcohol ?? "not set"} · shisha ${bi.policies?.shisha ?? "not set"} · kids ${bi.policies?.kids ?? "not set"} · smoking ${bi.policies?.smoking ?? "not set"}
-- Reservation policy: ${reservationPolicyLine(config.reservation_policy)}
+${branchFacts(config, diner)}- Reservation policy: ${reservationPolicyLine(config.reservation_policy)}
 - NEVER imply discounts/deals/offers exist unless listed here: ${JSON.stringify(ai.offers || [])}
 - TONIGHT'S SPECIALS (mention when relevant — never invent others): ${context.specials.length ? context.specials.join("; ") : "none tonight"}
 - MENU (available right now — if an item is not listed, it is NOT available tonight):
@@ -579,6 +579,16 @@ function mergePreferences(current, detected, facts, menu) {
   }
 
   return changed ? prefs : null;
+}
+
+// branches as facts — the guest's chosen branch leads, the rest are listed honestly
+function branchFacts(config, diner) {
+  const branches = (config.basic_info?.branches || []).filter((b) => b && typeof b === "object" && b.key);
+  if (!branches.length) return "";
+  const mine = branches.find((b) => b.key === diner?.preferred_branch);
+  const list = branches.map((b) => `${b.name}${b.address ? ` (${b.address})` : ""}${b.hours ? ` — ${b.hours}` : ""}`).join(" | ");
+  return `- BRANCHES (${branches.length}): ${list}
+${mine ? `- THIS guest's branch: ${mine.name}${mine.address ? ` — ${mine.address}` : ""}. When they ask "where are you" / hours, answer for THEIR branch first; mention others only if they ask or want to switch.\n` : `- This guest hasn't picked a branch yet — if they ask where we are, give the branch NAMES (and the one nearest if they say their area); ask which branch they mean before branch-specific details.\n`}`;
 }
 
 // deposits/max-party as facts — without this line the model invents deposit policy

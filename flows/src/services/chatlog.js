@@ -43,6 +43,10 @@ export async function setSessionFlags(db, sessionId, flags) {
   await db.from("chat_sessions").update(flags).eq("session_id", sessionId);
 }
 
-export async function notifyDashboard(db, type, title, body, refId = null) {
-  await db.from("notifications").insert({ type, title, body, ref_id: refId });
+// branch tags the notification so only that branch's staff get pinged
+export async function notifyDashboard(db, type, title, body, refId = null, branch = null) {
+  const row = { type, title, body, ref_id: refId };
+  if (branch) row.branch = branch;
+  const { error } = await db.from("notifications").insert(row);
+  if (error && branch) await db.from("notifications").insert({ type, title, body, ref_id: refId }); // pre-migration fallback
 }

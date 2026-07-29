@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../config/api";
+import { api, session } from "../config/api";
 import { Card, PageHeader, Btn, Empty } from "../components/ui";
 
 // Fast-food ticket board (KDS): tickets flow left → right, one tap advances.
@@ -24,13 +24,21 @@ function mins(since: string) {
 
 export default function Orders() {
   const [rows, setRows] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const staffBranch = session().branch || "";
+  const [branch, setBranch] = useState<string>(staffBranch || localStorage.getItem("resto_branch_view") || "all");
 
-  const load = () => api.get("/api/orders").then((r) => setRows(r.data)).catch(() => {});
+  const load = (b = branch) =>
+    api.get("/api/orders", { params: { branch: b } }).then((r) => setRows(r.data)).catch(() => {});
   useEffect(() => {
-    load();
-    const t = setInterval(load, 7000);
-    return () => clearInterval(t);
+    api.get("/api/settings").then((r) => setBranches(r.data?.basic_info?.branches || [])).catch(() => {});
   }, []);
+  useEffect(() => {
+    load(branch);
+    if (!staffBranch) localStorage.setItem("resto_branch_view", branch);
+    const t = setInterval(() => load(branch), 7000);
+    return () => clearInterval(t);
+  }, [branch]);
 
   async function advance(o: any, status: string) {
     setRows((xs) => xs.map((x) => (x.id === o.id ? { ...x, status } : x)));
@@ -49,6 +57,26 @@ export default function Orders() {
       <PageHeader
         title="Orders"
         subtitle={`${active.length} live tickets · ${visible.length} today · EGP ${visible.reduce((s, o) => s + Number(o.total || 0), 0).toLocaleString()}`}
+        actions={
+          branches.length > 1 ? (
+            staffBranch ? (
+              <span className="rounded-full bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300">
+                🏪 {branches.find((b: any) => b.key === staffBranch)?.name || staffBranch}
+              </span>
+            ) : (
+              <select
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+              >
+                <option value="all">All branches</option>
+                {branches.map((b: any) => (
+                  <option key={b.key} value={b.key}>{b.name}</option>
+                ))}
+              </select>
+            )
+          ) : undefined
+        }
       />
       <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-4">
         {COLS.map((col) => {
@@ -75,6 +103,7 @@ export default function Orders() {
                           </span>
                         </div>
                         <div className="mb-1 text-xs text-zinc-400">
+                          {o.branch && branch === "all" ? `🏪 ${branches.find((b: any) => b.key === o.branch)?.name || o.branch} · ` : ""}
                           {o.diner_name || o.phone_number || "guest"} · <span className={late ? "font-semibold text-red-400" : ""}>{age}m</span>
                         </div>
                         <div className="space-y-0.5 text-sm">

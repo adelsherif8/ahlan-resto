@@ -20,6 +20,7 @@ export default function Login() {
       const { data } = await api.post("/api/auth/login", { email, password });
       localStorage.setItem("resto_token", data.token);
       localStorage.setItem("resto_role", data.user.role);
+      localStorage.setItem("resto_branch", data.user.branch || "");
       localStorage.setItem("resto_name", data.user.name || "");
       localStorage.setItem("resto_restaurant", data.restaurant?.name || "");
       nav(ROLE_HOME[data.user.role] || "/overview");

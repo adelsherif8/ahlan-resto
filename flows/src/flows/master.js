@@ -67,6 +67,12 @@ defineFlow({
       if (isAffirmative && precheck.active_flow === "reservation") {
         return { value: { bucket: "reservation", intent: "confirm_reservation", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (affirmative in active reservation session)" } };
       }
+      // mid-order follow-up ("Maadi", "pickup", "T3", "yes") stays with the ORDER agent
+      const lastAi = String(input.lastAiMessage || "");
+      const ORDER_QUESTION = /which branch|branch would you|which table|pickup or delivery|pick.?up or|eating here|what table|أي فرع|فرع تاني|which one/i;
+      if (ORDER_QUESTION.test(lastAi) && message.trim().length <= 40) {
+        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (answering our ordering question)" } };
+      }
       if (isAffirmative) {
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare affirmative)" } };
       }
@@ -77,6 +83,8 @@ Buckets:
 - "events": asks about parties/DJ nights/special events or wants to RSVP
 - "order": wants to order food for delivery/pickup/pre-order/dine-in ("same as last time", "the usual please", "نفس الطلب", asking where their order is)
 - "friendly": everything else — greetings, menu questions, hours, location, complaints, chit-chat (DEFAULT when unsure)
+CONTINUATION RULE (most important): if OUR LAST MESSAGE asked an ordering question (which branch? which table? pickup or delivery? what would you like?), then a short answer (a branch name, "Maadi", "pickup", "T3", "yes") is bucket "order" — NOT friendly.
+OUR LAST MESSAGE: ${JSON.stringify(String(input.lastAiMessage || "").slice(0, 200))}
 Also detect mood: happy|neutral|frustrated|urgent|confused, and language: en|ar|franco|mixed.
 Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
       return chatJSON("gpt-4o-mini", system, message, { temperature: 0, maxTokens: 80 });

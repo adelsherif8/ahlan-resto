@@ -90,7 +90,9 @@ router.get("/agent-stats", async (req, res, next) => {
 router.get("/notifications", async (req, res, next) => {
   try {
     const rows = await req.repo.list("notifications", { order: "created_at" });
-    res.json(rows);
+    // a branch only sees its own pings (untagged = restaurant-wide, always shown)
+    const branch = req.user?.branch || (req.query.branch && req.query.branch !== "all" ? req.query.branch : null);
+    res.json(branch ? rows.filter((n) => !n.branch || n.branch === branch) : rows);
   } catch (e) { next(e); }
 });
 

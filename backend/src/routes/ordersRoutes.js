@@ -9,6 +9,9 @@ router.get("/", async (req, res, next) => {
   try {
     const where = {};
     if (req.query.status) where.status = req.query.status;
+    // branch scoping: staff locked to their branch; managers may filter via ?branch=
+    const branch = req.user?.branch || (req.query.branch && req.query.branch !== "all" ? req.query.branch : null);
+    if (branch) where.branch = branch;
     const rows = await req.repo.list("orders", { where, order: "created_at" });
     res.json(rows);
   } catch (e) { next(e); }

@@ -223,7 +223,8 @@ defineFlow({
     } else {
       // ---- master: EVERY burst goes through the router (fast paths live inside it) ----
       routed = await f.node("master", async () => {
-        return f.flow("master", { message: merged, history, precheck, stickyLanguage: sticky });
+        const lastAiMessage = [...(history || [])].reverse().find((h) => h.role === "ai")?.message || null;
+        return f.flow("master", { message: merged, history, precheck, stickyLanguage: sticky, lastAiMessage });
       }, { input: { message: merged, precheck_active_flow: precheck.active_flow, sticky_language: sticky } });
       reply = routed?.reply || "Sorry — something went wrong on our side 🙏 A team member will follow up.";
       if (routed?.language) setSessionLanguage(ctx.sessionId, routed.language);

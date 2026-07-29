@@ -27,5 +27,6 @@ export function session() {
     role: localStorage.getItem("resto_role") || "",
     name: localStorage.getItem("resto_name") || "",
     restaurant: localStorage.getItem("resto_restaurant") || "",
+    branch: localStorage.getItem("resto_branch") || "",
   };
 }

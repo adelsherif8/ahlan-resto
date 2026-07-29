@@ -10,7 +10,7 @@ const router = Router();
 
 function sign(user, restaurantId) {
   return jwt.sign(
-    { id: user.id, email: user.email, name: user.name, role: user.role, restaurantId },
+    { id: user.id, email: user.email, name: user.name, role: user.role, branch: user.branch || null, restaurantId },
     JWT_SECRET,
     { expiresIn: "7d" }
   );
@@ -26,7 +26,7 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     return res.json({
       token: sign(user, demoRestaurant.id),
-      user: { name: user.name, email: user.email, role: user.role },
+      user: { name: user.name, email: user.email, role: user.role, branch: user.branch || null },
       restaurant: { id: demoRestaurant.id, name: demoRestaurant.name },
     });
   }
@@ -49,7 +49,7 @@ router.post("/login", async (req, res) => {
 
   res.json({
     token: sign(user, user.restaurant_id),
-    user: { name: user.name, email: user.email, role: user.role },
+    user: { name: user.name, email: user.email, role: user.role, branch: user.branch || null },
     restaurant: resto,
   });
 });
