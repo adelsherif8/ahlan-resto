@@ -3,6 +3,7 @@
 // the classification is still real so Executions show true routing + the handoff hints work.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
+import { MODEL_FAST } from "../config.js";
 import { detectCloser, matchFaq, matchMenuCategory } from "../services/fastpaths.js";
 import { bump } from "../services/metrics.js";
 
@@ -67,11 +68,10 @@ defineFlow({
       if (isAffirmative && precheck.active_flow === "reservation") {
         return { value: { bucket: "reservation", intent: "confirm_reservation", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (affirmative in active reservation session)" } };
       }
-      // mid-order follow-up ("Maadi", "pickup", "T3", "yes") stays with the ORDER agent
-      const lastAi = String(input.lastAiMessage || "");
-      const ORDER_QUESTION = /which branch|branch would you|which table|pickup or delivery|pick.?up or|eating here|what table|أي فرع|فرع تاني|which one/i;
-      if (ORDER_QUESTION.test(lastAi) && message.trim().length <= 40) {
-        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (answering our ordering question)" } };
+      // a draft order in progress is session STATE, not a guess about wording — a bare
+      // "yes" mid-order is a confirmation, and belongs to the ORDER agent, full stop
+      if (isAffirmative && precheck.active_flow === "order") {
+        return { value: { bucket: "order", intent: "confirm", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (affirmative in active order session)" } };
       }
       if (isAffirmative) {
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare affirmative)" } };
@@ -83,11 +83,11 @@ Buckets:
 - "events": asks about parties/DJ nights/special events or wants to RSVP
 - "order": wants to order food for delivery/pickup/pre-order/dine-in ("same as last time", "the usual please", "نفس الطلب", asking where their order is)
 - "friendly": everything else — greetings, menu questions, hours, location, complaints, chit-chat (DEFAULT when unsure)
-CONTINUATION RULE (most important): if OUR LAST MESSAGE asked an ordering question (which branch? which table? pickup or delivery? what would you like?), then a short answer (a branch name, "Maadi", "pickup", "T3", "yes") is bucket "order" — NOT friendly.
-OUR LAST MESSAGE: ${JSON.stringify(String(input.lastAiMessage || "").slice(0, 200))}
+CONTINUATION RULE (most important): ORDER IN PROGRESS is ${precheck.active_flow === "order" ? `YES, stage "${precheck.stage}"` : "no"}. When an order is in progress, the guest is answering us — a drink name, a branch, "T3", "pickup", "card", "yes", an address — ALL of that is bucket "order", never friendly. Only route elsewhere if they clearly changed the subject (asking hours, complaining, booking a table).
+OUR LAST MESSAGE: ${JSON.stringify(String(input.lastAiMessage || "").slice(0, 300))}
 Also detect mood: happy|neutral|frustrated|urgent|confused, and language: en|ar|franco|mixed.
 Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
-      return chatJSON("gpt-4o-mini", system, message, { temperature: 0, maxTokens: 80 });
+      return chatJSON(MODEL_FAST, system, message, { temperature: 0, maxTokens: 120 });
     }, { input: { message, affirmative_shortcut: isAffirmative } });
 
     const cls = classification.value || {};
@@ -100,7 +100,7 @@ Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
       // agent, waitlist via FRIENDLY) + ORDER agent; fine = reservation agent, orders via staff
       const rtype = ctx.tenant.config.basic_info?.restaurant_type || "fine";
       const reservable = rtype !== "casual" && ctx.tenant.config.ai?.reservations_enabled !== false;
-      const agent = cls.bucket === "order" && rtype === "casual" ? "order"
+      const agent = (cls.bucket === "order" || precheck.active_flow === "order") && rtype === "casual" ? "order"
         : (cls.bucket === "reservation" || precheck.active_flow === "reservation") && reservable ? "reservation"
         : cls.bucket === "arrival" && reservable ? "arrival"
         : "friendly";

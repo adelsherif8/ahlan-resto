@@ -45,6 +45,21 @@ export async function sessionPrecheck(db, sessionId, history) {
     }
   } catch { /* table may not exist in memory mode */ }
 
+  // order session state — a real draft order in progress, not a guess from the wording.
+  // While this is live, short answers ("sprite", "card", "T3") belong to the ORDER agent.
+  if (out.active_flow === "none") {
+    try {
+      const { data: d } = await db.from("diners").select("preferences").eq("phone_number", sessionId).maybeSingle();
+      const p = d?.preferences?.pending_order;
+      if (p && Date.now() - new Date(p.at || 0).getTime() < 30 * 60_000) {
+        out.active_flow = "order";
+        out.stage = p.awaiting_confirm ? "awaiting_confirm"
+          : p.awaiting_choice ? `awaiting_${p.awaiting_choice.label}`
+          : p.payment_method ? "awaiting_confirm" : "building";
+      }
+    } catch { /* diners table may not exist in memory mode */ }
+  }
+
   return out;
 }
 

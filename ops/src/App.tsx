@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Flame, Workflow, MessageCircle, LogOut } from "lucide-react";
+import { Flame, Workflow, MessageCircle, Activity, LogOut } from "lucide-react";
 import { ops, getToken, setToken, clearToken } from "./config";
 import { Card, Btn, Input } from "./ui";
 import FlowsView from "./FlowsView";
 import ChatView from "./ChatView";
+import HealthView from "./HealthView";
 
-type Tab = "flows" | "chat";
+type Tab = "flows" | "chat" | "health";
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -62,6 +63,7 @@ export default function App() {
           <nav className="ml-6 flex gap-1">
             <TabBtn active={tab === "flows"} onClick={() => setTab("flows")} icon={<Workflow size={14} />} label="Flows & Executions" />
             <TabBtn active={tab === "chat"} onClick={() => setTab("chat")} icon={<MessageCircle size={14} />} label="Test Chat" />
+            <TabBtn active={tab === "health"} onClick={() => setTab("health")} icon={<Activity size={14} />} label="Health" />
           </nav>
         </div>
         <button onClick={() => { clearToken(); location.reload(); }} className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400">
@@ -69,7 +71,7 @@ export default function App() {
         </button>
       </header>
       <main className="p-6">
-        {tab === "flows" ? <FlowsView /> : <ChatView />}
+        {tab === "flows" ? <FlowsView /> : tab === "chat" ? <ChatView /> : <HealthView />}
       </main>
     </div>
   );

@@ -10,6 +10,7 @@ import { sessionPrecheck, detectAffirmative, detectSelfCorrection } from "../ser
 import { processWaMedia } from "../services/media.js";
 import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction, sendDocument, markReadWithTyping, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
 import { bump } from "../services/metrics.js";
+import { log } from "../config.js";
 
 const HISTORY_TTL_MS = 60 * 60 * 1000; // fresh conversation after 1h of silence (removebuffer.json behavior, on read)
 
@@ -277,11 +278,16 @@ defineFlow({
         await logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" });
       }
       if (routed?.menuDoc) {
+        const md = routed.menuDoc;
         if (isWa) {
           const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
-          if (pnid) await sendDocument(pnid, ctx.sessionId.replace(/^\+/, ""), routed.menuDoc.url, routed.menuDoc.caption).catch(() => {});
+          // a silently-dropped document looks identical to "the bot ignored me" — surface it
+          if (pnid) {
+            await sendDocument(pnid, ctx.sessionId.replace(/^\+/, ""), md.url, md.caption, md.filename || "menu.pdf")
+              .catch((e) => log("document send failed:", md.url, e.message));
+          } else log("document send skipped: no phone_number_id for", ctx.sessionId);
         }
-        await logMessage(db, ctx.sessionId, "ai", `📄 ${routed.menuDoc.caption}${!isWa ? `\n${routed.menuDoc.url}` : ""}`, ctx.channel);
+        await logMessage(db, ctx.sessionId, "ai", `📄 ${md.caption}\n${md.url}`, ctx.channel, { url: md.url, type: "document" });
       }
       if (routed?.locationPin) {
         const pin = routed.locationPin;

@@ -22,7 +22,9 @@ export async function restaurantContext(req, res, next) {
     }
 
     if (TEST_RESTO_SUPABASE_URL) {
-      req.repo = supabaseRepo(tenantClient(TEST_RESTO_SUPABASE_URL, TEST_RESTO_SUPABASE_KEY));
+      const client = tenantClient(TEST_RESTO_SUPABASE_URL, TEST_RESTO_SUPABASE_KEY);
+      req.repo = supabaseRepo(client);
+      req.tenantClient = client; // raw client — routes that query by natural columns need it
       req.restaurant = demoRestaurant; // config editing needs the control plane; test mode uses demo config
       return next();
     }

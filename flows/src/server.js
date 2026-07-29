@@ -251,6 +251,61 @@ app.get("/api/executions", opsAuth, async (req, res) => {
   res.json(merged);
 });
 
+// HEALTH — what's breaking, grouped, so a recurring bug reads as one line and not
+// fifty. Covers node-level failures too: a step can fail and be recovered by a
+// fallback, and that's exactly the kind of thing that hides until someone looks.
+app.get("/api/ops/health", opsAuth, async (req, res) => {
+  const hours = Math.min(Number(req.query.hours) || 24, 24 * 14);
+  const since = new Date(Date.now() - hours * 3600_000).toISOString();
+  try {
+    const tenant = await resolveRestaurant();
+    const { data, error } = await tenant.db
+      .from("flow_executions")
+      .select("id,flow,session_id,trigger,status,error,started_at,duration_ms,nodes")
+      .gte("started_at", since)
+      .order("started_at", { ascending: false })
+      .limit(1000);
+    // migration 003 not run → say so plainly rather than render a fake all-clear
+    if (error) return res.json({ available: false, reason: error.message, runs: 0, groups: [], recent: [] });
+
+    const rows = data || [];
+    const failures = [];
+    for (const r of rows) {
+      const nodes = (Array.isArray(r.nodes) ? r.nodes : [])
+        .filter((n) => n?.status === "error" || n?.error)
+        .map((n) => ({ node: n.name, error: String(n.error || "unknown").slice(0, 600), ms: n.ms ?? null, model: n.model || null }));
+      if (r.status !== "error" && !nodes.length) continue;
+      failures.push({
+        id: r.id, flow: r.flow, session_id: r.session_id, trigger: r.trigger,
+        at: r.started_at, duration_ms: r.duration_ms,
+        fatal: r.status === "error", // false = a step failed but the run recovered
+        error: String(r.error || nodes[0]?.error || "unknown").slice(0, 600),
+        nodes,
+      });
+    }
+
+    const groups = new Map();
+    for (const f of failures) {
+      const key = `${f.flow}|${f.nodes[0]?.node || "-"}|${f.error.slice(0, 120)}`;
+      const g = groups.get(key);
+      if (g) { g.count++; if (f.at > g.last_at) g.last_at = f.at; }
+      else groups.set(key, { key, flow: f.flow, node: f.nodes[0]?.node || null, error: f.error, count: 1, last_at: f.at, fatal: f.fatal });
+    }
+
+    res.json({
+      available: true,
+      window_hours: hours,
+      runs: rows.length,
+      failed_runs: failures.length,
+      error_rate: rows.length ? Math.round((failures.length / rows.length) * 1000) / 10 : 0,
+      groups: [...groups.values()].sort((a, b) => b.count - a.count || (a.last_at < b.last_at ? 1 : -1)),
+      recent: failures.slice(0, 60),
+    });
+  } catch (e) {
+    res.json({ available: false, reason: e.message, runs: 0, groups: [], recent: [] });
+  }
+});
+
 app.get("/api/executions/:id", opsAuth, async (req, res) => {
   let e = getExecution(req.params.id);
   if (!e) {

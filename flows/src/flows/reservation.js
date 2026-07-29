@@ -5,6 +5,7 @@ import { z } from "zod";
 import { StateGraph, StateSchema, START, END } from "@langchain/langgraph";
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
+import { MODEL_SMART, MODEL_FAST } from "../config.js";
 import { setSessionFlags, notifyDashboard } from "../services/chatlog.js";
 import {
   computeAvailability, turnMinutes, makeReservationCode, todayISO, validDateISO, validTime,
@@ -87,7 +88,7 @@ FRANCO/ARABIC SLOT EXAMPLES (parse these correctly): "tarabeza l 4" / "l 2" / "l
 intent rules: "confirm" ONLY when agreeing to a quoted offer (yes/ya/yep/yh/tamam/ekked/اكد/ماشي/👍/ok). CORRECTIONS ARE NOT ABANDON: "la la khaleha 5" / "no wait make it 5" / "actually 9pm" = "book" (they're fixing a detail). "abandon" ONLY for explicit never-mind ("khalas mesh 3ayez", "never mind", "سيبها خلاص" with NO new details). "cancel" = wants to cancel (in-progress OR existing booking). "modify" = change an EXISTING confirmed booking — when the guest HAS upcoming reservations, treat change/move words about "el 7agz / my booking / حجزي" as modify: "ne2adem l 9?" / "3adel el 7agz" / "نقدم الساعة؟" / "can we move it to 9?" / "push it an hour". IN MODIFY CONTEXT a bare number after نقدم/ne2adem/move-to is a TIME (l 9 = 21:00), NEVER a party size — party only changes with people-words (anfar/nas/people/اشخاص). "info" = asking about their existing booking, giving no new details. "waitlist" = explicitly asks to JOIN THE WAITLIST ("put us on the waitlist", "حطنا على الويتنج"). Everything else that gives or asks about slots = "book".
 third_party=true when they ask about SOMEONE ELSE'S booking (a name that isn't self-introduction: "Ahmed's reservation", "the booking under X").
 side_question = any NON-booking question in the same message ("also do you have vegan food?") — copy it verbatim, else null.`;
-          const r = await chatJSON("gpt-4.1-mini", sys, s.message, { temperature: 0, maxTokens: 200 });
+          const r = await chatJSON(MODEL_FAST, sys, s.message, { temperature: 0, maxTokens: 200 });
           return r;
         }, { input: { message: s.message, stage: s.session?.session_status || "none" } });
         const ex = value.value || {};
@@ -481,7 +482,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
   const SAFE_KINDS = new Set(["confirmed", "already_confirmed", "modified"]);
   try {
     const user = `OUTCOME: ${JSON.stringify(o)}\nGuest message: ${s.message}`;
-    let r = await chatJSON("gpt-4.1-mini", sys, user, { temperature: 0.5, maxTokens: 260 });
+    let r = await chatJSON(MODEL_SMART, sys, user, { temperature: 0.5, maxTokens: 260 });
     // CODE GUARD (script): Arabic-script guest must get an Arabic-script reply; Latin guest never gets Arabic script
     const AR = /[؀-ۿ]/;
     const FRANCO_MARK = /[a-z][237][a-z]|\b[237][a-z]{2,}/i; // 3ayez / ma3lesh / 7agz-style digit-letters
@@ -494,7 +495,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       const want = guestAr ? "ARABIC SCRIPT — rewrite fully in Arabic script (مصري)"
         : guestFranco ? "FRANCO — rewrite in Egyptian Franco, Latin letters"
         : "plain ENGLISH — rewrite fully in English, no Franco words";
-      r = await chatJSON("gpt-4.1-mini", sys, `${user}\nSYSTEM CHECK: your reply used the wrong language. The guest wrote in ${want}. Same meaning, same JSON shape.`, { temperature: 0.4, maxTokens: 260 });
+      r = await chatJSON(MODEL_SMART, sys, `${user}\nSYSTEM CHECK: your reply used the wrong language. The guest wrote in ${want}. Same meaning, same JSON shape.`, { temperature: 0.4, maxTokens: 260 });
     }
     const v = r.value || {};
     let reply = (v.reply || fallbackPhrase(o)).slice(0, 900);

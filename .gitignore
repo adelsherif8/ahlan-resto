@@ -6,3 +6,10 @@ dist/
 .vercel/
 flows/rsv300.mjs
 logins.txt
+
+# local test scaffolding
+flows/*.tmp.mjs
+flows/reg.tmp.mjs
+
+# local agent settings — contains pasted tokens, never commit
+.claude/

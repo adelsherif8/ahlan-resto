@@ -1,7 +1,7 @@
 // OpenAI chat wrapper with token usage + cost accounting per call.
 // Every call returns { value, __usage: { model, tokens_in, tokens_out, cost_usd } }
 // so the flow engine can attribute cost to the node that made the call.
-import { OPENAI_API_KEY, llmReady } from "../config.js";
+import { OPENAI_API_KEY, llmReady, MODEL_SMART, MODEL_FAST } from "../config.js";
 
 // USD per 1M tokens (input, output)
 const PRICES = {
@@ -35,7 +35,7 @@ async function chat(model, messages, { json = false, temperature = 0.4, maxToken
     }).catch((e) => ({ ok: false, status: 0, text: async () => e.message }));
     if (res.ok) break;
     // rate-limited on the big model → a smaller reply beats NO reply, every time
-    if (res.status === 429 && useModel === "gpt-4.1") { useModel = "gpt-4.1-mini"; continue; }
+    if (res.status === 429 && useModel === MODEL_SMART) { useModel = MODEL_FAST; continue; }
     if (attempt >= 2 || (!RETRYABLE.has(res.status) && res.status !== 0)) break;
     await new Promise((r) => setTimeout(r, res.status === 429 ? 2500 : 800));
   }

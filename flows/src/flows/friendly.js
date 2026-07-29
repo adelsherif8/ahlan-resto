@@ -2,10 +2,12 @@
 // Ported logic: hotel friendly.json context builder + persona prompt, restaurant domain.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
+import { MODEL_SMART, MODEL_FAST } from "../config.js";
 import { hoursToday } from "../services/tenant.js";
 import { setSessionFlags, notifyDashboard, getSession } from "../services/chatlog.js";
 import { todayISO } from "../services/availability.js";
 import { branchList, nearestBranches, matchBranchByText, freshLocation } from "../services/branches.js";
+import { menuPdfUrl } from "../services/menupdf.js";
 
 // rolling-summary cooldown: refresh at most once per 10 min per session
 // (history is capped at 20 turns, so a turn-count gate alone would stall at the cap)
@@ -222,22 +224,22 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
    - other durable personal facts (kids, works nearby, hates cilantro) → detected_facts: short third-person snippets, max 8 words each.
    NEVER capture sensitive info (health conditions, religion, politics, private drama). ONLY the guest's OWN preferences — a friend's or family member's taste ("my friend Sara loves your pasta") is NEVER captured as this guest's favorite.
 12. QUICK REPLIES: buttons are for real DECISION POINTS only (booking next step, menu, yes/no choices) — set quick_replies to 2-3 SHORT labels (1-3 words, max 20 chars, guest's language). NO buttons during: emotional moments, apologies, empathy, flowing chit-chat, or when your reply already ends the topic. Most replies should have NO buttons — think one in every few replies, not every reply.
-13. If they ask to SEE THE MENU / "what do you have": reply with a 1-line appetizing teaser and set send_menu_list=true — we send a tappable menu; NEVER paste the full menu as text.
+13. If they ask to SEE THE MENU / "what do you have" / tap an order button: reply with a 1-line appetizing teaser and set send_menu_list=true — the menu PDF and its link are attached automatically. NEVER paste the menu as text and NEVER ask "what would you like?" without sending it.
 14. WAITLIST: if the guest asks to join tonight's waitlist (or wants a table right now and accepts waiting) AND gave a party size, set add_to_waitlist = {"party_size": n, "name": <their name if known>}. When you set it you MAY tell them they're on the list (we really add them). Never invent wait times.
 15. FEEDBACK: if they describe a PAST visit experience — praise or complaint — set detected_feedback = {"sentiment": "positive"|"negative", "text": "<their words, short>"}. For complaints: apologize once, genuinely; serious ones also get needs_handoff=true.
 16. LOCATION PIN: if they ask where you are or for directions, answer briefly AND set send_location_pin=true (we drop a real map pin on WhatsApp).
 17. REACTION: set react_emoji to ONE emoji (❤️ 🎉 😂 👏) ONLY for a strongly emotional guest moment (engagement, big news, a genuinely funny joke). This is rare — default null.
 18. If "Right now" in FACTS says CLOSED and the guest wants to come NOW / walk in / join tonight's waitlist: lead with the fact that you're closed + today's hours, THEN help them plan. NEVER offer to "hold a table" — you can't hold tables.
-19. ORDERS (pickup / pre-order) v1: we take them via chat — collect the items and pickup time, then set needs_handoff=true with reason "order request" and the FULL order in handoff_briefing; tell the guest the team will confirm when it's ready. NEVER claim an order is placed, charged or paid — no payments in chat. Delivery: only per FACTS policy.
+19. ORDERS: ${config.basic_info?.restaurant_type === "casual"
+      ? `we have a dedicated ordering flow that takes the whole order end-to-end. If they want to order, DO NOT collect items, DO NOT hand off to staff, DO NOT say "I'll pass this to the team" — just set send_menu_list=true and invite them to say what they'd like; the ordering flow picks it up from there.`
+      : `(pickup / pre-order) we take them via chat — collect the items and pickup time, then set needs_handoff=true with reason "order request" and the FULL order in handoff_briefing; tell the guest the team will confirm when it's ready. NEVER claim an order is placed, charged or paid — no payments in chat. Delivery: only per FACTS policy.`}
 20. STAFF ALERT (your host's notebook): when something happens the TEAM should know about, set staff_alert = {"type": "<2-4 words>", "note": "<one factual third-person line, max 120 chars>"}. Worth alerting: engagement/anniversary celebration coming · big group intent · an upset regular · VIP planning a visit · special request (cake, surprise, decoration) · guest asked for a manager. NOT worth alerting: routine questions, menu chat, normal bookings (those already notify). Sparing — most messages have staff_alert null.
 
 Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string}|null, "send_location_pin": boolean, "react_emoji": string|null, "staff_alert": {"type": string, "note": string}|null, "suggested_faq": {"question": string, "context": string}|null }`;
 
       // mood/VIP routing + first impressions: frustrated, urgent, VIP — and the FIRST
       // reply of any conversation (greetings are worth the bigger model) — get gpt-4.1
-      const model = classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip || context.isNewConversation
-        ? "gpt-4.1"
-        : "gpt-4.1-mini";
+      const model = MODEL_SMART; // the host's voice is the product — never the cheap brain
 
       const convo = (history || []).slice(-12).map((h) => ({
         role: h.role === "guest" ? "user" : "assistant",
@@ -315,7 +317,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         }
       }
       return r;
-    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, model: classification?.mood === "frustrated" || classification?.mood === "urgent" || diner?.is_vip ? "gpt-4.1 (mood/VIP escalation)" : "gpt-4.1-mini" } });
+    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, model: MODEL_SMART } });
 
     const out = llmOut.value || {};
     let reply = (out.reply || "One second! 🙌").slice(0, 3500);
@@ -402,7 +404,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         lastSummaryAt.set(ctx.sessionId, Date.now());
         if (lastSummaryAt.size > 2000) lastSummaryAt.clear();
         const older = history.slice(0, -6).map((h) => `${h.role}: ${h.message}`).join("\n").slice(0, 4000);
-        const sum = await chatJSON("gpt-4o-mini",
+        const sum = await chatJSON(MODEL_FAST,
           'Summarize this restaurant WhatsApp conversation in 2-3 sentences capturing: guest preferences, unresolved topics, promises made. JSON: {"summary": "..."}',
           older, { maxTokens: 120 }).catch(() => null);
         if (sum?.value?.summary) {
@@ -438,15 +440,38 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     }
 
     const quickReplies = (out.quick_replies || []).map(trimLabel).filter(Boolean).slice(0, 3);
-    // menu display mode is per-restaurant: tappable list (default) | full text | PDF
+    // menu display mode is per-restaurant: PDF document + link (default) | full text | tappable list
     const mc = config.menu_config || {};
-    const menuMode = mc.display === "pdf" && mc.pdf_url ? "pdf" : mc.display === "text" ? "text" : "list";
+    const currency = config.payments?.currency || "EGP";
     let menuList = null;
     let menuDoc = null;
     if (out.send_menu_list) {
-      if (menuMode === "pdf") menuDoc = { url: mc.pdf_url, caption: `${config.name} — menu 📄` };
-      else if (menuMode === "text") reply = `${reply}\n\n${fullMenuText(context.menu, config.payments?.currency || "EGP")}`.slice(0, 3900);
-      else menuList = buildMenuList(context.menu, config.menu_config?.build_your_own);
+      if (mc.display === "text") {
+        reply = `${reply}\n\n${fullMenuText(context.menu, currency)}`.slice(0, 3900);
+      } else if (mc.display === "list") {
+        menuList = buildMenuList(context.menu, mc.build_your_own);
+      } else {
+        // default: a real PDF they can open, zoom and scroll — uploaded one wins,
+        // otherwise we generate it from the live menu and cache it
+        const pdf = mc.pdf_url
+          ? { url: mc.pdf_url, filename: "menu.pdf" }
+          : await menuPdfUrl(db, {
+              restaurant: config.name,
+              menu: context.menu,
+              currency,
+              accent: config.basic_info?.brand?.primary || "#111111",
+              tagline: config.basic_info?.tagline || "",
+              phone: config.basic_info?.phone || "",
+              website: config.basic_info?.website || "",
+            });
+        if (pdf) {
+          menuDoc = { url: pdf.url, caption: `${config.name} — full menu 📄`, filename: pdf.filename };
+          reply = `${reply}\n\n📄 Full menu: ${pdf.url}\nJust tell me what you'd like and I'll take it from there.`.slice(0, 3900);
+        } else {
+          // menu exists but the PDF couldn't be made — never leave the guest empty-handed
+          reply = `${reply}\n\n${fullMenuText(context.menu, currency)}`.slice(0, 3900);
+        }
+      }
     }
     const loc = config.basic_info?.location;
     const locationPin = out.send_location_pin && loc?.lat && loc?.lng

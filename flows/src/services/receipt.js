@@ -30,17 +30,37 @@ function buildPdf({ restaurant, order, branch, currency }) {
       const line = `${it.qty}× ${it.name}`;
       const amount = `${Number(it.price) * Number(it.qty)} ${currency}`;
       const y = doc.y;
-      doc.fontSize(11).text(line, 36, y, { width: 250 });
+      doc.fontSize(11).fillColor("#000").text(line, 36, y, { width: 250 });
       doc.text(amount, 286, y, { width: 98, align: "right" });
-      doc.moveDown(0.2);
+      // the kitchen reads this line too — chosen drink and "no onion" belong on it
+      const mods = [
+        ...Object.entries(it.choices || {}).map(([k, v]) => `${k}: ${v}`),
+        it.notes || null,
+      ].filter(Boolean);
+      if (mods.length) doc.fontSize(9).fillColor("#777").text(mods.join(" · "), 46, doc.y, { width: 240 });
+      doc.fillColor("#000").moveDown(0.2);
     }
     doc.moveDown(0.3);
     doc.moveTo(36, doc.y).lineTo(384, doc.y).strokeColor("#ddd").stroke();
     doc.moveDown(0.5);
 
+    // subtotal + each configured charge, then the total — mirrors the WhatsApp bill exactly
+    const money = (n) => `${Number(n)} ${currency}`;
+    const bill = order.bill;
+    if (bill?.extras?.length) {
+      const rowLine = (label, amount, size = 10, color = "#444") => {
+        const y = doc.y;
+        doc.fontSize(size).fillColor(color).text(label, 36, y, { width: 250 });
+        doc.fontSize(size).fillColor(color).text(amount, 286, y, { width: 98, align: "right" });
+        doc.moveDown(0.25);
+      };
+      rowLine("Subtotal", money(bill.subtotal));
+      for (const x of bill.extras) rowLine(x.label, money(x.amount));
+      doc.moveDown(0.15);
+    }
     const totalY = doc.y;
-    doc.fontSize(13).text("TOTAL", 36, totalY);
-    doc.fontSize(13).text(`${Number(order.total)} ${currency}`, 286, totalY, { width: 98, align: "right" });
+    doc.fontSize(13).fillColor("#000").text("TOTAL", 36, totalY);
+    doc.fontSize(13).text(money(order.total), 286, totalY, { width: 98, align: "right" });
     doc.moveDown(0.8);
 
     doc.fontSize(10).fillColor("#666")

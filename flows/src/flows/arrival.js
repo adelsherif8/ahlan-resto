@@ -2,6 +2,7 @@
 // Simple flow (no graph needed): one small extract, code decides, one phrase call.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
+import { MODEL_SMART, MODEL_FAST } from "../config.js";
 import { notifyDashboard } from "../services/chatlog.js";
 import { todayISO } from "../services/availability.js";
 
@@ -39,7 +40,7 @@ defineFlow({
     }, { input: { sessionId: ctx.sessionId, date: today } });
 
     const ex = await f.node("extract", async () => {
-      const r = await chatJSON("gpt-4.1-mini",
+      const r = await chatJSON(MODEL_FAST,
         `Classify this WhatsApp message from a restaurant guest. JSON only:
 {"kind": "im_here" | "running_late" | "other", "eta_minutes": number|null}
 "im_here" = at/outside the restaurant now ("I'm here", "we're outside", "wa2fin barra", "احنا وصلنا").
@@ -111,7 +112,7 @@ OUTCOMES:
 - late_no_res: no booking found today — want me to check for a table?
 - unclear: friendly one-line ask: are they here now, or on the way?
 Return JSON: {"reply": string}`;
-      return chatJSON("gpt-4.1-mini", sys, `OUTCOME: ${JSON.stringify(outcome)}\nGuest: ${input.message}`, { temperature: 0.5, maxTokens: 140 });
+      return chatJSON(MODEL_SMART, sys, `OUTCOME: ${JSON.stringify(outcome)}\nGuest: ${input.message}`, { temperature: 0.5, maxTokens: 140 });
     }, { input: { outcome_kind: outcome.kind } });
 
     const fallback = {

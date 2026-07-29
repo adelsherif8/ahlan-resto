@@ -10,13 +10,16 @@ const COLS: { key: string; label: string; statuses: string[]; next?: string; nex
   { key: "done", label: "🏁 Done", statuses: ["served", "delivered", "paid"] },
 ];
 
-const TYPE_BADGE: Record<string, string> = {
-  dine_in: "bg-sky-500/20 text-sky-300",
-  pickup: "bg-amber-500/20 text-amber-300",
-  delivery: "bg-purple-500/20 text-purple-300",
-  pre_order: "bg-emerald-500/20 text-emerald-300",
-  table_reorder: "bg-sky-500/20 text-sky-300",
+// Each order type gets its own paper-ticket colour, the way a real kitchen
+// printer separates them at a glance.
+const TYPE: Record<string, { label: string; icon: string; bar: string; chip: string }> = {
+  dine_in:       { label: "Dine in",  icon: "\u{1F374}", bar: "bg-sky-400",     chip: "bg-sky-500/15 text-sky-300" },
+  table_reorder: { label: "Dine in",  icon: "\u{1F374}", bar: "bg-sky-400",     chip: "bg-sky-500/15 text-sky-300" },
+  pickup:        { label: "Takeaway", icon: "\u{1F6CD}", bar: "bg-amber-400",   chip: "bg-amber-500/15 text-amber-300" },
+  pre_order:     { label: "Pre-order",icon: "\u{23F0}",  bar: "bg-emerald-400", chip: "bg-emerald-500/15 text-emerald-300" },
+  delivery:      { label: "Delivery", icon: "\u{1F6F5}", bar: "bg-rose-400",    chip: "bg-rose-500/15 text-rose-300" },
 };
+const typeOf = (t: string) => TYPE[t] || { label: t || "order", icon: "\u{1F9FE}", bar: "bg-zinc-500", chip: "bg-zinc-800 text-zinc-300" };
 
 function mins(since: string) {
   return Math.max(0, Math.round((Date.now() - new Date(since).getTime()) / 60000));
@@ -94,39 +97,98 @@ export default function Orders() {
                   list.map((o) => {
                     const age = mins(o.created_at);
                     const late = col.key !== "done" && age > 20;
+                    const t = typeOf(o.order_type);
+                    const branchName = branches.find((b: any) => b.key === o.branch)?.name || o.branch;
                     return (
-                      <Card key={o.id} className={`p-3 ${late ? "border-red-500/60" : ""}`}>
-                        <div className="mb-1 flex items-center justify-between">
-                          <span className="font-mono text-sm font-bold">{o.code}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${TYPE_BADGE[o.order_type] || "bg-zinc-800 text-zinc-300"}`}>
-                            {o.order_type === "dine_in" ? `🍽 ${o.table_number || "table"}` : o.order_type}
+                      <div
+                        key={o.id}
+                        className={`overflow-hidden rounded-xl border bg-zinc-900/70 shadow-sm ${late ? "border-red-500/70" : "border-zinc-800"}`}
+                      >
+                        {/* colour bar — the type is readable across the kitchen */}
+                        <div className={`h-1.5 ${t.bar}`} />
+
+                        <div className="flex items-center justify-between px-3 py-2">
+                          <span className="flex items-center gap-1.5 text-sm font-semibold">
+                            <span>{t.icon}</span>
+                            {t.label}
+                            {o.order_type !== "delivery" && o.table_number ? (
+                              <span className="text-zinc-400">· {o.table_number}</span>
+                            ) : null}
+                          </span>
+                          <span
+                            className={`rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${
+                              late ? "bg-red-500/20 text-red-300" : t.chip
+                            }`}
+                          >
+                            {age} min
                           </span>
                         </div>
-                        <div className="mb-1 text-xs text-zinc-400">
-                          {o.branch && branch === "all" ? `🏪 ${branches.find((b: any) => b.key === o.branch)?.name || o.branch} · ` : ""}
-                          {o.diner_name || o.phone_number || "guest"} · <span className={late ? "font-semibold text-red-400" : ""}>{age}m</span>
+
+                        <div className="border-t border-dashed border-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
+                          <span className="font-mono font-semibold text-zinc-300">{o.code}</span>
+                          {" · "}
+                          {o.diner_name || o.phone_number || "guest"}
+                          {o.branch && branch === "all" ? ` · 🏪 ${branchName}` : ""}
                         </div>
-                        <div className="space-y-0.5 text-sm">
-                          {(o.items || []).map((i: any, idx: number) => (
-                            <div key={idx} className="flex justify-between gap-2">
-                              <span><span className="font-semibold">{i.qty}×</span> {i.name}</span>
-                              <span className="text-zinc-500">{Number(i.price) * Number(i.qty)}</span>
-                            </div>
-                          ))}
+
+                        {/* one torn-paper line per item, modifiers underneath */}
+                        <div className="divide-y divide-dashed divide-zinc-800 border-y border-dashed border-zinc-800">
+                          {(o.items || []).map((i: any, idx: number) => {
+                            const mods = [
+                              ...Object.entries(i.choices || {}).map(([k, v]) => `${k}: ${v}`),
+                              i.notes || null,
+                            ].filter(Boolean) as string[];
+                            return (
+                              <div key={idx} className="px-3 py-1.5 text-sm">
+                                <div className="flex justify-between gap-2">
+                                  <span>
+                                    <span className="font-bold">{i.qty}×</span> {i.name}
+                                  </span>
+                                  <span className="tabular-nums text-zinc-500">
+                                    {Number(i.price) * Number(i.qty)}
+                                  </span>
+                                </div>
+                                {mods.length > 0 && (
+                                  <div className="mt-0.5 text-xs font-medium text-amber-300">↳ {mods.join(" · ")}</div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                        {o.notes && <div className="mt-1 rounded-lg bg-amber-500/10 px-2 py-1 text-xs text-amber-300">📝 {o.notes}</div>}
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className="text-sm font-bold tabular-nums">EGP {Number(o.total).toLocaleString()}</span>
+
+                        {o.notes && (
+                          <div className="mx-3 mt-2 rounded-lg bg-amber-500/10 px-2 py-1.5 text-xs text-amber-300">
+                            📝 {o.notes}
+                          </div>
+                        )}
+                        {o.order_type === "delivery" && o.address && (
+                          <div className="mx-3 mt-2 rounded-lg bg-zinc-800/60 px-2 py-1.5 text-xs text-zinc-300">
+                            📍 {o.address}
+                            {o.map_link && (
+                              <a href={o.map_link} target="_blank" rel="noreferrer" className="ml-1 underline">
+                                map
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between px-3 py-2.5">
+                          <span className="text-sm font-bold tabular-nums">
+                            EGP {Number(o.total).toLocaleString()}
+                            {o.payment_method && (
+                              <span className="ml-1.5 font-normal text-zinc-500">· {o.payment_method}</span>
+                            )}
+                          </span>
                           <div className="flex gap-1.5">
                             {col.key === "new" && (
                               <Btn variant="danger" className="px-2 py-1 text-xs" onClick={() => advance(o, "cancelled")}>✕</Btn>
                             )}
                             {col.next && (
-                              <Btn className="px-2.5 py-1 text-xs" onClick={() => advance(o, col.next!)}>{col.nextLabel}</Btn>
+                              <Btn className="px-3 py-1 text-xs" onClick={() => advance(o, col.next!)}>{col.nextLabel}</Btn>
                             )}
                           </div>
                         </div>
-                      </Card>
+                      </div>
                     );
                   })
                 )}
