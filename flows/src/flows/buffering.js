@@ -263,8 +263,15 @@ defineFlow({
         const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
         if (pnid) await sendReaction(pnid, ctx.sessionId.replace(/^\+/, ""), burst.last_message_id, routed.reactEmoji).catch(() => {});
       }
+      // A document with a caption IS the message — sending the text separately turns
+      // one reply into two notifications for the guest. Merge whenever nothing else
+      // (buttons, a list, a second part) needs to ride on the text.
+      const md = routed?.menuDoc || null;
+      const mergeDoc = isWa && md && parts.length === 1 && !list && !qrs.length;
+
       for (let i = 0; i < parts.length; i++) {
         const last = i === parts.length - 1;
+        if (mergeDoc) break; // delivered below, as the document's caption
         if (last && isWa && list) await deliverList(ctx, parts[i], list);
         else if (last && isWa && qrs.length) await deliverButtons(ctx, parts[i], qrs);
         else await deliverToChannel(ctx, parts[i]);
@@ -277,17 +284,22 @@ defineFlow({
         await deliverPhoto(ctx, photo);
         await logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" });
       }
-      if (routed?.menuDoc) {
-        const md = routed.menuDoc;
+      if (md) {
+        // WhatsApp caps document captions at 1024 chars
+        const caption = (mergeDoc ? parts[0] : md.caption).slice(0, 1020);
+        let sent = false;
         if (isWa) {
           const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
           // a silently-dropped document looks identical to "the bot ignored me" — surface it
           if (pnid) {
-            await sendDocument(pnid, ctx.sessionId.replace(/^\+/, ""), md.url, md.caption, md.filename || "menu.pdf")
-              .catch((e) => log("document send failed:", md.url, e.message));
+            sent = await sendDocument(pnid, ctx.sessionId.replace(/^\+/, ""), md.url, caption, md.filename || "menu.pdf")
+              .then(() => true)
+              .catch((e) => { log("document send failed:", md.url, e.message); return false; });
           } else log("document send skipped: no phone_number_id for", ctx.sessionId);
         }
-        await logMessage(db, ctx.sessionId, "ai", `📄 ${md.caption}\n${md.url}`, ctx.channel, { url: md.url, type: "document" });
+        // merged and the document didn't go out → the guest would get nothing at all
+        if (mergeDoc && !sent) await deliverToChannel(ctx, `${parts[0]}\n${md.url}`);
+        await logMessage(db, ctx.sessionId, "ai", mergeDoc ? `${caption}\n📄 ${md.url}` : `📄 ${caption}\n${md.url}`, ctx.channel, { url: md.url, type: "document" });
       }
       if (routed?.locationPin) {
         const pin = routed.locationPin;
