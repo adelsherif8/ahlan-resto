@@ -3,7 +3,7 @@
 // v1: no payments in chat — pay at counter/courier (per FACTS). Kitchen board fed live.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
-import { MODEL_SMART, MODEL_FAST } from "../config.js";
+import { MODEL_SMART, MODEL_FAST, log } from "../config.js";
 import { notifyDashboard } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
 import { makeReceipt } from "../services/receipt.js";
@@ -154,12 +154,18 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // naming a table IS dining in — don't ask them how they're eating when they
       // already told us where they're sitting
       if (!orderType && e.table_number) orderType = "dine_in";
+      // a bare "23" right after we asked for the table IS the answer, even though the
+      // extractor won't call a lone number a table number
+      let givenTable = e.table_number;
+      if (!givenTable && orderType === "dine_in" && !loaded.pending?.table_number && /^[a-z]{0,3}\s?\d{1,3}$/i.test(input.message.trim())) {
+        givenTable = input.message.trim();
+      }
       let tableNumber = null;
-      if (e.table_number) {
-        const t = String(e.table_number).toUpperCase().replace(/\s+/g, "");
-        tableNumber = loaded.tableNumbers.find((x) => x === t || x === t.replace(/^TABLE/, "T")) || null;
+      if (givenTable) {
+        const t = String(givenTable).toUpperCase().replace(/\s+/g, "").replace(/^TABLE/, "");
+        tableNumber = loaded.tableNumbers.find((x) => x === t || x === `T${t}`) || null;
         if (tableNumber) orderType = "dine_in";
-        else if (orderType === "dine_in") return { kind: "bad_table", given: e.table_number, items };
+        else if (orderType === "dine_in") return { kind: "bad_table", given: givenTable, items, tables: loaded.tableNumbers.slice(0, 12) };
       }
       // DELIVERY ADDRESS: keep the guest's own words verbatim + any map link (coords resolved)
       const mapLinkRaw = extractMapLink(input.message) || loaded.pending?.map_link || null;
@@ -193,7 +199,10 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         return { kind: "ask_order_type", items, running, delivery: deliveryOn };
       }
       // 2) WHERE — table / address / branch, all resolved before we take a single item
-      if (orderType === "dine_in" && !tableNumber) { await savePending(); return { kind: "ask_table", items, running }; }
+      if (orderType === "dine_in" && !tableNumber) {
+        await savePending();
+        return { kind: "ask_table", items, running, tables: loaded.tableNumbers.slice(0, 12) };
+      }
       if (orderType === "delivery" && !address && !mapLink && !sharedPin) {
         await savePending({ address, map_link: mapLinkRaw });
         return { kind: "ask_address", items, running, saved: saved.map((s) => s.text) };
@@ -308,8 +317,8 @@ OUTCOMES:
 - ask_address: if saved[] has addresses, DON'T make them retype — read their saved address(es) back and ask if it's going there or somewhere new. Otherwise ask for the address: they can type it out or paste a Google Maps link 🔗. Never say "pin". quick_replies: each saved address (shortened), then "New address".
 - ask_items: the full menu PDF is attached automatically — say it's below/attached and ask what they'd like. NEVER ask "what would you like?" on its own as if they can already see the menu.
 - ask_order_type: FIRST question of every order — are they eating in, picking up, or want delivery? (omit delivery if delivery is false). If "running" is present their items are listed under your reply automatically, so acknowledge what they picked; if it is absent, promise NOTHING about a bill or a list — there is nothing attached yet. quick_replies: ["Dine-in","Pickup","Delivery"] as applicable.
-- ask_table: which table are they at? (they can read the number off the table)
-- bad_table: that table number doesn't exist — ask them to double-check what's on the table.
+- ask_table: which table are they at? If "tables" is given, show 2-3 of them as examples so they know the format. NEVER say the order is placed or that the kitchen has it — nothing has been sent yet.
+- bad_table: the number they gave isn't one of ours. Say so plainly, list the real ones from "tables", and ask which they're at. NEVER claim the order is placed.
 - nothing_matched: none of that matched the menu (list unknown) — suggest tapping the menu.
 - order_status: restate their order (code, status, items) honestly by status: pending/accepted="in the queue", preparing="on the grill now", ready="READY — come grab it!".
 - order_cancelled: cancelled ✅, no charge, door's open.
@@ -334,10 +343,23 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       ask_payment: `How would you like to pay: ${(outcome.methods || []).join(" / ")}?`,
       confirm_order: "All set — confirm and I'll send it to the kitchen ✅",
       ask_order_type: `Eating in, picking up${outcome.delivery === false ? "" : ", or delivery"}?`,
-      ask_table: "Which table are you at? The number's on the table 😄",
+      ask_table: `Which table are you at? The number's printed on it${(outcome.tables || []).length ? ` — they look like ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`,
+      bad_table: `I can't find table ${outcome.given} — ours are ${(outcome.tables || []).slice(0, 8).join(", ")}. Which one are you at?`,
       no_open_order: "No active order found — want to start one? 🍔",
     };
     let reply = value.value?.reply || fallback[outcome.kind] || fallback.ask_items;
+
+    // ZERO-HALLUCINATION BACKSTOP: only an outcome that actually wrote a ticket may
+    // say so. The model has claimed "the kitchen's on it" while we were still asking
+    // which table — the guest then waits for food nobody is cooking. Code decides
+    // whether an order exists, so code gets the final say on the claim.
+    if (!["order_placed", "confirm_order"].includes(outcome.kind)) {
+      const PLACED = /kitchen'?s on it|order (is )?(placed|confirmed|in|on its way)|sending it to the kitchen|on the grill|we'?re on it|preparing (it|your)|coming to (your )?table|be ready in|طلبك (اتسجل|في المطبخ|جاهز)/i;
+      if (PLACED.test(reply)) {
+        log(`order: blocked a false "placed" claim on outcome ${outcome.kind}`);
+        reply = fallback[outcome.kind] || fallback.ask_items;
+      }
+    }
 
     // Mid-gather: show the lines and a subtotal, never a TOTAL we can't stand behind yet.
     if (outcome.running?.items?.length) {
