@@ -9,6 +9,13 @@ alter table notifications      add column if not exists branch text;
 alter table waitlist           add column if not exists branch text;
 alter table restaurant_tables  add column if not exists branch text;
 
+-- delivery details captured from chat: the address exactly as the guest wrote it,
+-- the map link they sent, and coordinates when we can resolve them
+alter table orders add column if not exists address text;
+alter table orders add column if not exists map_link text;
+alter table orders add column if not exists lat numeric;
+alter table orders add column if not exists lng numeric;
+
 create index if not exists idx_orders_branch on orders(branch, created_at desc);
 create index if not exists idx_reservations_branch on reservations(branch, date);
 create index if not exists idx_notifications_branch on notifications(branch, created_at desc);

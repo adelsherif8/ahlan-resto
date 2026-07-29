@@ -5,6 +5,7 @@ import { chatJSON } from "../services/llm.js";
 import { hoursToday } from "../services/tenant.js";
 import { setSessionFlags, notifyDashboard, getSession } from "../services/chatlog.js";
 import { todayISO } from "../services/availability.js";
+import { branchList, nearestBranches, matchBranchByText, freshLocation } from "../services/branches.js";
 
 // rolling-summary cooldown: refresh at most once per 10 min per session
 // (history is capped at 20 turns, so a turn-count gate alone would stall at the cap)
@@ -179,7 +180,7 @@ FACTS — the ONLY things you know (never invent anything beyond this):
 - Payment methods: ${(config.payments?.methods || []).join(", ") || "n/a"}
 - Services: dine-in yes · delivery ${bi.services?.delivery === true ? "YES" : bi.services?.delivery === false ? "no" : "not set"} · pickup ${bi.services?.pickup === true ? "YES" : bi.services?.pickup === false ? "no" : "not set"}
 - House policies: alcohol ${bi.policies?.alcohol ?? "not set"} · shisha ${bi.policies?.shisha ?? "not set"} · kids ${bi.policies?.kids ?? "not set"} · smoking ${bi.policies?.smoking ?? "not set"}
-${branchFacts(config, diner)}- Reservation policy: ${reservationPolicyLine(config.reservation_policy)}
+${branchFacts(config, diner, message)}- Reservation policy: ${reservationPolicyLine(config.reservation_policy)}
 - NEVER imply discounts/deals/offers exist unless listed here: ${JSON.stringify(ai.offers || [])}
 - TONIGHT'S SPECIALS (mention when relevant — never invent others): ${context.specials.length ? context.specials.join("; ") : "none tonight"}
 - MENU (available right now — if an item is not listed, it is NOT available tonight):
@@ -582,13 +583,22 @@ function mergePreferences(current, detected, facts, menu) {
 }
 
 // branches as facts — the guest's chosen branch leads, the rest are listed honestly
-function branchFacts(config, diner) {
-  const branches = (config.basic_info?.branches || []).filter((b) => b && typeof b === "object" && b.key);
+function branchFacts(config, diner, message) {
+  const branches = branchList(config);
   if (!branches.length) return "";
   const mine = branches.find((b) => b.key === diner?.preferred_branch);
   const list = branches.map((b) => `${b.name}${b.address ? ` (${b.address})` : ""}${b.hours ? ` — ${b.hours}` : ""}`).join(" | ");
+  // NEAREST BRANCH — computed in code from a shared pin, or matched from the area they named
+  const loc = freshLocation(diner);
+  const near = loc ? nearestBranches(branches, loc.lat, loc.lng, 3) : null;
+  const byArea = !near ? matchBranchByText(branches, message) : null;
+  const nearestLine = near?.length
+    ? `- NEAREST BRANCHES to the location they shared (exact distances, use them): ${near.map((b) => `${b.name} ${b.km} km`).join(" · ")}. Lead with the closest.\n`
+    : byArea
+    ? `- They mentioned an area matching our ${byArea.name} branch${byArea.address ? ` (${byArea.address})` : ""} — suggest it as the nearest, and offer to switch if they meant another.\n`
+    : `- No location from this guest yet. If they ask which branch is closest, ask them to SHARE THEIR LOCATION (WhatsApp 📎 → Location) or just name their area — then you can answer exactly. NEVER guess distances.\n`;
   return `- BRANCHES (${branches.length}): ${list}
-${mine ? `- THIS guest's branch: ${mine.name}${mine.address ? ` — ${mine.address}` : ""}. When they ask "where are you" / hours, answer for THEIR branch first; mention others only if they ask or want to switch.\n` : `- This guest hasn't picked a branch yet — if they ask where we are, give the branch NAMES (and the one nearest if they say their area); ask which branch they mean before branch-specific details.\n`}`;
+${nearestLine}${mine ? `- THIS guest's branch: ${mine.name}${mine.address ? ` — ${mine.address}` : ""}. When they ask "where are you" / hours, answer for THEIR branch first; mention others only if they ask or want to switch.\n` : `- This guest hasn't picked a branch yet — if they ask where we are, give the branch NAMES; ask which branch they mean before branch-specific details.\n`}`;
 }
 
 // deposits/max-party as facts — without this line the model invents deposit policy
@@ -610,10 +620,20 @@ function situationGuide(context, config) {
       return `a guest sitting AT THEIR TABLE in the restaurant RIGHT NOW (reservation ${context.diningNow?.code || ""}). Do NOT pitch the menu or ask what they're in the mood for — ask how the meal is going / help immediately. Physical requests (waiter, bill, wrong order, complaint) = set needs_handoff=true with urgency, the team is meters away.`;
     case "long_time_no_see":
       return `a guest we haven't seen in ~${context.gapDays} days — ONE warm "we missed you / long time" line (never guilt-trip), then if UPCOMING EVENTS or offers exist, mention what's new since. Food-forward, like a host at the door.`;
-    case "returning":
-      return `a returning guest — welcome them BACK warmly by name, simple and human: "Welcome back, Adel! What can we get you today? 😄"${context.usualFromOrders || context.prefs?.favorite_items?.length ? ` (you MAY casually reference their usual ${context.usualFromOrders?.name || context.prefs.favorite_items[0]} — it's THEIR history, that's memory not marketing: "The usual ${context.usualFromOrders?.name || context.prefs.favorite_items[0]}? 😄")` : ""}. BAD (never say): "back for another round?", "just checking in?", "hit me up if you wanna…", or ANY dish pitch they didn't ask for.`;
+    case "returning": {
+      const usual = context.usualFromOrders?.name || context.prefs?.favorite_items?.[0] || null;
+      const last = context.lastOrder?.items || null;
+      const examples = [
+        `"Welcome back to ${config.name}, ${context.greetName || "…"}! What can we get you today? 😄"`,
+        usual ? `"Welcome back, ${context.greetName || "…"}! Same ${usual} as usual, or something different today?"` : null,
+        last ? `"Good to see you again! Want the same as last time (${last}), or browse the menu?"` : null,
+        `"Welcome back${context.greetName ? `, ${context.greetName}` : ""}! Ordering today, or just checking the menu?"`,
+      ].filter(Boolean);
+      return `a returning guest — greet them as ${config.name}'s host: warm, by name, and IMMEDIATELY useful. Pick ONE natural opener in this spirit (vary it, don't copy): ${examples.join(" · ")}${usual ? `\n  Their usual is ${usual}${context.usualFromOrders ? ` (ordered ${context.usualFromOrders.times}×)` : ""} — offering it back is service, not marketing.` : ""}${last ? `\n  Their last order: ${last} — "same as last time?" is a great one-tap offer.` : ""}
+  Always make it about helping them (order / usual / menu), never vague chat. BAD: "back for another round?", "just checking in?", "what's your vibe?", "hit me up".`;
+    }
     default:
-      return `a first-time contact — a simple genuine welcome TO ${config.name} ("Hello! Welcome to ${config.name} — what can we get you today?"), nothing more. No menu pitching, no product talk. Don't overwhelm.`;
+      return `a first-time contact — a simple genuine welcome TO ${config.name} and ONE helpful question, e.g. "Hello! Welcome to ${config.name} 🍔 What can we get you today?" or "…Would you like to see the menu or order straight away?". No menu pitching, no product talk. Don't overwhelm.`;
   }
 }
 

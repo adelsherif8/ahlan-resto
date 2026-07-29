@@ -131,6 +131,9 @@ defineFlow({
       if (ctx.channel === "whatsapp" && event.profileName) {
         await saveWaProfileName(db, ctx.sessionId, event.profileName);
       }
+      // guest shared their location → remember the point so we can name the nearest branch
+      const loc = input.event?.location;
+      if (loc?.lat && loc?.lng) await saveGuestLocation(db, ctx.sessionId, loc.lat, loc.lng);
       return { logged: true, text: finalText.slice(0, 120), wa_profile_name: event.profileName || null };
     }, { input: { sessionId: ctx.sessionId, media: norm.media } });
 
@@ -375,6 +378,14 @@ async function deliverList(ctx, text, list) {
   if (!phoneNumberId) return deliverToChannel(ctx, text);
   await sendList(phoneNumberId, ctx.sessionId.replace(/^\+/, ""), text, list.button, list.sections)
     .catch(() => deliverToChannel(ctx, text));
+}
+
+// last shared location on the diner (JSONB — no migration), used for nearest-branch
+async function saveGuestLocation(db, phone, lat, lng) {
+  const { data } = await db.from("diners").select("id,preferences").eq("phone_number", phone).maybeSingle();
+  const preferences = { ...(data?.preferences || {}), last_location: { lat, lng, at: new Date().toISOString() } };
+  if (data?.id) await db.from("diners").update({ preferences }).eq("id", data.id);
+  else await db.from("diners").insert({ phone_number: phone, status: "lead", preferences });
 }
 
 // WhatsApp sends the sender's profile name on every message — keep it on the diner.
