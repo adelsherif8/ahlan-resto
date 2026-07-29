@@ -5,6 +5,7 @@ import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { notifyDashboard } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
+import { makeReceipt } from "../services/receipt.js";
 
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
 const orderCode = () => "O-" + Array.from({ length: 4 }, () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join("");
@@ -53,7 +54,8 @@ defineFlow({
       const sys = `Extract a food order from one WhatsApp message to a fast-casual restaurant. MENU (only these exist): ${menuNames}
 Recent conversation may add context: ${JSON.stringify((input.history || []).slice(-4).map((h) => h.message?.slice(0, 80)))}
 Return JSON only:
-{"intent": "order"|"repeat_last"|"cancel_order"|"status"|"other",
+{"intent": "order"|"repeat_last"|"confirm"|"cancel_order"|"status"|"other",
+ "payment_method": "cash"|"card"|"instapay"|null,
  "items": [{"name": "<closest MENU name>", "qty": number}]|null,
  "order_type": "pickup"|"delivery"|"dine_in"|null (dine_in when they mention a table / being inside),
  "table_number": string|null ("t3"/"table 3" → "T3"),
@@ -61,7 +63,7 @@ Return JSON only:
  "address": "<the delivery address EXACTLY as the guest wrote it, verbatim>"|null,
  "branch": "<exact branch NAME from this list if the guest names one, else null>"}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU (closest match); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
+Rules: qty defaults 1; ONLY names from MENU (closest match); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
       return chatJSON("gpt-4.1-mini", sys, input.message, { temperature: 0, maxTokens: 220 });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -86,7 +88,13 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); "cancel_order" = wa
         if (!loaded.openOrder) return { kind: "no_open_order" };
         if (["ready"].includes(loaded.openOrder.status)) return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder) };
         await db.from("orders").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", loaded.openOrder.id);
-        await notifyDashboard(db, "order", `❌ Order ${loaded.openOrder.code} cancelled`, `${name || ctx.sessionId} cancelled via chat`, ctx.sessionId);
+        const receiptUrl = await makeReceipt(db, {
+        restaurant: config.name,
+        order: { ...row, created_at: new Date().toISOString() },
+        branch: branchInfo, currency,
+      });
+      if (receiptUrl) await db.from("orders").update({ receipt_url: receiptUrl }).eq("code", code).then(() => {}, () => {});
+      await notifyDashboard(db, "order", `❌ Order ${loaded.openOrder.code} cancelled`, `${name || ctx.sessionId} cancelled via chat`, ctx.sessionId);
         return { kind: "order_cancelled", order: publicOrder(loaded.openOrder) };
       }
 
@@ -173,6 +181,31 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); "cancel_order" = wa
       }
 
       const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+
+      // PAYMENT METHOD — required before we take the order
+      const payMethods = orderType === "dine_in" ? ["cash at the cashier", "card at the cashier", "online link"]
+        : orderType === "pickup" ? ["cash at the counter", "card", "instapay"]
+        : ["cash on delivery", "card", "instapay"];
+      const payment = ["cash", "card", "instapay"].includes(String(e.payment_method || "").toLowerCase())
+        ? String(e.payment_method).toLowerCase()
+        : loaded.pending?.payment_method || null;
+      if (!payment) {
+        await savePending({ address, map_link: mapLinkRaw });
+        return { kind: "ask_payment", items, subtotal, currency, methods: payMethods, branch: branchInfo?.name || null, order_type: orderType, address, table_number: tableNumber };
+      }
+
+      // CONFIRM — the guest sees the full receipt and says yes before anything is written
+      const confirmed = e.intent === "confirm" || loaded.pending?.awaiting_confirm === false;
+      if (!loaded.pending?.awaiting_confirm || !confirmed) {
+        if (!confirmed) {
+          await savePending({ address, map_link: mapLinkRaw, payment_method: payment, awaiting_confirm: true });
+          return {
+            kind: "confirm_order", items, subtotal, currency, payment,
+            branch: branchInfo?.name || null, order_type: orderType, table_number: tableNumber, address,
+          };
+        }
+      }
+
       const code = orderCode();
       const row = {
         code, phone_number: ctx.sessionId, diner_name: name,
@@ -182,17 +215,18 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); "cancel_order" = wa
         map_link: mapLink?.url || null,
         lat: mapLink?.lat ?? (orderType === "delivery" ? sharedPin?.lat ?? null : null),
         lng: mapLink?.lng ?? (orderType === "delivery" ? sharedPin?.lng ?? null : null),
-        status: "pending", payment_status: "unpaid",
+        payment_method: payment,
+        status: "pending", payment_status: payment === "cash" ? "unpaid" : "pending",
         notes: [e.notes, e.pickup_time ? `pickup: ${e.pickup_time}` : null].filter(Boolean).join(" · ") || null,
       };
       let { error } = await db.from("orders").insert(row);
       if (error && branch) {
         // branch column missing (migration 006 not run) — the ticket still must reach the kitchen
         console.log("order insert with branch failed, retrying without:", error.message);
-        const { branch: _b, address: _a, map_link: _m, lat: _lat, lng: _lng, ...bare } = row;
+        const { branch: _b, address: _a, map_link: _m, lat: _lat, lng: _lng, payment_method: _pm, ...bare } = row;
         ({ error } = await db.from("orders").insert({
           ...bare,
-          notes: [row.notes, `branch: ${branchInfo?.name || branch}`, address ? `address: ${address}` : null, mapLink?.url ? `map: ${mapLink.url}` : null]
+          notes: [row.notes, `branch: ${branchInfo?.name || branch}`, `pay: ${payment}`, address ? `address: ${address}` : null, mapLink?.url ? `map: ${mapLink.url}` : null]
             .filter(Boolean).join(" · "),
         }));
       }
@@ -201,19 +235,27 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); "cancel_order" = wa
         const { pending_order: _p, ...rest } = diner.preferences || {};
         await db.from("diners").update({ preferences: rest }).eq("id", diner.id);
       }
+      const receiptUrl = await makeReceipt(db, {
+        restaurant: config.name,
+        order: { ...row, created_at: new Date().toISOString() },
+        branch: branchInfo, currency,
+      });
+      if (receiptUrl) await db.from("orders").update({ receipt_url: receiptUrl }).eq("code", code).then(() => {}, () => {});
       await notifyDashboard(db, "order",
         `🍔 New ${orderType.replace("_", "-")} order ${code}${branchInfo ? ` — ${branchInfo.name}` : ""}`,
         `${name || ctx.sessionId}${tableNumber ? ` · table ${tableNumber}` : ""}${address ? ` · 📍 ${address}` : ""} — ${items.map((i) => `${i.qty}× ${i.name}`).join(", ")} · ${subtotal} ${currency}`,
         ctx.sessionId, branch);
-      return { kind: "order_placed", code, order_type: orderType, table_number: tableNumber, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, items, subtotal, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
+      return { kind: "order_placed", code, order_type: orderType, table_number: tableNumber, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, items, subtotal, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
     }, { input: { intent: e.intent, items: (e.items || []).length, order_type: e.order_type, table: e.table_number } });
 
     const value = await f.node("phrase", async () => {
       const lang = classification?.language || "en";
       const sys = `You are ${config.ai?.name || "the host"} of ${config.name} (fast-casual) on WhatsApp. ONE short hype-but-clear reply for the OUTCOME (max 2 emojis). Mirror the guest's language & script (${lang}). Use ONLY facts in OUTCOME — never invent prices, times or payment links. Payment: at the counter / on pickup / to the courier — never online.
 OUTCOMES:
-- order_placed: confirm the ticket 🎫: list items (qty× name), TOTAL <subtotal> <currency>, the code, the BRANCH (if present), and what happens next (dine_in: "coming to table X" · pickup: "we'll ping you when ready" + their pickup_time if any · delivery: "heading to you"). If unknown[] has entries, add "couldn't find <names> on the menu".
+- order_placed: confirm the ticket 🎫: items, TOTAL, the code, BRANCH, and what happens next BY TYPE — dine_in: "the kitchen's on it, it'll come to table X" · pickup: "we'll message you the moment it's ready to pick up from <branch>" · delivery: "we'll message you when it's on its way to <address>". If a receipt PDF was made, say it's attached below. (dine_in: "coming to table X" · pickup: "we'll ping you when ready" + their pickup_time if any · delivery: "heading to you"). If unknown[] has entries, add "couldn't find <names> on the menu".
 - ask_branch: got their items — ask WHICH BRANCH. If "nearest" is present, lead with those (they shared their location; include the km) and offer the full list; otherwise list the branch names and offer that they can share their location 📍 for the closest. quick_replies: the 3 most likely branch names.
+- ask_payment: show the ORDER SUMMARY (each qty× name, TOTAL <subtotal> <currency>, branch, delivery address or table) then ask how they'd like to pay — list ONLY the methods given. quick_replies: the methods (e.g. ["Cash","Card","InstaPay"]).
+- confirm_order: show the FULL receipt (items, TOTAL, branch, address/table, payment method) and ask for a final confirmation before sending it to the kitchen. quick_replies: ["Confirm ✅","Change something"].
 - ask_address: we have their items — ask for the delivery address (they can type it or send a location pin 📍).
 - ask_items: what would they like? (invite them to tap the menu or just type it)
 - ask_order_type: got the items + subtotal — eating here (table number?), pickup, or delivery?
@@ -235,6 +277,8 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       ask_items: "What are you craving? Tap the menu or just type it 🍔",
       ask_branch: `Which branch works for you? ${(outcome.branches || []).slice(0, 4).join(" · ")}`,
       ask_address: "What's the delivery address? You can type it or send your location pin 📍",
+      ask_payment: `${(outcome.items || []).map((i) => `${i.qty}× ${i.name}`).join(", ")} — TOTAL ${outcome.subtotal} ${outcome.currency}. How would you like to pay: ${(outcome.methods || []).join(" / ")}?`,
+      confirm_order: `${(outcome.items || []).map((i) => `${i.qty}× ${i.name}`).join(", ")} — TOTAL ${outcome.subtotal} ${outcome.currency}${outcome.branch ? ` from ${outcome.branch}` : ""}${outcome.address ? `, to ${outcome.address}` : ""} · paying by ${outcome.payment}. Confirm and we'll start? ✅`,
       ask_order_type: "Eating here (which table?), pickup, or delivery?",
       ask_table: "Which table are you at? The number's on the table 😄",
       no_open_order: "No active order found — want to start one? 🍔",
@@ -246,6 +290,10 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
     }
     return {
       reply,
+      // the PDF receipt rides along as a WhatsApp document
+      menuDoc: outcome.kind === "order_placed" && outcome.receipt_url
+        ? { url: outcome.receipt_url, caption: `Receipt ${outcome.code}` }
+        : null,
       quickReplies: (value.value?.quick_replies || []).map((q) => String(q).slice(0, 20)).slice(0, 3),
       photos: [],
     };

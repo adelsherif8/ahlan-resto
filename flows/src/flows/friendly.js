@@ -446,7 +446,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     if (out.send_menu_list) {
       if (menuMode === "pdf") menuDoc = { url: mc.pdf_url, caption: `${config.name} — menu 📄` };
       else if (menuMode === "text") reply = `${reply}\n\n${fullMenuText(context.menu, config.payments?.currency || "EGP")}`.slice(0, 3900);
-      else menuList = buildMenuList(context.menu);
+      else menuList = buildMenuList(context.menu, config.menu_config?.build_your_own);
     }
     const loc = config.basic_info?.location;
     const locationPin = out.send_location_pin && loc?.lat && loc?.lng
@@ -470,10 +470,10 @@ function fullMenuText(menu, currency) {
 
 // WhatsApp list message: one tappable row per category (10-row API cap).
 // Tapping a row sends the category name back as a normal message — the bot answers it.
-function buildMenuList(menu) {
-  const cats = [...new Set(menu.map((m) => m.category).filter(Boolean))].slice(0, 10);
+function buildMenuList(menu, byo = null) {
+  const cats = [...new Set(menu.map((m) => m.category).filter(Boolean))].slice(0, byo?.enabled ? 9 : 10);
   if (!cats.length) return null;
-  return {
+  const list = {
     button: "View menu 🍽",
     sections: [{
       title: "Our menu",
@@ -494,6 +494,14 @@ function buildMenuList(menu) {
       }),
     }],
   };
+  if (byo?.enabled) {
+    list.sections[0].rows.unshift({
+      id: "byo",
+      title: String(byo.title || "Build your own").slice(0, 24),
+      description: String(byo.subtitle || "Make it exactly how you like it").slice(0, 72),
+    });
+  }
+  return list;
 }
 
 // MEMORY block — what we know about this guest, with hard anti-creepiness rules.

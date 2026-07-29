@@ -45,19 +45,23 @@ const CASES = [
   { id: "bigparty", needs: "reservations", name: "Large party → manager handoff", msg: "book a table for 25 people next thursday at 9pm",
     expect: [/team|manager|personally|هيتواصل|فريق/i], forbid: [/R-[A-Z2-9]{4}/] },
   // ---- casual mode (order agent + walk-in-only) ----
-  { id: "orderflow", needs: "casual", name: "Chat order → ticket code", turns: ["2 american truck meals and a coke for pickup from Maadi please"],
+  { id: "orderflow", needs: "casual", name: "Chat order → ticket code", turns: ["2 american truck meals and a coke for pickup from Maadi please", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/] },
-  { id: "dineinorder", needs: "casual", name: "Dine-in order by table number", turns: ["im at table T3 in the Maadi branch, can I get loaded fries and a sprite"],
+  { id: "dineinorder", needs: "casual", name: "Dine-in order by table number", turns: ["im at table T3 in the Maadi branch, can I get loaded fries and a sprite", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /T3/i] },
-  { id: "repeatorder", needs: "casual", name: "'Same as last time' rebuilt from history", turns: ["same as last time please, pickup from Maadi"],
+  { id: "repeatorder", needs: "casual", name: "'Same as last time' rebuilt from history", turns: ["same as last time please, pickup from Maadi", "cash", "yes confirm"],
     seed: { diner: { name: "Omar", visit_count: 3, last_seen_days_ago: 2 }, order: { items: [{ name: "Iconic Meal", qty: 1, price: 265 }, { name: "Sprite", qty: 1, price: 30 }], order_type: "pickup", total: 295, status: "served" } },
     expect: [/O-[A-Z2-9]{4}/, /iconic/i] },
   { id: "casualbook", needs: "casual", name: "Booking ask → walk-in + waitlist, never books", msg: "book me a table for 2 tomorrow at 8pm",
     expect: [/walk.?in|waitlist|no reservations|don'?t (take|do) reservations|come (by|in)/i], forbid: [/R-[A-Z2-9]{4}/] },
   { id: "branchask", needs: "casual", name: "Order without branch asks which branch", turns: ["can I get 2 iconic meals for pickup"],
     expect: [/branch/i, /maadi|sheraton|new cairo/i], forbid: [/O-[A-Z2-9]{4}/] },
-  { id: "branchflow", needs: "casual", name: "Branch answer completes the order", turns: ["can I get an iconic meal for pickup", "Maadi"],
+  { id: "branchflow", needs: "casual", name: "Branch answer completes the order", turns: ["can I get an iconic meal for pickup", "Maadi", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /maadi/i] },
+  { id: "paygate", needs: "casual", name: "Payment is asked before any ticket exists", turns: ["1 iconic meal pickup from Maadi"],
+    expect: [/pay|cash|card|instapay/i], forbid: [/O-[A-Z2-9]{4}/] },
+  { id: "confirmgate", needs: "casual", name: "Confirmation required before the kitchen sees it", turns: ["1 iconic meal pickup from Maadi", "cash"],
+    expect: [/confirm/i], forbid: [/O-[A-Z2-9]{4}/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
     expect: [/vegan|shawarma|edamame/i, /valet|parking/i] },
@@ -111,10 +115,10 @@ async function lastAiReply(db, sid) {
     .eq("session_id", sid)
     .eq("sender", "ai")
     .order("created_at", { ascending: false })
-    .limit(3);
+    .limit(5);
   // skip attachment-style lines (location pins / photo captions) — grade the text reply
   const CAPTION = /^.{2,45} — \d+(\.\d+)? ?(EGP|LE|جنيه)/;
-  const text = (data || []).find((m) => m.message && !m.message.startsWith("📍") && !CAPTION.test(m.message));
+  const text = (data || []).find((m) => m.message && !/^(📍|📄|🗺)/.test(m.message) && !CAPTION.test(m.message));
   return text?.message || data?.[0]?.message || null;
 }
 

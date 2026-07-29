@@ -8,7 +8,7 @@ import { verifyHandshake, verifySignature, parseEnvelope } from "./services/what
 import { metrics } from "./services/metrics.js";
 import { runRegression, regressionStatus } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
-import { getSession } from "./services/chatlog.js";
+import { getSession, logMessage } from "./services/chatlog.js";
 
 // register flows
 import "./flows/friendly.js";
@@ -114,6 +114,52 @@ app.post("/api/staff/reply", (req, res, next) => opsAuth(req, res, next), async 
     const channel = session?.channel || (String(sessionId).startsWith("web:") ? "web" : "whatsapp");
     await deliverStaffReply({ sessionId: String(sessionId), tenant, channel }, String(message).slice(0, 3500));
     res.json({ delivered: true, channel });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ================= order status push (called by the backend on status change) =================
+// Staff tap a ticket → the guest gets the right message for their order type.
+app.post("/api/order/status", (req, res, next) => opsAuth(req, res, next), async (req, res) => {
+  try {
+    const { code, status } = req.body || {};
+    if (!code || !status) return res.status(400).json({ error: "code and status required" });
+    const tenant = await resolveRestaurant();
+    const { data: order } = await tenant.db.from("orders").select("*").eq("code", code).maybeSingle();
+    if (!order) return res.status(404).json({ error: "order not found" });
+    if (!order.phone_number || String(order.phone_number).startsWith("walkin:")) return res.json({ skipped: "no guest channel" });
+    if (order.notified_status === status) return res.json({ skipped: "already notified" });
+
+    const branches = (tenant.config.basic_info?.branches || []).filter((b) => b?.key);
+    const br = branches.find((b) => b.key === order.branch) || null;
+    const brName = br?.name || "";
+    const maps = br?.lat && br?.lng ? `https://maps.google.com/?q=${br.lat},${br.lng}` : null;
+    const type = order.order_type;
+
+    const MESSAGES = {
+      preparing: type === "dine_in"
+        ? `👨‍🍳 Your order ${order.code} is being prepared — coming to table ${order.table_number || "you"} shortly!`
+        : `👨‍🍳 Your order ${order.code} is being prepared${brName ? ` at ${brName}` : ""}. We'll ping you the moment it's done!`,
+      ready: type === "dine_in"
+        ? `🍔 Order ${order.code} is ready — it's on its way to your table!`
+        : type === "pickup"
+        ? `✅ Order ${order.code} is READY to pick up${brName ? ` from ${brName}` : ""}!${maps ? `\n📍 ${maps}` : ""}`
+        : `✅ Order ${order.code} is ready and heading out to you now!`,
+      served: type === "delivery"
+        ? `🛵 Order ${order.code} is ON ITS WAY${brName ? ` from ${brName}` : ""}${order.address ? ` to ${order.address}` : ""}.${maps ? `\n📍 Coming from: ${maps}` : ""}`
+        : null,
+      delivered: `🎉 Order ${order.code} delivered — enjoy! Tell us how it was 🙌`,
+      cancelled: `Order ${order.code} was cancelled. If that's a surprise, message us and we'll sort it 🙏`,
+    };
+    const text = MESSAGES[status];
+    if (!text) return res.json({ skipped: `no message for ${status}` });
+
+    const ctx = { sessionId: order.phone_number, tenant, channel: String(order.phone_number).startsWith("web:") ? "web" : "whatsapp" };
+    await deliverStaffReply(ctx, text); // same channel delivery + enters AI history
+    await logMessage(tenant.db, order.phone_number, "ai", text, ctx.channel); // visible in Chats + web poll
+    await tenant.db.from("orders").update({ notified_status: status }).eq("code", code).then(() => {}, () => {});
+    res.json({ sent: true, status });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
