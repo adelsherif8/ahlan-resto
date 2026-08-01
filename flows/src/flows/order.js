@@ -519,12 +519,18 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       reply = `${reply} (order ${outcome.code})`;
     }
     // whenever we're asking them to pick, the menu PDF must be in the same breath
-    // buttons for option questions come from CODE with the EXACT option names —
-    // the model was paraphrasing ("Coke") into labels the parser then rejected
-    if (outcome.kind === "ask_choice" && outcome.questions?.length) {
-      const q0 = outcome.questions[0];
+    // buttons at decision gates come from CODE — the model paraphrased option
+    // names into unparseable labels, and sometimes dropped the Confirm button
+    // entirely. Every gate gets its buttons deterministically.
+    const forced =
+      outcome.kind === "ask_choice" && outcome.questions?.length ? (outcome.questions[0].names || [])
+      : outcome.kind === "confirm_order" ? ["Confirm ✅", "Change something"]
+      : outcome.kind === "ask_payment" ? (outcome.methods || []).map((m) => m.split(" ")[0].replace(/^\w/, (c) => c.toUpperCase()))
+      : outcome.kind === "ask_order_type" ? ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])]
+      : null;
+    if (forced) {
       value.value = value.value || {};
-      value.value.quick_replies = (q0.names || []).filter((x) => x.length <= 20).slice(0, 3);
+      value.value.quick_replies = forced.filter((x) => x && x.length <= 20).slice(0, 3);
     }
 
     const NEEDS_MENU = ["ask_items", "nothing_matched", "no_history"];
