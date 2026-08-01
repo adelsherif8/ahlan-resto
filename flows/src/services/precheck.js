@@ -51,7 +51,7 @@ export async function sessionPrecheck(db, sessionId, history) {
     try {
       const { data: d } = await db.from("diners").select("preferences").eq("phone_number", sessionId).maybeSingle();
       const p = d?.preferences?.pending_order;
-      if (p && Date.now() - new Date(p.at || 0).getTime() < 30 * 60_000) {
+      if (p && Date.now() - new Date(p.at || 0).getTime() < 120 * 60_000) {
         out.active_flow = "order";
         out.stage = p.awaiting_confirm ? "awaiting_confirm"
           : p.awaiting_option ? "configuring_item"

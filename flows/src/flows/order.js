@@ -42,7 +42,7 @@ defineFlow({
       const { data: tables } = await db.from("restaurant_tables").select("table_number");
       // an order in progress across turns (guest answered "Maadi" to our branch question)
       const p = diner?.preferences?.pending_order;
-      const pending = p && Date.now() - new Date(p.at || 0).getTime() < 30 * 60_000 ? p : null;
+      const pending = p && Date.now() - new Date(p.at || 0).getTime() < 120 * 60_000 ? p : null;
       return {
         menu, openOrder: open?.[0] || null,
         tableNumbers: (tables || []).map((t) => String(t.table_number).toUpperCase()),
@@ -545,6 +545,9 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
 
     return {
       reply,
+      // pipeline decision points keep their buttons even back-to-back — the
+      // anti-spam pacing rule cost a guest their Confirm button and the order died
+      forceButtons: ["ask_choice", "ask_payment", "confirm_order", "ask_order_type"].includes(outcome.kind),
       // the menu / receipt PDF rides along as a WhatsApp document
       menuDoc: doc,
       quickReplies: (value.value?.quick_replies || []).map((q) => String(q).slice(0, 20)).slice(0, 3),

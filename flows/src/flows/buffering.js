@@ -255,7 +255,9 @@ defineFlow({
       const isWa = (sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel) === "whatsapp";
       let qrs = routed?.quickReplies || [];
       const list = routed?.menuList || null;
-      if (qrs.length && lastHadButtons.get(ctx.sessionId)) qrs = []; // pacing: no back-to-back buttons
+      // pacing: no back-to-back buttons — EXCEPT at order decision points, where a
+      // missing button strands the guest (a confirm bill with no Confirm button)
+      if (qrs.length && lastHadButtons.get(ctx.sessionId) && !routed?.forceButtons) qrs = [];
       lastHadButtons.set(ctx.sessionId, qrs.length > 0 || !!list);
       if (lastHadButtons.size > 2000) lastHadButtons.clear();
       // emoji reaction on the guest's message — lands before the text reply, like a human
