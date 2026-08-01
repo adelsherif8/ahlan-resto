@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
+import OptionsEditor from "./OptionsEditor";
 
 const TAG_EMOJI: Record<string, string> = {
   vegan: "🌱", vegetarian: "🥬", gf: "🌾", nuts: "🥜", dairy: "🥛", spicy: "🌶️",
@@ -11,6 +12,7 @@ export default function Menu() {
   const [items, setItems] = useState<any[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [optId, setOptId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", category: "Mains", price: "", description: "" });
 
   const load = () => api.get("/api/menu").then((r) => setItems(r.data)).catch(() => {});
@@ -97,7 +99,24 @@ export default function Menu() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-sm font-semibold tabular-nums">EGP {Number(item.price).toFixed(0)}</div>
+                    <div className="text-sm font-semibold tabular-nums">
+                      {(item.options || []).some((g: any) => (g.choices || []).some((c: any) => c.price != null))
+                        ? `from EGP ${Number(item.price).toFixed(0)}`
+                        : `EGP ${Number(item.price).toFixed(0)}`}
+                    </div>
+                    <button
+                      onClick={() => setOptId(optId === item.id ? null : item.id)}
+                      className={`rounded-lg border px-2 py-1 text-xs ${
+                        (item.options || []).some((g: any) => g.sample || (g.choices || []).some((c: any) => c.sample))
+                          ? "border-amber-500/60 text-amber-300 hover:bg-amber-500/10"
+                          : (item.options || []).length
+                          ? "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                          : "border-zinc-800 text-zinc-500 hover:bg-zinc-800"
+                      }`}
+                      title="Questions the bot asks before this item can be ordered"
+                    >
+                      ⚙ options{(item.options || []).length ? ` (${item.options.length})` : ""}
+                    </button>
                     <button
                       onClick={() => setEditId(editId === item.id ? null : item.id)}
                       className="rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-800"
@@ -116,6 +135,9 @@ export default function Menu() {
                 </div>
                 {editId === item.id && (
                   <DetailsEditor item={item} onSaved={() => { setEditId(null); load(); }} />
+                )}
+                {optId === item.id && (
+                  <OptionsEditor item={item} categories={categories} onSaved={() => { setOptId(null); load(); }} />
                 )}
                 </Card>
               ))}

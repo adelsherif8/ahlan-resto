@@ -135,7 +135,7 @@ export default function Orders() {
                         <div className="divide-y divide-dashed divide-zinc-800 border-y border-dashed border-zinc-800">
                           {(o.items || []).map((i: any, idx: number) => {
                             const mods = [
-                              ...Object.entries(i.choices || {}).map(([k, v]) => `${k}: ${v}`),
+                              ...Object.entries(i.options || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`),
                               i.notes || null,
                             ].filter(Boolean) as string[];
                             return (
@@ -145,7 +145,7 @@ export default function Orders() {
                                     <span className="font-bold">{i.qty}×</span> {i.name}
                                   </span>
                                   <span className="tabular-nums text-zinc-500">
-                                    {Number(i.price) * Number(i.qty)}
+                                    {Number(i.unit_price ?? i.price) * Number(i.qty)}
                                   </span>
                                 </div>
                                 {mods.length > 0 && (

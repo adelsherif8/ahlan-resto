@@ -1,5 +1,7 @@
 // Conversation memory in message_full (jsonb array, last 20 turns) — keyed by session id.
-const MAX_TURNS = 20;
+// A rolling conversation summary carries the older context, so replaying 20 raw
+// turns into every prompt pays twice for the same information.
+const MAX_TURNS = 10;
 
 export async function appendHistory(db, sessionId, role, message) {
   const { data } = await db.from("message_full").select("conversation").eq("phone_number", sessionId).maybeSingle();

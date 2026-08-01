@@ -10,9 +10,15 @@ const PRICES = {
   "gpt-4o-mini": [0.15, 0.6],
 };
 
-function cost(model, tin, tout) {
+// OpenAI automatically caches identical prompt prefixes over ~1024 tokens and
+// bills those at half price. Our system prompts are a stable per-restaurant block
+// (persona, facts, menu) followed by the volatile guest part, so most of the input
+// is cached — pricing it at full rate would overstate spend and hide the win.
+const CACHED_DISCOUNT = 0.5;
+function cost(model, tin, tout, cached = 0) {
   const [pi, po] = PRICES[model] || [1, 4];
-  return (tin * pi + tout * po) / 1e6;
+  const fresh = Math.max(0, tin - cached);
+  return (fresh * pi + cached * pi * CACHED_DISCOUNT + tout * po) / 1e6;
 }
 
 const RETRYABLE = new Set([429, 500, 502, 503, 529]);
@@ -46,13 +52,17 @@ async function chat(model, messages, { json = false, temperature = 0.4, maxToken
   const model_ = useModel;
   const data = await res.json();
   const usage = data.usage || {};
+  const cached = usage.prompt_tokens_details?.cached_tokens || 0;
   return {
     text: data.choices?.[0]?.message?.content || "",
     __usage: {
-      model,
+      // model_ , not model: a 429 degrade runs the cheaper model, and billing it
+      // at the expensive one's rate makes the cost report wrong
+      model: model_,
       tokens_in: usage.prompt_tokens || 0,
       tokens_out: usage.completion_tokens || 0,
-      cost_usd: cost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0),
+      tokens_cached: cached,
+      cost_usd: cost(model_, usage.prompt_tokens || 0, usage.completion_tokens || 0, cached),
     },
   };
 }

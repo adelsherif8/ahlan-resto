@@ -28,13 +28,13 @@ function buildPdf({ restaurant, order, branch, currency }) {
     doc.moveDown(0.5);
     for (const it of order.items || []) {
       const line = `${it.qty}× ${it.name}`;
-      const amount = `${Number(it.price) * Number(it.qty)} ${currency}`;
+      const amount = `${Number(it.unit_price ?? it.price) * Number(it.qty)} ${currency}`;
       const y = doc.y;
       doc.fontSize(11).fillColor("#000").text(line, 36, y, { width: 250 });
       doc.text(amount, 286, y, { width: 98, align: "right" });
       // the kitchen reads this line too — chosen drink and "no onion" belong on it
       const mods = [
-        ...Object.entries(it.choices || {}).map(([k, v]) => `${k}: ${v}`),
+        ...Object.entries(it.options || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`),
         it.notes || null,
       ].filter(Boolean);
       if (mods.length) doc.fontSize(9).fillColor("#777").text(mods.join(" · "), 46, doc.y, { width: 240 });

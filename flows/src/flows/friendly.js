@@ -159,7 +159,7 @@ Personality: ${ai.personality || "warm and friendly"}.
 VOICE & BEHAVIOR (this is what makes you feel human):
 - Talk like a real Egyptian restaurant host texting: short, warm, alive. Casual rhythm, contractions, natural slang when the guest uses it.
 - BANNED phrases: "How can I assist you today", "I'm here to help", "feel free to", "How can I make your day", "don't hesitate", robotic sign-offs. A waiter never talks like that.
-- Greet like the door — but ONLY on the FIRST message of a conversation${context.isNewConversation ? " (this IS the first message)" : " (this conversation already started — do NOT greet again, no welcome openers, just continue naturally)"}. GREETING & RELATIONSHIP below tells you exactly WHO you're greeting — match it.
+- Greet like the door — but ONLY on the FIRST message of a conversation. GREETING & RELATIONSHIP below tells you whether this IS the first message, and exactly WHO you're greeting — match it.
 - NEVER ask "first time with us?" if they already told you, or if GREETING & RELATIONSHIP says returning/long_time_no_see/dining_now.
 - Sell like a waiter who loves the food: describe taste and texture ("the short rib falls off the bone — 12 hours slow"), suggest pairings, HAVE favorites when asked (pick from our real menu and say why). Opinions about our menu: encouraged. Facts: only from FACTS below.
 - YOU ARE A RESTAURANT, NOT AN ASSISTANT: warm, human, easy — never generic service phrases ("how can I assist", "checking in"). If a sentence could come from a bank's chatbot, rewrite it.
@@ -182,15 +182,15 @@ FACTS — the ONLY things you know (never invent anything beyond this):
 - Payment methods: ${(config.payments?.methods || []).join(", ") || "n/a"}
 - Services: dine-in yes · delivery ${bi.services?.delivery === true ? "YES" : bi.services?.delivery === false ? "no" : "not set"} · pickup ${bi.services?.pickup === true ? "YES" : bi.services?.pickup === false ? "no" : "not set"}
 - House policies: alcohol ${bi.policies?.alcohol ?? "not set"} · shisha ${bi.policies?.shisha ?? "not set"} · kids ${bi.policies?.kids ?? "not set"} · smoking ${bi.policies?.smoking ?? "not set"}
-${branchFacts(config, diner, message)}- Reservation policy: ${reservationPolicyLine(config.reservation_policy)}
-- NEVER imply discounts/deals/offers exist unless listed here: ${JSON.stringify(ai.offers || [])}
-- TONIGHT'S SPECIALS (mention when relevant — never invent others): ${context.specials.length ? context.specials.join("; ") : "none tonight"}
-- MENU (available right now — if an item is not listed, it is NOT available tonight):
+${branchFacts(config, diner, message)}${config.basic_info?.restaurant_type === "casual" ? "" : `- Reservation policy: ${reservationPolicyLine(config.reservation_policy)}`}
+${(ai.offers || []).length ? `- Current offers (ONLY these exist): ${JSON.stringify(ai.offers)}` : "- NO discounts/deals/offers exist — never imply any"}
+${context.specials.length ? `- TONIGHT'S SPECIALS (mention when relevant — never invent others): ${context.specials.join("; ")}\n` : ""}- MENU (available right now — if an item is not listed, it is NOT available tonight):
 ${menuText || "(menu not loaded)"}
-- UPCOMING EVENTS: ${context.events.length ? context.events.map((e) => `${e.title} on ${e.date}${e.start_time ? " at " + String(e.start_time).slice(0, 5) : ""}${e.price ? " (EGP " + e.price + ")" : ""}`).join("; ") : "none announced"}
+${context.events.length ? `- UPCOMING EVENTS: ${context.events.map((e) => `${e.title} on ${e.date}${e.start_time ? " at " + String(e.start_time).slice(0, 5) : ""}${e.price ? " (EGP " + e.price + ")" : ""}`).join("; ")}` : "- UPCOMING EVENTS: none announced"}
 - FAQs: ${JSON.stringify(config.faqs || [])}
 
 GREETING & RELATIONSHIP (facts from our CRM — phrase them naturally, NEVER recite them):
+- ${context.isNewConversation ? "This IS the first message of the conversation — greet them." : "This conversation already started — do NOT greet again, no welcome openers, just continue naturally."}
 - Who this is: ${situationGuide(context, config)}
 - Name to greet with: ${context.greetName ? `"${context.greetName}" (source: ${context.greetNameSource})` : "unknown — don't demand it; capture it naturally if they offer it"}
 - Opening style: ${(config.ai?.greeting || "").trim() ? `the house opener "${config.ai.greeting.trim()}" is for FIRST-TIMERS ONLY (start their welcome with its spirit, then your own words). RETURNING guests are greeted like a human who knows them: by name, directly ("Welcome back, Adel! 👋…") — NEVER prepend the house opener or re-welcome them "to ${config.name}". Vary your wording between conversations; never sound copy-pasted.` : `no house greeting configured — open naturally in your personality and the guest's language; NEVER use brand words, slogans or greeting words that aren't in FACTS or your personality`}
@@ -439,7 +439,19 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       if (photos.length === 3) break;
     }
 
-    const quickReplies = (out.quick_replies || []).map(trimLabel).filter(Boolean).slice(0, 3);
+    let quickReplies = (out.quick_replies || []).map(trimLabel).filter(Boolean).slice(0, 3);
+    // A regular opening the chat gets their reorder one tap away — the
+    // highest-converting button we can show, and only shown when the history is real.
+    if (
+      context.isNewConversation &&
+      config.basic_info?.restaurant_type === "casual" &&
+      (context.usualFromOrders || context.lastOrder)
+    ) {
+      const chip = "Same as last time 🔁";
+      if (!quickReplies.some((q) => /same as last|usual/i.test(q))) {
+        quickReplies = [chip, ...quickReplies].slice(0, 3);
+      }
+    }
     // menu display mode is per-restaurant: PDF document + link (default) | full text | tappable list
     const mc = config.menu_config || {};
     const currency = config.payments?.currency || "EGP";
@@ -701,7 +713,16 @@ function findMenuPhoto(menu, name) {
 // Small menus go in full. Past MENU_FULL_LIMIT items, only the categories the guest is
 // actually talking about keep descriptions; the rest compress to name+price+dietary tags
 // (tags stay — the allergy hard rule needs them) so prompt size stays flat on big menus.
-const MENU_FULL_LIMIT = 40;
+const MENU_FULL_LIMIT = 12;
+// An item with several priced formats has no single price — quoting the cheapest
+// as "the" price undersells the meal and misleads the guest. Show the formats.
+function priceOf(m, currency) {
+  const g = (m.options || []).find((x) => (x.choices || []).some((c) => c.price != null));
+  if (!g) return `${m.price} ${currency}`;
+  const parts = g.choices.filter((c) => c.price != null).map((c) => `${c.name} ${c.price}`);
+  return `${parts.join(" / ")} ${currency}`;
+}
+
 function buildMenuText(menu, message, history, currency) {
   const line = (m, full) => {
     const tags = m.dietary_tags?.length ? ", " + m.dietary_tags.join("/") : "";
@@ -712,8 +733,8 @@ function buildMenuText(menu, message, history, currency) {
       ? `${m.ingredients ? ` [ingredients: ${m.ingredients}]` : ""}${m.pairs_with ? ` [pairs well with: ${m.pairs_with}]` : ""}`
       : "";
     return full
-      ? `${m.name} (${m.category}, ${m.price} ${currency}${tags}${photo})${star}${spice}${m.description ? " — " + m.description : ""}${extra}`
-      : `${m.name} (${m.price} ${currency}${tags}${photo})${star}${spice}`;
+      ? `${m.name} (${m.category}, ${priceOf(m, currency)}${tags}${photo})${star}${spice}${m.description ? " — " + m.description : ""}${extra}`
+      : `${m.name} (${priceOf(m, currency)}${tags}${photo})${star}${spice}`;
   };
   if (menu.length <= MENU_FULL_LIMIT) return menu.map((m) => line(m, true)).join("\n");
 

@@ -9,8 +9,8 @@ const AR = "[\\u0600-\\u06FF]";
 const CASES = [
   { id: "price", name: "Exact price from DB", msg: "how much is the loaded fries?", expect: [/99/] },
   { id: "math", name: "Price math", msg: "total for 2 american truck meals and a coke?", expect: [/530/] },
-  { id: "runningsub", needs: "casual", name: "Named items show a subtotal while we gather the rest", turns: ["2 american truck meals"],
-    expect: [/500/, /subtotal/i], forbid: [/O-[A-Z2-9]{4}/] },
+  { id: "runningsub", needs: "casual", name: "Named items show an honest from-subtotal while we gather the rest", turns: ["2 american truck meals"],
+    expect: [/from/i, /360/, /subtotal/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "gf", name: "Dietary honesty when tags absent", msg: "which meals are gluten free?", expect: [/kitchen|team|confirm|double.?check|sure/i] },
   { id: "desserts", name: "Honest about missing category", msg: "what desserts do you have?", expect: [/no |don['’]?t|not |مفيش|بس عندنا/i], forbid: [/kunafa|cheesecake|fondant/i] },
   { id: "location", name: "Address + maps from config", msg: "where are you located?", expect: [/90th|new cairo/i] },
@@ -47,36 +47,54 @@ const CASES = [
   { id: "bigparty", needs: "reservations", name: "Large party → manager handoff", msg: "book a table for 25 people next thursday at 9pm",
     expect: [/team|manager|personally|هيتواصل|فريق/i], forbid: [/R-[A-Z2-9]{4}/] },
   // ---- casual mode (order agent + walk-in-only) ----
-  { id: "orderflow", needs: "casual", name: "Chat order → drink choice → ticket code", turns: ["2 american truck meals for pickup from Maadi please", "coca-cola", "cash", "yes confirm"],
-    expect: [/O-[A-Z2-9]{4}/] },
+  { id: "orderflow", needs: "casual", name: "Chat order → options walked → ticket + honest ETA", turns: ["2 american truck meals for pickup from Maadi please", "Meal", "Medium", "French fries", "coca-cola", "cash", "yes confirm"],
+    expect: [/O-[A-Z2-9]{4}/, /min/i] },
   { id: "dineinorder", needs: "casual", name: "Dine-in order by table number", turns: ["im at table T3 in the Maadi branch, can I get loaded fries and a sprite", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /T3/i] },
   { id: "repeatorder", needs: "casual", name: "'Same as last time' rebuilt from history", turns: ["same as last time please, pickup from Maadi", "cash", "yes confirm"],
-    seed: { diner: { name: "Omar", visit_count: 3, last_seen_days_ago: 2 }, order: { items: [{ name: "Iconic Meal", qty: 1, price: 265, choices: { drink: "Sprite" } }], order_type: "pickup", total: 265, status: "served" } },
+    seed: { diner: { name: "Omar", visit_count: 3, last_seen_days_ago: 2 }, order: { items: [{ name: "Iconic Meal", qty: 1, price: 265, options: { format: "Full Meal", size: "Small", side: "French fries", drink: "Sprite" } }], order_type: "pickup", total: 265, status: "served" } },
     expect: [/O-[A-Z2-9]{4}/, /iconic/i] },
   { id: "typefirst", needs: "casual", name: "Order intent asks dine-in/pickup/delivery FIRST", turns: ["i want to order"],
     expect: [/dine.?in|eating in|eat in/i, /pick.?up|takeaway/i, /deliver/i], forbid: [/O-[A-Z2-9]{4}/] },
-  { id: "combochoice", needs: "casual", name: "A meal asks which drink, from the real menu", turns: ["an iconic meal for pickup from Maadi"],
+  { id: "combochoice", needs: "casual", name: "A meal asks sandwich-or-meal with both prices", turns: ["an iconic meal for pickup from Maadi"],
+    expect: [/sandwich/i, /195|265/], forbid: [/O-[A-Z2-9]{4}/] },
+  { id: "combodrink", needs: "casual", name: "After the format it walks size, fries, then drink", turns: ["an iconic meal for pickup from Maadi", "Full Meal", "Small", "French fries"],
     expect: [/drink/i, /coca|sprite|fanta/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "itemnotes", needs: "casual", name: "Per-item modifier reaches the ticket", turns: ["one loaded fries no onion, pickup from Maadi", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /no onion/i] },
   { id: "currencyclean", needs: "casual", name: "Bill uses the configured currency only", turns: ["2 fries for pickup from Maadi"],
     expect: [/EGP/], forbid: [/[₱$€£₹]/] },
+  { id: "bundle4x4", needs: "casual", name: "4X4 bundle asks for its 4 sandwiches, sodas never asked",
+    turns: ["a 4x4 for pickup from Maadi", "2 american truck and 2 iconic", "cash", "yes confirm"],
+    expect: [/O-[A-Z2-9]{4}/, /999/], forbid: [/which (soda|drink)/i] },
+  { id: "perunit", needs: "casual", name: "2 meals can mix drinks — line splits per unit",
+    turns: ["2 iconic meals for pickup from Maadi", "Full Meal", "Small", "French fries", "one coca cola and one sprite", "cash", "yes confirm"],
+    expect: [/O-[A-Z2-9]{4}/, /coca/i, /sprite/i] },
+  { id: "editadd", needs: "casual", name: "'add a loaded fries' mid-order adds a line",
+    turns: ["1 iconic meal for pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "add a loaded fries", "cash", "yes confirm"],
+    expect: [/O-[A-Z2-9]{4}/, /loaded fries/i] },
+  { id: "editqty", needs: "casual", name: "'make it just 1' drops the quantity",
+    turns: ["2 american truck meals for pickup from Maadi", "Meal", "Medium", "French fries", "coca cola", "make it just 1", "cash", "yes confirm"],
+    expect: [/O-[A-Z2-9]{4}/, /1× American Truck/i], forbid: [/2× American Truck/i] },
+  { id: "usualchip", needs: "casual", name: "Returning guest gets a one-tap reorder chip",
+    msg: "hi",
+    seed: { diner: { name: "Omar", visit_count: 4, last_seen_days_ago: 3 }, order: { items: [{ name: "Iconic Meal", qty: 1, price: 265, options: { format: "Full Meal", size: "Small", side: "French fries", drink: "Sprite" } }], order_type: "pickup", total: 265, status: "served" } },
+    expect: [/Same as last/i] },
   { id: "faketable", needs: "casual", name: "Unknown table → honest, never claims the order is placed",
     turns: ["1 iconic meal", "dine-in", "23"],
     expect: [/T1|T2|T3|B1|TR1/i], forbid: [/kitchen'?s on it|order (is )?placed|on the grill|O-[A-Z2-9]{4}/i] },
   { id: "realtable", needs: "casual", name: "Bare table number after we ask is understood",
-    turns: ["1 iconic meal", "dine-in", "T3", "Maadi", "sprite", "cash", "yes confirm"],
+    turns: ["1 iconic meal", "dine-in", "T3", "Maadi", "Full Meal", "Small", "French fries", "sprite", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /T3/i] },
   { id: "casualbook", needs: "casual", name: "Booking ask → walk-in + waitlist, never books", msg: "book me a table for 2 tomorrow at 8pm",
     expect: [/walk.?in|waitlist|no reservations|don'?t (take|do) reservations|come (by|in)/i], forbid: [/R-[A-Z2-9]{4}/] },
   { id: "branchask", needs: "casual", name: "Order without branch asks which branch", turns: ["can I get 2 iconic meals for pickup"],
     expect: [/branch/i, /maadi|sheraton|new cairo/i], forbid: [/O-[A-Z2-9]{4}/] },
-  { id: "branchflow", needs: "casual", name: "Branch answer completes the order", turns: ["can I get an iconic meal for pickup", "Maadi", "sprite", "cash", "yes confirm"],
+  { id: "branchflow", needs: "casual", name: "Branch answer completes the order", turns: ["can I get an iconic meal for pickup", "Maadi", "Full Meal", "Small", "French fries", "sprite", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /maadi/i] },
-  { id: "paygate", needs: "casual", name: "Payment is asked before any ticket exists", turns: ["1 iconic meal pickup from Maadi", "sprite"],
+  { id: "paygate", needs: "casual", name: "Payment is asked before any ticket exists", turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite"],
     expect: [/pay|cash|card|instapay/i], forbid: [/O-[A-Z2-9]{4}/] },
-  { id: "confirmgate", needs: "casual", name: "Confirmation required before the kitchen sees it", turns: ["1 iconic meal pickup from Maadi", "sprite", "cash"],
+  { id: "confirmgate", needs: "casual", name: "Confirmation required before the kitchen sees it", turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "cash"],
     expect: [/confirm/i], forbid: [/O-[A-Z2-9]{4}/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
@@ -162,7 +180,10 @@ async function runCase(tenant, c, runId) {
     let prev = 0;
     for (const m of c.turns) {
       await runFlow("ingest", ctx, { message: m });
-      for (let i = 0; i < 20; i++) {
+      // Wait for the REAL reply before the next turn. Sending early corrupts the
+      // conversation (the buffer merges queued messages), which fails the case for
+      // harness reasons, not product reasons — long option flows need the headroom.
+      for (let i = 0; i < 48; i++) {
         await new Promise((r) => setTimeout(r, 2500));
         const n = await aiCount(tenant.db, sid);
         if (n > prev) { prev = n; break; }
@@ -246,11 +267,13 @@ export async function runRegression({ only } = {}) {
       const unknown = only.filter((id) => !CASES.some((c) => c.id === id));
       if (unknown.length) throw new Error(`unknown case id(s): ${unknown.join(", ")}`);
     }
-    const queue = [...picked];
-    await Promise.all(
-      Array.from({ length: 4 }, async () => {
-        while (queue.length) {
-          const c = queue.shift();
+    // Long conversations desync under parallel load (replies cross-count, the
+    // buffer merges rushed turns) and fail for harness reasons — run them serially.
+    const longCases = picked.filter((c) => (c.turns?.length || 0) >= 5);
+    const queue = picked.filter((c) => (c.turns?.length || 0) < 5);
+    const runQueue = async (q) => {
+        while (q.length) {
+          const c = q.shift();
           if ((c.needs === "reservations" && !reservable) || (c.needs === "casual" && reservable)) {
             state.results.push({ id: c.id, name: c.name, pass: true, reply: `SKIPPED (${c.needs}-only, restaurant is ${rtype})`, failures: [] });
             state.passed++;
@@ -265,10 +288,12 @@ export async function runRegression({ only } = {}) {
             state.failed++;
           }
         }
-      })
-    );
+    };
+    await Promise.all(Array.from({ length: 4 }, () => runQueue(queue)));
+    await runQueue(longCases);
     state.results.sort((a, b) => (a.id < b.id ? -1 : 1));
-    await cleanup(tenant.db, runId);
+    if (!process.env.REGRESS_KEEP) await cleanup(tenant.db, runId);
+    else log(`REGRESS_KEEP set — run data kept under web:regress-${runId}-*`);
     state.status = "done";
   } catch (e) {
     state.status = "error";

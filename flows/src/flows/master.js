@@ -4,7 +4,7 @@
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_FAST } from "../config.js";
-import { detectCloser, matchFaq, matchMenuCategory } from "../services/fastpaths.js";
+import { detectCloser, matchFaq, matchMenuCategory, matchService, matchItemPrice } from "../services/fastpaths.js";
 import { bump } from "../services/metrics.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm)\W*$/i;
@@ -52,8 +52,13 @@ defineFlow({
       if (closer) { bump("closer_hits"); return closer; }
       const faq = matchFaq(message, ctx.tenant.config, sticky);
       if (faq) { bump("faq_hits"); return faq; }
-      const catList = await matchMenuCategory(db, message, ctx.tenant.config.payments?.currency || "EGP");
+      const svc = matchService(message, ctx.tenant.config, sticky);
+      if (svc) { bump("service_hits"); return svc; }
+      const currency = ctx.tenant.config.payments?.currency || "EGP";
+      const catList = await matchMenuCategory(db, message, currency);
       if (catList) { bump("menu_category_hits"); return catList; }
+      const itemPrice = await matchItemPrice(db, message, currency, sticky);
+      if (itemPrice) { bump("item_price_hits"); return itemPrice; }
       return { kind: "none — needs classification + LLM" };
     }, { input: { message, sticky_language: input.stickyLanguage || null } });
 
@@ -75,6 +80,14 @@ defineFlow({
       }
       if (isAffirmative) {
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare affirmative)" } };
+      }
+      // A live order session already tells us where this belongs. Short answers to
+      // our own questions ("Maadi", "T3", "sprite", "card", an address) are the
+      // overwhelming majority of mid-order turns — classifying them again buys
+      // nothing and costs a call. A longer message might be a genuine change of
+      // subject, so that still goes to the model.
+      if (precheck.active_flow === "order" && message.trim().length <= 45) {
+        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (short answer inside an active order)" } };
       }
       const system = `Classify a WhatsApp message to a trendy Cairo restaurant. Reply JSON only.
 Buckets:
@@ -112,7 +125,7 @@ Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
         precheck,
         classification: { ...cls, requested_bucket: cls.bucket, sticky_language: input.stickyLanguage || null, self_correction: precheck.is_self_correction || false },
       });
-    }, { input: { bucket: cls.bucket, confidence: cls.confidence, active_flow: precheck.active_flow || "none", agent: cls.bucket === "reservation" || precheck.active_flow === "reservation" ? "reservation" : cls.bucket === "arrival" ? "arrival" : "friendly" } });
+    }, { input: { bucket: cls.bucket, confidence: cls.confidence, active_flow: precheck.active_flow || "none", restaurant_type: ctx.tenant.config.basic_info?.restaurant_type || "fine" } });
 
     return { ...result, bucket: cls.bucket, mood: cls.mood, language: cls.language };
   },
