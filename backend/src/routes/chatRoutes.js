@@ -43,7 +43,44 @@ router.get("/sessions/:sessionId/context", async (req, res, next) => {
       const mf = await req.repo.list("message_full", { where: { phone_number: sid } });
       summary = mf[0]?.conversation_summary || null;
     } catch {}
-    res.json({ session: sessions[0] || null, diner, upcoming_reservation: upcoming, summary });
+
+    // full order picture: history, lifetime spend, their "usual", the draft in progress
+    let orders = [], lifetime = 0, usual = null, draft = null;
+    try {
+      const all = (await req.repo.list("orders", { order: "created_at", desc: true }))
+        .filter((o) => o.phone_number === sid);
+      orders = all.slice(0, 6).map((o) => ({
+        code: o.code, status: o.status, order_type: o.order_type, total: o.total,
+        created_at: o.created_at, branch: o.branch,
+        items: (o.items || []).map((i) => `${i.qty}× ${i.name}`).join(", "),
+      }));
+      const done = all.filter((o) => o.status !== "cancelled");
+      lifetime = done.reduce((t, o) => t + Number(o.total || 0), 0);
+      const counts = {};
+      for (const o of done) for (const it of o.items || []) counts[it.name] = (counts[it.name] || 0) + (Number(it.qty) || 1);
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      if (top && top[1] >= 2) usual = { name: top[0], times: top[1] };
+    } catch {}
+    const prefs = diner?.preferences || {};
+    if (prefs.pending_order?.items?.length) {
+      const p = prefs.pending_order;
+      draft = {
+        items: p.items.map((i) => `${i.qty}× ${i.name}`).join(", "),
+        order_type: p.order_type || null, branch: p.branch || null,
+        stage: p.awaiting_confirm ? "awaiting confirmation" : p.awaiting_option ? "choosing options" : p.payment_method ? "confirming" : "building",
+        at: p.at || null,
+      };
+    }
+    res.json({
+      session: sessions[0] || null,
+      diner,
+      upcoming_reservation: upcoming,
+      summary,
+      orders,
+      order_stats: { count: orders.length ? undefined : 0, lifetime_egp: Math.round(lifetime), usual },
+      saved_addresses: (prefs.addresses || []).map((a) => ({ text: a.text, last_used: a.last_used || null })),
+      draft,
+    });
   } catch (e) { next(e); }
 });
 

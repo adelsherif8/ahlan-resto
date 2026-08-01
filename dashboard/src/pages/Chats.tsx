@@ -230,7 +230,48 @@ function GuestPanel({ ctx, onSaved }: { ctx: any; onSaved: () => void }) {
       <div>
         <div className="text-base font-semibold">{d?.name || d?.wa_profile_name || s?.phone_number || s?.session_id}</div>
         <div className="text-xs text-zinc-500">{tier}{d ? ` · ${d.visit_count} visits` : ""}</div>
+        <div className="mt-1 space-y-0.5 text-xs text-zinc-400">
+          <div>📱 {d?.phone_number || s?.session_id}</div>
+          {d?.wa_profile_name && d?.name && d.wa_profile_name !== d.name && <div>WhatsApp name: {d.wa_profile_name}</div>}
+          {d?.last_seen_at && <div>Last seen: {new Date(d.last_seen_at).toLocaleString()}</div>}
+          {d?.preferred_branch && <div>🏪 Usual branch: {d.preferred_branch}</div>}
+        </div>
       </div>
+
+      {ctx.draft && (
+        <div className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+          🛒 <b>Order in progress</b> ({ctx.draft.stage})
+          <div className="mt-0.5">{ctx.draft.items}{ctx.draft.order_type ? ` · ${String(ctx.draft.order_type).replace("_", "-")}` : ""}{ctx.draft.branch ? ` · ${ctx.draft.branch}` : ""}</div>
+        </div>
+      )}
+
+      {(ctx.order_stats?.lifetime_egp > 0 || ctx.order_stats?.usual) && (
+        <PanelBlock title="Ordering profile">
+          {ctx.order_stats.usual && <div>Their usual: <b>{ctx.order_stats.usual.name}</b> (×{ctx.order_stats.usual.times})</div>}
+          {ctx.order_stats.lifetime_egp > 0 && <div>Lifetime spend: EGP {Number(ctx.order_stats.lifetime_egp).toLocaleString()}</div>}
+        </PanelBlock>
+      )}
+
+      {ctx.saved_addresses?.length > 0 && (
+        <PanelBlock title="Saved delivery addresses">
+          {ctx.saved_addresses.map((a: any, i: number) => (
+            <div key={i}>📍 {a.text}{a.last_used ? <span className="text-zinc-500"> · {String(a.last_used).slice(0, 10)}</span> : null}</div>
+          ))}
+        </PanelBlock>
+      )}
+
+      {ctx.orders?.length > 0 && (
+        <PanelBlock title={`Recent orders (${ctx.orders.length})`}>
+          {ctx.orders.map((o: any, i: number) => (
+            <div key={i} className="mb-1">
+              <span className="font-mono text-zinc-200">{o.code}</span>
+              {" "}<span className={o.status === "cancelled" ? "text-red-400" : "text-zinc-400"}>{o.status}</span>
+              {" · "}EGP {Number(o.total).toLocaleString()} · {String(o.order_type || "").replace("_", "-")}
+              <div className="text-zinc-500">{o.items}</div>
+            </div>
+          ))}
+        </PanelBlock>
+      )}
 
       {d?.allergies?.length > 0 && (
         <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
