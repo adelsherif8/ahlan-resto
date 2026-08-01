@@ -309,9 +309,11 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       const payMethods = orderType === "dine_in" ? ["cash at the cashier", "card at the cashier", "online link"]
         : orderType === "pickup" ? ["cash at the counter", "card", "instapay"]
         : ["cash on delivery", "card", "instapay"];
+      const PAY_WORD = { cash: "cash", كاش: "cash", card: "card", visa: "card", كارت: "card", فيزا: "card", instapay: "instapay", انستاباي: "instapay" };
+      const bare = input.message.trim().toLowerCase().replace(/[^\p{L}]/gu, "");
       const payment = ["cash", "card", "instapay"].includes(String(e.payment_method || "").toLowerCase())
         ? String(e.payment_method).toLowerCase()
-        : loaded.pending?.payment_method || null;
+        : (input.message.trim().length <= 14 && PAY_WORD[bare]) || loaded.pending?.payment_method || null;
       if (!payment) {
         // one casual add-on offer, riding on the payment question — never a gate of
         // its own, never invented: only names the restaurant listed, only once
@@ -411,7 +413,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
     const value = await f.node("phrase", async () => {
       const lang = classification?.language || "en";
       const sys = `You are ${config.ai?.name || "the host"} of ${config.name} (fast-casual) on WhatsApp, taking an order like a sharp cashier at the counter. ONE short reply for the OUTCOME (max 2 emojis). Mirror the guest's language & script (${lang}). Use ONLY facts in OUTCOME.
-MONEY RULE (absolute): NEVER write a price, a total, a currency symbol or any number of money. The itemised bill is attached below your reply automatically. Refer to it as "below" — do not restate it, do not invent a currency.
+MONEY RULE (absolute): NEVER write a price, a total, a currency symbol or any number of money. NEVER offer add-ons, extras or upsells unless "upsell" exists in OUTCOME. The itemised bill is attached below your reply automatically. Refer to it as "below" — do not restate it, do not invent a currency.
 OUTCOMES:
 - order_placed: confirm the ticket 🎫 with the CODE, the honest ETA ("about <eta_minutes> min"), and what happens next BY TYPE — dine_in: "the kitchen's on it, coming to table X" · pickup: "we'll message you the moment it's ready at <branch>" · delivery: "we'll message you when it's on its way to <address>". Say the receipt is attached if receipt_url exists. If unknown[] has entries, add "couldn't find <names> on the menu".
 - ask_branch: ask WHICH BRANCH. If "nearest" is present, lead with those (they shared their location; include the km) and offer the full list; otherwise list the branch names and offer that they can share their location 📍 for the closest. quick_replies: the 3 most likely branch names.
@@ -696,6 +698,9 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
 
       const stop = distinctTokens(opts);
       let hits = opts.filter((o) => normName(o.name) === said);
+      // full option name written out beats any fuzzy overlap — "coca cola" must
+      // pick Coca - Cola, never also Coca - Cola Diet
+      if (!hits.length) hits = opts.filter((o) => said.includes(normName(o.name)));
       if (!hits.length) hits = opts.filter((o) => {
         // ignore tokens every option shares — "fries" alone picks nothing
         const oTok = normName(o.name).split(" ").filter((t) => !stop.has(t));
