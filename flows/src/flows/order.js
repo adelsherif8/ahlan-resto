@@ -539,9 +539,27 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       : outcome.kind === "ask_payment" ? (outcome.methods || []).map((m) => m.split(" ")[0].replace(/^\w/, (c) => c.toUpperCase()))
       : outcome.kind === "ask_order_type" ? ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])]
       : null;
+    let optionList = null;
     if (forced) {
       value.value = value.value || {};
-      value.value.quick_replies = forced.filter((x) => x && x.length <= 20).slice(0, 3);
+      if (outcome.kind === "ask_choice" && forced.length > 3) {
+        // buttons cap at 3 on WhatsApp — a list holds 10, so every option is tappable
+        const q0 = outcome.questions[0];
+        optionList = {
+          button: "View options 🍽",
+          sections: [{
+            title: String(q0.label || "Options").slice(0, 24),
+            rows: forced.slice(0, 10).map((name2) => ({
+              id: `opt_${normName(name2).replace(/\s+/g, "_").slice(0, 20)}`,
+              title: String(name2).slice(0, 24),
+              description: "",
+            })),
+          }],
+        };
+        value.value.quick_replies = [];
+      } else {
+        value.value.quick_replies = forced.filter((x) => x && x.length <= 20).slice(0, 3);
+      }
     }
 
     const NEEDS_MENU = ["ask_items", "nothing_matched", "no_history"];
@@ -569,6 +587,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
 
     return {
       reply,
+      menuList: optionList,
       // pipeline decision points keep their buttons even back-to-back — the
       // anti-spam pacing rule cost a guest their Confirm button and the order died
       forceButtons: ["ask_choice", "ask_payment", "confirm_order", "ask_order_type"].includes(outcome.kind),
