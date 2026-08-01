@@ -75,10 +75,6 @@ defineFlow({
         diner?.last_visit_at ? new Date(diner.last_visit_at).getTime() : 0
       );
       const gapDays = lastTouchMs ? Math.round((Date.now() - lastTouchMs) / 86400000) : null;
-      const situation = atTable?.[0] ? "dining_now"
-        : gapDays === null && (diner?.visit_count || 0) === 0 ? "first_timer"
-        : gapDays !== null && gapDays > 45 ? "long_time_no_see"
-        : "returning";
 
       const prefs = diner?.preferences || {};
       const birthdayInDays = daysUntilMMDD(prefs.occasions?.birthday);
@@ -104,6 +100,16 @@ defineFlow({
           when: String(lo.created_at).slice(0, 10),
         };
       }
+
+      // "returning" needs EVIDENCE of a relationship — visits, a real order, a
+      // summary, or a confirmed name. last_seen_at alone proves nothing: the
+      // message being answered right now already updated it, so a brand-new guest
+      // read as "seen 0 days ago" and got greeted like a regular.
+      const knownGuest = (diner?.visit_count || 0) > 0 || !!diner?.name || !!mf?.conversation_summary || !!(pastOrders?.length);
+      const situation = atTable?.[0] ? "dining_now"
+        : !knownGuest ? "first_timer"
+        : gapDays !== null && gapDays > 45 ? "long_time_no_see"
+        : "returning";
 
       const session = await getSession(db, ctx.sessionId);
 
@@ -164,7 +170,7 @@ VOICE & BEHAVIOR (this is what makes you feel human):
 - Sell like a waiter who loves the food: describe taste and texture ("the short rib falls off the bone — 12 hours slow"), suggest pairings, HAVE favorites when asked (pick from our real menu and say why). Opinions about our menu: encouraged. Facts: only from FACTS below.
 - YOU ARE A RESTAURANT, NOT AN ASSISTANT: warm, human, easy — never generic service phrases ("how can I assist", "checking in"). If a sentence could come from a bank's chatbot, rewrite it.
 - A GREETING IS HOSPITALITY, NEVER MARKETING: welcome them simply and ask how you can help ("Hello! Welcome to ${config.name} 🍔 What can we get you today?"). NEVER pitch, describe or recommend menu items in a greeting to someone who hasn't asked — no "the X is a beast", no product descriptions, no upsells. Referencing THE GUEST'S OWN favorite from MEMORY is warm and allowed; advertising is not. Selling starts only AFTER they ask about food.
-- COMPLETE ANSWERS, FEWER QUESTIONS: when they ask what's in a category or for any list, give ALL of it (every item + price) — never a 2-item teaser. Answer fully FIRST; at most ONE short question per reply, and only when it genuinely moves things forward. Never end every message with a question.
+- COMPLETE ANSWERS, FEWER QUESTIONS: when they ask what's in a category or for any list, give ALL of it (every item + price) — never a 2-item teaser. FORMAT any list of 3+ things (dishes, branches, options, hours) as bullets, one per line ("• Iconic Meal — 265 EGP"), never a comma run. Answer fully FIRST; at most ONE short question per reply, and only when it genuinely moves things forward. Never end every message with a question.
 - When a group has constraints (vegan / no spice / allergy), recommend ONLY dishes that fit everyone — a good waiter never suggests something half the table can't eat.
 - At most ONE natural follow-up question, the kind a host actually asks ("عيد ميلاد ولا خروجة عادية؟ 😄", "first time with us?").
 - Match the guest's energy: hyped → hyped, chill → chill, formal Arabic (فصحى) → reply politely warm, NOT street slang. Sad or stressed guest → ONE short line of genuine empathy FIRST, in the GUEST'S language AND SCRIPT (English guest → "Sorry your day's been rough" · Franco guest → "Salamtak ya sa7by!" · عربي → "سلامتك، يومك يعدي"), THEN the comfort food. Never mix these up — the empathy line follows the guest's language exactly.

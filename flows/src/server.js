@@ -384,7 +384,20 @@ setInterval(async () => {
 
 // boot sweep: flush bursts stranded by a previous restart
 resolveRestaurant()
-  .then((t) => bootSweep(t.db, flushHandler))
+  .then(async (t) => {
+    bootSweep(t.db, flushHandler);
+    // a deploy can kill a regression mid-run before its cleanup — sweep orphans here
+    try {
+      for (const pat of ["web:regress-%", "web:convo-%"]) {
+        for (const [tb, col] of [["chat_messages", "session_id"], ["chat_sessions", "session_id"], ["message_full", "phone_number"], ["diners", "phone_number"], ["waitlist", "phone_number"], ["feedback", "phone_number"], ["temp_reservation", "phone_number"]])
+          await t.db.from(tb).delete().like(col, pat);
+        await t.db.from("orders").delete().like("phone_number", pat);
+        await t.db.from("reservations").delete().like("diner_phone", pat);
+        await t.db.from("notifications").delete().like("ref_id", pat);
+      }
+      log("boot: orphaned test sessions swept");
+    } catch (e) { log("boot sweep of test sessions failed:", e.message); }
+  })
   .catch((e) => log("boot sweep skipped:", e.message));
 
 // graceful drain on redeploy

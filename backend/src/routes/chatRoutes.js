@@ -8,7 +8,9 @@ router.use(requireAuth, restaurantContext);
 
 router.get("/sessions", async (req, res, next) => {
   try {
-    const rows = await req.repo.list("chat_sessions", { order: "last_message_at" });
+    let rows = await req.repo.list("chat_sessions", { order: "last_message_at" });
+    // regression/test harness sessions never belong in the staff inbox
+    rows = rows.filter((r) => !/^web:(regress|convo|test)-/.test(String(r.session_id || "")));
     // attach the diner's name (guest-confirmed first, WhatsApp profile as fallback)
     let byPhone = new Map();
     try {

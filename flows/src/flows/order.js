@@ -413,12 +413,13 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
     const value = await f.node("phrase", async () => {
       const lang = classification?.language || "en";
       const sys = `You are ${config.ai?.name || "the host"} of ${config.name} (fast-casual) on WhatsApp, taking an order like a sharp cashier at the counter. ONE short reply for the OUTCOME (max 2 emojis). Mirror the guest's language & script (${lang}). Use ONLY facts in OUTCOME.
-MONEY RULE (absolute): NEVER write a price, a total, a currency symbol or any number of money. NEVER offer add-ons, extras or upsells unless "upsell" exists in OUTCOME. The itemised bill is attached below your reply automatically. Refer to it as "below" — do not restate it, do not invent a currency.
+MONEY RULE (absolute): NEVER write a price, a total, a currency symbol or any number of money. NEVER offer add-ons, extras or upsells unless "upsell" exists in OUTCOME.
+LIST RULE (absolute): whenever you present 3+ choices of ANYTHING (options, branches, payment methods, sandwiches), format them as a bullet list — one per line, "• Name" — never a comma run. The itemised bill is attached below your reply automatically. Refer to it as "below" — do not restate it, do not invent a currency.
 OUTCOMES:
 - order_placed: confirm the ticket 🎫 with the CODE, the honest ETA ("about <eta_minutes> min"), and what happens next BY TYPE — dine_in: "the kitchen's on it, coming to table X" · pickup: "we'll message you the moment it's ready at <branch>" · delivery: "we'll message you when it's on its way to <address>". Say the receipt is attached if receipt_url exists. If unknown[] has entries, add "couldn't find <names> on the menu".
 - ask_branch: ask WHICH BRANCH. If "nearest" is present, lead with those (they shared their location; include the km). List branches as bullets, ONE PER LINE ("• Maadi"), then offer that they can share their location 📍 for the closest. quick_replies: the 3 most likely branch names.
-- ask_choice: you are configuring ONE item (<item>). "questions" lists EVERYTHING still needed for it — ask them ALL in this one message. FORMAT: each question is a short line, then its options as a bullet list, ONE PER LINE ("• Full Meal (235 EGP)"), names EXACTLY as given (never rename "Coca - Cola" to "Coke"). Tell them they can answer in one go ("Full Meal, medium, curly fries and a coke"). mixable N → mention they can mix across their N. remaining>1 → say how many picks are left. Do not add any other question.
-- ask_payment: one line asking how they'd like to pay, listing ONLY the methods given. If "upsell" is present, add ONE casual offer of it in the same breath ("want to add loaded fries for 99?") — never push twice. The bill is below. quick_replies: the methods (e.g. ["Cash","Card","InstaPay"]).
+- ask_choice: write ONE short lead-in line for configuring <item> (e.g. "Quick choices for your Soo Classic Meal — you can answer in one go 👇"). The questions themselves are appended below your line automatically. NEVER list options yourself, NEVER mention any OTHER item in the order — its turn comes next.
+- ask_payment: ask how they'd like to pay, then the methods given as a bullet list, one per line. If "upsell" is present, add ONE casual offer of it in the same breath ("want to add loaded fries for 99?") — never push twice. The bill is below. quick_replies: the methods (e.g. ["Cash","Card","InstaPay"]).
 - confirm_order: one line asking them to confirm before it goes to the kitchen. The full bill is below. quick_replies: ["Confirm ✅","Change something"].
 - ask_address: if saved[] has addresses, DON'T make them retype — read their saved address(es) back and ask if it's going there or somewhere new. Otherwise ask for the address: they can type it out or paste a Google Maps link 🔗. Never say "pin". quick_replies: each saved address (shortened), then "New address".
 - ask_items: the full menu PDF is attached automatically — say it's below/attached and ask what they'd like. NEVER ask "what would you like?" on its own as if they can already see the menu.
@@ -453,9 +454,9 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       ask_address: (outcome.saved || []).length
         ? `Sending it to ${outcome.saved[0]} again, or somewhere else?`
         : "What's the delivery address? Type it out or paste your Google Maps link 🔗",
-      ask_payment: `How would you like to pay: ${(outcome.methods || []).join(" / ")}?`,
+      ask_payment: `How would you like to pay?\n${(outcome.methods || []).map((m) => `• ${m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}`,
       confirm_order: "All set — confirm and I'll send it to the kitchen ✅",
-      ask_order_type: `Eating in, picking up${outcome.delivery === false ? "" : ", or delivery"}?`,
+      ask_order_type: `How would you like your order?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`,
       ask_table: `Which table are you at? The number's printed on it${(outcome.tables || []).length ? ` — they look like ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`,
       bad_table: `I can't find table ${outcome.given} — ours are ${(outcome.tables || []).slice(0, 8).join(", ")}. Which one are you at?`,
       no_open_order: "No active order found — want to start one? 🍔",
@@ -473,6 +474,17 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
         log(`order: blocked a false "placed" claim on outcome ${outcome.kind}`);
         reply = fallback[outcome.kind] || fallback.ask_items;
       }
+    }
+
+    // Option questions are STRUCTURE, and structure is code's job — the model
+    // once crammed two items and six comma-runs into one paragraph. It writes a
+    // single lead-in line; the formatted questions are appended verbatim.
+    if (outcome.kind === "ask_choice" && outcome.questions?.length) {
+      const qBlock = outcome.questions.map((q) => {
+        const head = `${q.label}${q.of > 1 ? ` — ${q.remaining} to pick` : ""}${q.mixable ? ` (you can mix across your ${q.mixable})` : ""}`;
+        return `${head}:\n${q.options.map((o) => `• ${o}`).join("\n")}`;
+      }).join("\n\n");
+      reply = `${reply.split("\n")[0]}\n\n${qBlock}`;
     }
 
     // Bundle template turns: the model writes one lead-in line; everything the
@@ -724,7 +736,10 @@ function renderSlotsIntro(it, g, menu) {
   for (const sg of g.slot_groups) {
     if (sg.free) continue;
     const names = slotChoiceNames(sg, menu);
-    if (names.length) lines.push(`${String(sg.label || sg.key).toUpperCase()}: ${names.join(" / ")}`);
+    if (!names.length) continue;
+    lines.push("");
+    lines.push(`${String(sg.label || sg.key).toUpperCase()}:`);
+    for (const nm of names) lines.push(`• ${nm}`);
   }
   return lines.join("\n");
 }
