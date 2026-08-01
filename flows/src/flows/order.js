@@ -3,7 +3,7 @@
 // v1: no payments in chat — pay at counter/courier (per FACTS). Kitchen board fed live.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
-import { MODEL_SMART, MODEL_FAST, log } from "../config.js";
+import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, log } from "../config.js";
 import { notifyDashboard } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
 import { makeReceipt } from "../services/receipt.js";
@@ -485,7 +485,8 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
         const mods = modifiers(it);
         return `• ${it.qty}× ${it.name}${mods.length ? ` (${mods.join(" · ")})` : ""} — ${open_(it) ? "from " : ""}${money(itemPrice(it) * it.qty)}`;
       });
-      reply = `${reply}\n\n🧾 ${lines.join("\n")}\nSubtotal: ${anyOpen ? "from " : ""}${money(outcome.running.subtotal)}`;
+      const RULE = "―".repeat(24);
+      reply = `${reply}\n\n${RULE}\n${lines.join("\n")}\nSubtotal: ${anyOpen ? "from " : ""}${money(outcome.running.subtotal)}\n${RULE}`;
     }
 
     // The bill is rendered by CODE and appended — the model never writes a number.
@@ -505,6 +506,10 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
         branchName: outcome.branch,
         address: outcome.address,
         payment: outcome.payment,
+        code: outcome.kind === "order_placed" ? outcome.code : null,
+        eta: outcome.eta_minutes || null,
+        restaurant: config.name,
+        when: new Date().toLocaleString("en-GB", { timeZone: config.basic_info?.timezone || "Africa/Cairo", hour12: true, day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }),
       })}`;
     }
     // the ticket code is the guest's receipt — never let a confirmation go out without it
@@ -539,7 +544,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
           });
       if (pdf) {
         doc = { url: pdf.url, caption: `${config.name} — full menu 📄`, filename: pdf.filename };
-        reply = `${reply}\n\n📄 ${pdf.url}`;
+        reply = `${reply}\n\n📄 ${PUBLIC_BASE}/menu.pdf`;
       }
     }
 
@@ -805,7 +810,7 @@ function priceOrder(items, config, orderType) {
 
 // The bill as the guest sees it. Built here so the model never writes a number
 // or a currency symbol — it phrases around this block, it doesn't compose it.
-function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment }) {
+function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, restaurant, when }) {
   const money = (n) => `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${currency}`;
   const lines = items.map((it) => {
     const mods = modifiers(it);
@@ -820,14 +825,25 @@ function renderBill({ items, bill, currency, orderType, tableNumber, branchName,
     : orderType === "pickup" ? `Pickup${branchName ? ` · ${branchName}` : ""}`
     : `Delivery${branchName ? ` · from ${branchName}` : ""}`;
 
-  return [
-    "🧾 *YOUR ORDER*",
-    lines.join("\n"),
-    "————————————",
-    totals.join("\n"),
-    "————————————",
-    where,
-    orderType === "delivery" && address ? `📍 ${address}` : null,
+  const RULE = "―".repeat(24);
+  // placed orders read like the paper receipt: header with the code and where/when,
+  // items, totals, then payment + destination + ETA + the branded receipt link
+  const header = code
+    ? [`🧾 *RECEIPT ${code}*`, restaurant ? `${restaurant}${branchName ? ` — ${branchName}` : ""}` : null, `${when || ""} · ${where}`.trim()]
+    : ["🧾 *YOUR ORDER*"];
+  const footer = [
     payment ? `💳 ${payment === "cash" ? "Cash" : payment === "card" ? "Card" : "InstaPay"}` : null,
+    orderType === "delivery" && address ? `📍 ${address}` : null,
+    code && eta ? `⏱ about ${eta} min` : null,
+    code ? `📄 ${PUBLIC_BASE}/receipt/${code}` : null,
+  ].filter(Boolean);
+  return [
+    ...header.filter(Boolean),
+    RULE,
+    lines.join("\n"),
+    RULE,
+    totals.join("\n"),
+    RULE,
+    ...( code ? footer : [where, ...footer] ),
   ].filter(Boolean).join("\n");
 }

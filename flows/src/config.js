@@ -22,3 +22,6 @@ export const llmReady = !!OPENAI_API_KEY;
 export function log(...args) {
   console.log(new Date().toISOString().slice(11, 19), ...args);
 }
+
+// guest-facing links ride on the branded dashboard domain, not raw storage URLs
+export const PUBLIC_BASE = process.env.PUBLIC_BASE || "https://ahlan-resto.vercel.app";

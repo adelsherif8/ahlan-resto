@@ -25,6 +25,40 @@ app.use(cors());
 // keep raw body for WhatsApp signature verification
 app.use(express.json({ limit: "4mb", verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
+// Branded short links — the guest-facing URL is pretty; the storage URL stays
+// hidden behind a redirect. ahlan-resto.vercel.app proxies /menu.pdf and
+// /receipt/:code here via vercel.json rewrites.
+app.get("/pdf/menu", async (_req, res) => {
+  try {
+    const t = await resolveRestaurant();
+    const { menuPdfUrl } = await import("./services/menupdf.js");
+    const { data: rows } = await t.db.from("menu_items").select("*").order("sort_order");
+    const menu = (rows || []).filter((m) => m.available);
+    const pdf = t.config.menu_config?.pdf_url
+      ? { url: t.config.menu_config.pdf_url }
+      : await menuPdfUrl(t.db, {
+          restaurant: t.config.name, menu,
+          currency: t.config.payments?.currency || "EGP",
+          accent: t.config.basic_info?.brand?.primary || "#111111",
+          tagline: t.config.basic_info?.tagline || "",
+          phone: t.config.basic_info?.phone || "",
+          website: t.config.basic_info?.website || "",
+        });
+    if (!pdf?.url) return res.status(404).send("menu unavailable");
+    res.redirect(302, pdf.url);
+  } catch (e) { res.status(500).send(e.message); }
+});
+
+app.get("/pdf/receipt/:code", async (req, res) => {
+  try {
+    const t = await resolveRestaurant();
+    const code = String(req.params.code || "").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 12);
+    const { data } = await t.db.from("orders").select("receipt_url").eq("code", code).maybeSingle();
+    if (!data?.receipt_url) return res.status(404).send("receipt not found");
+    res.redirect(302, data.receipt_url);
+  } catch (e) { res.status(500).send(e.message); }
+});
+
 app.get("/health", async (_req, res) => {
   try {
     const t = await resolveRestaurant();

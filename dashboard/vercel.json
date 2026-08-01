@@ -3,5 +3,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/menu.pdf", "destination": "https://flows-production-e528.up.railway.app/pdf/menu" },
+    { "source": "/receipt/:code", "destination": "https://flows-production-e528.up.railway.app/pdf/receipt/:code" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
