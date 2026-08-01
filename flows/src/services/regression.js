@@ -181,17 +181,23 @@ async function runCase(tenant, c, runId) {
     });
   }
   if (c.turns) {
-    // sequential conversation: each turn waits for its reply (unlike msgs, which burst-merge)
+    // Sequential conversation. A reply can be MULTI-PART (a template ask sends an
+    // intro bubble + a copy-paste bubble), so "the count grew" is not "the reply
+    // finished" — advancing early desyncs the whole conversation. Advance only
+    // when at least one new AI message exists AND the count has been stable for a
+    // full extra poll (all parts delivered).
     let prev = 0;
     for (const m of c.turns) {
       await runFlow("ingest", ctx, { message: m });
-      // Wait for the REAL reply before the next turn. Sending early corrupts the
-      // conversation (the buffer merges queued messages), which fails the case for
-      // harness reasons, not product reasons — long option flows need the headroom.
+      let stable = 0;
+      let last = prev;
       for (let i = 0; i < 48; i++) {
         await new Promise((r) => setTimeout(r, 2500));
         const n = await aiCount(tenant.db, sid);
-        if (n > prev) { prev = n; break; }
+        if (n > prev) {
+          if (n === last) { stable++; if (stable >= 1) { prev = n; break; } }
+          else { stable = 0; last = n; }
+        }
       }
     }
   } else {
