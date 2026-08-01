@@ -849,9 +849,12 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
       const prev = Array.isArray(it.options.slots) ? it.options.slots : Array.from({ length: Number(g.count) }, () => ({}));
       it.options.slots = prev.map((old, i) => ({ ...old, ...(parsed.slots[i] || {}) }));
       it.slot_notices = [...(parsed.switched.length ? [`Switched: ${parsed.switched.join(", ")}`] : [])];
-      // a bare "curly fries" when exactly one field is missing needs no labels
+      // a bare "curly fries" when exactly one field is missing needs no labels —
+      // but ONLY when this message wasn't a (partial) template: a labeled answer
+      // for slot 1 must never bleed into slot 2
+      const labeledAny = parsed.slots.some((sl) => Object.keys(sl || {}).length);
       const miss = missingSlots(it.options.slots, g);
-      if (miss.length === 1 && miss[0].need.length === 1) {
+      if (!labeledAny && miss.length === 1 && miss[0].need.length === 1) {
         const sgDef = g.slot_groups.find((x) => String(x.label || x.key) === miss[0].need[0] || x.key === miss[0].need[0]);
         if (sgDef && !sgDef.free) {
           const r = matchSlotValue(message, slotChoiceNames(sgDef, menu));
