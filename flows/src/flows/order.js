@@ -475,6 +475,17 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       }
     }
 
+    // Bundle template turns: the model writes one lead-in line; everything the
+    // guest must read or copy-paste is appended by code, verbatim.
+    if (outcome.kind === "ask_choice" && (outcome.slots_intro || outcome.slots_missing)) {
+      const parts = [reply.split("\n")[0]];
+      if (outcome.notices?.length) parts.push(outcome.notices.join("\n"));
+      if (outcome.slots_missing?.length) parts.push(`Still missing — ${outcome.slots_missing.join(" · ")}`);
+      if (outcome.slots_intro && outcome.slots_template) parts.push(outcome.slots_intro);
+      if (outcome.slots_template) parts.push(`Copy this, fill it in, and send it back 👇\n\n${outcome.slots_template}`);
+      reply = parts.filter(Boolean).join("\n\n");
+    }
+
     // Mid-gather: show the lines and a subtotal, never a TOTAL we can't stand behind yet.
     if (outcome.running?.items?.length) {
       const money = (n) => `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${currency}`;
@@ -600,6 +611,15 @@ function matchSaved(message, saved) {
 // name or a list (a bundle picks several sandwiches).
 function modifiers(it) {
   const opts = it.options || {};
+  if (Array.isArray(opts.slots)) {
+    const out = opts.slots.map((sl, i) => {
+      const vals = Object.entries(sl || {}).filter(([k]) => k !== "notes").map(([, v]) => v);
+      const note = sl?.notes ? ` — ${sl.notes}` : "";
+      return `${i + 1}) ${vals.join(" + ") || "?"}${note}`;
+    });
+    if (it.notes) out.push(it.notes);
+    return out;
+  }
   const order = (it.option_defs || []).map((g) => g.key);
   const keys = [...order.filter((k) => opts[k]), ...Object.keys(opts).filter((k) => !order.includes(k) && opts[k])];
   const out = [];
@@ -658,6 +678,118 @@ function itemPrice(item) {
 // Walks the order ONE ITEM AT A TIME, the way a cashier does: finish this
 // burger completely before starting the next line. Returns the next question,
 // or null when every item is fully configured.
+// ---------------------------------------------------------------------------
+// Bundle slots — a bundle is N repeated blocks (sandwich / fries / soda / notes),
+// defined per restaurant on the item: { key:"slots", count:N, slot_groups:[...] }.
+// The guest gets a copy-paste template; code parses it back, matches every value
+// against THAT bundle's allowed choices, auto-switches near-misses, and re-asks
+// only what's missing.
+// ---------------------------------------------------------------------------
+const ORDINALS = ["FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH", "SIXTH", "SEVENTH", "EIGHTH"];
+
+function slotsGroupOf(it) {
+  return (it.option_defs || []).find((g) => g.key === "slots" && Array.isArray(g.slot_groups) && Number(g.count) >= 1) || null;
+}
+
+function slotChoiceNames(sg, menu) {
+  if (sg.from_category) {
+    const re = new RegExp(sg.from_category, "i");
+    return menu.filter((m) => re.test(String(m.category || ""))).map((m) => m.name);
+  }
+  return (sg.choices || []).map((c) => c.name).filter(Boolean);
+}
+
+// message 1: what this bundle includes + the allowed choices per field
+function renderSlotsIntro(it, g, menu) {
+  const lines = [`For your ${it.name} — ${g.count} choices to make. Pick from:`];
+  for (const sg of g.slot_groups) {
+    if (sg.free) continue;
+    const names = slotChoiceNames(sg, menu);
+    if (names.length) lines.push(`${String(sg.label || sg.key).toUpperCase()}: ${names.join(" / ")}`);
+  }
+  return lines.join("\n");
+}
+
+// message 2: the copy-paste template — plain text, no formatting
+function renderSlotsTemplate(g) {
+  const blocks = [];
+  for (let i = 0; i < Number(g.count); i++) {
+    const head = `${ORDINALS[i] || `#${i + 1}`} CHOICE`;
+    const fields = g.slot_groups.map((sg) => `${String(sg.label || sg.key).toUpperCase()}:`);
+    blocks.push([head, ...fields].join("\n"));
+  }
+  return blocks.join("\n\n");
+}
+
+// near-miss auto-switch: "cola"/"coke" → whatever cola we stock; else first option
+const SODA_WORDS = /\b(cola|coke|pepsi|soda|كولا|بيبسي)\b/i;
+function matchSlotValue(raw, names) {
+  const said = normName(raw);
+  if (!said) return { value: null };
+  let hit = names.find((n) => normName(n) === said)
+    || names.find((n) => said.includes(normName(n)) || normName(n).includes(said));
+  if (!hit) {
+    const stop = distinctTokens(names.map((n) => ({ name: n })));
+    hit = names.find((n) => {
+      const tok = normName(n).split(" ").filter((t) => !stop.has(t));
+      return optionMatches(said, tok.join(" ") || n);
+    });
+  }
+  if (hit) return { value: hit };
+  // they asked for a soda we don't carry → the closest one we DO carry, flagged
+  if (SODA_WORDS.test(raw)) {
+    const sub = names.find((n) => /cola|pepsi/i.test(n)) || names[0];
+    if (sub) return { value: sub, switched: raw.trim() };
+  }
+  return { value: null, unmatched: raw.trim() };
+}
+
+// Parse a filled template (tolerates reordering, partial fills, extra prose).
+// Returns { slots: [ {field: value|null, ...}, ... ], switched: ["Cola → Pepsi"], unmatched: [...] }
+function parseSlots(message, g, menu) {
+  const count = Number(g.count);
+  const fieldsBySlot = Array.from({ length: count }, () => ({}));
+  const switched = [], unmatched = [];
+  // split into blocks on ordinal/numbered headings; fall back to one big block
+  const headRe = new RegExp(`(?:^|\\n)\\s*(?:(${ORDINALS.join("|")})\\s+CHOICE|CHOICE\\s*(\\d+)|(\\d+)[).-])`, "gi");
+  const marks = [];
+  let m;
+  while ((m = headRe.exec(message))) {
+    const ord = m[1] ? ORDINALS.indexOf(m[1].toUpperCase()) : (Number(m[2] || m[3]) - 1);
+    if (ord >= 0 && ord < count) marks.push({ at: m.index, slot: ord });
+  }
+  const blocks = marks.length
+    ? marks.map((mk, i) => ({ slot: mk.slot, text: message.slice(mk.at, marks[i + 1]?.at ?? message.length) }))
+    : [{ slot: 0, text: message }];
+
+  for (const b of blocks) {
+    for (const sg of g.slot_groups) {
+      const label = String(sg.label || sg.key);
+      const re = new RegExp(`${label.replace(/[.*+?^${'$'}{}()|[\\]\\\\]/g, "\\$&")}\\s*[:：-]\\s*([^\\n]*)`, "i");
+      const hit = b.text.match(re);
+      if (!hit || !hit[1].trim()) continue;
+      if (sg.free) { fieldsBySlot[b.slot][sg.key] = hit[1].trim().slice(0, 120); continue; }
+      const names = slotChoiceNames(sg, menu);
+      const r = matchSlotValue(hit[1], names);
+      if (r.value) {
+        fieldsBySlot[b.slot][sg.key] = r.value;
+        if (r.switched) switched.push(`${r.switched} → ${r.value}`);
+      } else if (r.unmatched) unmatched.push(`${label}: ${r.unmatched}`);
+    }
+  }
+  return { slots: fieldsBySlot, switched, unmatched };
+}
+
+// which slots are still missing required fields?
+function missingSlots(slots, g) {
+  const out = [];
+  for (let i = 0; i < Number(g.count); i++) {
+    const need = g.slot_groups.filter((sg) => !sg.free && !(slots[i] || {})[sg.key]).map((sg) => String(sg.label || sg.key));
+    if (need.length) out.push({ slot: i, need });
+  }
+  return out;
+}
+
 // Does the guest's answer name this option? Token-level with 3-char prefixes,
 // so "Coke" hits "Coca - Cola", "curly with cheese" hits "Curly fries", and
 // "Meal" hits "American Truck Meal" — guests answer with the distinguishing
@@ -687,14 +819,36 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
   const out = items.map((it) => ({ ...it, options: { ...(it.options || {}) } }));
   const said = normName(message);
 
-  // ---- apply this message against every group we asked about last turn ----
+  // ---- a filled bundle template answers its slots ----
   const aw = pending?.awaiting_option;
   const awKeys = aw ? (aw.keys || (aw.key ? [aw.key] : [])) : [];
+  if (aw && out[aw.index] && awKeys.includes("slots")) {
+    const it = out[aw.index];
+    const g = slotsGroupOf(it);
+    if (g) {
+      const parsed = parseSlots(message, g, menu);
+      const prev = Array.isArray(it.options.slots) ? it.options.slots : Array.from({ length: Number(g.count) }, () => ({}));
+      it.options.slots = prev.map((old, i) => ({ ...old, ...(parsed.slots[i] || {}) }));
+      it.slot_notices = [...(parsed.switched.length ? [`Switched: ${parsed.switched.join(", ")}`] : [])];
+      // a bare "curly fries" when exactly one field is missing needs no labels
+      const miss = missingSlots(it.options.slots, g);
+      if (miss.length === 1 && miss[0].need.length === 1) {
+        const sgDef = g.slot_groups.find((x) => String(x.label || x.key) === miss[0].need[0] || x.key === miss[0].need[0]);
+        if (sgDef && !sgDef.free) {
+          const r = matchSlotValue(message, slotChoiceNames(sgDef, menu));
+          if (r.value) it.options.slots[miss[0].slot][sgDef.key] = r.value;
+        }
+      }
+    }
+  }
+
+  // ---- apply this message against every group we asked about last turn ----
   if (aw && out[aw.index] && awKeys.length) {
     const it = out[aw.index];
     const defs = it.option_defs || [];
     for (const g of defs) {
       if (!awKeys.includes(g.key)) continue;
+      if (g.key === "slots" && Array.isArray(g.slot_groups)) continue; // handled above
       if (!groupApplies(g, it.options)) continue; // an earlier answer may have closed it
       const need = Number(g.count) || 1;
       const have = it.options[g.key];
@@ -749,19 +903,49 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
 
   // ---- ask everything still open on the FIRST unfinished item, in one go ----
   for (let i = 0; i < out.length; i++) {
-    const defs = out[i].option_defs || [];
+    const it = out[i];
+    const defs = it.option_defs || [];
+
+    // bundle with slots → intro + copy-paste template (or re-ask only what's missing)
+    const sg = slotsGroupOf(it);
+    if (sg) {
+      const slots = Array.isArray(it.options.slots) ? it.options.slots : [];
+      const missing = missingSlots(slots, sg);
+      if (missing.length) {
+        const fresh = !slots.some((sl) => Object.keys(sl || {}).length);
+        return {
+          items: out,
+          ask: {
+            index: i, item: it.name, keys: ["slots"],
+            slots_intro: renderSlotsIntro(it, sg, menu),
+            slots_template: fresh ? renderSlotsTemplate(sg) : null,
+            slots_missing: fresh ? null : missing.map((ms) => `${ORDINALS[ms.slot] || ms.slot + 1} choice: ${ms.need.join(", ")}`),
+            notices: it.slot_notices || [],
+            questions: [],
+          },
+        };
+      }
+    }
+
     const open = [];
     for (const g of defs) {
-      if (!groupApplies(g, out[i].options)) continue;
+      if (g.key === "slots" && Array.isArray(g.slot_groups)) continue;
+      // conditional groups are SHOWN upfront ("if Full Meal — fries: ...") so the
+      // guest can answer the whole item in one line; they only APPLY if unlocked
+      const conditional = g.when && !groupApplies(g, it.options);
+      if (conditional && Object.keys(g.when).every((k) => it.options[k])) continue; // when-key answered and it ruled this group out
       const need = Number(g.count) || 1;
-      const have = out[i].options[g.key];
+      const have = it.options[g.key];
       const got = Array.isArray(have) ? have.length : have ? 1 : 0;
       if (got >= need) continue;
       const opts = groupChoices(g, menu);
       if (!opts.length) continue;
+      const whenTxt = conditional
+        ? Object.values(g.when).map((v) => (Array.isArray(v) ? v[0] : v)).join("/")
+        : null;
       open.push({
         key: g.key,
-        label: g.label || g.key,
+        label: (whenTxt ? `If ${whenTxt} — ` : "") + (g.label || g.key),
         options: opts.slice(0, 12).map((o) => {
           const c = (g.choices || []).find((x) => normName(x.name) === normName(o.name));
           return c?.price != null ? `${o.name} (${c.price} ${currency})` : c?.delta ? `${o.name} (+${c.delta} ${currency})` : o.name;
@@ -769,15 +953,13 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
         names: opts.slice(0, 12).map((o) => o.name),
         remaining: need - got,
         of: need,
-        mixable: need === 1 && out[i].qty > 1 ? out[i].qty : null,
+        mixable: need === 1 && it.qty > 1 ? it.qty : null,
       });
-      // a "when"-gated question can depend on THIS answer — don't ask both at once
-      if (defs.some((h) => h.when && Object.keys(h.when).includes(g.key))) break;
     }
     if (open.length) {
       return {
         items: out,
-        ask: { index: i, item: out[i].name, keys: open.map((q) => q.key), questions: open },
+        ask: { index: i, item: it.name, keys: open.map((q) => q.key), questions: open },
       };
     }
   }

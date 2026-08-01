@@ -135,7 +135,10 @@ export default function Orders() {
                         <div className="divide-y divide-dashed divide-zinc-800 border-y border-dashed border-zinc-800">
                           {(o.items || []).map((i: any, idx: number) => {
                             const mods = [
-                              ...Object.values(i.options || {}).map((v: any) => (Array.isArray(v) ? v.join(", ") : v)),
+                              ...Object.entries(i.options || {}).flatMap(([k, v]: [string, any]) =>
+                                k === "slots" && Array.isArray(v)
+                                  ? v.map((sl: any, si: number) => `${si + 1}) ${Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ")}${sl?.notes ? ` — ${sl.notes}` : ""}`)
+                                  : [Array.isArray(v) ? v.join(", ") : v]),
                               i.notes || null,
                             ].filter(Boolean) as string[];
                             return (

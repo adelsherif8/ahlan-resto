@@ -34,7 +34,10 @@ function buildPdf({ restaurant, order, branch, currency }) {
       doc.text(amount, 286, y, { width: 98, align: "right" });
       // the kitchen reads this line too — chosen drink and "no onion" belong on it
       const mods = [
-        ...Object.values(it.options || {}).map((v) => (Array.isArray(v) ? v.join(", ") : v)),
+        ...Object.entries(it.options || {}).flatMap(([k, v]) =>
+          k === "slots" && Array.isArray(v)
+            ? v.map((sl, i) => `${i + 1}) ${Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ")}${sl?.notes ? ` — ${sl.notes}` : ""}`)
+            : [Array.isArray(v) ? v.join(", ") : v]),
         it.notes || null,
       ].filter(Boolean);
       if (mods.length) doc.fontSize(9).fillColor("#777").text(mods.join(" · "), 46, doc.y, { width: 240 });
