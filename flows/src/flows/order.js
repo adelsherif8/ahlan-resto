@@ -292,11 +292,14 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       if (!items.length) return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
 
       // 4) COMBO CHOICES — a meal isn't an order until the drink/side is picked
-      const step = nextQuestion(items, loaded.menu, input.message, loaded.pending);
+      const step = nextQuestion(items, loaded.menu, input.message, loaded.pending, currency);
       items = step.items;
       if (step.ask) {
-        await savePending({ awaiting_option: step.ask });
-        return { kind: "ask_choice", items, running, ...step.ask };
+        await savePending({ awaiting_option: { index: step.ask.index, keys: step.ask.keys } });
+        // recompute the bill AFTER this turn's answer — showing the pre-answer
+        // state made prices look like they jumped a turn late
+        const runningNow = items.length ? { items, subtotal: items.reduce((s2, i2) => s2 + itemPrice(i2) * i2.qty, 0), currency } : null;
+        return { kind: "ask_choice", items, running: runningNow, ...step.ask };
       }
 
       // 5) MONEY — computed here, never by the model
@@ -330,7 +333,9 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // Only a yes to a bill WE actually showed counts: the extractor reads "cash" as
       // intent=confirm, which would otherwise place the order the moment they pick a
       // payment method, before they've ever seen a total.
-      const confirmed = loaded.pending?.awaiting_confirm === true && e.intent === "confirm";
+      const AFFIRM = /\b(yes|yeah|yep|confirm|confirmed|ok|okay|sure|go ahead|tamam|تمام|اكيد|أكيد|ماشي|maashi|mashy|aywa|ايوه|أيوة|اه)\b/i;
+      const confirmed = loaded.pending?.awaiting_confirm === true &&
+        (e.intent === "confirm" || (input.message.trim().length <= 24 && AFFIRM.test(input.message)));
       if (!confirmed) {
         await savePending({ address, map_link: mapLinkRaw, payment_method: payment, awaiting_confirm: true });
         return {
@@ -410,7 +415,7 @@ MONEY RULE (absolute): NEVER write a price, a total, a currency symbol or any nu
 OUTCOMES:
 - order_placed: confirm the ticket 🎫 with the CODE, the honest ETA ("about <eta_minutes> min"), and what happens next BY TYPE — dine_in: "the kitchen's on it, coming to table X" · pickup: "we'll message you the moment it's ready at <branch>" · delivery: "we'll message you when it's on its way to <address>". Say the receipt is attached if receipt_url exists. If unknown[] has entries, add "couldn't find <names> on the menu".
 - ask_branch: ask WHICH BRANCH. If "nearest" is present, lead with those (they shared their location; include the km) and offer the full list; otherwise list the branch names and offer that they can share their location 📍 for the closest. quick_replies: the 3 most likely branch names.
-- ask_choice: you are configuring ONE item (<item>) and need "<label>". If "mixable" is a number N, mention they can mix across their N (e.g. "one Coke, one Sprite"). Ask it the way a cashier does ("and what do you want to drink with it?"), and LIST the options given — those are the only ones we have, with their prices where shown. If "remaining" is more than 1, say how many are still to pick (e.g. "pick 4 sandwiches — 2 to go"). Ask ONLY this question; the rest of the order comes after. quick_replies: the 3 most likely options.
+- ask_choice: you are configuring ONE item (<item>). "questions" lists EVERYTHING still needed for it — ask them ALL in this one message, each on its own short line, using the option names EXACTLY as given (prices already included; never rename "Coca - Cola" to "Coke"). Tell them they can answer in one go ("Full Meal, medium, curly fries and a coke"). mixable N → mention they can mix across their N. remaining>1 → say how many picks are left. Do not add any other question.
 - ask_payment: one line asking how they'd like to pay, listing ONLY the methods given. If "upsell" is present, add ONE casual offer of it in the same breath ("want to add loaded fries for 99?") — never push twice. The bill is below. quick_replies: the methods (e.g. ["Cash","Card","InstaPay"]).
 - confirm_order: one line asking them to confirm before it goes to the kitchen. The full bill is below. quick_replies: ["Confirm ✅","Change something"].
 - ask_address: if saved[] has addresses, DON'T make them retype — read their saved address(es) back and ask if it's going there or somewhere new. Otherwise ask for the address: they can type it out or paste a Google Maps link 🔗. Never say "pin". quick_replies: each saved address (shortened), then "New address".
@@ -442,7 +447,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       nothing_matched: `Couldn't find ${(outcome.unknown || []).join(", ")} on the menu — here it is 📄, pick anything off it.`,
       no_history: "No past orders on this number yet — here's the menu 📄, let's make your first one 🍔",
       ask_branch: `Which branch works for you? ${(outcome.branches || []).slice(0, 4).join(" · ")}`,
-      ask_choice: `${outcome.item} — ${outcome.label}${outcome.of > 1 ? ` (${outcome.remaining} of ${outcome.of} to pick)` : ""}: ${(outcome.options || []).slice(0, 6).join(" · ")}`,
+      ask_choice: `For your ${outcome.item}:\n${(outcome.questions || []).map((q) => `• ${q.label}${q.of > 1 ? ` (${q.remaining} to pick)` : ""}: ${q.options.join(" / ")}`).join("\n")}`,
       ask_address: (outcome.saved || []).length
         ? `Sending it to ${outcome.saved[0]} again, or somewhere else?`
         : "What's the delivery address? Type it out or paste your Google Maps link 🔗",
@@ -478,7 +483,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       const anyOpen = outcome.running.items.some(open_);
       const lines = outcome.running.items.map((it) => {
         const mods = modifiers(it);
-        return `• ${it.qty}× ${it.name} — ${open_(it) ? "from " : ""}${money(itemPrice(it) * it.qty)}${mods.length ? `\n   ↳ ${mods.join(" · ")}` : ""}`;
+        return `• ${it.qty}× ${it.name}${mods.length ? ` (${mods.join(" · ")})` : ""} — ${open_(it) ? "from " : ""}${money(itemPrice(it) * it.qty)}`;
       });
       reply = `${reply}\n\n🧾 ${lines.join("\n")}\nSubtotal: ${anyOpen ? "from " : ""}${money(outcome.running.subtotal)}`;
     }
@@ -507,6 +512,14 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       reply = `${reply} (order ${outcome.code})`;
     }
     // whenever we're asking them to pick, the menu PDF must be in the same breath
+    // buttons for option questions come from CODE with the EXACT option names —
+    // the model was paraphrasing ("Coke") into labels the parser then rejected
+    if (outcome.kind === "ask_choice" && outcome.questions?.length) {
+      const q0 = outcome.questions[0];
+      value.value = value.value || {};
+      value.value.quick_replies = (q0.names || []).filter((x) => x.length <= 20).slice(0, 3);
+    }
+
     const NEEDS_MENU = ["ask_items", "nothing_matched", "no_history"];
     let doc = null;
     if (outcome.kind === "order_placed" && outcome.receipt_url) {
@@ -570,10 +583,13 @@ function matchSaved(message, saved) {
 // One human line for everything chosen on a line item — picks can be a single
 // name or a list (a bundle picks several sandwiches).
 function modifiers(it) {
+  const opts = it.options || {};
+  const order = (it.option_defs || []).map((g) => g.key);
+  const keys = [...order.filter((k) => opts[k]), ...Object.keys(opts).filter((k) => !order.includes(k) && opts[k])];
   const out = [];
-  for (const [k, v] of Object.entries(it.options || {})) {
-    const names = Array.isArray(v) ? v : [v];
-    if (names.length) out.push(`${k}: ${names.join(", ")}`);
+  for (const k of keys) {
+    const v = opts[k];
+    out.push(Array.isArray(v) ? v.join(", ") : v);
   }
   if (it.notes) out.push(it.notes);
   return out;
@@ -626,63 +642,96 @@ function itemPrice(item) {
 // Walks the order ONE ITEM AT A TIME, the way a cashier does: finish this
 // burger completely before starting the next line. Returns the next question,
 // or null when every item is fully configured.
-function nextQuestion(items, menu, message, pending) {
-  const out = items.map((it) => ({ ...it, options: { ...(it.options || {}) } }));
+// Does the guest's answer name this option? Token-level with 3-char prefixes,
+// so "Coke" hits "Coca - Cola", "curly with cheese" hits "Curly fries", and
+// "Meal" hits "American Truck Meal" — guests answer with the distinguishing
+// word, never the exact label we printed.
+function optionMatches(said, optName) {
+  const o = normName(optName);
+  if (o === said || said.includes(o)) return true;
+  const saidTok = said.split(" ").filter((t) => t.length >= 3);
+  const optTok = o.split(" ").filter((t) => t.length >= 3);
+  return optTok.some((ot) => saidTok.some((st) =>
+    st === ot || (st.length >= 4 && ot.startsWith(st.slice(0, 4))) || (ot.length >= 4 && st.startsWith(ot.slice(0, 4)))
+  ));
+}
 
-  // Answering the question we asked last turn.
+// STOPWORDS a guest's answer shares with EVERY option ("fries", "meal") — a
+// token only distinguishes if some option lacks it.
+function distinctTokens(opts) {
+  const all = opts.map((o) => normName(o.name).split(" "));
+  const common = new Set(all[0] || []);
+  for (const t of [...common]) if (!all.every((toks) => toks.includes(t))) common.delete(t);
+  return common;
+}
+
+// One item, ALL its unanswered questions in one message; the guest answers any
+// or all of them, and only what's still missing gets re-asked.
+function nextQuestion(items, menu, message, pending, currency = "EGP") {
+  const out = items.map((it) => ({ ...it, options: { ...(it.options || {}) } }));
+  const said = normName(message);
+
+  // ---- apply this message against every group we asked about last turn ----
   const aw = pending?.awaiting_option;
-  if (aw && out[aw.index]) {
-    const g = (out[aw.index].option_defs || []).find((x) => x.key === aw.key);
-    if (g) {
+  const awKeys = aw ? (aw.keys || (aw.key ? [aw.key] : [])) : [];
+  if (aw && out[aw.index] && awKeys.length) {
+    const it = out[aw.index];
+    const defs = it.option_defs || [];
+    for (const g of defs) {
+      if (!awKeys.includes(g.key)) continue;
+      if (!groupApplies(g, it.options)) continue; // an earlier answer may have closed it
+      const need = Number(g.count) || 1;
+      const have = it.options[g.key];
+      if ((Array.isArray(have) ? have.length : have ? 1 : 0) >= need) continue;
       const opts = groupChoices(g, menu);
-      const said = normName(message);
-      // "Meal" should match "American Truck Meal" — a guest answers with the part
-      // that distinguishes the choices, not the full product name we printed.
+      if (!opts.length) continue;
+
+      const stop = distinctTokens(opts);
       let hits = opts.filter((o) => normName(o.name) === said);
-      if (!hits.length) hits = opts.filter((o) => said.includes(normName(o.name)));
-      if (!hits.length) {
-        const partial = opts.filter((o) => normName(o.name).includes(said) && said.length >= 3);
-        if (partial.length === 1) hits = partial; // ambiguous shorthand goes back to the guest
+      if (!hits.length) hits = opts.filter((o) => {
+        // ignore tokens every option shares — "fries" alone picks nothing
+        const oTok = normName(o.name).split(" ").filter((t) => !stop.has(t));
+        return optionMatches(said, oTok.join(" ") || o.name);
+      });
+      // a bare number picks off the printed list — only when this is the sole question
+      if (!hits.length && awKeys.length === 1) {
+        const n = Number(said.replace(/[^0-9]/g, ""));
+        if (n >= 1 && n <= opts.length && said.length <= 3) hits = [opts[n - 1]];
       }
-      // "2 american truck and 2 iconic" answers a pick-4 with quantities — each
-      // matched name repeats by the number written just before it (default 1)
-      const withQty = (names) => {
-        const out2 = [];
-        for (const name of names) {
-          const idx = said.indexOf(normName(name).split(" ")[0]);
-          const before = idx > 0 ? said.slice(Math.max(0, idx - 6), idx) : "";
-          const q = Math.min(Number((before.match(/(\d+)\s*x?\s*$/) || [])[1]) || 1, 8);
-          for (let k = 0; k < q; k++) out2.push(name);
-        }
-        return out2;
-      };
-      // a bare "2" or "medium" against a numbered list
-      const picked = hits.length ? withQty(hits.map((h) => h.name))
-        : (() => { const n = Number(said.replace(/[^0-9]/g, "")); return n >= 1 && n <= opts.length && said.length <= 3 ? [opts[n - 1].name] : []; })();
-      if (picked.length) {
-        const need = Number(g.count) || 1;
-        const it = out[aw.index];
-        if (need > 1) {
-          const prev = Array.isArray(it.options[g.key]) ? it.options[g.key] : [];
-          it.options[g.key] = [...prev, ...picked].slice(0, need);
-        } else if (it.qty > 1 && new Set(picked).size > 1 && picked.length === it.qty) {
-          // "one coke and one sprite" for 2 meals — a real cashier splits the ticket.
-          // Only when the picks account for every unit; anything vaguer re-asks.
-          const counts = {};
-          for (const n of picked) counts[n] = (counts[n] || 0) + 1;
-          const lines = Object.entries(counts).map(([n, q]) => ({
-            ...it, qty: q, options: { ...it.options, [g.key]: n },
-          }));
-          out.splice(aw.index, 1, ...lines);
-        } else {
-          it.options[g.key] = picked[0]; // one pick → all units get it
-        }
+      if (!hits.length) continue;
+
+      // "2 american truck and 2 iconic" — repeat each matched name by the number
+      // written just before it (default 1)
+      const picked = [];
+      for (const h of hits) {
+        const idx = said.indexOf(normName(h.name).split(" ")[0]);
+        const before = idx > 0 ? said.slice(Math.max(0, idx - 6), idx) : "";
+        const q = Math.min(Number((before.match(/(\d+)\s*x?\s*$/) || [])[1]) || 1, 8);
+        for (let k = 0; k < q; k++) picked.push(h.name);
+      }
+
+      if (need > 1) {
+        const prev = Array.isArray(it.options[g.key]) ? it.options[g.key] : [];
+        it.options[g.key] = [...prev, ...picked].slice(0, need);
+      } else if (it.qty > 1 && new Set(picked).size > 1 && picked.length === it.qty) {
+        // "one coke and one sprite" for 2 meals — split the line like a real ticket
+        const counts = {};
+        for (const n of picked) counts[n] = (counts[n] || 0) + 1;
+        const lines = Object.entries(counts).map(([n, q]) => ({
+          ...it, qty: q, options: { ...it.options, [g.key]: n },
+        }));
+        out.splice(aw.index, 1, ...lines);
+        break; // indexes shifted — remaining groups get asked next round
+      } else {
+        it.options[g.key] = picked[0];
       }
     }
   }
 
+  // ---- ask everything still open on the FIRST unfinished item, in one go ----
   for (let i = 0; i < out.length; i++) {
     const defs = out[i].option_defs || [];
+    const open = [];
     for (const g of defs) {
       if (!groupApplies(g, out[i].options)) continue;
       const need = Number(g.count) || 1;
@@ -690,20 +739,26 @@ function nextQuestion(items, menu, message, pending) {
       const got = Array.isArray(have) ? have.length : have ? 1 : 0;
       if (got >= need) continue;
       const opts = groupChoices(g, menu);
-      if (!opts.length) continue; // nothing to offer — never ask a dead question
+      if (!opts.length) continue;
+      open.push({
+        key: g.key,
+        label: g.label || g.key,
+        options: opts.slice(0, 12).map((o) => {
+          const c = (g.choices || []).find((x) => normName(x.name) === normName(o.name));
+          return c?.price != null ? `${o.name} (${c.price} ${currency})` : c?.delta ? `${o.name} (+${c.delta} ${currency})` : o.name;
+        }),
+        names: opts.slice(0, 12).map((o) => o.name),
+        remaining: need - got,
+        of: need,
+        mixable: need === 1 && out[i].qty > 1 ? out[i].qty : null,
+      });
+      // a "when"-gated question can depend on THIS answer — don't ask both at once
+      if (defs.some((h) => h.when && Object.keys(h.when).includes(g.key))) break;
+    }
+    if (open.length) {
       return {
         items: out,
-        ask: {
-          index: i, key: g.key, item: out[i].name,
-          label: g.label || g.key,
-          options: opts.slice(0, 12).map((o) => {
-            const c = (g.choices || []).find((x) => normName(x.name) === normName(o.name));
-            return c?.price != null ? `${o.name} (${c.price})` : c?.delta ? `${o.name} (+${c.delta})` : o.name;
-          }),
-          remaining: need - got,
-          of: need,
-          mixable: (Number(g.count) || 1) === 1 && out[i].qty > 1 ? out[i].qty : null,
-        },
+        ask: { index: i, item: out[i].name, keys: open.map((q) => q.key), questions: open },
       };
     }
   }
@@ -751,8 +806,7 @@ function renderBill({ items, bill, currency, orderType, tableNumber, branchName,
   const money = (n) => `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${currency}`;
   const lines = items.map((it) => {
     const mods = modifiers(it);
-    return `• ${it.qty}× ${it.name} — ${money(itemPrice(it) * Number(it.qty))}` +
-      (mods.length ? `\n   ↳ ${mods.join(" · ")}` : "");
+    return `• ${it.qty}× ${it.name}${mods.length ? ` (${mods.join(" · ")})` : ""} — ${money(itemPrice(it) * Number(it.qty))}`;
   });
 
   const totals = [`Subtotal: ${money(bill.subtotal)}`];

@@ -135,7 +135,7 @@ export default function Orders() {
                         <div className="divide-y divide-dashed divide-zinc-800 border-y border-dashed border-zinc-800">
                           {(o.items || []).map((i: any, idx: number) => {
                             const mods = [
-                              ...Object.entries(i.options || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`),
+                              ...Object.values(i.options || {}).map((v: any) => (Array.isArray(v) ? v.join(", ") : v)),
                               i.notes || null,
                             ].filter(Boolean) as string[];
                             return (

@@ -54,7 +54,7 @@ export async function sessionPrecheck(db, sessionId, history) {
       if (p && Date.now() - new Date(p.at || 0).getTime() < 30 * 60_000) {
         out.active_flow = "order";
         out.stage = p.awaiting_confirm ? "awaiting_confirm"
-          : p.awaiting_choice ? `awaiting_${p.awaiting_choice.label}`
+          : p.awaiting_option ? "configuring_item"
           : p.payment_method ? "awaiting_confirm" : "building";
       }
     } catch { /* diners table may not exist in memory mode */ }
