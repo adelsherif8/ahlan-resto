@@ -1,84 +1,120 @@
-// PDF receipt — generated in code, uploaded to tenant storage, sent on WhatsApp.
+// PDF receipt — styled like a classic thermal cash receipt: narrow paper, Courier,
+// dashed rules, and the order number BIG enough to read across a counter.
+// Generated in code, uploaded to tenant storage, sent on WhatsApp.
 import PDFDocument from "pdfkit";
 import { log } from "../config.js";
 
 const BUCKET = "receipts";
 
+// thermal paper: 80mm ≈ 227pt wide; height grows with the order
+const W = 227;
+const M = 16;
+const INNER = W - M * 2;
+
+function dashed(doc, gap = 0.5) {
+  doc.moveDown(0.35);
+  doc.moveTo(M, doc.y).lineTo(W - M, doc.y)
+    .dash(2, { space: 2 }).strokeColor("#888").lineWidth(0.7).stroke().undash();
+  doc.moveDown(gap);
+}
+
+// kitchen-readable option lines under each item (chosen drink, "no onion", bundle slots)
+function modLines(it) {
+  const out = [];
+  for (const [k, v] of Object.entries(it.options || {})) {
+    if (k === "slots" && Array.isArray(v)) {
+      for (let i = 0; i < v.length; i++) {
+        const sl = v[i] || {};
+        const vals = Object.entries(sl).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ");
+        out.push(`${i + 1}) ${vals}${sl.notes ? ` — ${sl.notes}` : ""}`);
+      }
+    } else out.push(Array.isArray(v) ? v.join(", ") : String(v));
+  }
+  if (it.notes) out.push(`* ${it.notes}`);
+  return out;
+}
+
 function buildPdf({ restaurant, order, branch, currency }) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A5", margin: 36 });
+    const items = order.items || [];
+    const modCount = items.reduce((s, it) => s + modLines(it).length, 0);
+    const billRows = 2 + (order.bill?.extras?.length || 0);
+    const height = 235 + items.length * 15 + modCount * 11 + billRows * 14
+      + (order.address ? 26 : 0) + (order.notes ? 13 : 0);
+    const doc = new PDFDocument({ size: [W, Math.max(height, 330)], margin: M });
     const chunks = [];
     doc.on("data", (c) => chunks.push(c));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.fontSize(20).text(restaurant, { align: "center" });
-    doc.moveDown(0.2);
-    doc.fontSize(10).fillColor("#666").text(`Receipt ${order.code}`, { align: "center" });
-    if (branch?.name) doc.text(`${branch.name}${branch.address ? ` — ${branch.address}` : ""}`, { align: "center" });
-    doc.moveDown(0.8).fillColor("#000");
-
-    doc.fontSize(9).fillColor("#666")
-      .text(new Date(order.created_at || Date.now()).toLocaleString("en-GB", { hour12: true }))
-      .text(`${String(order.order_type || "").replace("_", "-")}${order.table_number ? ` · table ${order.table_number}` : ""}`);
-    if (order.address) doc.text(`Deliver to: ${order.address}`, { width: 320 });
-    doc.moveDown(0.6).fillColor("#000");
-
-    doc.moveTo(36, doc.y).lineTo(384, doc.y).strokeColor("#ddd").stroke();
-    doc.moveDown(0.5);
-    for (const it of order.items || []) {
-      const line = `${it.qty}× ${it.name}`;
-      const amount = `${Number(it.unit_price ?? it.price) * Number(it.qty)} ${currency}`;
+    const center = (txt, opts = {}) => doc.text(txt, M, doc.y, { width: INNER, align: "center", ...opts });
+    const row = (left, right, { bold = false, size = 9, color = "#000" } = {}) => {
       const y = doc.y;
-      doc.fontSize(11).fillColor("#000").text(line, 36, y, { width: 250 });
-      doc.text(amount, 286, y, { width: 98, align: "right" });
-      // the kitchen reads this line too — chosen drink and "no onion" belong on it
-      const mods = [
-        ...Object.entries(it.options || {}).flatMap(([k, v]) =>
-          k === "slots" && Array.isArray(v)
-            ? v.map((sl, i) => `${i + 1}) ${Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ")}${sl?.notes ? ` — ${sl.notes}` : ""}`)
-            : [Array.isArray(v) ? v.join(", ") : v]),
-        it.notes || null,
-      ].filter(Boolean);
-      if (mods.length) doc.fontSize(9).fillColor("#777").text(mods.join(" · "), 46, doc.y, { width: 240 });
-      doc.fillColor("#000").moveDown(0.2);
+      doc.font(bold ? "Courier-Bold" : "Courier").fontSize(size).fillColor(color);
+      doc.text(left, M, y, { width: INNER - 74 });
+      const after = doc.y;
+      doc.text(right, W - M - 72, y, { width: 72, align: "right" });
+      doc.y = Math.max(after, doc.y);
+      doc.moveDown(0.15);
+    };
+
+    // header
+    doc.font("Courier-Bold").fontSize(14).fillColor("#000");
+    center(String(restaurant).toUpperCase(), { characterSpacing: 1 });
+    doc.font("Courier").fontSize(8).fillColor("#333");
+    if (branch?.name) center(branch.name);
+    if (branch?.address) center(branch.address);
+    center("* CASH RECEIPT *");
+    dashed(doc);
+
+    // THE order number — the thing you shout across the counter
+    doc.font("Courier-Bold").fontSize(30).fillColor("#000");
+    center(order.code);
+    doc.font("Courier").fontSize(7).fillColor("#555");
+    center("ORDER NUMBER");
+    doc.moveDown(0.4);
+
+    doc.fontSize(8).fillColor("#000");
+    center(new Date(order.created_at || Date.now()).toLocaleString("en-GB", { hour12: true }));
+    center(`${String(order.order_type || "").replace("_", "-").toUpperCase()}${order.table_number ? `  ·  TABLE ${order.table_number}` : ""}`);
+    dashed(doc);
+
+    // items: name left, amount right, mods indented beneath
+    for (const it of items) {
+      row(`${it.qty}x ${it.name}`, String(Number(it.unit_price ?? it.price) * Number(it.qty)), { size: 9.5 });
+      for (const ml of modLines(it)) {
+        doc.font("Courier").fontSize(7.5).fillColor("#555").text(ml, M + 10, doc.y, { width: INNER - 10 });
+      }
+      doc.fillColor("#000").moveDown(0.1);
     }
-    doc.moveDown(0.3);
-    doc.moveTo(36, doc.y).lineTo(384, doc.y).strokeColor("#ddd").stroke();
-    doc.moveDown(0.5);
+    dashed(doc);
 
     // subtotal + each configured charge, then the total — mirrors the WhatsApp bill exactly
-    const money = (n) => `${Number(n)} ${currency}`;
     const bill = order.bill;
     if (bill?.extras?.length) {
-      const rowLine = (label, amount, size = 10, color = "#444") => {
-        const y = doc.y;
-        doc.fontSize(size).fillColor(color).text(label, 36, y, { width: 250 });
-        doc.fontSize(size).fillColor(color).text(amount, 286, y, { width: 98, align: "right" });
-        doc.moveDown(0.25);
-      };
-      rowLine("Subtotal", money(bill.subtotal));
-      for (const x of bill.extras) rowLine(x.label, money(x.amount));
-      doc.moveDown(0.15);
+      row("Subtotal", `${bill.subtotal} ${currency}`, { size: 8.5, color: "#333" });
+      for (const x of bill.extras) row(x.label, `${x.amount} ${currency}`, { size: 8.5, color: "#333" });
+      doc.moveDown(0.1);
     }
-    const totalY = doc.y;
-    doc.fontSize(13).fillColor("#000").text("TOTAL", 36, totalY);
-    doc.fontSize(13).text(money(order.total), 286, totalY, { width: 98, align: "right" });
-    doc.moveDown(0.8);
+    row("TOTAL", `${order.total} ${currency}`, { bold: true, size: 12 });
+    dashed(doc);
 
-    doc.fontSize(10).fillColor("#666")
-      .text(`Payment: ${paymentLabel(order.payment_method)}`)
-      .text(order.notes ? `Notes: ${order.notes}` : "");
-    doc.moveDown(1).fontSize(9).fillColor("#999").text("Thanks for ordering 🍔", { align: "center" });
+    doc.font("Courier").fontSize(8).fillColor("#000");
+    doc.text(`PAYMENT: ${paymentLabel(order.payment_method)}`, M, doc.y, { width: INNER });
+    if (order.address) doc.text(`DELIVER TO: ${order.address}`, M, doc.y, { width: INNER });
+    if (order.notes) doc.text(`NOTES: ${order.notes}`, M, doc.y, { width: INNER });
+    doc.moveDown(0.8);
+    doc.fontSize(8).fillColor("#444");
+    center("THANK YOU — COME AGAIN!");
     doc.end();
   });
 }
 
 function paymentLabel(m) {
-  return m === "cash" ? "Cash on delivery / at the counter"
-    : m === "card" ? "Card"
-    : m === "instapay" ? "InstaPay"
-    : "To be confirmed";
+  return m === "cash" ? "CASH"
+    : m === "card" ? "CARD"
+    : m === "instapay" ? "INSTAPAY"
+    : "TO BE CONFIRMED";
 }
 
 export async function makeReceipt(db, { restaurant, order, branch, currency }) {

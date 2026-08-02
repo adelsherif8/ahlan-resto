@@ -47,6 +47,12 @@ defineFlow({
     const { db, config } = ctx.tenant;
     bump("messages_in");
 
+    // Read receipt + typing indicator FIRST — before any trace nodes touch the DB.
+    // Guests judge us by how fast "typing…" appears, and each node is a round-trip.
+    if (ctx.channel === "whatsapp" && input.event?.messageId && input.event?.phoneNumberId && input.event?.type !== "reaction") {
+      markReadWithTyping(input.event.phoneNumberId, input.event.messageId).catch(() => {});
+    }
+
     // ---- resolve_restaurant: the "Urls" node — which tenant is this, which DB do we write to ----
     await f.node("resolve_restaurant", async () => tenantSummary(ctx), { input: { sessionId: ctx.sessionId, channel: ctx.channel } });
 
@@ -120,11 +126,6 @@ defineFlow({
     }, { input: { kind: event.kind, has_media: !!event.media } });
     const norm = normalized.value || normalized;
     const finalText = norm.text || "[message]";
-
-    // WhatsApp: read receipt + typing indicator (guest sees we're on it)
-    if (ctx.channel === "whatsapp" && messageId && input.event?.phoneNumberId) {
-      markReadWithTyping(input.event.phoneNumberId, messageId).catch(() => {});
-    }
 
     // ---- log_inbound ----
     await f.node("log_inbound", async () => {

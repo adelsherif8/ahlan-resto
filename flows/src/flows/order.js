@@ -285,7 +285,8 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // asked in ONE message; each answer shrinks the next round's question
       const needType = !orderType;
       const needBranch = branches.length > 1 && !branch;
-      const needTable = orderType === "dine_in" && !tableNumber;
+      const tablesOn = config.basic_info?.services?.table_numbers !== false && loaded.tableNumbers.length > 0;
+      const needTable = orderType === "dine_in" && tablesOn && !tableNumber;
       const needAddress = orderType === "delivery" && !address && !mapLink && !sharedPin;
       if (needType || needBranch || needTable || needAddress) {
         await savePending({ address, map_link: mapLinkRaw });

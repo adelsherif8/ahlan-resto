@@ -59,7 +59,7 @@ const CASES = [
   { id: "fulfillcombo", needs: "casual", name: "Type+branch asked together in ONE message after items", turns: ["1 loaded fries", "pickup"],
     expect: [/branch/i, /sheraton|maadi|nasr/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "combochoice", needs: "casual", name: "A meal asks sandwich-or-meal (names only, no prices in options)", turns: ["an iconic meal for pickup from Maadi"],
-    expect: [/sandwich only/i, /full meal/i], forbid: [/O-[A-Z2-9]{4}/, /195|265/] },
+    expect: [/sandwich only/i, /full meal/i], forbid: [/O-[A-Z2-9]{4}/, /Full Meal \(|Sandwich Only \(/] },
   { id: "combodrink", needs: "casual", name: "After the format it walks size, fries, then drink", turns: ["an iconic meal for pickup from Maadi", "Full Meal", "Small", "French fries"],
     expect: [/drink/i, /coca|sprite|fanta/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "itemnotes", needs: "casual", name: "Per-item modifier reaches the ticket", turns: ["one loaded fries no onion, pickup from Maadi", "cash", "yes confirm"],

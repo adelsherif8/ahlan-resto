@@ -239,7 +239,7 @@ function GuestPanel({ ctx, onSaved }: { ctx: any; onSaved: () => void }) {
       </div>
 
       {ctx.draft && (
-        <div className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+        <div className="rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-xs text-zinc-200">
           🛒 <b>Order in progress</b> ({ctx.draft.stage})
           <div className="mt-0.5">{ctx.draft.items}{ctx.draft.order_type ? ` · ${String(ctx.draft.order_type).replace("_", "-")}` : ""}{ctx.draft.branch ? ` · ${ctx.draft.branch}` : ""}</div>
         </div>
@@ -274,19 +274,19 @@ function GuestPanel({ ctx, onSaved }: { ctx: any; onSaved: () => void }) {
       )}
 
       {d?.allergies?.length > 0 && (
-        <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs font-medium text-zinc-200">
           ⚠️ Allergies: {d.allergies.join(", ")}
         </div>
       )}
 
       {bdays !== null && bdays <= 14 && (
-        <div className="rounded-lg bg-fuchsia-500/10 px-3 py-2 text-xs text-fuchsia-300">
+        <div className="rounded-lg border border-fuchsia-500/50 bg-fuchsia-500/10 px-3 py-2 text-xs text-zinc-200">
           🎂 Birthday {bdays === 0 ? "TODAY" : `in ${bdays} days`}
         </div>
       )}
 
       {s?.handoff_briefing && (
-        <PanelBlock title="🤝 Handoff briefing"><span className="text-amber-300">{s.handoff_briefing}</span></PanelBlock>
+        <PanelBlock title="🤝 Handoff briefing"><span className="text-zinc-200">{s.handoff_briefing}</span></PanelBlock>
       )}
 
       {r && (
