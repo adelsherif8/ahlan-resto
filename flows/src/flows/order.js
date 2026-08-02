@@ -85,7 +85,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
           if (error) console.log("preferred_branch not saved (run migration 006):", error.message);
         });
       }
-      const branchInfo = branches.find((b) => b.key === branch) || null;
+      let branchInfo = branches.find((b) => b.key === branch) || null;
 
       if (e.intent === "cancel_order") {
         if (!loaded.openOrder) return { kind: "no_open_order" };
@@ -254,6 +254,17 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       if (reuse && !loaded.pending?.address) address = reuse.text;
       const sharedPin = freshLocation(diner, 1);
 
+      // DELIVERY: the guest never picks the kitchen — code does. Nearest branch by
+      // coordinates when we have a pin/Maps link, else the branch whose area the
+      // typed address mentions, else their usual branch, else the first one.
+      if (orderType === "delivery" && !branch && (mapLink?.lat != null || sharedPin || address)) {
+        const pt = (mapLink?.lat != null ? mapLink : null) || sharedPin;
+        const auto = (pt ? nearestBranches(branches, pt.lat, pt.lng, 1)[0] : null) ||
+          (address ? matchBranchByText(branches, address) : null);
+        branch = auto?.key || (branches.some((b) => b.key === diner?.preferred_branch) ? diner.preferred_branch : branches[0]?.key) || null;
+        branchInfo = branches.find((b) => b.key === branch) || null;
+      }
+
       // remember the in-progress order so the next short answer doesn't lose it
       const savePending = async (extra = {}) => {
         if (!diner?.id) return;
@@ -284,7 +295,8 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // 3) FULFILLMENT — type + branch + table/address, everything still missing
       // asked in ONE message; each answer shrinks the next round's question
       const needType = !orderType;
-      const needBranch = branches.length > 1 && !branch;
+      // branch is a pickup/dine-in question only — delivery gets it assigned from the address
+      const needBranch = branches.length > 1 && !branch && orderType !== "delivery";
       const tablesOn = config.basic_info?.services?.table_numbers !== false && loaded.tableNumbers.length > 0;
       const needTable = orderType === "dine_in" && tablesOn && !tableNumber;
       const needAddress = orderType === "delivery" && !address && !mapLink && !sharedPin;
@@ -475,7 +487,10 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       if (outcome.need_type) qs.push(`How would you like it?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`);
       if (outcome.need_branch) {
         const near = outcome.nearest?.length ? `\nClosest to you: ${outcome.nearest[0]} 📍` : "";
-        qs.push(`Which branch?${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
+        // delivery never picks a branch, so when the type is still open the
+        // branch question only applies to the other two — say so
+        const head = outcome.need_type ? "If pickup or dine-in — which branch?" : "Which branch?";
+        qs.push(`${head}${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
       }
       if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
       if (outcome.need_address) qs.push((outcome.saved || []).length

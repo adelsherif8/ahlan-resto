@@ -99,6 +99,8 @@ const CASES = [
     expect: [/branch/i, /maadi|sheraton|new cairo|▸/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "branchflow", needs: "casual", name: "Branch answer completes the order", turns: ["can I get an iconic meal for pickup", "Maadi", "Full Meal", "Small", "French fries", "sprite", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /maadi/i] },
+  { id: "deliverybranch", needs: "casual", name: "Delivery never asks branch — nearest is assigned from the address", turns: ["a loaded fries delivered to Zahraa El Maadi, street 9", "cash", "yes confirm"],
+    expect: [/O-[A-Z2-9]{4}/], forbid: [/which branch/i] },
   { id: "paygate", needs: "casual", name: "Payment is asked before any ticket exists", turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite"],
     expect: [/pay|cash|card|instapay/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "confirmgate", needs: "casual", name: "Confirmation required before the kitchen sees it", turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "cash"],
