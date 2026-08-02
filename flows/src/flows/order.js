@@ -487,10 +487,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       if (outcome.need_type) qs.push(`How would you like it?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`);
       if (outcome.need_branch) {
         const near = outcome.nearest?.length ? `\nClosest to you: ${outcome.nearest[0]} 📍` : "";
-        // delivery never picks a branch, so when the type is still open the
-        // branch question only applies to the other two — say so
-        const head = outcome.need_type ? "If pickup or dine-in — which branch?" : "Which branch?";
-        qs.push(`${head}${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
+        qs.push(`Which branch?${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
       }
       if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
       if (outcome.need_address) qs.push((outcome.saved || []).length
