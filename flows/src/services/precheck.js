@@ -27,7 +27,9 @@ export async function sessionPrecheck(db, sessionId, history) {
   if (out.turns_in_session >= MAX_TURNS_SESSION) out.circuit_breaker = true;
 
   const aiTurns = (history || []).filter((h) => h.role === "ai").map((h) => h.message);
-  if (aiTurns.length >= 2 && aiTurns.at(-1) === aiTurns.at(-2)) out.loop_detected = true;
+  const repeatedTwice = aiTurns.length >= 2 && aiTurns.at(-1) === aiTurns.at(-2);
+  const repeatedThrice = aiTurns.length >= 3 && repeatedTwice && aiTurns.at(-2) === aiTurns.at(-3);
+  if (repeatedTwice) out.loop_detected = true;
 
   // reservation session state (lights up with the reservation agent)
   try {
@@ -56,6 +58,11 @@ export async function sessionPrecheck(db, sessionId, history) {
         out.stage = p.awaiting_confirm ? "awaiting_confirm"
           : p.awaiting_option ? "configuring_item"
           : p.payment_method ? "awaiting_confirm" : "building";
+        // Mid-order, ONE repeated question is the agent doing its job — the guest
+        // answered something else ("Maadi" during the options walk) and the same
+        // code-built block gets asked again. Handing off there eats their next
+        // answer. A real stuck loop shows as THREE identical messages.
+        if (out.loop_detected && !repeatedThrice) out.loop_detected = false;
       }
     } catch { /* diners table may not exist in memory mode */ }
   }
