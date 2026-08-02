@@ -267,31 +267,10 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // the type settles which charges apply, and quoting one early would be a lie.
       const running = items.length ? { items, subtotal: items.reduce((s, i) => s + itemPrice(i) * i.qty, 0), currency } : null;
 
-      // 1) HOW they're eating — this decides the whole rest of the conversation
-      if (!orderType) {
-        await savePending();
-        return { kind: "ask_order_type", items, running, delivery: deliveryOn };
-      }
-      // 2) WHERE — table / address / branch, all resolved before we take a single item
-      if (orderType === "dine_in" && !tableNumber) {
-        await savePending();
-        return { kind: "ask_table", items, running, tables: loaded.tableNumbers.slice(0, 12) };
-      }
-      if (orderType === "delivery" && !address && !mapLink && !sharedPin) {
-        await savePending({ address, map_link: mapLinkRaw });
-        return { kind: "ask_address", items, running, saved: saved.map((s) => s.text) };
-      }
-      if (branches.length > 1 && !branch) {
-        await savePending();
-        // if they shared their location, lead with the closest branch (code-computed)
-        const loc = freshLocation(diner);
-        const near = loc ? nearestBranches(branches, loc.lat, loc.lng, 3).map((b) => `${b.name} (${b.km} km)`) : null;
-        return { kind: "ask_branch", items, running, branches: branches.map((b) => b.name), nearest: near };
-      }
-      // 3) WHAT — now the menu means something, because we know where it's going
+      // 1) WHAT first — the food IS the order; where it goes comes at the end
       if (!items.length) return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
 
-      // 4) COMBO CHOICES — a meal isn't an order until the drink/side is picked
+      // 2) OPTIONS — finish configuring every item
       const step = nextQuestion(items, loaded.menu, input.message, loaded.pending, currency);
       items = step.items;
       if (step.ask) {
@@ -302,7 +281,26 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         return { kind: "ask_choice", items, running: runningNow, ...step.ask };
       }
 
-      // 5) MONEY — computed here, never by the model
+      // 3) FULFILLMENT — type + branch + table/address, everything still missing
+      // asked in ONE message; each answer shrinks the next round's question
+      const needType = !orderType;
+      const needBranch = branches.length > 1 && !branch;
+      const needTable = orderType === "dine_in" && !tableNumber;
+      const needAddress = orderType === "delivery" && !address && !mapLink && !sharedPin;
+      if (needType || needBranch || needTable || needAddress) {
+        await savePending({ address, map_link: mapLinkRaw });
+        const loc = freshLocation(diner);
+        const near = loc ? nearestBranches(branches, loc.lat, loc.lng, 3).map((b) => `${b.name} (${b.km} km)`) : null;
+        return {
+          kind: "ask_fulfillment", items, running,
+          need_type: needType, delivery: deliveryOn,
+          need_branch: needBranch, branches: branches.map((b) => b.name), nearest: near,
+          need_table: needTable, tables: loaded.tableNumbers.slice(0, 12),
+          need_address: needAddress, saved: saved.map((s2) => s2.text),
+        };
+      }
+
+      // 4) MONEY — computed here, never by the model
       const bill = priceOrder(items, config, orderType);
 
       // 6) PAYMENT METHOD — required before we take the order
@@ -417,14 +415,12 @@ MONEY RULE (absolute): NEVER write a price, a total, a currency symbol or any nu
 LIST RULE (absolute): whenever you present 3+ choices of ANYTHING (options, branches, payment methods, sandwiches), format them as a bullet list — one per line, "• Name" — never a comma run. The itemised bill is attached below your reply automatically. Refer to it as "below" — do not restate it, do not invent a currency.
 OUTCOMES:
 - order_placed: confirm the ticket 🎫 with the CODE, the honest ETA ("about <eta_minutes> min"), and what happens next BY TYPE — dine_in: "the kitchen's on it, coming to table X" · pickup: "we'll message you the moment it's ready at <branch>" · delivery: "we'll message you when it's on its way to <address>". Say the receipt is attached if receipt_url exists. If unknown[] has entries, add "couldn't find <names> on the menu".
-- ask_branch: ask WHICH BRANCH. If "nearest" is present, lead with those (they shared their location; include the km). List branches as bullets, ONE PER LINE ("• Maadi"), then offer that they can share their location 📍 for the closest. quick_replies: the 3 most likely branch names.
+- ask_fulfillment: ONE short lead-in line (e.g. "Almost done — just the last details 👇"). The questions themselves are appended automatically — NEVER write or answer them yourself.
 - ask_choice: write ONE short lead-in line for configuring <item> (e.g. "Quick choices for your Soo Classic Meal — you can answer in one go 👇"). The questions themselves are appended below your line automatically. NEVER list options yourself, NEVER mention any OTHER item in the order — its turn comes next.
 - ask_payment: ask how they'd like to pay, then the methods given as a bullet list, one per line. If "upsell" is present, add ONE casual offer of it in the same breath ("want to add loaded fries for 99?") — never push twice. The bill is below. quick_replies: the methods (e.g. ["Cash","Card","InstaPay"]).
 - confirm_order: one line asking them to confirm before it goes to the kitchen. The full bill is below. quick_replies: ["Confirm ✅","Change something"].
-- ask_address: if saved[] has addresses, DON'T make them retype — read their saved address(es) back and ask if it's going there or somewhere new. Otherwise ask for the address: they can type it out or paste a Google Maps link 🔗. Never say "pin". quick_replies: each saved address (shortened), then "New address".
 - ask_items: the full menu PDF is attached automatically — say it's below/attached and ask what they'd like. NEVER ask "what would you like?" on its own as if they can already see the menu.
-- ask_order_type: FIRST question of every order — are they eating in, picking up, or want delivery? (omit delivery if delivery is false). If "running" is present their items are listed under your reply automatically, so acknowledge what they picked; if it is absent, promise NOTHING about a bill or a list — there is nothing attached yet. quick_replies: ["Dine-in","Pickup","Delivery"] as applicable.
-- ask_table: which table are they at? If "tables" is given, show 2-3 of them as examples so they know the format. NEVER say the order is placed or that the kitchen has it — nothing has been sent yet.
+- ask_table (rare): which table are they at? NEVER say the order is placed — nothing has been sent yet.
 - bad_table: the number they gave isn't one of ours. Say so plainly, list the real ones from "tables", and ask which they're at. NEVER claim the order is placed.
 - nothing_matched: none of that matched the menu (list unknown) — suggest tapping the menu.
 - order_status: restate their order (code, status, items) honestly by status: pending/accepted="in the queue", preparing="on the grill now", ready="READY — come grab it!".
@@ -449,14 +445,10 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       ask_items: "Here's the full menu 📄 — tell me what you'd like and I'll get it going 🍔",
       nothing_matched: `Couldn't find ${(outcome.unknown || []).join(", ")} on the menu — here it is 📄, pick anything off it.`,
       no_history: "No past orders on this number yet — here's the menu 📄, let's make your first one 🍔",
-      ask_branch: `Which branch works for you?\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`,
+      ask_fulfillment: "Almost done — just the last details 👇",
       ask_choice: `For your ${outcome.item}:\n${(outcome.questions || []).map((q) => `${q.label}${q.of > 1 ? ` (${q.remaining} to pick)` : ""}:\n${q.options.map((o) => `• ${o}`).join("\n")}`).join("\n\n")}`,
-      ask_address: (outcome.saved || []).length
-        ? `Sending it to ${outcome.saved[0]} again, or somewhere else?`
-        : "What's the delivery address? Type it out or paste your Google Maps link 🔗",
       ask_payment: `How would you like to pay?\n${(outcome.methods || []).map((m) => `• ${m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}`,
       confirm_order: "All set — confirm and I'll send it to the kitchen ✅",
-      ask_order_type: `How would you like your order?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`,
       ask_table: `Which table are you at? The number's printed on it${(outcome.tables || []).length ? ` — they look like ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`,
       bad_table: `I can't find table ${outcome.given} — ours are ${(outcome.tables || []).slice(0, 8).join(", ")}. Which one are you at?`,
       no_open_order: "No active order found — want to start one? 🍔",
@@ -474,6 +466,21 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
         log(`order: blocked a false "placed" claim on outcome ${outcome.kind}`);
         reply = fallback[outcome.kind] || fallback.ask_items;
       }
+    }
+
+    // Fulfillment questions are STRUCTURE too — model writes one lead-in line
+    if (outcome.kind === "ask_fulfillment") {
+      const qs = [];
+      if (outcome.need_type) qs.push(`How would you like it?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`);
+      if (outcome.need_branch) {
+        const near = outcome.nearest?.length ? `\nClosest to you: ${outcome.nearest[0]} 📍` : "";
+        qs.push(`Which branch?${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
+      }
+      if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
+      if (outcome.need_address) qs.push((outcome.saved || []).length
+        ? `Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`
+        : `What's the delivery address? Type it out or paste a Google Maps link 🔗`);
+      reply = `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}`;
     }
 
     // Option questions are STRUCTURE, and structure is code's job — the model
@@ -545,20 +552,27 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
     // buttons at decision gates come from CODE — the model paraphrased option
     // names into unparseable labels, and sometimes dropped the Confirm button
     // entirely. Every gate gets its buttons deterministically.
+    // buttons/lists ONLY when this message asks exactly ONE question — tapping an
+    // answer to question 1 while questions 2-3 hang unanswered just confuses
+    const fulfillNeeds = outcome.kind === "ask_fulfillment"
+      ? [outcome.need_type, outcome.need_branch, outcome.need_table, outcome.need_address].filter(Boolean).length : 0;
     const forced =
-      outcome.kind === "ask_choice" && outcome.questions?.length ? (outcome.questions[0].names || [])
+      outcome.kind === "ask_choice" && outcome.questions?.length === 1 ? (outcome.questions[0].names || [])
+      : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_type ? ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])]
+      : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_branch ? (outcome.branches || [])
       : outcome.kind === "confirm_order" ? ["Confirm ✅", "Change something"]
       : outcome.kind === "ask_payment" ? (outcome.methods || []).map((m) => m.split(" ")[0].replace(/^\w/, (c) => c.toUpperCase()))
-      : outcome.kind === "ask_order_type" ? ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])]
       : null;
     let optionList = null;
     if (forced) {
       value.value = value.value || {};
-      if (outcome.kind === "ask_choice" && forced.length > 3) {
+      if (["ask_choice", "ask_fulfillment"].includes(outcome.kind) && forced.length > 3) {
         // buttons cap at 3 on WhatsApp — a list holds 10, so every option is tappable
-        const q0 = outcome.questions[0];
+        const q0 = outcome.kind === "ask_fulfillment"
+          ? { label: "Choose your branch 🏪" }
+          : outcome.questions[0];
         optionList = {
-          button: "View options 🍽",
+          button: outcome.kind === "ask_fulfillment" ? "Choose branch 🏪" : "View options 🍽",
           sections: [{
             title: String(q0.label || "Options").slice(0, 24),
             rows: forced.slice(0, 10).map((name2) => ({
@@ -983,10 +997,8 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
       open.push({
         key: g.key,
         label: (whenTxt ? `If ${whenTxt} — ` : "") + (g.label || g.key),
-        options: opts.slice(0, 12).map((o) => {
-          const c = (g.choices || []).find((x) => normName(x.name) === normName(o.name));
-          return c?.price != null ? `${o.name} (${c.price} ${currency})` : c?.delta ? `${o.name} (+${c.delta} ${currency})` : o.name;
-        }),
+        // names only — clean choices; the math lands on the bill, not the menu
+        options: opts.slice(0, 12).map((o) => o.name),
         names: opts.slice(0, 12).map((o) => o.name),
         remaining: need - got,
         of: need,
