@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Star, MessageCircle, Download, Megaphone, AlertCircle, MapPin,
-  Ticket, X, Cake, Store, Clock,
+  Ticket, X, Cake, Store, Clock, Bot, PenLine,
 } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Pill, Input, Empty } from "../components/ui";
@@ -112,7 +112,7 @@ export default function Diners() {
     <div>
       <PageHeader
         title="Diners"
-        subtitle="Your guest CRM — the bot remembers all of this"
+        subtitle="Built automatically from every chat and order — the AI captures names, tastes and addresses as guests talk, and reads them back to personalize"
         actions={
           <div className="flex items-center gap-2">
             <button onClick={exportCsv} title="Export this view as CSV"
@@ -262,10 +262,15 @@ function DinerDetail({ selected, setSelected, toggleVip, nav }: any) {
         ))}
       </div>
 
-      {/* what the bot remembers, as removable chips */}
-      <MemoryChips selected={selected} setSelected={setSelected} field="favorite_items" title="Favorite dishes" />
-      <MemoryChips selected={selected} setSelected={setSelected} field="facts" title="Known about them" />
-      <MemoryChips selected={selected} setSelected={setSelected} field="ai_notes" title="AI observations" />
+      {/* what the bot learned on its own, as removable chips */}
+      {(selected.preferences?.favorite_items?.length || selected.preferences?.facts?.length || selected.preferences?.ai_notes?.length) ? (
+        <div className="mb-1 flex items-center gap-1.5 text-[11px] text-zinc-500">
+          <Bot size={12} /> Learned by the AI from their chats & orders — tap × to make it forget anything wrong
+        </div>
+      ) : null}
+      <MemoryChips selected={selected} setSelected={setSelected} field="favorite_items" title="Favorite dishes" hint="what they keep ordering or said they love" />
+      <MemoryChips selected={selected} setSelected={setSelected} field="facts" title="Known about them" hint="things they mentioned in conversation" />
+      <MemoryChips selected={selected} setSelected={setSelected} field="ai_notes" title="AI observations" hint="patterns the AI noticed on its own" />
       <TagChips selected={selected} setSelected={setSelected} />
 
       <EditForm selected={selected} setSelected={setSelected} />
@@ -318,7 +323,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 // bot memory rendered as chips — delete a wrong one with a tap
-function MemoryChips({ selected, setSelected, field, title }: any) {
+function MemoryChips({ selected, setSelected, field, title, hint }: any) {
   const items: string[] = selected.preferences?.[field] || [];
   if (!items.length) return null;
   async function remove(item: string) {
@@ -329,12 +334,15 @@ function MemoryChips({ selected, setSelected, field, title }: any) {
   }
   return (
     <div className="mb-3">
-      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">{title}</div>
+      <div className="mb-1 flex items-baseline gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{title}</span>
+        {hint && <span className="text-[10px] text-zinc-600">{hint}</span>}
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {items.map((it) => (
           <span key={it} className="flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-200">
             {it}
-            <button onClick={() => remove(it)} className="text-zinc-500 hover:text-red-400" title="Forget this"><X size={10} /></button>
+            <button onClick={() => remove(it)} className="text-zinc-500 hover:text-red-400" title="Make the AI forget this"><X size={10} /></button>
           </span>
         ))}
       </div>
