@@ -258,6 +258,18 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       const reuse = matchSaved(input.message, saved) ||
         (saved.length === 1 && /\b(same|usual|نفس|زي كل مرة)\b/i.test(input.message) ? saved[0] : null);
       if (reuse && !loaded.pending?.address) address = reuse.text;
+      // Deterministic address capture: we're mid-delivery waiting for the address,
+      // nothing else in the message fits — the guest's words ARE the address. The
+      // extractor misses bare areas ("Nasr City") and the guest got re-asked forever.
+      if (!address && orderType === "delivery" && loaded.pending?.order_type === "delivery" && items.length) {
+        const t = input.message.trim();
+        const isCommand = (e.items?.length) || (e.edits?.length) ||
+          /^(dine.?in|pick.?up|pickup|delivery|توصيل|استلام|في المطعم)\b/i.test(t) ||
+          /^(cash|card|visa|instapay|كاش|فيزا|بطاقة|انستاباي)\b/i.test(t) ||
+          /^(yes|ok|okay|sure|confirm|tamam|تمام|ماشي|اه|ايوه)\b[\s!.]*$/i.test(t) ||
+          /[?؟]\s*$/.test(t);
+        if (!isCommand && t.length >= 3 && t.length <= 200) address = t;
+      }
       const sharedPin = freshLocation(diner, 1);
 
       // DELIVERY: the guest never picks the kitchen — code does. Nearest branch by
@@ -269,6 +281,16 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
           (address ? matchBranchByText(branches, address) : null);
         branch = auto?.key || (branches.some((b) => b.key === diner?.preferred_branch) ? diner.preferred_branch : branches[0]?.key) || null;
         branchInfo = branches.find((b) => b.key === branch) || null;
+      }
+
+      // ANY order type: a shared location picks the branch — exactly what the
+      // branch question promises ("send your location and we'll pick the nearest")
+      if (!branch && sharedPin) {
+        const near1 = nearestBranches(branches, sharedPin.lat, sharedPin.lng, 1)[0];
+        if (near1) {
+          branch = near1.key;
+          branchInfo = branches.find((b) => b.key === branch) || null;
+        }
       }
 
       // remember the in-progress order so the next short answer doesn't lose it
@@ -495,7 +517,10 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       if (outcome.need_branch) {
         const near = outcome.nearest?.length ? `\nClosest to you: ${outcome.nearest[0]} 📍`
           : outcome.usual ? `\nYour usual: ${outcome.usual} ⭐` : "";
-        qs.push(`Which branch?${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
+        const head = outcome.need_type
+          ? "If Pickup or Dine-in — please choose which branch, or send your location on Google Maps and we'll pick the nearest one for you 📍"
+          : "Please choose which branch, or send your location on Google Maps and we'll pick the nearest one for you 📍";
+        qs.push(`${head}${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
       }
       if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
       if (outcome.need_address) qs.push((outcome.saved || []).length

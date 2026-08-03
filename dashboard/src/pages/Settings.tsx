@@ -75,6 +75,9 @@ export default function Settings() {
           <Field label="Dine-in"><Toggle on={bi.services?.dine_in !== false} onClick={() => upd("basic_info", { services: { ...bi.services, dine_in: bi.services?.dine_in === false } })} /></Field>
           <Field label="Pickup"><Toggle on={!!bi.services?.pickup} onClick={() => upd("basic_info", { services: { ...bi.services, pickup: !bi.services?.pickup } })} /></Field>
           <Field label="Delivery"><Toggle on={!!bi.services?.delivery} onClick={() => upd("basic_info", { services: { ...bi.services, delivery: !bi.services?.delivery } })} /></Field>
+          <Field label="Table numbers (dine-in asks the table)">
+            <Toggle on={bi.services?.table_numbers !== false} onClick={() => upd("basic_info", { services: { ...bi.services, table_numbers: bi.services?.table_numbers === false } })} />
+          </Field>
         </div>
         <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">House policies (the bot answers from these — empty = "team will confirm")</h3>
         <div className="grid gap-3 md:grid-cols-2">
@@ -82,6 +85,24 @@ export default function Settings() {
           <Field label="Shisha"><Input value={bi.policies?.shisha || ""} onChange={(e) => upd("basic_info", { policies: { ...bi.policies, shisha: e.target.value } })} /></Field>
           <Field label="Kids"><Input value={bi.policies?.kids || ""} onChange={(e) => upd("basic_info", { policies: { ...bi.policies, kids: e.target.value } })} /></Field>
           <Field label="Smoking"><Input value={bi.policies?.smoking || ""} onChange={(e) => upd("basic_info", { policies: { ...bi.policies, smoking: e.target.value } })} /></Field>
+        </div>
+      </Card>
+
+      <Card className="mb-5 p-5">
+        <SectionTitle title="Charges 💰 (applied to every bill & receipt)" saved={saved === "payments"} onSave={() => saveSection("payments", config.payments)} />
+        <div className="grid gap-3 md:grid-cols-3">
+          <Field label="VAT %">
+            <Input type="number" value={pctVal(config.payments?.tax)} placeholder="14"
+              onChange={(e) => upd("payments", { tax: pctIn(e.target.value) })} />
+          </Field>
+          <Field label="Service charge % (dine-in only)">
+            <Input type="number" value={pctVal(config.payments?.service_charge)} placeholder="12"
+              onChange={(e) => upd("payments", { service_charge: pctIn(e.target.value) })} />
+          </Field>
+          <Field label={`Delivery fee (${config.payments?.currency || "EGP"})`}>
+            <Input type="number" value={config.payments?.delivery_fee ?? ""} placeholder="30"
+              onChange={(e) => upd("payments", { delivery_fee: e.target.value === "" ? 0 : Number(e.target.value) })} />
+          </Field>
         </div>
       </Card>
 
@@ -262,6 +283,18 @@ export default function Settings() {
       </Card>
     </div>
   );
+}
+
+// charges are stored as fractions (0.14) but edited as percentages (14)
+function pctVal(v: any): string {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return String(n > 1 ? n : Math.round(n * 1000) / 10);
+}
+function pctIn(s: string): number {
+  const n = Number(s);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return n / 100; // the field is always a percentage
 }
 
 function SectionTitle({ title, onSave, saved }: { title: string; onSave: () => void; saved: boolean }) {
