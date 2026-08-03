@@ -97,6 +97,13 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         if (!loaded.openOrder) return { kind: "no_open_order" };
         if (["ready"].includes(loaded.openOrder.status)) return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder) };
         await db.from("orders").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", loaded.openOrder.id);
+        if (diner?.id) {
+          // cancellation reverses the CRM bump the placement made
+          await db.from("diners").update({
+            total_spend: Math.max(0, Math.round(((Number(diner.total_spend) || 0) - Number(loaded.openOrder.total || 0)) * 100) / 100),
+            visit_count: Math.max(0, (Number(diner.visit_count) || 0) - 1),
+          }).eq("id", diner.id);
+        }
         await notifyDashboard(db, "order", `❌ Order ${loaded.openOrder.code} cancelled`, `${name || ctx.sessionId} cancelled via chat`, ctx.sessionId);
         return { kind: "order_cancelled", order: publicOrder(loaded.openOrder) };
       }
@@ -435,7 +442,14 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
           const kept = (rest.addresses || []).filter((a) => normName(a.text) !== normName(address));
           rest.addresses = [{ text: address, map_link: mapLink?.url || null, last_used: new Date().toISOString() }, ...kept].slice(0, 3);
         }
-        await db.from("diners").update({ preferences: rest }).eq("id", diner.id);
+        // a placed order IS a visit for a casual brand — CRM numbers move NOW,
+        // not when someone remembers to edit the diner by hand
+        await db.from("diners").update({
+          preferences: rest,
+          total_spend: Math.round(((Number(diner.total_spend) || 0) + bill.total) * 100) / 100,
+          visit_count: (Number(diner.visit_count) || 0) + 1,
+          last_visit_at: new Date().toISOString(),
+        }).eq("id", diner.id);
       }
       const receiptUrl = await makeReceipt(db, {
         restaurant: config.name,

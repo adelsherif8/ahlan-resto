@@ -37,8 +37,19 @@ router.patch("/:id", async (req, res, next) => {
     const patch = {};
     for (const k of ["status", "payment_status", "notes", "table_number"])
       if (k in req.body) patch[k] = req.body[k];
+    const before = patch.status === "cancelled" ? await req.repo.get("orders", req.params.id) : null;
     const row = await req.repo.update("orders", req.params.id, patch);
     if (!row) return res.status(404).json({ error: "Not found" });
+    // kitchen cancelled it → reverse the CRM bump the placement made
+    if (patch.status === "cancelled" && before && before.status !== "cancelled" && row.phone_number) {
+      try {
+        const [d] = await req.repo.list("diners", { where: { phone_number: row.phone_number }, limit: 1 });
+        if (d) await req.repo.update("diners", d.id, {
+          total_spend: Math.max(0, Math.round(((Number(d.total_spend) || 0) - Number(row.total || 0)) * 100) / 100),
+          visit_count: Math.max(0, (Number(d.visit_count) || 0) - 1),
+        });
+      } catch (err) { log("diner rollback on cancel failed:", err.message); }
+    }
     if (patch.status) pushStatus(row.code, patch.status); // guest gets the update
     res.json(row);
   } catch (e) { next(e); }
