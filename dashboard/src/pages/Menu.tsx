@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus, Star, Camera, Settings2, Pencil, Search, FileText, Sparkles,
-  AlertTriangle, Clock, Flame, GripVertical, TrendingUp, X, Leaf, WheatOff,
+  AlertTriangle, Clock, Flame, GripVertical, TrendingUp, X, Leaf, WheatOff, Copy,
 } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
@@ -31,7 +31,7 @@ export default function Menu() {
   const [bySales, setBySales] = useState(false);
   const [tidy, setTidy] = useState<any[] | null>(null);
   const [tidying, setTidying] = useState(false);
-  const [form, setForm] = useState({ name: "", category: "Mains", price: "", description: "" });
+  const [form, setForm] = useState({ name: "", category: "", price: "", description: "", copyFrom: "" });
   const dragId = useRef<string | null>(null);
 
   const load = () => api.get("/api/menu").then((r) => setItems(r.data)).catch(() => {});
@@ -59,9 +59,41 @@ export default function Menu() {
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    await api.post("/api/menu", { ...form, price: Number(form.price) });
+    const src = items.find((i) => i.id === form.copyFrom);
+    const { data: created } = await api.post("/api/menu", {
+      name: form.name, category: form.category || src?.category || "Mains",
+      price: Number(form.price), description: form.description || src?.description || null,
+      sort_order: (Math.max(0, ...items.filter((i) => i.category === (form.category || src?.category)).map((i) => Number(i.sort_order) || 0)) + 1),
+    });
+    // cloning: the questions/options and dish details ride along — a new meal is
+    // almost always "like that one, different name and price"
+    if (src && created?.id) {
+      await api.patch(`/api/menu/${created.id}`, {
+        options: src.options || null,
+        ingredients: src.ingredients || null,
+        spice_level: src.spice_level ?? null,
+        dietary_tags: src.dietary_tags || [],
+      }).catch(() => {});
+    }
     setShowNew(false);
-    setForm({ name: "", category: form.category, price: "", description: "" });
+    setForm({ name: "", category: form.category, price: "", description: "", copyFrom: "" });
+    load();
+  }
+
+  // one-tap duplicate: full copy incl. options and details, ready to rename
+  async function duplicate(item: any) {
+    const { data: created } = await api.post("/api/menu", {
+      name: `${item.name} (copy)`, category: item.category,
+      price: Number(item.price), description: item.description || null,
+      sort_order: (Number(item.sort_order) || 0) + 1,
+    });
+    if (created?.id) {
+      await api.patch(`/api/menu/${created.id}`, {
+        options: item.options || null, ingredients: item.ingredients || null,
+        spice_level: item.spice_level ?? null, pairs_with: item.pairs_with || null,
+        dietary_tags: item.dietary_tags || [], available: false, // starts hidden until renamed
+      }).catch(() => {});
+    }
     load();
   }
 
@@ -156,10 +188,27 @@ export default function Menu() {
         <Card className="mb-5 p-5">
           <form onSubmit={create} className="grid gap-3 md:grid-cols-4">
             <Input placeholder="Name *" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <Input placeholder="Category *" required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-            <Input type="number" placeholder="Price *" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+            <div>
+              <Input list="menu-cats" placeholder="Category *" required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+              <datalist id="menu-cats">
+                {[...new Set(items.map((i) => i.category))].map((c) => <option key={c} value={c} />)}
+              </datalist>
+            </div>
+            <Input type="number" step="any" placeholder="Price *" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
             <Input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            <div className="md:col-span-4"><Btn type="submit">Add item</Btn></div>
+            <div className="md:col-span-3">
+              <select value={form.copyFrom} onChange={(e) => setForm({ ...form, copyFrom: e.target.value })}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200">
+                <option value="">Start blank — no option questions</option>
+                {items.filter((i) => (i.options || []).length).map((i) => (
+                  <option key={i.id} value={i.id}>Copy questions & details from: {i.name}</option>
+                ))}
+              </select>
+              <div className="mt-1 text-[11px] text-zinc-500">
+                Meals and bundles: copy from a similar item and the combo questions (sizes, fries, drinks, bundle slots) come with it — then adjust in ⚙ options.
+              </div>
+            </div>
+            <div className="flex items-start"><Btn type="submit">Add item</Btn></div>
           </form>
         </Card>
       )}
@@ -196,6 +245,7 @@ export default function Menu() {
                     load={load}
                     dragId={dragId}
                     onDrop={onDrop}
+                    onDuplicate={duplicate}
                   />
                 ))}
               </div>
@@ -207,7 +257,7 @@ export default function Menu() {
   );
 }
 
-function MenuRow({ item, perf, editId, optId, setEditId, setOptId, categories, patch, uploadPhoto, load, dragId, onDrop }: any) {
+function MenuRow({ item, perf, editId, optId, setEditId, setOptId, categories, patch, uploadPhoto, load, dragId, onDrop, onDuplicate }: any) {
   const [priceEdit, setPriceEdit] = useState(false);
   const [priceVal, setPriceVal] = useState(String(item.price));
   const sold = soldOutToday(item);
@@ -299,6 +349,11 @@ function MenuRow({ item, perf, editId, optId, setEditId, setOptId, categories, p
             title="Dish details the bot uses to answer questions"
           >
             <Pencil size={12} /> details
+          </button>
+          <button title="Duplicate this item (copies questions & details; starts hidden)"
+            onClick={() => onDuplicate(item)}
+            className="rounded-lg border border-zinc-800 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-800">
+            <Copy size={12} />
           </button>
           <button
             title={sold ? "Back in stock — remove today's 86" : "Sold out today — auto-returns tomorrow, bot says so honestly"}
