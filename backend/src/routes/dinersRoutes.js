@@ -7,7 +7,9 @@ router.use(requireAuth, restaurantContext);
 
 router.get("/", async (req, res, next) => {
   try {
-    let rows = await req.repo.list("diners", { order: "visit_count" });
+    // test-suite guests never show in the CRM (same rule as chats and orders)
+    let rows = (await req.repo.list("diners", { order: "visit_count" }))
+      .filter((d) => !/^web:(regress|convo|test)-/i.test(String(d.phone_number || "")));
     const q = (req.query.q || "").toString().toLowerCase();
     if (q)
       rows = rows.filter(
