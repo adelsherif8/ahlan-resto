@@ -14,7 +14,9 @@ router.get("/", async (req, res, next) => {
     const branch = req.user?.branch || (req.query.branch && req.query.branch !== "all" ? req.query.branch : null);
     if (branch) where.branch = branch;
     const rows = await req.repo.list("orders", { where, order: "created_at" });
-    res.json(rows);
+    // test-suite orders never reach the kitchen board (same rule as the chat inbox)
+    const isTest = (v) => /^web:(regress|convo|test)-/i.test(String(v || ""));
+    res.json(rows.filter((r) => !isTest(r.phone_number) && !isTest(r.diner_name) && !isTest(r.session_id)));
   } catch (e) { next(e); }
 });
 
