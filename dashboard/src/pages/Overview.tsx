@@ -20,6 +20,10 @@ type Kpis = {
 export default function Overview() {
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [agent, setAgent] = useState<any | null>(null);
+  const [guests, setGuests] = useState<any[]>([]);
+  useEffect(() => {
+    api.get("/api/diners").then((r) => setGuests(r.data || [])).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const load = () => api.get("/api/dashboard/kpis").then((r) => setKpis(r.data)).catch(() => {});
@@ -79,6 +83,38 @@ export default function Overview() {
           </Card>
         ))}
       </div>
+
+      {guests.length > 0 && (() => {
+        const week = Date.now() - 7 * 86400000;
+        const newThisWeek = guests.filter((g) => new Date(g.created_at).getTime() > week).length;
+        const visited = guests.filter((g) => Number(g.visit_count) > 0);
+        const repeat = visited.length ? Math.round((visited.filter((g) => Number(g.visit_count) >= 2).length / visited.length) * 100) : 0;
+        const top = [...guests].sort((a, b) => Number(b.total_spend || 0) - Number(a.total_spend || 0)).slice(0, 5).filter((g) => Number(g.total_spend) > 0);
+        return (
+          <Card className="mt-6 p-5">
+            <h2 className="mb-3 text-sm font-semibold text-zinc-300">Guests</h2>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <div className="text-3xl font-bold tabular-nums">{newThisWeek}</div>
+                <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">New this week</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold tabular-nums">{repeat}%</div>
+                <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">Repeat rate</div>
+              </div>
+              <div>
+                <div className="mb-1 text-xs uppercase tracking-wide text-zinc-500">Top spenders</div>
+                {top.length === 0 ? <div className="text-xs text-zinc-600">—</div> : top.map((g) => (
+                  <div key={g.id} className="flex justify-between text-xs">
+                    <span className="truncate pr-2 text-zinc-300">{g.name || g.wa_profile_name || g.phone_number}</span>
+                    <span className="tabular-nums text-zinc-400">EGP {Number(g.total_spend).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Card className="p-5">

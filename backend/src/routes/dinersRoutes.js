@@ -29,7 +29,28 @@ router.get("/:id", async (req, res, next) => {
     const reservations = (await req.repo.list("reservations", { order: "date" }))
       .filter((r) => r.diner_phone === diner.phone_number)
       .slice(0, 20);
-    res.json({ ...diner, reservations });
+    // order history + derived stats — a CRM shows what they DO, not just fields
+    let orders = [], stats = null;
+    try {
+      orders = (await req.repo.list("orders", { order: "created_at", desc: true }))
+        .filter((o) => o.phone_number === diner.phone_number)
+        .slice(0, 25)
+        .map((o) => ({
+          id: o.id, code: o.code, status: o.status, order_type: o.order_type,
+          total: o.total, branch: o.branch, created_at: o.created_at,
+          items: (o.items || []).map((i) => `${i.qty}× ${i.name}`).join(", "),
+        }));
+      const done = orders.filter((o) => o.status !== "cancelled");
+      const branchCounts = {};
+      for (const o of done) if (o.branch) branchCounts[o.branch] = (branchCounts[o.branch] || 0) + 1;
+      stats = {
+        order_count: done.length,
+        avg_ticket: done.length ? Math.round(done.reduce((s, o) => s + Number(o.total || 0), 0) / done.length) : 0,
+        last_order_at: done[0]?.created_at || null,
+        favorite_branch: Object.entries(branchCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null,
+      };
+    } catch {}
+    res.json({ ...diner, reservations, orders, stats });
   } catch (e) { next(e); }
 });
 
