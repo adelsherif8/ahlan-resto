@@ -87,10 +87,10 @@ const CASES = [
     msg: "hi",
     seed: { diner: { name: "Omar", visit_count: 4, last_seen_days_ago: 3 }, order: { items: [{ name: "Iconic Meal", qty: 1, price: 265, options: { format: "Full Meal", size: "Small", side: "French fries", drink: "Sprite" } }], order_type: "pickup", total: 265, status: "served" } },
     expect: [/Same as last/i] },
-  { id: "faketable", needs: "casual", name: "Unknown table → honest, never claims the order is placed",
+  { id: "faketable", needs: "tables", name: "Unknown table → honest, never claims the order is placed",
     turns: ["1 iconic meal", "Full Meal, Small, French fries, sprite", "dine-in", "23"],
     expect: [/T1|T2|T3|B1|TR1/i], forbid: [/kitchen'?s on it|order (is )?placed|on the grill|O-[A-Z2-9]{4}/i] },
-  { id: "realtable", needs: "casual", name: "Bare table number after we ask is understood",
+  { id: "realtable", needs: "tables", name: "Bare table number after we ask is understood",
     turns: ["1 iconic meal", "Full Meal", "Small", "French fries", "sprite", "dine-in", "T3", "Maadi", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /T3/i] },
   { id: "casualbook", needs: "casual", name: "Booking ask → walk-in + waitlist, never books", msg: "book me a table for 2 tomorrow at 8pm",
@@ -277,6 +277,9 @@ export async function runRegression({ only } = {}) {
     const tenant = await resolveRestaurant();
     const rtype = tenant.config.basic_info?.restaurant_type || "fine";
     const reservable = rtype !== "casual" && tenant.config.ai?.reservations_enabled !== false;
+    // "tables" cases exercise the ask-your-table gate — meaningless when the
+    // restaurant runs without table numbers (services.table_numbers=false)
+    const tablesOn = tenant.config.basic_info?.services?.table_numbers !== false;
     const picked = only?.length ? CASES.filter((c) => only.includes(c.id)) : CASES;
     if (only?.length) {
       const unknown = only.filter((id) => !CASES.some((c) => c.id === id));
@@ -289,8 +292,8 @@ export async function runRegression({ only } = {}) {
     const runQueue = async (q) => {
         while (q.length) {
           const c = q.shift();
-          if ((c.needs === "reservations" && !reservable) || (c.needs === "casual" && reservable)) {
-            state.results.push({ id: c.id, name: c.name, pass: true, reply: `SKIPPED (${c.needs}-only, restaurant is ${rtype})`, failures: [] });
+          if ((c.needs === "reservations" && !reservable) || (["casual", "tables"].includes(c.needs) && reservable) || (c.needs === "tables" && !tablesOn)) {
+            state.results.push({ id: c.id, name: c.name, pass: true, reply: `SKIPPED (${c.needs}-only, restaurant is ${rtype}${c.needs === "tables" && !tablesOn ? ", tables off" : ""})`, failures: [] });
             state.passed++;
             continue;
           }

@@ -46,7 +46,10 @@ defineFlow({
       return {
         menu, openOrder: open?.[0] || null,
         tableNumbers: (tables || []).map((t) => String(t.table_number).toUpperCase()),
-        branch: diner?.preferred_branch || pending?.branch || null, // sticky once chosen
+        // sticky only within the CURRENT draft — every new order asks the branch
+        // again (guests of a 9-branch chain move around); their usual is a hint,
+        // not a silent decision
+        branch: pending?.branch || null,
         pending,
       };
     }, { input: { sessionId: ctx.sessionId } });
@@ -78,7 +81,10 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         ? branches.find((b) => normName(b.name) === normName(e.branch)) ||
           branches.find((b) => normName(b.name).includes(normName(e.branch)) || normName(e.branch).includes(normName(b.name)))
         : null) || matchBranchByText(branches, `${e.branch || ""} ${input.message}`);
-      let branch = named?.key || loaded.branch || null;
+      // "usual"/"same branch" resolves to their remembered branch without retyping it
+      const usualKey = branches.some((b) => b.key === diner?.preferred_branch) ? diner.preferred_branch : null;
+      const askedUsual = usualKey && /\b(usual|same branch|نفس الفرع)\b/i.test(input.message) ? usualKey : null;
+      let branch = named?.key || askedUsual || loaded.branch || null;
       if (named && diner?.id && named.key !== diner.preferred_branch) {
         // pre-migration safe: column may not exist yet
         await db.from("diners").update({ preferred_branch: named.key }).eq("id", diner.id).then(({ error }) => {
@@ -308,6 +314,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
           kind: "ask_fulfillment", items, running,
           need_type: needType, delivery: deliveryOn,
           need_branch: needBranch, branches: branches.map((b) => b.name), nearest: near,
+          usual: branches.find((b) => b.key === usualKey)?.name || null,
           need_table: needTable, tables: loaded.tableNumbers.slice(0, 12),
           need_address: needAddress, saved: saved.map((s2) => s2.text),
         };
@@ -486,7 +493,8 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       const qs = [];
       if (outcome.need_type) qs.push(`How would you like it?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`);
       if (outcome.need_branch) {
-        const near = outcome.nearest?.length ? `\nClosest to you: ${outcome.nearest[0]} 📍` : "";
+        const near = outcome.nearest?.length ? `\nClosest to you: ${outcome.nearest[0]} 📍`
+          : outcome.usual ? `\nYour usual: ${outcome.usual} ⭐` : "";
         qs.push(`Which branch?${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
       }
       if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
