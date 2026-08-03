@@ -66,7 +66,7 @@ async function pushStatus(code, status) {
 
 // each transition gets its own timestamp — real prep/wait metrics need more
 // than a single updated_at
-const STAMP = { preparing: "started_at", ready: "ready_at", served: "served_at", delivered: "served_at" };
+const STAMP = { preparing: "started_at", ready: "ready_at", served: "served_at", out_for_delivery: "out_at", delivered: "delivered_at" };
 
 router.patch("/:id", async (req, res, next) => {
   try {
@@ -75,13 +75,15 @@ router.patch("/:id", async (req, res, next) => {
       if (k in req.body) patch[k] = req.body[k];
     if (patch.status && STAMP[patch.status]) patch[STAMP[patch.status]] = new Date().toISOString();
     if (patch.status === "cancelled" && req.body.cancel_reason) patch.cancel_reason = String(req.body.cancel_reason).slice(0, 120);
-    const before = patch.status === "cancelled" ? await req.repo.get("orders", req.params.id) : null;
+    const before = ["cancelled", "delivered"].includes(patch.status) ? await req.repo.get("orders", req.params.id) : null;
+    // COD is collected at the door — delivered means paid for cash orders
+    if (patch.status === "delivered" && before?.payment_method === "cash") patch.payment_status = "paid";
     let row;
     try {
       row = await req.repo.update("orders", req.params.id, patch);
     } catch (err) {
-      // migration 010 not run yet — drop the stamp columns, fold the reason into notes
-      const { started_at: _s, ready_at: _r, served_at: _v, cancel_reason, ...bare } = patch;
+      // migrations 010/012 not run yet — drop the stamp columns, fold the reason into notes
+      const { started_at: _s, ready_at: _r, served_at: _v, out_at: _o, delivered_at: _d, cancel_reason, ...bare } = patch;
       if (cancel_reason) bare.notes = [before?.notes, `cancelled: ${cancel_reason}`].filter(Boolean).join(" · ");
       row = await req.repo.update("orders", req.params.id, bare);
     }

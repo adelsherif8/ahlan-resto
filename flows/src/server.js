@@ -224,7 +224,8 @@ app.post("/api/order/status", (req, res, next) => opsAuth(req, res, next), async
         ? `🍔 Order ${order.code} is ready — it's on its way to your table!`
         : type === "pickup"
         ? `✅ Order ${order.code} is READY to pick up${brName ? ` from ${brName}` : ""}!${maps ? `\n📍 ${maps}` : ""}`
-        : `✅ Order ${order.code} is ready and heading out to you now!`,
+        : `✅ Order ${order.code} is ready — your rider is picking it up now!`,
+      out_for_delivery: `🛵 Order ${order.code} is ON ITS WAY${order.courier_name ? ` with ${order.courier_name}` : ""}${order.address ? ` to ${order.address}` : ""}!`,
       served: type === "delivery"
         ? `🛵 Order ${order.code} is ON ITS WAY${brName ? ` from ${brName}` : ""}${order.address ? ` to ${order.address}` : ""}.${maps ? `\n📍 Coming from: ${maps}` : ""}`
         : null,
@@ -239,6 +240,151 @@ app.post("/api/order/status", (req, res, next) => opsAuth(req, res, next), async
     await logMessage(tenant.db, order.phone_number, "ai", text, ctx.channel); // visible in Chats + web poll
     await tenant.db.from("orders").update({ notified_status: status }).eq("code", code).then(() => {}, () => {});
     res.json({ sent: true, status });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ================= driver page (token IS the auth — no login, no ops token) =================
+// The kitchen sends the courier one link: order details, guest address + maps,
+// the money to collect, and four buttons that message the guest on WhatsApp.
+
+async function driverOrder(token) {
+  if (!token || !/^[a-z2-9]{16,30}$/.test(String(token))) return null;
+  const tenant = await resolveRestaurant();
+  const { data: order } = await tenant.db.from("orders").select("*").eq("courier_token", String(token)).maybeSingle();
+  if (!order || order.status === "cancelled") return null;
+  return { tenant, order };
+}
+
+async function pushGuest(tenant, order, text) {
+  if (!order.phone_number || String(order.phone_number).startsWith("walkin:")) return;
+  const ctx = { sessionId: order.phone_number, tenant, channel: String(order.phone_number).startsWith("web:") ? "web" : "whatsapp" };
+  await deliverStaffReply(ctx, text).catch(() => {});
+  await logMessage(tenant.db, order.phone_number, "ai", text, ctx.channel).catch(() => {});
+}
+
+app.get("/driver/:token", async (req, res) => {
+  try {
+    const hit = await driverOrder(req.params.token);
+    if (!hit) return res.status(404).send("<h3 style=\"font-family:sans-serif\">Link expired or order not found.</h3>");
+    const { tenant, order } = hit;
+    const branches = (tenant.config.basic_info?.branches || []).filter((b) => b?.key);
+    const br = branches.find((b) => b.key === order.branch) || null;
+    const guestMaps = order.map_link || (order.lat && order.lng ? `https://maps.google.com/?q=${order.lat},${order.lng}` : `https://maps.google.com/?q=${encodeURIComponent(order.address || "")}`);
+    const brMaps = br?.lat && br?.lng ? `https://maps.google.com/?q=${br.lat},${br.lng}` : null;
+    const cod = order.payment_method === "cash" ? Number(order.total) : 0;
+    const items = (order.items || []).map((i) => `<div class="it"><b>${i.qty}× ${String(i.name)}</b></div>`).join("");
+    const phone = String(order.phone_number || "").replace(/[^+\d]/g, "");
+    const accent = tenant.config.basic_info?.brand?.primary || "#ea0000";
+    res.setHeader("content-type", "text/html; charset=utf-8");
+    res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${order.code} — delivery</title><style>
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f5f4f1;margin:0;padding:16px;color:#1c1917}
+  .card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  h1{font-size:30px;letter-spacing:3px;text-align:center;margin:4px 0}
+  .sub{text-align:center;color:#78716c;font-size:13px;margin-bottom:4px}
+  .it{padding:3px 0;font-size:14px}
+  .row{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
+  .cod{background:#fef3c7;border:1px solid #f59e0b;border-radius:12px;padding:10px;text-align:center;font-weight:700;font-size:17px;margin-top:8px}
+  a.link{display:block;background:#fff;border:1.5px solid #d6d3d1;border-radius:12px;padding:12px;text-align:center;font-weight:600;color:#1c1917;text-decoration:none;margin-bottom:8px}
+  button{width:100%;border:0;border-radius:12px;padding:14px;font-size:15px;font-weight:700;margin-bottom:8px;cursor:pointer}
+  .primary{background:${accent};color:#fff}
+  .ghost{background:#fff;border:1.5px solid #d6d3d1;color:#1c1917}
+  .ok{background:#059669;color:#fff}
+  #msg{text-align:center;color:#059669;font-weight:600;min-height:20px;font-size:13px}
+  .muted{color:#78716c;font-size:12px;text-align:center}
+</style></head><body>
+  <div class="card">
+    <div class="sub">${tenant.config.name} — delivery</div>
+    <h1>${order.code}</h1>
+    <div class="sub">${order.status === "delivered" ? "DELIVERED ✅" : String(order.status).replace(/_/g, " ").toUpperCase()}</div>
+    ${items}
+    <div class="row"><span>Total</span><b>EGP ${Number(order.total).toLocaleString()}</b></div>
+    ${cod ? `<div class="cod">COLLECT CASH: EGP ${cod.toLocaleString()}</div>` : `<div class="row"><span>Payment</span><b>${String(order.payment_method || "paid").toUpperCase()} — nothing to collect</b></div>`}
+  </div>
+  <div class="card">
+    <div style="font-size:13px;color:#78716c;margin-bottom:6px">DELIVER TO</div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:10px">${order.address || "—"}</div>
+    <a class="link" href="${guestMaps}" target="_blank">🗺 Open guest location</a>
+    ${phone && !phone.startsWith("web") ? `<a class="link" href="tel:${phone}">📞 Call guest</a>` : ""}
+    ${brMaps ? `<a class="link" href="${brMaps}" target="_blank">🏪 Pickup from ${br.name}</a>` : ""}
+  </div>
+  <div class="card">
+    <button class="primary" onclick="act('out')">🛵 On my way</button>
+    <button class="ghost" onclick="act('near')">📍 I'm 2 minutes away</button>
+    <button class="ghost" onclick="act('delay')">⏳ Running ~10 min late</button>
+    <button class="ok" onclick="if(confirm('Mark ${order.code} as DELIVERED?'))act('delivered')">✅ Delivered</button>
+    <div id="msg"></div>
+    <div class="muted">Each button sends the guest a WhatsApp update. Location sharing helps the restaurant see where you are.</div>
+  </div>
+<script>
+  const T = ${JSON.stringify(String(req.params.token))};
+  async function act(action){
+    const r = await fetch('/api/driver/'+T+'/action', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action})});
+    const j = await r.json().catch(()=>({}));
+    document.getElementById('msg').textContent = j.ok ? (j.note || 'Guest notified ✓') : (j.error || 'Failed — try again');
+    if(action==='delivered' && j.ok) setTimeout(()=>location.reload(), 800);
+  }
+  // best-effort breadcrumb so the kitchen can see where the rider is
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition((p) => {
+      fetch('/api/driver/'+T+'/loc', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({lat:p.coords.latitude,lng:p.coords.longitude})}).catch(()=>{});
+    }, () => {}, { enableHighAccuracy: false, maximumAge: 30000 });
+  }
+</script></body></html>`);
+  } catch (e) {
+    res.status(500).send("error");
+  }
+});
+
+app.post("/api/driver/:token/action", async (req, res) => {
+  try {
+    const hit = await driverOrder(req.params.token);
+    if (!hit) return res.status(404).json({ error: "not found" });
+    const { tenant, order } = hit;
+    const action = String(req.body?.action || "");
+    const db = tenant.db;
+    if (action === "out") {
+      await db.from("orders").update({ status: "out_for_delivery", out_at: new Date().toISOString(), notified_status: "out_for_delivery" }).eq("id", order.id)
+        .then((r2) => r2.error ? db.from("orders").update({ status: "out_for_delivery" }).eq("id", order.id) : r2);
+      await pushGuest(tenant, order, `🛵 Order ${order.code} is ON ITS WAY${order.address ? ` to ${order.address}` : ""}!`);
+      return res.json({ ok: true, note: "Guest told it's on the way ✓" });
+    }
+    if (action === "near") {
+      await pushGuest(tenant, order, `📍 Your rider is 2 minutes away with order ${order.code} — see you in a moment!`);
+      return res.json({ ok: true, note: "Guest told you're near ✓" });
+    }
+    if (action === "delay") {
+      const extra = (Number(order.eta_extra_min) || 0) + 10;
+      await db.from("orders").update({ eta_extra_min: extra }).eq("id", order.id).then(() => {}, () => {});
+      await pushGuest(tenant, order, `⏳ Quick heads-up — order ${order.code} is running about 10 minutes behind. Sorry, and thanks for the patience 🙏`);
+      return res.json({ ok: true, note: "Guest told about the delay ✓" });
+    }
+    if (action === "delivered") {
+      const patch = { status: "delivered", delivered_at: new Date().toISOString(), notified_status: "delivered" };
+      if (order.payment_method === "cash") patch.payment_status = "paid"; // COD collected at the door
+      await db.from("orders").update(patch).eq("id", order.id)
+        .then((r2) => r2.error ? db.from("orders").update({ status: "delivered", ...(order.payment_method === "cash" ? { payment_status: "paid" } : {}) }).eq("id", order.id) : r2);
+      await pushGuest(tenant, order, `🎉 Order ${order.code} delivered — enjoy! How was everything? A quick rating from 1–5 helps us a lot 🙌`);
+      return res.json({ ok: true, note: "Delivered — guest thanked ✓" });
+    }
+    res.status(400).json({ error: "unknown action" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/driver/:token/loc", async (req, res) => {
+  try {
+    const hit = await driverOrder(req.params.token);
+    if (!hit) return res.status(404).json({ error: "not found" });
+    const { lat, lng } = req.body || {};
+    if (typeof lat !== "number" || typeof lng !== "number") return res.status(400).json({ error: "lat/lng required" });
+    await hit.tenant.db.from("orders")
+      .update({ courier_lat: lat, courier_lng: lng, courier_seen_at: new Date().toISOString() })
+      .eq("id", hit.order.id).then(() => {}, () => {});
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

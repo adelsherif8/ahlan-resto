@@ -12,8 +12,15 @@ const COLS: { key: string; label: string; Icon: any; statuses: string[]; next?: 
   { key: "new", label: "New", Icon: Inbox, statuses: ["pending", "accepted"], next: "preparing", nextLabel: "Start" },
   { key: "preparing", label: "On the grill", Icon: Flame, statuses: ["preparing"], next: "ready", nextLabel: "Ready" },
   { key: "ready", label: "Ready", Icon: CheckCircle2, statuses: ["ready"], next: "served", nextLabel: "Handed over" },
+  { key: "road", label: "On the road", Icon: Bike, statuses: ["out_for_delivery"], next: "delivered", nextLabel: "Delivered" },
   { key: "done", label: "Done", Icon: Flag, statuses: ["served", "delivered", "paid"] },
 ];
+
+// delivery tickets take the courier detour: Ready → out the door → delivered
+const nextFor = (o: any, col: any) =>
+  col.key === "ready" && o.order_type === "delivery"
+    ? { next: "out_for_delivery", label: "Send out" }
+    : col.next ? { next: col.next, label: col.nextLabel } : null;
 
 const TYPE: Record<string, { label: string; Icon: any; bar: string; chip: string }> = {
   dine_in:       { label: "DINE IN",   Icon: Utensils,    bar: "bg-sky-500",     chip: "bg-sky-100 text-sky-800" },
@@ -151,7 +158,8 @@ export default function Orders() {
   );
   const visible = dayRows.filter((o) => o.status !== "cancelled");
   const cancelled = dayRows.filter((o) => o.status === "cancelled");
-  const active = isToday ? visible.filter((o) => !COLS[3].statuses.includes(o.status)) : [];
+  const DONE = ["served", "delivered", "paid"];
+  const active = isToday ? visible.filter((o) => !DONE.includes(o.status)) : [];
   const fresh = isToday ? visible.filter((o) => COLS[0].statuses.includes(o.status)) : [];
 
   // new-ticket ding + flash + tab badge (today only; skip the very first load)
@@ -182,7 +190,7 @@ export default function Orders() {
   }
 
   // digest numbers — real prep time when the stamps exist, updated_at as fallback
-  const done = visible.filter((o) => COLS[3].statuses.includes(o.status));
+  const done = visible.filter((o) => DONE.includes(o.status));
   const prepTimes = done
     .map((o) => {
       const end = o.ready_at || o.served_at || o.updated_at;
@@ -396,17 +404,21 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount }: any) {
 }
 
 function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint }: any) {
-  const age = mins(o.created_at);
-  const warm = !readOnly && col.key !== "done" && age >= 10 && age < 20;
-  const late = !readOnly && col.key !== "done" && age >= 20;
+  const step = nextFor(o, col);
+  const [copied, setCopied] = useState(false);
+  const road = col.key === "road";
+  const age = road ? mins(o.out_at || o.updated_at || o.created_at) : mins(o.created_at);
+  const lateAt = road ? 60 : 20;
+  const warm = !readOnly && col.key !== "done" && age >= lateAt / 2 && age < lateAt;
+  const late = !readOnly && col.key !== "done" && age >= lateAt;
   const t = typeOf(o.order_type);
   const phone = String(o.phone_number || "");
   const callable = /^[+\d][\d\s-]{6,}$/.test(phone);
   return (
     <div id={`tk-${o.id}`} className={`drop-shadow-md ${flash ? "animate-pulse" : ""}`}>
       <div
-        onClick={() => !readOnly && col.next && onAdvance(o, col.next)}
-        className={`overflow-hidden rounded-t-sm bg-[#fbfaf4] font-mono text-neutral-900 ${!readOnly && col.next ? "cursor-pointer" : ""} ${
+        onClick={() => !readOnly && step && onAdvance(o, step.next)}
+        className={`overflow-hidden rounded-t-sm bg-[#fbfaf4] font-mono text-neutral-900 ${!readOnly && step ? "cursor-pointer" : ""} ${
           late ? "ring-2 ring-red-500 animate-[pulse_1.6s_ease-in-out_infinite]" : flash ? "ring-2 ring-emerald-400" : ""
         }`}
       >
@@ -471,15 +483,25 @@ function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, on
             {o.payment_method && (<span className="ml-1.5 text-[11px] font-normal uppercase text-neutral-500">{o.payment_method}</span>)}
           </span>
           <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+            {o.order_type === "delivery" && o.courier_token && (
+              <button
+                title="Copy the driver link — send it to the courier on WhatsApp"
+                onClick={() => {
+                  navigator.clipboard?.writeText(`https://ahlan-resto.vercel.app/driver/${o.courier_token}`).catch(() => {});
+                  setCopied(true); setTimeout(() => setCopied(false), 1500);
+                }}
+                className={`rounded-sm border px-2 py-1 text-xs font-bold ${copied ? "border-emerald-400 text-emerald-600" : "border-neutral-300 hover:bg-neutral-100"}`}
+              >{copied ? "✓" : <Bike size={13} />}</button>
+            )}
             <button title="Print ticket" onClick={() => onPrint(o, branchName)}
               className="rounded-sm border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"><Printer size={13} /></button>
             {!readOnly && col.key === "new" && (
               <button title="Cancel order" onClick={onCancel}
                 className="rounded-sm border border-red-300 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50"><X size={13} /></button>
             )}
-            {!readOnly && col.next && (
-              <button onClick={() => onAdvance(o, col.next)}
-                className="rounded-sm bg-neutral-900 px-3 py-1 text-xs font-bold text-[#fbfaf4] hover:bg-neutral-700">{col.nextLabel}</button>
+            {!readOnly && step && (
+              <button onClick={() => onAdvance(o, step.next)}
+                className="rounded-sm bg-neutral-900 px-3 py-1 text-xs font-bold text-[#fbfaf4] hover:bg-neutral-700">{step.label}</button>
             )}
           </div>
         </div>

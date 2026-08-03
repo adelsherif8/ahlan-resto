@@ -6,6 +6,7 @@
   "rewrites": [
     { "source": "/menu.pdf", "destination": "https://flows-production-e528.up.railway.app/pdf/menu" },
     { "source": "/receipt/:code", "destination": "https://flows-production-e528.up.railway.app/pdf/receipt/:code" },
+    { "source": "/driver/:token", "destination": "https://flows-production-e528.up.railway.app/driver/:token" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

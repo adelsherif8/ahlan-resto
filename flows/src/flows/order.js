@@ -449,6 +449,12 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         }));
       }
       if (error) throw new Error(`order insert failed: ${error.message}`);
+      // delivery gets a driver link: unguessable token IS the courier's login.
+      // Separate error-tolerant update so a pre-migration DB never blocks a ticket.
+      if (orderType === "delivery") {
+        const courierToken = Array.from({ length: 22 }, () => "abcdefghijkmnpqrstuvwxyz23456789"[Math.floor(Math.random() * 32)]).join("");
+        await db.from("orders").update({ courier_token: courierToken }).eq("code", code).then(() => {}, () => {});
+      }
       if (diner?.id) { // order placed → the in-progress draft is done
         const { pending_order: _p, ...rest } = diner.preferences || {};
         // remember where they had it sent, so next time we offer instead of ask
