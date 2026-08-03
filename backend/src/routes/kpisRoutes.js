@@ -31,14 +31,48 @@ router.get("/kpis", async (req, res, next) => {
       ? (ratings.reduce((s, f) => s + f.rating, 0) / ratings.length).toFixed(1)
       : null;
 
+    // orders-first numbers for casual restaurants — test rows and other days excluded
+    const isTest = (v) => /^web:(regress|convo|test)-/i.test(String(v || ""));
+    const real = orders.filter((o) => !isTest(o.phone_number));
+    const todayOrders = real.filter((o) => String(o.created_at).slice(0, 10) === today);
+    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString("en-CA");
+    const kept = todayOrders.filter((o) => o.status !== "cancelled");
+    const round2 = (n) => Math.round(n * 100) / 100;
+    const revenue = round2(kept.reduce((s, o) => s + Number(o.total || 0), 0));
+    const revenueYesterday = round2(real
+      .filter((o) => String(o.created_at).slice(0, 10) === yesterday && o.status !== "cancelled")
+      .reduce((s, o) => s + Number(o.total || 0), 0));
+    const openNow = todayOrders.filter((o) => !["paid", "cancelled", "served", "delivered"].includes(o.status));
+    const lateNow = openNow.filter((o) => (Date.now() - new Date(o.created_at).getTime()) / 60000 > 20).length;
+    const prep = kept
+      .map((o) => { const end = o.ready_at || o.served_at; return end ? (new Date(end).getTime() - new Date(o.created_at).getTime()) / 60000 : null; })
+      .filter((x) => x !== null && x > 0 && x < 240);
+    const byHour = {};
+    for (const o of kept) { const h = new Date(o.created_at).getHours(); byHour[h] = byHour[h] || { count: 0, egp: 0 }; byHour[h].count++; byHour[h].egp += Number(o.total || 0); }
+    const itemCounts = {};
+    for (const o of kept) for (const it of o.items || []) itemCounts[it.name] = (itemCounts[it.name] || 0) + (Number(it.qty) || 1);
+    const byBranch = {};
+    for (const o of kept) { const b = o.branch || "—"; byBranch[b] = byBranch[b] || { count: 0, egp: 0 }; byBranch[b].count++; byBranch[b].egp = round2(byBranch[b].egp + Number(o.total || 0)); }
+
     res.json({
+      orders_today: {
+        count: kept.length,
+        revenue, revenue_yesterday: revenueYesterday,
+        open_now: openNow.length, late_now: lateNow,
+        cancelled: todayOrders.length - kept.length,
+        avg_prep: prep.length ? Math.round(prep.reduce((s, x) => s + x, 0) / prep.length) : null,
+        ai_count: kept.filter((o) => !String(o.phone_number || "").startsWith("walkin:")).length,
+        by_hour: Object.entries(byHour).map(([h, v]) => ({ hour: Number(h), ...v })).sort((a, b) => a.hour - b.hour),
+        top_items: Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, units]) => ({ name, units })),
+        by_branch: Object.entries(byBranch).map(([branch, v]) => ({ branch, ...v })).sort((a, b) => b.egp - a.egp),
+      },
       covers_today: coversToday,
       reservations_today: todays.filter((r) => active(r.status)).length,
       pending_deposits: reservations.filter((r) => r.deposit_status === "pending").length,
       waitlist_now: waitlist.filter((w) => ["waiting", "notified"].includes(w.status)).length,
       tables_seated: seated,
       tables_total: tables.length,
-      open_orders: orders.filter((o) => !["paid", "cancelled", "served", "delivered"].includes(o.status)).length,
+      open_orders: openNow.length,
       needs_attention: sessions.filter((s) => s.needs_attention).length,
       no_show_rate_pct: noShowRate,
       avg_rating: avgRating,

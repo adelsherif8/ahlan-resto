@@ -66,6 +66,12 @@ export default function DashboardLayout() {
       }
       document.documentElement.dataset.theme = b.mode === "light" ? "light" : "dark";
       if (r.data?.name) document.title = r.data.name;
+      // the browser tab wears the restaurant's own logo
+      if (b.logo_url) {
+        let link = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+        if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
+        link.href = b.logo_url;
+      }
     }).catch(() => {});
   }, []);
 

@@ -9,6 +9,18 @@ import { bump } from "../services/metrics.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm)\W*$/i;
 
+// menu names for the verbless-order rule — cached, the menu changes rarely
+let menuNameCache = { at: 0, names: [] };
+async function menuNames(db) {
+  if (Date.now() - menuNameCache.at > 60_000) {
+    try {
+      const { data } = await db.from("menu_items").select("name").eq("available", true);
+      menuNameCache = { at: Date.now(), names: (data || []).map((m) => String(m.name).toLowerCase()) };
+    } catch { /* keep the stale cache */ }
+  }
+  return menuNameCache.names;
+}
+
 defineFlow({
   name: "master",
   description: "Router — sanitize, diner upsert, 0-LLM fast paths, intent classification, dispatch",
@@ -89,12 +101,28 @@ defineFlow({
       if (precheck.active_flow === "order" && message.trim().length <= 45) {
         return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (short answer inside an active order)" } };
       }
+      // "an iconic wrap meal for dine in at Sheraton" — no verb, but a menu item
+      // plus an order-type word is an order, period. Real guests phrase it exactly
+      // like this and the model sometimes filed it under friendly.
+      const TYPE_WORD = /\b(dine.?in|pick.?up|pickup|take.?away|deliver(y|ed)?|توصيل|استلام|تيك ?اواي)\b/i;
+      if (TYPE_WORD.test(message) && !/[?؟]/.test(message)) {
+        const names = await menuNames(db);
+        const ml = ` ${message.toLowerCase()} `;
+        const hit = names.some((n) => {
+          if (ml.includes(n)) return true;
+          const tok = n.split(/\s+/)[0];
+          return tok.length >= 4 && ml.includes(` ${tok}`);
+        });
+        if (hit) {
+          return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (menu item + order-type wording)" } };
+        }
+      }
       const system = `Classify a WhatsApp message to a trendy Cairo restaurant. Reply JSON only.
 Buckets:
 - "reservation": wants/asks about booking, changing, cancelling a table ("table for 4", "احجزلي", "cancel my booking")
 - "arrival": is at/near the restaurant now ("I'm here", "wa2eft barra", "running late 10 min")
 - "events": asks about parties/DJ nights/special events or wants to RSVP
-- "order": wants food MADE now — placing/changing/cancelling an order, or chasing one ("2 burgers for pickup", "same as last time", "the usual please", "نفس الطلب", "where's my order")
+- "order": wants food MADE now — placing/changing/cancelling an order, or chasing one ("2 burgers for pickup", "an iconic meal for dine in at Maadi", "same as last time", "the usual please", "نفس الطلب", "where's my order"). Naming a dish WITH an order-type word (dine-in/pickup/delivery) is an order even with no verb.
   NOT "order": a QUESTION about the menu — price, total, calories, ingredients, what's available ("how much is X?", "total for 2 burgers?", "بكام"). Naming a dish is not ordering it; asking what something costs is "friendly".
 - "friendly": everything else — greetings, menu questions, hours, location, complaints, chit-chat (DEFAULT when unsure)
 CONTINUATION RULE (most important): ORDER IN PROGRESS is ${precheck.active_flow === "order" ? `YES, stage "${precheck.stage}"` : "no"}. When an order is in progress, the guest is answering us — a drink name, a branch, "T3", "pickup", "card", "yes", an address — ALL of that is bucket "order", never friendly. Only route elsewhere if they clearly changed the subject (asking hours, complaining, booking a table).
