@@ -31,7 +31,6 @@ export default function Menu() {
   const [bySales, setBySales] = useState(false);
   const [tidy, setTidy] = useState<any[] | null>(null);
   const [tidying, setTidying] = useState(false);
-  const [form, setForm] = useState({ name: "", category: "", price: "", description: "", copyFrom: "" });
   const dragId = useRef<string | null>(null);
 
   const load = () => api.get("/api/menu").then((r) => setItems(r.data)).catch(() => {});
@@ -55,29 +54,6 @@ export default function Menu() {
   async function patch(item: any, body: any) {
     setItems((xs) => xs.map((x) => (x.id === item.id ? { ...x, ...body } : x)));
     await api.patch(`/api/menu/${item.id}`, body).catch(() => { load(); });
-  }
-
-  async function create(e: React.FormEvent) {
-    e.preventDefault();
-    const src = items.find((i) => i.id === form.copyFrom);
-    const { data: created } = await api.post("/api/menu", {
-      name: form.name, category: form.category || src?.category || "Mains",
-      price: Number(form.price), description: form.description || src?.description || null,
-      sort_order: (Math.max(0, ...items.filter((i) => i.category === (form.category || src?.category)).map((i) => Number(i.sort_order) || 0)) + 1),
-    });
-    // cloning: the questions/options and dish details ride along — a new meal is
-    // almost always "like that one, different name and price"
-    if (src && created?.id) {
-      await api.patch(`/api/menu/${created.id}`, {
-        options: src.options || null,
-        ingredients: src.ingredients || null,
-        spice_level: src.spice_level ?? null,
-        dietary_tags: src.dietary_tags || [],
-      }).catch(() => {});
-    }
-    setShowNew(false);
-    setForm({ name: "", category: form.category, price: "", description: "", copyFrom: "" });
-    load();
   }
 
   // one-tap duplicate: full copy incl. options and details, ready to rename
@@ -184,34 +160,7 @@ export default function Menu() {
 
       {tidy && <TidyModal fixes={tidy} onClose={() => setTidy(null)} onApplied={load} />}
 
-      {showNew && (
-        <Card className="mb-5 p-5">
-          <form onSubmit={create} className="grid gap-3 md:grid-cols-4">
-            <Input placeholder="Name *" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <div>
-              <Input list="menu-cats" placeholder="Category *" required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-              <datalist id="menu-cats">
-                {[...new Set(items.map((i) => i.category))].map((c) => <option key={c} value={c} />)}
-              </datalist>
-            </div>
-            <Input type="number" step="any" placeholder="Price *" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-            <Input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            <div className="md:col-span-3">
-              <select value={form.copyFrom} onChange={(e) => setForm({ ...form, copyFrom: e.target.value })}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200">
-                <option value="">Start blank — no option questions</option>
-                {items.filter((i) => (i.options || []).length).map((i) => (
-                  <option key={i.id} value={i.id}>Copy questions & details from: {i.name}</option>
-                ))}
-              </select>
-              <div className="mt-1 text-[11px] text-zinc-500">
-                Meals and bundles: copy from a similar item and the combo questions (sizes, fries, drinks, bundle slots) come with it — then adjust in ⚙ options.
-              </div>
-            </div>
-            <div className="flex items-start"><Btn type="submit">Add item</Btn></div>
-          </form>
-        </Card>
-      )}
+      {showNew && <NewItemModal items={items} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); load(); }} />}
 
       {items.length === 0 ? (
         <Card><Empty text="No menu items" /></Card>
@@ -461,6 +410,235 @@ function DetailsEditor({ item, onSaved }: { item: any; onSaved: () => void }) {
         >
           Save
         </Btn>
+      </div>
+    </div>
+  );
+}
+
+// ---------- the item builder: everything in one place, prefilled from the menu ----------
+// Kind decides the shape: a simple item, a meal with combo questions (sizes,
+// fries, drinks — cloned from your existing meals, editable inline), or a
+// bundle composed by picking which sandwiches guests may choose.
+
+const DIETARY = ["vegetarian", "vegan", "gf", "spicy"];
+
+function deepCopy<T>(v: T): T { return JSON.parse(JSON.stringify(v)); }
+
+function NewItemModal({ items, onClose, onCreated }: { items: any[]; onClose: () => void; onCreated: () => void }) {
+  const [kind, setKind] = useState<"simple" | "meal" | "bundle">("simple");
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+  const [ingredients, setIngredients] = useState("");
+  const [spice, setSpice] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [bestseller, setBestseller] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // meal template: cloned from your most complete existing meal, renamed to this item
+  const mealSrc = items.find((i) => (i.options || []).some((g: any) => g.key === "format"));
+  const [groups, setGroups] = useState<any[]>([]);
+  useEffect(() => {
+    if (kind !== "meal") return;
+    if (!mealSrc) { setGroups([]); return; }
+    const base = (mealSrc.name || "").replace(/\s+Meal$/i, "");
+    const mine = (name || "New item").replace(/\s+Meal$/i, "");
+    const g = deepCopy(mealSrc.options).map((grp: any) => ({
+      ...grp,
+      when: grp.when?.format ? { format: grp.when.format.map((w: string) => w.split(base).join(mine)) } : grp.when,
+      choices: (grp.choices || []).map((c: any) => ({ ...c, name: String(c.name).split(base).join(mine) })),
+    }));
+    setGroups(g);
+  }, [kind, name, mealSrc?.id]);
+
+  // bundle: pick the sandwiches guests can choose between
+  const bundleSrc = items.find((i) => (i.options || []).some((g: any) => g.key === "slots"));
+  const sandwichPool: string[] = bundleSrc
+    ? (bundleSrc.options.find((g: any) => g.key === "slots")?.slot_groups?.find((sg: any) => sg.key === "sandwich")?.choices || []).map((c: any) => c.name)
+    : [...new Set(items.filter((i) => /meal|sandwich|wrap|burger/i.test(i.name)).map((i) => i.name.replace(/\s+Meal$/i, "")))];
+  const [slotCount, setSlotCount] = useState(4);
+  const [picked, setPicked] = useState<string[]>(sandwichPool);
+  const [withNotes, setWithNotes] = useState(true);
+
+  function updateChoice(gi: number, ci: number, field: string, value: any) {
+    setGroups((gs) => gs.map((g, i) => i !== gi ? g : {
+      ...g, choices: g.choices.map((c: any, j: number) => j !== ci ? c : { ...c, [field]: value === "" || value === null ? undefined : value }),
+    }));
+  }
+  function removeChoice(gi: number, ci: number) {
+    setGroups((gs) => gs.map((g, i) => i !== gi ? g : { ...g, choices: g.choices.filter((_: any, j: number) => j !== ci) }));
+  }
+  function addChoice(gi: number) {
+    setGroups((gs) => gs.map((g, i) => i !== gi ? g : { ...g, choices: [...g.choices, { name: "" }] }));
+  }
+
+  function buildOptions(): any[] | null {
+    if (kind === "meal") {
+      return groups.map((g) => ({ ...g, choices: (g.choices || []).filter((c: any) => String(c.name).trim()) }))
+        .filter((g) => (g.choices || []).length);
+    }
+    if (kind === "bundle") {
+      const slot_groups: any[] = [{ key: "sandwich", label: "Sandwich", choices: picked.map((n) => ({ name: n })) }];
+      if (withNotes) slot_groups.push({ key: "notes", label: "Notes", free: true });
+      return [{ key: "slots", count: slotCount, label: `Your ${slotCount} sandwiches`, required: true, slot_groups }];
+    }
+    return null;
+  }
+
+  async function create() {
+    if (!name.trim() || !price || saving) return;
+    setSaving(true);
+    try {
+      const { data: created } = await api.post("/api/menu", {
+        name: name.trim(), category: category.trim() || "Mains", price: Number(price),
+        description: description.trim() || null,
+        sort_order: Math.max(0, ...items.filter((i) => i.category === category).map((i) => Number(i.sort_order) || 0)) + 1,
+      });
+      const options = buildOptions();
+      await api.patch(`/api/menu/${created.id}`, {
+        ...(options ? { options } : {}),
+        ingredients: ingredients.trim() || null,
+        spice_level: spice === "" ? null : Number(spice),
+        dietary_tags: tags,
+        bestseller,
+      }).catch(() => {});
+      if (photo) {
+        const fd = new FormData();
+        fd.append("photo", photo);
+        await api.post(`/api/menu/${created.id}/photo`, fd, { headers: { "Content-Type": "multipart/form-data" } }).catch(() => {});
+      }
+      onCreated();
+    } catch (e: any) {
+      alert(e.response?.data?.error || "Failed to create the item");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="grid max-h-[88vh] w-full max-w-2xl grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+          <div className="text-sm font-semibold">New menu item</div>
+          <button onClick={onClose}><X size={16} className="text-zinc-500 hover:text-zinc-200" /></button>
+        </div>
+
+        <div className="min-h-0 overflow-y-auto p-5">
+          {/* what kind of item — this decides which questions the bot will ask */}
+          <div className="mb-4 flex gap-1">
+            {([["simple", "Simple item"], ["meal", "Meal / combo"], ["bundle", "Bundle"]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setKind(k)}
+                className={`flex-1 rounded-lg px-2 py-2 text-xs font-medium ${kind === k ? "bg-zinc-200 text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input placeholder="Name * (e.g. Smoky BBQ Meal)" value={name} onChange={(e) => setName(e.target.value)} />
+            <div>
+              <Input list="nb-cats" placeholder="Category *" value={category} onChange={(e) => setCategory(e.target.value)} />
+              <datalist id="nb-cats">{[...new Set(items.map((i) => i.category))].map((c) => <option key={c} value={c} />)}</datalist>
+            </div>
+            <Input type="number" step="any" placeholder={kind === "meal" ? "Base price * (sandwich-only)" : "Price *"} value={price} onChange={(e) => setPrice(e.target.value)} />
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-zinc-700 px-3 py-2 text-xs text-zinc-400 hover:border-zinc-500">
+              <Camera size={14} />
+              {photo ? photo.name : "Photo (the bot sends it to guests)"}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+            </label>
+            <Input className="md:col-span-2" placeholder="Description — what's in it, how it's made" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Input placeholder="Ingredients (comma-sep — the bot answers from these)" value={ingredients} onChange={(e) => setIngredients(e.target.value)} />
+            <div className="flex items-center gap-3">
+              <select value={spice} onChange={(e) => setSpice(e.target.value)}
+                className="rounded-xl border border-zinc-700 bg-zinc-900 px-2 py-2 text-xs text-zinc-200">
+                <option value="">Spice: unknown</option>
+                <option value="0">Spice: none</option>
+                <option value="1">Spice: mild</option>
+                <option value="2">Spice: medium</option>
+                <option value="3">Spice: hot</option>
+              </select>
+              <label className="flex items-center gap-1.5 text-xs text-zinc-300">
+                <input type="checkbox" checked={bestseller} onChange={(e) => setBestseller(e.target.checked)} />
+                <Star size={12} className={bestseller ? "fill-amber-400 text-amber-400" : "text-zinc-500"} /> bestseller
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+              {DIETARY.map((t) => (
+                <button key={t} onClick={() => setTags((xs) => xs.includes(t) ? xs.filter((x) => x !== t) : [...xs, t])}
+                  className={`rounded-full px-2.5 py-1 text-[11px] ${tags.includes(t) ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800/70 text-zinc-500"}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {kind === "meal" && (
+            <div className="mt-5">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                Combo questions <span className="font-normal normal-case text-zinc-500">— prefilled from your menu; edit anything</span>
+              </div>
+              {!mealSrc ? (
+                <div className="text-xs text-zinc-500">No existing meal to copy the structure from — create one item with options first, or start simple and add options later.</div>
+              ) : groups.map((g, gi) => (
+                <div key={g.key} className="mb-3 rounded-xl border border-zinc-800 p-3">
+                  <div className="mb-2 text-xs font-semibold text-zinc-300">{g.label}{g.when ? <span className="ml-1 font-normal text-zinc-500">(only if {Object.values(g.when).flat().join("/")})</span> : null}</div>
+                  <div className="space-y-1.5">
+                    {(g.choices || []).map((c: any, ci: number) => (
+                      <div key={ci} className="flex items-center gap-2">
+                        <input value={c.name} placeholder="choice name"
+                          onChange={(e) => updateChoice(gi, ci, "name", e.target.value)}
+                          className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100" />
+                        <input type="number" step="any" placeholder={g.key === "format" ? "price" : "+EGP"}
+                          value={g.key === "format" ? (c.price ?? "") : (c.delta ?? "")}
+                          onChange={(e) => updateChoice(gi, ci, g.key === "format" ? "price" : "delta", e.target.value === "" ? "" : Number(e.target.value))}
+                          className="w-20 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-right text-xs text-zinc-100" />
+                        <button onClick={() => removeChoice(gi, ci)} className="text-zinc-600 hover:text-red-400"><X size={12} /></button>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => addChoice(gi)} className="mt-1.5 text-[11px] text-zinc-500 underline decoration-dotted hover:text-zinc-300">+ add choice</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {kind === "bundle" && (
+            <div className="mt-5">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">Bundle contents</div>
+              <div className="mb-3 flex items-center gap-2 text-xs text-zinc-300">
+                Guests pick
+                <select value={slotCount} onChange={(e) => setSlotCount(Number(e.target.value))}
+                  className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100">
+                  {[2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+                sandwiches, one at a time, with
+                <label className="flex items-center gap-1"><input type="checkbox" checked={withNotes} onChange={(e) => setWithNotes(e.target.checked)} /> per-sandwich notes</label>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3">
+                {sandwichPool.map((s) => (
+                  <button key={s} onClick={() => setPicked((xs) => xs.includes(s) ? xs.filter((x) => x !== s) : [...xs, s])}
+                    className={`rounded-lg border px-2 py-1.5 text-left text-xs ${picked.includes(s) ? "border-emerald-500/50 bg-emerald-500/10 text-zinc-100" : "border-zinc-800 text-zinc-500"}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-1.5 text-[11px] text-zinc-500">The bot sends a copy-paste template (FIRST CHOICE / SANDWICH / NOTES …) sized to {slotCount} and only accepts the sandwiches selected above.</div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-zinc-800 px-5 py-3">
+          <div className="text-[11px] text-zinc-500">
+            {kind === "meal" ? "Prices you leave from the template stay flagged amber until verified." : kind === "bundle" ? `${picked.length} sandwiches selectable.` : ""}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="rounded-xl border border-zinc-700 px-4 py-2 text-xs text-zinc-300">Cancel</button>
+            <Btn onClick={create} className={name.trim() && price ? "" : "pointer-events-none opacity-50"}>
+              {saving ? "Creating…" : "Create item"}
+            </Btn>
+          </div>
+        </div>
       </div>
     </div>
   );
