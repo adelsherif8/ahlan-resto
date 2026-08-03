@@ -153,6 +153,28 @@ app.post("/api/staff/reply", (req, res, next) => opsAuth(req, res, next), async 
   }
 });
 
+// Staff asks for a suggested reply — drafted from the same context the bot sees,
+// but ALWAYS reviewed and edited by a human before it goes anywhere.
+app.post("/api/ops/draft-reply", (req, res, next) => opsAuth(req, res, next), async (req, res) => {
+  try {
+    const { sessionId } = req.body || {};
+    if (!sessionId) return res.status(400).json({ error: "sessionId required" });
+    const tenant = await resolveRestaurant();
+    const { getHistory } = await import("./services/history.js");
+    const { chatText } = await import("./services/llm.js");
+    const { MODEL_FAST } = await import("./config.js");
+    const history = await getHistory(tenant.db, String(sessionId));
+    const recent = history.slice(-14).map((h) => `${h.role === "guest" ? "GUEST" : "US"}: ${h.message}`).join("\n");
+    const { data: diner } = await tenant.db.from("diners").select("name,allergies,preferences").eq("phone_number", String(sessionId)).maybeSingle();
+    const system = `You draft ONE short reply a restaurant staff member could send to a guest on WhatsApp. Restaurant: ${tenant.config.name}. Match the guest's language (Arabic/English/Franco). Warm, human, brief — 1-3 sentences. Never invent prices, availability or promises. If the situation needs a decision only staff can make, draft the honest holding line instead. Output ONLY the reply text.`;
+    const user = `Guest${diner?.name ? ` (${diner.name})` : ""}${diner?.allergies?.length ? `, allergies: ${diner.allergies.join(", ")}` : ""}.\nConversation so far:\n${recent}\n\nDraft the staff reply:`;
+    const r = await chatText(MODEL_FAST, system, user, { maxTokens: 200 });
+    res.json({ draft: String(r?.value || "").trim() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ================= order status push (called by the backend on status change) =================
 // Staff tap a ticket → the guest gets the right message for their order type.
 app.post("/api/order/status", (req, res, next) => opsAuth(req, res, next), async (req, res) => {

@@ -17,10 +17,43 @@ router.get("/sessions", async (req, res, next) => {
       const diners = await req.repo.list("diners");
       byPhone = new Map(diners.map((d) => [d.phone_number, d]));
     } catch {}
+    // latest order per guest today — powers the "just ordered" chip in the inbox
+    let lastOrder = new Map();
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const orders = await req.repo.list("orders", { order: "created_at", desc: true, limit: 200 });
+      for (const o of orders) {
+        if (String(o.created_at).slice(0, 10) !== today) break;
+        if (!lastOrder.has(o.phone_number)) lastOrder.set(o.phone_number, { code: o.code, status: o.status, at: o.created_at });
+      }
+    } catch {}
     res.json(rows.map((s) => {
       const d = byPhone.get(s.phone_number || s.session_id);
-      return { ...s, diner_name: d?.name || d?.wa_profile_name || null };
+      const p = d?.preferences?.pending_order;
+      const draftFresh = p?.items?.length && Date.now() - new Date(p.at || 0).getTime() < 120 * 60_000;
+      return {
+        ...s,
+        diner_name: d?.name || d?.wa_profile_name || null,
+        draft_stage: draftFresh
+          ? (p.awaiting_confirm ? "confirming" : p.awaiting_option ? "choosing options" : p.payment_method ? "confirming" : "building")
+          : null,
+        last_order: lastOrder.get(s.phone_number || s.session_id) || null,
+      };
     }));
+  } catch (e) { next(e); }
+});
+
+// AI-suggested staff reply — drafted by the flows service, edited by a human before send
+router.post("/sessions/:sessionId/draft-reply", async (req, res, next) => {
+  try {
+    if (!FLOWS_URL) return res.status(503).json({ error: "flows not configured" });
+    const r = await fetch(`${FLOWS_URL}/api/ops/draft-reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(FLOWS_OPS_TOKEN ? { "x-ops-token": FLOWS_OPS_TOKEN } : {}) },
+      body: JSON.stringify({ sessionId: req.params.sessionId }),
+    });
+    if (!r.ok) return res.status(502).json({ error: `flows ${r.status}` });
+    res.json(await r.json());
   } catch (e) { next(e); }
 });
 

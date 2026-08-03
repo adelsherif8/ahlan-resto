@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { api, session } from "../config/api";
 import NotificationBell from "./NotificationBell";
+import { unreadCount } from "../lib/unread";
 
 // black or white text on the brand color, by luminance
 function contrastFor(hex: string): string {
@@ -41,6 +42,18 @@ export default function DashboardLayout() {
     .filter((n) => role === "admin" || n.roles.includes(role))
     .filter((n) => (rtype === "casual" ? n.to !== "/reservations" : true))
     .sort((a, b) => (rtype === "casual" ? CASUAL_ORDER.indexOf(a.to) - CASUAL_ORDER.indexOf(b.to) : 0));
+
+  // unread chats badge — refreshed on a slow poll so reception never misses a guest
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (!(role === "admin" || ["manager", "host", "livechat"].includes(role))) return;
+    const load = () => api.get("/api/chat/sessions").then((r) => setUnread(unreadCount(r.data || []))).catch(() => {});
+    load();
+    const t = setInterval(load, 30000);
+    const bump = () => load();
+    window.addEventListener("chat-seen", bump);
+    return () => { clearInterval(t); window.removeEventListener("chat-seen", bump); };
+  }, [role]);
 
   useEffect(() => {
     api.get("/api/settings").then((r) => {
@@ -95,7 +108,12 @@ export default function DashboardLayout() {
               }
             >
               <Icon size={17} />
-              {label}
+              <span className="flex-1">{label}</span>
+              {to === "/chats" && unread > 0 && (
+                <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none" style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
+                  {unread}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
