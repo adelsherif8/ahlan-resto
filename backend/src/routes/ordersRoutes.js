@@ -71,7 +71,7 @@ const STAMP = { preparing: "started_at", ready: "ready_at", served: "served_at",
 router.patch("/:id", async (req, res, next) => {
   try {
     const patch = {};
-    for (const k of ["status", "payment_status", "notes", "table_number"])
+    for (const k of ["status", "payment_status", "notes", "table_number", "courier_name", "courier_phone"])
       if (k in req.body) patch[k] = req.body[k];
     if (patch.status && STAMP[patch.status]) patch[STAMP[patch.status]] = new Date().toISOString();
     if (patch.status === "cancelled" && req.body.cancel_reason) patch.cancel_reason = String(req.body.cancel_reason).slice(0, 120);
