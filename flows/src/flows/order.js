@@ -34,7 +34,12 @@ defineFlow({
 
     const loaded = await f.node("load", async () => {
       const { data: menuRows } = await db.from("menu_items").select("*").order("sort_order");
-      const menu = (menuRows || []).filter((m) => m.available);
+      const today_ = new Date().toISOString().slice(0, 10);
+      // 86'd-for-today items stay matchable so we can say "sold out today" honestly
+      // instead of pretending they don't exist; hard-disabled items don't exist
+      const soldOutToday = new Set((menuRows || []).filter((m) => m.available && m.sold_out_until && String(m.sold_out_until).slice(0, 10) >= today_).map((m) => m.name));
+      const menu = (menuRows || []).filter((m) => m.available && !soldOutToday.has(m.name));
+      const menuAll = (menuRows || []).filter((m) => m.available);
       const { data: open } = await db.from("orders").select("*")
         .eq("phone_number", ctx.sessionId)
         .in("status", ["pending", "accepted", "preparing", "ready"])
@@ -44,7 +49,7 @@ defineFlow({
       const p = diner?.preferences?.pending_order;
       const pending = p && Date.now() - new Date(p.at || 0).getTime() < 120 * 60_000 ? p : null;
       return {
-        menu, openOrder: open?.[0] || null,
+        menu, soldOutToday, menuAll, openOrder: open?.[0] || null,
         tableNumbers: (tables || []).map((t) => String(t.table_number).toUpperCase()),
         // sticky only within the CURRENT draft — every new order asks the branch
         // again (guests of a 9-branch chain move around); their usual is a hint,
@@ -314,6 +319,15 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       const running = items.length ? { items, subtotal: items.reduce((s, i) => s + itemPrice(i) * i.qty, 0), currency } : null;
 
       // 1) WHAT first — the food IS the order; where it goes comes at the end
+      // an "unknown" item that's actually 86'd for today gets the honest answer,
+      // not a shrug — the guest can still order everything else
+      if (unknown.length && loaded.soldOutToday?.size) {
+        const sold = unknown.filter((u) => [...loaded.soldOutToday].some((s) => normName(s).includes(normName(u)) || normName(u).includes(normName(s))));
+        if (sold.length) {
+          unknown = unknown.filter((u) => !sold.includes(u));
+          return { kind: "sold_out_today", sold, items, running: items.length ? { items, subtotal: items.reduce((s, i) => s + itemPrice(i) * i.qty, 0), currency } : null };
+        }
+      }
       if (!items.length) return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
 
       // 2) OPTIONS — finish configuring every item
@@ -479,6 +493,7 @@ OUTCOMES:
 - ask_table (rare): which table are they at? NEVER say the order is placed — nothing has been sent yet.
 - bad_table: the number they gave isn't one of ours. Say so plainly, list the real ones from "tables", and ask which they're at. NEVER claim the order is placed.
 - nothing_matched: none of that matched the menu (list unknown) — suggest tapping the menu.
+- sold_out_today: OUTCOME.sold ran out today — apologize warmly, say it's back soon, offer the rest of the menu. NEVER pretend it doesn't exist.
 - order_status: restate their order (code, status, items) honestly by status: pending/accepted="in the queue", preparing="on the grill now", ready="READY — come grab it!".
 - order_cancelled: cancelled ✅, no charge, door's open.
 - draft_cleared: they removed everything from the order being built — confirm it's wiped, offer to start fresh.
@@ -491,7 +506,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       // ticket confirmation, an apology, a "we can't do that". Asking which table
       // they're at is a form field with manners; mini says it just as well for a
       // quarter of the cost, and these are most of an order's turns.
-      const VOICE_MATTERS = ["order_placed", "order_cancelled", "too_late_to_cancel", "no_delivery", "no_history", "nothing_matched", "order_status", "bad_table"];
+      const VOICE_MATTERS = ["order_placed", "order_cancelled", "too_late_to_cancel", "no_delivery", "no_history", "nothing_matched", "order_status", "bad_table", "sold_out_today"];
       const model = VOICE_MATTERS.includes(outcome.kind) ? MODEL_SMART : MODEL_FAST;
       return chatJSON(model, sys, `OUTCOME: ${JSON.stringify(outcome)}\nGuest: ${input.message}`, { temperature: 0.5, maxTokens: 240 });
     }, { input: { outcome_kind: outcome.kind } });
@@ -500,6 +515,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       order_placed: `🎫 Order ${outcome.code} is in — about ${outcome.eta_minutes} min!`,
       ask_items: "Here's the full menu 📄 — tell me what you'd like and I'll get it going 🍔",
       nothing_matched: `Couldn't find ${(outcome.unknown || []).join(", ")} on the menu — here it is 📄, pick anything off it.`,
+      sold_out_today: `${(outcome.sold || []).join(", ")} is sold out today 🙏 — back soon! Anything else from the menu?`,
       no_history: "No past orders on this number yet — here's the menu 📄, let's make your first one 🍔",
       ask_fulfillment: "Almost done — just the last details 👇",
       ask_choice: `For your ${outcome.item}:\n${(outcome.questions || []).map((q) => `${q.label}${q.of > 1 ? ` (${q.remaining} to pick)` : ""}:\n${q.options.map((o) => `• ${o}`).join("\n")}`).join("\n\n")}`,

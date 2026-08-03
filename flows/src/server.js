@@ -175,6 +175,29 @@ app.post("/api/ops/draft-reply", (req, res, next) => opsAuth(req, res, next), as
   }
 });
 
+// Menu copy cleanup — LLM PROPOSES fixes (typos, truncations, consistency);
+// a human approves each one in the dashboard before anything is written.
+app.post("/api/ops/tidy-menu", (req, res, next) => opsAuth(req, res, next), async (req, res) => {
+  try {
+    const tenant = await resolveRestaurant();
+    const { chatJSON } = await import("./services/llm.js");
+    const { MODEL_FAST } = await import("./config.js");
+    const { data: menu } = await tenant.db.from("menu_items").select("id,name,description").order("sort_order");
+    const list = (menu || []).map((m) => ({ id: m.id, name: m.name, description: m.description || "" }));
+    const system = `You clean up restaurant menu copy. For each item, fix ONLY: spelling/typos ("Pickels"→"Pickles"), truncated endings ("+ Fri"→"+ Fries"), casing and punctuation consistency. NEVER change what the dish IS, never add or remove ingredients, never translate, never rewrite style. Return JSON {"fixes":[{"id","description"}]} containing ONLY items that need a change.`;
+    const r = await chatJSON(MODEL_FAST, system, JSON.stringify(list), { maxTokens: 2000 });
+    const fixes = (r?.value?.fixes || []).filter((f) => f.id && typeof f.description === "string");
+    const byId = new Map(list.map((m) => [m.id, m]));
+    res.json({
+      fixes: fixes
+        .filter((f) => byId.has(f.id) && byId.get(f.id).description !== f.description)
+        .map((f) => ({ id: f.id, name: byId.get(f.id).name, before: byId.get(f.id).description, after: f.description })),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ================= order status push (called by the backend on status change) =================
 // Staff tap a ticket → the guest gets the right message for their order type.
 app.post("/api/order/status", (req, res, next) => opsAuth(req, res, next), async (req, res) => {

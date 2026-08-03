@@ -38,6 +38,39 @@ router.get("/", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// units + revenue per item over the last 30 days, from real (non-test) orders —
+// bestseller stars should come from data, not vibes
+router.get("/performance", async (req, res, next) => {
+  try {
+    const since = Date.now() - 30 * 86400000;
+    const isTest = (v) => /^web:(regress|convo|test)-/i.test(String(v || ""));
+    const orders = (await req.repo.list("orders", { order: "created_at", desc: true, limit: 1000 }))
+      .filter((o) => o.status !== "cancelled" && !isTest(o.phone_number) && new Date(o.created_at).getTime() > since);
+    const perf = {};
+    for (const o of orders) for (const it of o.items || []) {
+      const k = it.name;
+      perf[k] = perf[k] || { units: 0, egp: 0 };
+      perf[k].units += Number(it.qty) || 1;
+      perf[k].egp += (Number(it.unit_price ?? it.price) || 0) * (Number(it.qty) || 1);
+    }
+    res.json(perf);
+  } catch (e) { next(e); }
+});
+
+// AI copy-cleanup proposals (proxied to flows; dashboard shows a diff to approve)
+router.post("/tidy", async (req, res, next) => {
+  try {
+    const { FLOWS_URL, FLOWS_OPS_TOKEN } = await import("../config/env.js");
+    if (!FLOWS_URL) return res.status(503).json({ error: "flows not configured" });
+    const r = await fetch(`${FLOWS_URL}/api/ops/tidy-menu`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(FLOWS_OPS_TOKEN ? { "x-ops-token": FLOWS_OPS_TOKEN } : {}) },
+    });
+    if (!r.ok) return res.status(502).json({ error: `flows ${r.status}` });
+    res.json(await r.json());
+  } catch (e) { next(e); }
+});
+
 router.post("/", async (req, res, next) => {
   try {
     const { name, category, price } = req.body || {};
@@ -57,7 +90,7 @@ router.post("/", async (req, res, next) => {
 router.patch("/:id", async (req, res, next) => {
   try {
     const patch = {};
-    for (const k of ["name", "category", "price", "description", "dietary_tags", "available", "sort_order", "photo_url", "ingredients", "spice_level", "bestseller", "pairs_with", "options"])
+    for (const k of ["name", "category", "price", "description", "dietary_tags", "available", "sort_order", "photo_url", "ingredients", "spice_level", "bestseller", "pairs_with", "options", "sold_out_until"])
       if (k in req.body) patch[k] = req.body[k];
     const row = await req.repo.update("menu_items", req.params.id, patch);
     if (!row) return res.status(404).json({ error: "Not found" });

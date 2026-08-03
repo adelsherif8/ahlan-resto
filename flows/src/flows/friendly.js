@@ -34,10 +34,11 @@ defineFlow({
         .from("menu_items")
         .select("*")
         .order("sort_order");
-      const menu = (menuRows || []).filter((m) => m.available); // 86'd items don't exist
-
       // "today" in the RESTAURANT'S timezone — the server clock lives in UTC
       const today = todayISO(config.basic_info?.timezone || "Africa/Cairo");
+      // hard-disabled items don't exist; 86'd-for-today ones are named honestly
+      const menu = (menuRows || []).filter((m) => m.available && !(m.sold_out_until && String(m.sold_out_until).slice(0, 10) >= today));
+      const soldOutNames = (menuRows || []).filter((m) => m.available && m.sold_out_until && String(m.sold_out_until).slice(0, 10) >= today).map((m) => m.name);
       // tonight's specials from config (staff post them in Settings; code filters expiry)
       const specials = (config.ai?.specials || [])
         .filter((s) => s?.text && (!s.until || s.until >= today))
@@ -117,6 +118,7 @@ defineFlow({
       return {
         hoursNow: h,
         specials,
+        sold_out: soldOutNames,
         hoursHuman: humanizeWeek(config.hours),
         todayHuman: (h.ranges || []).map((r) => `${fmt12(r.open)} – ${fmt12(r.close)}`).join(", ") || "closed today",
         isNewConversation: (history || []).length === 0,
@@ -190,7 +192,7 @@ FACTS — the ONLY things you know (never invent anything beyond this):
 - House policies: alcohol ${bi.policies?.alcohol ?? "not set"} · shisha ${bi.policies?.shisha ?? "not set"} · kids ${bi.policies?.kids ?? "not set"} · smoking ${bi.policies?.smoking ?? "not set"}
 ${branchFacts(config, diner, message)}${config.basic_info?.restaurant_type === "casual" ? "" : `- Reservation policy: ${reservationPolicyLine(config.reservation_policy)}`}
 ${(ai.offers || []).length ? `- Current offers (ONLY these exist): ${JSON.stringify(ai.offers)}` : "- NO discounts/deals/offers exist — never imply any"}
-${context.specials.length ? `- TONIGHT'S SPECIALS (mention when relevant — never invent others): ${context.specials.join("; ")}\n` : ""}- MENU (available right now — if an item is not listed, it is NOT available tonight):
+${context.specials.length ? `- TONIGHT'S SPECIALS (mention when relevant — never invent others): ${context.specials.join("; ")}\n` : ""}${context.sold_out?.length ? `- SOLD OUT TODAY (if asked about these, say honestly they ran out today and are back soon): ${context.sold_out.join(", ")}\n` : ""}- MENU (available right now — if an item is not listed, it is NOT available tonight):
 ${menuText || "(menu not loaded)"}
 ${context.events.length ? `- UPCOMING EVENTS: ${context.events.map((e) => `${e.title} on ${e.date}${e.start_time ? " at " + String(e.start_time).slice(0, 5) : ""}${e.price ? " (EGP " + e.price + ")" : ""}`).join("; ")}` : "- UPCOMING EVENTS: none announced"}
 - FAQs: ${JSON.stringify(config.faqs || [])}
