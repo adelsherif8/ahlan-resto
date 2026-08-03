@@ -24,7 +24,7 @@ router.get("/sessions", async (req, res, next) => {
       const orders = await req.repo.list("orders", { order: "created_at", desc: true, limit: 200 });
       for (const o of orders) {
         if (String(o.created_at).slice(0, 10) !== today) break;
-        if (!lastOrder.has(o.phone_number)) lastOrder.set(o.phone_number, { code: o.code, status: o.status, at: o.created_at });
+        if (!lastOrder.has(o.phone_number)) lastOrder.set(o.phone_number, { code: o.code, status: o.status, at: o.created_at, total: o.total });
       }
     } catch {}
     res.json(rows.map((s) => {

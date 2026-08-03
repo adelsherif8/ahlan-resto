@@ -11,6 +11,12 @@ const W = 227;
 const M = 16;
 const INNER = W - M * 2;
 
+// money never reads "459.9" — whole numbers stay whole, fractions get two places
+function fmt(n) {
+  const v = Number(n) || 0;
+  return Number.isInteger(v) ? v.toLocaleString("en-US") : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function dashed(doc, gap = 0.5) {
   doc.moveDown(0.35);
   doc.moveTo(M, doc.y).lineTo(W - M, doc.y)
@@ -81,7 +87,7 @@ function buildPdf({ restaurant, order, branch, currency }) {
 
     // items: name left, amount right, mods indented beneath
     for (const it of items) {
-      row(`${it.qty}x ${it.name}`, String(Number(it.unit_price ?? it.price) * Number(it.qty)), { size: 9.5 });
+      row(`${it.qty}x ${it.name}`, fmt(Number(it.unit_price ?? it.price) * Number(it.qty)), { size: 9.5 });
       for (const ml of modLines(it)) {
         doc.font("Courier").fontSize(7.5).fillColor("#555").text(ml, M + 10, doc.y, { width: INNER - 10 });
       }
@@ -92,11 +98,11 @@ function buildPdf({ restaurant, order, branch, currency }) {
     // subtotal + each configured charge, then the total — mirrors the WhatsApp bill exactly
     const bill = order.bill;
     if (bill?.extras?.length) {
-      row("Subtotal", `${bill.subtotal} ${currency}`, { size: 8.5, color: "#333" });
-      for (const x of bill.extras) row(x.label, `${x.amount} ${currency}`, { size: 8.5, color: "#333" });
+      row("Subtotal", `${fmt(bill.subtotal)} ${currency}`, { size: 8.5, color: "#333" });
+      for (const x of bill.extras) row(x.label, `${fmt(x.amount)} ${currency}`, { size: 8.5, color: "#333" });
       doc.moveDown(0.1);
     }
-    row("TOTAL", `${order.total} ${currency}`, { bold: true, size: 12 });
+    row("TOTAL", `${fmt(order.total)} ${currency}`, { bold: true, size: 12 });
     dashed(doc);
 
     doc.font("Courier").fontSize(8).fillColor("#000");

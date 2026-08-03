@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Send, Bot, BotOff, Instagram, MessageCircle, Search, AlertCircle, ShoppingCart,
   Ticket, FileText, Sparkles, Trash2, User, ChevronDown, ChevronUp, Check, MapPin,
+  ThumbsUp, ThumbsDown, ChevronRight,
 } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
@@ -32,7 +33,8 @@ function linkify(s: string, key: number) {
 function ReceiptCard({ lines }: { lines: string[] }) {
   return (
     <div className="my-1.5 rounded-lg bg-[#fbfaf4] px-3 py-2 font-mono text-[12px] leading-relaxed text-neutral-900">
-      {lines.map((l, i) => {
+      {lines.map((raw, i) => {
+        const l = raw.replace(/\*/g, "");
         const item = l.match(/^[•\-]\s*(.+?)\s+—\s+(.+)$/);
         if (item) {
           return (
@@ -52,13 +54,17 @@ function ReceiptCard({ lines }: { lines: string[] }) {
             </div>
           );
         }
-        return <div key={i} className={/🧾|\*YOUR ORDER\*/.test(l) ? "mb-1 font-bold tracking-wide" : ""}>{bold(l.replace(/\*/g, ""))}</div>;
+        return <div key={i} className={/🧾|YOUR ORDER|RECEIPT/.test(l) ? "mb-1 font-bold tracking-wide" : ""}>{bold(l)}</div>;
       })}
     </div>
   );
 }
 
-function MessageBody({ text }: { text: string }) {
+// bill totals live right after the ruled section — pull them into the card so
+// the receipt reads as one piece of paper, not a card plus stray lines
+const MONEY_LINE = /^\*?(Subtotal|Service|VAT|Delivery|TOTAL)\b[^:]*:/i;
+
+function MessageBody({ text, mediaUrl }: { text: string; mediaUrl?: string | null }) {
   const [open, setOpen] = useState(false);
   const lines = String(text || "").split("\n");
 
@@ -77,18 +83,29 @@ function MessageBody({ text }: { text: string }) {
   }
   segments.push({ kind: inReceipt ? "receipt" : "text", lines: cur });
 
-  const totalLines = lines.length;
-  const collapsed = totalLines > 14 && !open;
-  let budget = collapsed ? 10 : Infinity;
+  // totals that follow the ruled items section get pulled into the card
+  for (let i = 0; i + 1 < segments.length; i++) {
+    if (segments[i].kind !== "receipt" || segments[i + 1].kind !== "text") continue;
+    const nxt = segments[i + 1].lines;
+    while (nxt.length && (!nxt[0].trim() || MONEY_LINE.test(nxt[0].trim()))) {
+      const ln = nxt.shift()!;
+      if (ln.trim()) segments[i].lines.push(ln);
+    }
+  }
+
+  const hasFileTile = lines.some((l) => /^📄/.test(l.trim())) || !!mediaUrl;
+  // collapse counts PLAIN text only — a bill must never be cut in half
+  const textLineCount = segments.filter((s) => s.kind === "text").reduce((n, s) => n + s.lines.filter((l) => l.trim()).length, 0);
+  const collapsible = textLineCount > 14;
+  let budget = collapsible && !open ? 10 : Infinity;
 
   const out: React.ReactNode[] = [];
   segments.forEach((seg, si) => {
-    if (budget <= 0) return;
     if (seg.kind === "receipt") {
       out.push(<ReceiptCard key={`r${si}`} lines={seg.lines.filter((l) => l.trim())} />);
-      budget -= seg.lines.length;
       return;
     }
+    if (budget <= 0) return;
     const shown = seg.lines.slice(0, Math.max(0, budget));
     budget -= seg.lines.length;
     let listBuf: string[] = [];
@@ -109,6 +126,8 @@ function MessageBody({ text }: { text: string }) {
       if (bullet) { listBuf.push(bullet[1]); return; }
       flush(`l${si}-${li}`);
       if (!t) { out.push(<div key={`s${si}-${li}`} className="h-1.5" />); return; }
+      // a bare URL duplicating a file tile or the attached document adds nothing
+      if (/^https?:\/\/\S+$/.test(t) && hasFileTile) return;
       if (/^📄/.test(t)) {
         const url = t.match(/https?:\/\/\S+/)?.[0];
         out.push(
@@ -127,9 +146,9 @@ function MessageBody({ text }: { text: string }) {
   return (
     <div className="space-y-0.5 text-sm leading-relaxed">
       {out}
-      {totalLines > 14 && (
+      {collapsible && (
         <button onClick={() => setOpen(!open)} className="mt-1 flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-200">
-          {open ? <><ChevronUp size={12} /> show less</> : <><ChevronDown size={12} /> show more ({totalLines - 10} lines)</>}
+          {open ? <><ChevronUp size={12} /> show less</> : <><ChevronDown size={12} /> show more ({textLineCount - 10} lines)</>}
         </button>
       )}
     </div>
@@ -199,6 +218,22 @@ function buildRows(messages: any[], orders: any[]): Row[] {
   while (ev < sortedEv.length) { rows.push({ kind: "milestone", label: sortedEv[ev].label, key: `e${ev}` }); ev++; }
   return rows;
 }
+
+function relTime(ts?: string | null): string {
+  if (!ts) return "";
+  const s = (Date.now() - new Date(ts).getTime()) / 1000;
+  if (s < 60) return "now";
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  return `${Math.floor(s / 86400)}d`;
+}
+
+const ORDER_CHIP: Record<string, string> = {
+  pending: "bg-amber-500/15 text-amber-300",
+  accepted: "bg-amber-500/15 text-amber-300",
+  preparing: "bg-orange-500/15 text-orange-300",
+  ready: "bg-sky-500/15 text-sky-300",
+};
 
 const SNIPPETS = [
   "Ahlan! How can we help? 😄",
@@ -369,15 +404,24 @@ export default function Chats() {
                     onClick={() => setActive(s)}
                     className={`flex w-full items-start gap-2.5 border-b border-zinc-800/60 px-3.5 py-3 text-left transition hover:bg-zinc-900 ${active?.id === s.id ? "bg-zinc-900" : ""}`}
                   >
-                    <div className="mt-0.5 text-zinc-500">
-                      {s.channel === "instagram" ? <Instagram size={15} /> : <MessageCircle size={15} />}
+                    <div className="relative mt-0.5 shrink-0">
+                      <div
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
+                        style={{ backgroundColor: "color-mix(in srgb, var(--accent) 20%, transparent)", color: "var(--accent)" }}
+                      >
+                        {s.diner_name ? s.diner_name.charAt(0).toUpperCase() : "#"}
+                      </div>
+                      <span className="absolute -bottom-1 -right-1 rounded-full bg-zinc-900 p-0.5 text-zinc-500">
+                        {s.channel === "instagram" ? <Instagram size={10} /> : <MessageCircle size={10} />}
+                      </span>
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className={`truncate text-sm ${unread ? "font-bold" : "font-medium"}`}>{s.diner_name || s.phone_number || s.session_id}</span>
-                        <span className="flex shrink-0 items-center gap-1">
+                        <span className="flex shrink-0 items-center gap-1.5">
                           {s.needs_attention && <AlertCircle size={13} className="text-amber-400" />}
                           {unread && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--accent)" }} />}
+                          <span className="text-[10px] tabular-nums text-zinc-500">{relTime(s.last_message_at)}</span>
                         </span>
                       </div>
                       <div className={`truncate text-xs ${unread ? "text-zinc-300" : "text-zinc-500"}`}>{s.last_message}</div>
@@ -388,8 +432,8 @@ export default function Chats() {
                           </span>
                         )}
                         {!s.draft_stage && s.last_order && (
-                          <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
-                            <Ticket size={10} /> {s.last_order.code}
+                          <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ORDER_CHIP[s.last_order.status] || "bg-emerald-500/15 text-emerald-300"}`}>
+                            <Ticket size={10} /> {s.last_order.code}{s.last_order.total ? ` · ${Number(s.last_order.total).toLocaleString()}` : ""}
                           </span>
                         )}
                         {!s.ai_enabled && (
@@ -447,12 +491,12 @@ export default function Chats() {
                 </div>
               )}
 
-              <div ref={threadRef} className="flex-1 space-y-2 overflow-y-auto p-4">
+              <div ref={threadRef} className="flex-1 space-y-2 overflow-y-auto bg-zinc-950/50 p-4">
                 {rows.map((row, ri) => {
                   if (row.kind === "day") {
                     return (
-                      <div key={row.key} className="flex justify-center py-1">
-                        <span className="rounded-full bg-zinc-800/80 px-2.5 py-0.5 text-[10px] font-medium text-zinc-400">{row.label}</span>
+                      <div key={row.key} className="sticky top-0 z-10 flex justify-center py-1">
+                        <span className="rounded-full bg-zinc-800/90 px-2.5 py-0.5 text-[10px] font-medium text-zinc-300 shadow backdrop-blur">{row.label}</span>
                       </div>
                     );
                   }
@@ -466,6 +510,9 @@ export default function Chats() {
                     );
                   }
                   const { m, parts } = row;
+                  // sender label shows once per run of same-sender bubbles
+                  const prevRow = rows[ri - 1];
+                  const showLabel = m.sender !== "guest" && !(prevRow?.kind === "msg" && prevRow.m.sender === m.sender);
                   const prevBotMsg = [...messages.slice(0, messages.indexOf(m))].reverse().find((x) => x.sender !== "guest")?.message || null;
                   if (m.sender === "guest" && isTap(m.message || "", prevBotMsg)) {
                     return (
@@ -483,7 +530,7 @@ export default function Chats() {
                           highlight === String(m.id) ? "ring-2 ring-amber-400" : ""
                         } ${m.sender === "guest" ? "bg-zinc-800" : m.sender === "ai" ? "bg-amber-500/15" : "bg-sky-500/20"}`}
                       >
-                        {m.sender !== "guest" && (
+                        {showLabel && (
                           <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide opacity-70">
                             {m.sender === "ai" ? <><Bot size={11} /> {aiName}</> : <><User size={11} /> Staff</>}
                           </div>
@@ -496,22 +543,22 @@ export default function Chats() {
                             {p.media_url && p.media_type === "audio" && (
                               <audio controls src={p.media_url} className="mb-1.5 h-9 w-56" />
                             )}
-                            {p.media_url && p.media_type === "document" && (
+                            {p.media_url && p.media_type === "document" && !/^📄/m.test(p.message || "") && (
                               <a href={p.media_url} target="_blank" rel="noreferrer"
                                 className="mb-1.5 flex w-fit items-center gap-2 rounded-lg border border-zinc-600/50 bg-zinc-900/40 px-2.5 py-1.5 text-xs font-medium hover:bg-zinc-900">
                                 <FileText size={14} /> Document — open
                               </a>
                             )}
-                            <MessageBody text={p.message} />
+                            <MessageBody text={p.message} mediaUrl={p.media_url} />
                           </div>
                         ))}
                         <div className="mt-1 flex items-center justify-end gap-1.5">
                           {m.sender === "ai" && (
                             <>
                               <button title="Good reply" onClick={() => rateReply(m, m.rating === 1 ? 0 : 1)}
-                                className={`text-[11px] transition ${m.rating === 1 ? "opacity-100" : "opacity-30 hover:opacity-70"}`}>👍</button>
+                                className={`transition ${m.rating === 1 ? "text-emerald-400 opacity-100" : "opacity-30 hover:opacity-70"}`}><ThumbsUp size={12} /></button>
                               <button title="Bad reply — flag for review" onClick={() => rateReply(m, m.rating === -1 ? 0 : -1)}
-                                className={`text-[11px] transition ${m.rating === -1 ? "opacity-100" : "opacity-30 hover:opacity-70"}`}>👎</button>
+                                className={`transition ${m.rating === -1 ? "text-red-400 opacity-100" : "opacity-30 hover:opacity-70"}`}><ThumbsDown size={12} /></button>
                             </>
                           )}
                           {m.created_at && (
@@ -589,7 +636,7 @@ function GuestPanel({ ctx, onSaved, onOrderClick }: { ctx: any; onSaved: () => v
     <div className="space-y-4 text-sm">
       <div>
         <div className="text-base font-semibold">{d?.name || d?.wa_profile_name || s?.phone_number || s?.session_id}</div>
-        <div className="text-xs text-zinc-500">{tier}{d ? ` · ${d.visit_count} visits` : ""}{d?.total_spend > 0 ? ` · EGP ${Number(d.total_spend).toLocaleString()} lifetime` : ""}</div>
+        <div className="text-xs text-zinc-500">{tier}{d ? ` · ${d.visit_count} visit${Number(d.visit_count) === 1 ? "" : "s"}` : ""}{d?.total_spend > 0 ? ` · EGP ${Number(d.total_spend).toLocaleString()} lifetime` : ""}</div>
         <div className="mt-1 space-y-0.5 text-xs text-zinc-400">
           <div>{d?.phone_number || s?.session_id}</div>
           {d?.wa_profile_name && d?.name && d.wa_profile_name !== d.name && <div>WhatsApp name: {d.wa_profile_name}</div>}
@@ -614,10 +661,9 @@ function GuestPanel({ ctx, onSaved, onOrderClick }: { ctx: any; onSaved: () => v
         </div>
       )}
 
-      {(ctx.order_stats?.lifetime_egp > 0 || ctx.order_stats?.usual) && (
+      {ctx.order_stats?.usual && (
         <PanelBlock title="Ordering profile">
-          {ctx.order_stats.usual && <div>Their usual: <b>{ctx.order_stats.usual.name}</b> (×{ctx.order_stats.usual.times})</div>}
-          {ctx.order_stats.lifetime_egp > 0 && <div>Lifetime spend: EGP {Number(ctx.order_stats.lifetime_egp).toLocaleString()}</div>}
+          <div>Their usual: <b>{ctx.order_stats.usual.name}</b> (×{ctx.order_stats.usual.times})</div>
         </PanelBlock>
       )}
 
@@ -701,10 +747,20 @@ function GuestPanel({ ctx, onSaved, onOrderClick }: { ctx: any; onSaved: () => v
 }
 
 function PanelBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  // collapsible, remembered per device — the panel gets long for regulars
+  const [open, setOpen] = useState(localStorage.getItem(`panel_${title}`) !== "closed");
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    localStorage.setItem(`panel_${title}`, next ? "open" : "closed");
+  };
   return (
     <div>
-      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">{title}</div>
-      <div className="space-y-0.5 text-xs text-zinc-300">{children}</div>
+      <button onClick={toggle} className="mb-1 flex w-full items-center gap-1 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-300">
+        {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+        {title}
+      </button>
+      {open && <div className="space-y-0.5 text-xs text-zinc-300">{children}</div>}
     </div>
   );
 }

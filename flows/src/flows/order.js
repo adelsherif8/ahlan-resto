@@ -459,7 +459,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       if (receiptUrl) await db.from("orders").update({ receipt_url: receiptUrl }).eq("code", code).then(() => {}, () => {});
       await notifyDashboard(db, "order",
         `🍔 New ${orderType.replace("_", "-")} order ${code}${branchInfo ? ` — ${branchInfo.name}` : ""}`,
-        `${name || ctx.sessionId}${tableNumber ? ` · table ${tableNumber}` : ""}${address ? ` · 📍 ${address}` : ""} — ${items.map((i) => `${i.qty}× ${i.name}${i.notes ? ` (${i.notes})` : ""}${modifiers(i).length ? ` [${modifiers(i).join(" · ")}]` : ""}`).join(", ")} · ${bill.total} ${currency}`,
+        `${name || ctx.sessionId}${tableNumber ? ` · table ${tableNumber}` : ""}${address ? ` · 📍 ${address}` : ""} — ${items.map((i) => `${i.qty}× ${i.name}${i.notes ? ` (${i.notes})` : ""}${modifiers(i).length ? ` [${modifiers(i).join(" · ")}]` : ""}`).join(", ")} · ${fmtAmount(bill.total)} ${currency}`,
         ctx.sessionId, branch);
       return { kind: "order_placed", code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
     }, { input: { intent: e.intent, items: (e.items || []).length, order_type: e.order_type, table: e.table_number } });
@@ -567,7 +567,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
 
     // Mid-gather: show the lines and a subtotal, never a TOTAL we can't stand behind yet.
     if (outcome.running?.items?.length) {
-      const money = (n) => `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${currency}`;
+      const money = (n) => `${fmtAmount(n)} ${currency}`;
       // options still unanswered? then this line's price isn't settled yet — say so
       const open_ = (it) => (it.option_defs || []).some((g) =>
         (g.choices || []).some((c) => c.price != null || c.delta) &&
@@ -1112,8 +1112,16 @@ function priceOrder(items, config, orderType) {
 
 // The bill as the guest sees it. Built here so the model never writes a number
 // or a currency symbol — it phrases around this block, it doesn't compose it.
+// money never reads "459.9" — whole numbers stay whole, fractions get two places
+function fmtAmount(n) {
+  const v = Number(n) || 0;
+  return Number.isInteger(v)
+    ? v.toLocaleString("en-US")
+    : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, restaurant, when }) {
-  const money = (n) => `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${currency}`;
+  const money = (n) => `${fmtAmount(n)} ${currency}`;
   const lines = items.map((it) => {
     const mods = modifiers(it);
     return `• ${it.qty}× ${it.name}${mods.length ? ` (${mods.join(" · ")})` : ""} — ${money(itemPrice(it) * Number(it.qty))}`;
@@ -1123,7 +1131,7 @@ function renderBill({ items, bill, currency, orderType, tableNumber, branchName,
   for (const x of bill.extras) totals.push(`${x.label}: ${money(x.amount)}`);
   totals.push(`*TOTAL: ${money(bill.total)}*`);
 
-  const where = orderType === "dine_in" ? `Dine-in · table ${tableNumber}`
+  const where = orderType === "dine_in" ? `Dine-in${tableNumber ? ` · table ${tableNumber}` : ""}${!tableNumber && branchName ? ` · ${branchName}` : ""}`
     : orderType === "pickup" ? `Pickup${branchName ? ` · ${branchName}` : ""}`
     : `Delivery${branchName ? ` · from ${branchName}` : ""}`;
 
