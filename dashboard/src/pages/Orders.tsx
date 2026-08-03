@@ -1,26 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Inbox, Flame, CheckCircle2, Flag, Utensils, ShoppingBag, Clock, Bike, Receipt,
+  Bell, BellOff, Monitor, Printer, Phone, MapPin, Store, X, AlertTriangle,
+} from "lucide-react";
 import { api, session } from "../config/api";
-import { PageHeader, Empty } from "../components/ui";
+import { PageHeader } from "../components/ui";
 
 // Fast-food ticket board (KDS): tickets flow left → right, one tap advances.
-const COLS: { key: string; label: string; statuses: string[]; next?: string; nextLabel?: string }[] = [
-  { key: "new", label: "🆕 New", statuses: ["pending", "accepted"], next: "preparing", nextLabel: "Start" },
-  { key: "preparing", label: "🔥 On the grill", statuses: ["preparing"], next: "ready", nextLabel: "Ready" },
-  { key: "ready", label: "✅ Ready", statuses: ["ready"], next: "served", nextLabel: "Handed over" },
-  { key: "done", label: "🏁 Done", statuses: ["served", "delivered", "paid"] },
+const COLS: { key: string; label: string; Icon: any; statuses: string[]; next?: string; nextLabel?: string }[] = [
+  { key: "new", label: "New", Icon: Inbox, statuses: ["pending", "accepted"], next: "preparing", nextLabel: "Start" },
+  { key: "preparing", label: "On the grill", Icon: Flame, statuses: ["preparing"], next: "ready", nextLabel: "Ready" },
+  { key: "ready", label: "Ready", Icon: CheckCircle2, statuses: ["ready"], next: "served", nextLabel: "Handed over" },
+  { key: "done", label: "Done", Icon: Flag, statuses: ["served", "delivered", "paid"] },
 ];
 
 // Each order type gets its own paper-ticket colour, the way a real kitchen
 // printer separates them at a glance. Tickets are printed paper — fixed light
 // colours on purpose, they must look like paper in dark mode too.
-const TYPE: Record<string, { label: string; icon: string; bar: string; chip: string }> = {
-  dine_in:       { label: "DINE IN",  icon: "\u{1F374}", bar: "bg-sky-500",     chip: "bg-sky-100 text-sky-800" },
-  table_reorder: { label: "DINE IN",  icon: "\u{1F374}", bar: "bg-sky-500",     chip: "bg-sky-100 text-sky-800" },
-  pickup:        { label: "TAKEAWAY", icon: "\u{1F6CD}", bar: "bg-amber-500",   chip: "bg-amber-100 text-amber-800" },
-  pre_order:     { label: "PRE-ORDER",icon: "\u{23F0}",  bar: "bg-emerald-500", chip: "bg-emerald-100 text-emerald-800" },
-  delivery:      { label: "DELIVERY", icon: "\u{1F6F5}", bar: "bg-rose-500",    chip: "bg-rose-100 text-rose-800" },
+const TYPE: Record<string, { label: string; Icon: any; bar: string; chip: string }> = {
+  dine_in:       { label: "DINE IN",   Icon: Utensils,    bar: "bg-sky-500",     chip: "bg-sky-100 text-sky-800" },
+  table_reorder: { label: "DINE IN",   Icon: Utensils,    bar: "bg-sky-500",     chip: "bg-sky-100 text-sky-800" },
+  pickup:        { label: "TAKEAWAY",  Icon: ShoppingBag, bar: "bg-amber-500",   chip: "bg-amber-100 text-amber-800" },
+  pre_order:     { label: "PRE-ORDER", Icon: Clock,       bar: "bg-emerald-500", chip: "bg-emerald-100 text-emerald-800" },
+  delivery:      { label: "DELIVERY",  Icon: Bike,        bar: "bg-rose-500",    chip: "bg-rose-100 text-rose-800" },
 };
-const typeOf = (t: string) => TYPE[t] || { label: (t || "order").toUpperCase(), icon: "\u{1F9FE}", bar: "bg-neutral-500", chip: "bg-neutral-200 text-neutral-700" };
+const typeOf = (t: string) => TYPE[t] || { label: (t || "order").toUpperCase(), Icon: Receipt, bar: "bg-neutral-500", chip: "bg-neutral-200 text-neutral-700" };
 
 // serrated tear edge at the bottom of every ticket, like paper off the printer
 const TEAR = {
@@ -186,23 +190,23 @@ export default function Orders() {
       {!tv && (
         <PageHeader
           title="Orders"
-          subtitle={`${active.length} live · ${visible.length} today · EGP ${money(visible.reduce((s, o) => s + Number(o.total || 0), 0))}${avgPrep ? ` · avg ${avgPrep} min` : ""}${lateCount ? ` · ⚠ ${lateCount} late` : ""}`}
+          subtitle={`${active.length} live · ${visible.length} today · EGP ${money(visible.reduce((s, o) => s + Number(o.total || 0), 0))}${avgPrep ? ` · avg ${avgPrep} min` : ""}${lateCount ? ` · ${lateCount} late` : ""}`}
           actions={
             <div className="flex items-center gap-2">
               <button
                 title={sound ? "Sound on" : "Sound off"}
                 onClick={() => { const n = !sound; setSound(n); localStorage.setItem("kds_sound", n ? "on" : "off"); if (n) ding(); }}
-                className="rounded-xl border border-zinc-700 px-3 py-2 text-sm"
-              >{sound ? "🔔" : "🔕"}</button>
+                className="rounded-xl border border-zinc-700 p-2.5 text-zinc-300"
+              >{sound ? <Bell size={15} /> : <BellOff size={15} />}</button>
               <button
                 title="Kitchen TV mode — fullscreen board"
                 onClick={() => boardRef.current?.requestFullscreen?.().catch(() => {})}
-                className="rounded-xl border border-zinc-700 px-3 py-2 text-sm"
-              >📺</button>
+                className="rounded-xl border border-zinc-700 p-2.5 text-zinc-300"
+              ><Monitor size={15} /></button>
               {branches.length > 1 && (
                 staffBranch ? (
-                  <span className="rounded-full bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300">
-                    🏪 {branches.find((b: any) => b.key === staffBranch)?.name || staffBranch}
+                  <span className="flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300">
+                    <Store size={13} /> {branches.find((b: any) => b.key === staffBranch)?.name || staffBranch}
                   </span>
                 ) : (
                   <select
@@ -240,7 +244,10 @@ export default function Orders() {
             return (
               <div key={col.key} className="flex min-h-0 flex-col">
                 <div className="sticky top-0 z-10 mb-2 flex items-baseline justify-between rounded-lg bg-zinc-950/90 px-1 py-1 backdrop-blur">
-                  <span className={`font-semibold ${tv ? "text-base" : "text-sm"}`}>{col.label}</span>
+                  <span className={`flex items-center gap-1.5 font-semibold ${tv ? "text-base" : "text-sm"}`}>
+                    <col.Icon size={15} className={col.key === "preparing" ? "text-orange-400" : col.key === "ready" ? "text-emerald-400" : "text-zinc-400"} />
+                    {col.label}
+                  </span>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${list.length ? "bg-zinc-800 text-zinc-200" : "text-zinc-600"}`}>{list.length}</span>
                 </div>
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
@@ -293,13 +300,16 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount }: any) {
           <div><div className={`text-lg font-bold ${lateCount ? "text-red-400" : ""}`}>{lateCount}</div><div className="text-[10px] text-zinc-500">late now</div></div>
         </div>
       </div>
-      {list.slice(-6).reverse().map((o: any) => (
-        <div key={o.id} className="flex items-center justify-between rounded-lg border border-zinc-800/70 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-400">
-          <span className="font-mono font-bold text-zinc-300">{o.code}</span>
-          <span>{typeOf(o.order_type).icon} EGP {money(o.total)}</span>
-          <span>{new Date(o.updated_at || o.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-        </div>
-      ))}
+      {list.slice(-6).reverse().map((o: any) => {
+        const T = typeOf(o.order_type).Icon;
+        return (
+          <div key={o.id} className="flex items-center justify-between rounded-lg border border-zinc-800/70 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-400">
+            <span className="font-mono font-bold text-zinc-300">{o.code}</span>
+            <span className="flex items-center gap-1"><T size={12} /> EGP {money(o.total)}</span>
+            <span>{new Date(o.updated_at || o.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          </div>
+        );
+      })}
     </>
   );
 }
@@ -324,15 +334,17 @@ function Ticket({ o, col, flash, branchName, showBranch, onAdvance, onPrint }: a
         <div className={`h-2 ${t.bar}`} />
 
         <div className="flex items-center justify-between px-3 pt-2">
-          <span className="text-[11px] font-bold tracking-widest">
-            {t.icon} {t.label}
+          <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-widest">
+            <t.Icon size={13} />
+            {t.label}
             {o.order_type !== "delivery" && o.table_number ? ` · T${o.table_number}` : ""}
           </span>
           <span
-            className={`rounded-sm px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
+            className={`flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
               late ? "bg-red-600 text-white" : warm ? "bg-amber-400 text-amber-950" : t.chip
             }`}
           >
+            {late && <AlertTriangle size={11} />}
             {age}'
           </span>
         </div>
@@ -340,10 +352,12 @@ function Ticket({ o, col, flash, branchName, showBranch, onAdvance, onPrint }: a
         {/* the order number — big, like the top of a printed ticket */}
         <div className="px-3 pb-1 pt-0.5 text-center">
           <div className="text-2xl font-extrabold tracking-[0.15em]">{o.code}</div>
-          <div className="text-[10px] uppercase tracking-widest text-neutral-500">
+          <div className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-widest text-neutral-500">
             {o.diner_name || phone || "guest"}
             {showBranch && o.branch ? ` · ${branchName}` : ""}
-            {o.order_type === "pre_order" && o.pickup_time ? ` · ⏰ ${o.pickup_time}` : ""}
+            {o.order_type === "pre_order" && o.pickup_time ? (
+              <span className="flex items-center gap-0.5"><Clock size={10} /> {o.pickup_time}</span>
+            ) : null}
           </div>
         </div>
 
@@ -369,13 +383,13 @@ function Ticket({ o, col, flash, branchName, showBranch, onAdvance, onPrint }: a
         )}
         {o.order_type === "delivery" && (o.address || callable) && (
           <div className="flex items-start justify-between gap-2 border-b border-dashed border-neutral-400 px-3 py-1.5 text-xs">
-            <span>📍 {o.address || "—"}</span>
+            <span className="flex items-start gap-1"><MapPin size={12} className="mt-0.5 shrink-0" /> {o.address || "—"}</span>
             <span className="flex shrink-0 gap-2" onClick={(e) => e.stopPropagation()}>
               {o.map_link && (
                 <a href={o.map_link} target="_blank" rel="noreferrer" className="font-bold underline">map</a>
               )}
               {callable && (
-                <a href={`tel:${phone.replace(/[\s-]/g, "")}`} className="font-bold underline">📞 call</a>
+                <a href={`tel:${phone.replace(/[\s-]/g, "")}`} className="flex items-center gap-0.5 font-bold underline"><Phone size={11} /> call</a>
               )}
             </span>
           </div>
@@ -393,12 +407,13 @@ function Ticket({ o, col, flash, branchName, showBranch, onAdvance, onPrint }: a
               title="Print ticket"
               onClick={() => onPrint(o, branchName)}
               className="rounded-sm border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"
-            >🖨</button>
+            ><Printer size={13} /></button>
             {col.key === "new" && (
               <button
+                title="Cancel order"
                 onClick={() => onAdvance(o, "cancelled")}
                 className="rounded-sm border border-red-300 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50"
-              >✕</button>
+              ><X size={13} /></button>
             )}
             {col.next && (
               <button

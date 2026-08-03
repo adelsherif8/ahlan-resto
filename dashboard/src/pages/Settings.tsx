@@ -89,7 +89,7 @@ export default function Settings() {
       </Card>
 
       <Card className="mb-5 p-5">
-        <SectionTitle title="Charges 💰 (applied to every bill & receipt)" saved={saved === "payments"} onSave={() => saveSection("payments", config.payments)} />
+        <SectionTitle title="Charges (applied to every bill & receipt)" saved={saved === "payments"} onSave={() => saveSection("payments", config.payments)} />
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="VAT %">
             <Input type="number" value={pctVal(config.payments?.tax)} placeholder="14"
