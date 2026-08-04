@@ -342,7 +342,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         }
       }
       return r;
-    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, model, food_talk: foodTalk } });
+    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket } });
 
     const out = llmOut.value || {};
     let reply = (out.reply || "One second! 🙌").slice(0, 3500);
