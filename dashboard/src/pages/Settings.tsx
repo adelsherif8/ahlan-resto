@@ -7,6 +7,7 @@ export default function Settings() {
   const [saved, setSaved] = useState("");
   const [suggested, setSuggested] = useState<any[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [tab, setTab] = useState(() => window.location.hash.replace("#", "") || "info");
 
   useEffect(() => {
     api.get("/api/settings").then((r) => setConfig(r.data)).catch(() => {});
@@ -41,17 +42,42 @@ export default function Settings() {
     setConfig((c: any) => ({ ...c, [section]: { ...c[section], ...patch } }));
   }
 
+  const SECTIONS: [string, string][] = [
+    ["info", "Restaurant info"],
+    ["charges", "Charges"],
+    ["ai", "AI host"],
+    ["branding", "Branding"],
+    ["menu", "Menu display"],
+    ...(((bi.restaurant_type || "fine") !== "casual" ? [["reservations", "Reservations"]] : []) as [string, string][]),
+    ["offers", "Offers & specials"],
+    ["faqs", "FAQs"],
+  ];
+
   return (
-    <div className="max-w-3xl">
+    <div className="flex max-w-5xl gap-6">
+      <aside className="w-44 shrink-0">
+        <div className="sticky top-0 space-y-0.5 pt-1">
+          {SECTIONS.map(([k, label]) => (
+            <button key={k} onClick={() => { setTab(k); window.location.hash = k; }}
+              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${tab === k ? "bg-zinc-800 font-semibold text-zinc-100" : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"}`}>
+              {label}
+              {k === "faqs" && suggested.length > 0 && (
+                <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">{suggested.length}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </aside>
+      <div className="min-w-0 max-w-3xl flex-1">
       <PageHeader title="Settings" subtitle={`${config.name} · ${config.slug}`} />
 
-      <Card className="mb-5 p-5">
+      {tab === "info" && <Card className="p-5">
         <SectionTitle title="Restaurant info" saved={saved === "basic_info"} onSave={() => saveSection("basic_info", config.basic_info)} />
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Name"><Input value={bi.name || ""} onChange={(e) => upd("basic_info", { name: e.target.value })} /></Field>
           <Field label="Restaurant type (sets the whole experience)">
             <div className="flex gap-1 rounded-full bg-zinc-900 p-1">
-              {([["casual", "🍔 Fast casual"], ["fine", "🍷 Fine dining"]] as const).map(([k, label]) => (
+              {([["casual", "Fast casual"], ["fine", "Fine dining"]] as const).map(([k, label]) => (
                 <button key={k} type="button"
                   onClick={() => upd("basic_info", { restaurant_type: k })}
                   className={`rounded-full px-3 py-1 text-xs transition ${(bi.restaurant_type || "fine") === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500"}`}>
@@ -86,9 +112,9 @@ export default function Settings() {
           <Field label="Kids"><Input value={bi.policies?.kids || ""} onChange={(e) => upd("basic_info", { policies: { ...bi.policies, kids: e.target.value } })} /></Field>
           <Field label="Smoking"><Input value={bi.policies?.smoking || ""} onChange={(e) => upd("basic_info", { policies: { ...bi.policies, smoking: e.target.value } })} /></Field>
         </div>
-      </Card>
+      </Card>}
 
-      <Card className="mb-5 p-5">
+      {tab === "charges" && <Card className="p-5">
         <SectionTitle title="Charges (applied to every bill & receipt)" saved={saved === "payments"} onSave={() => saveSection("payments", config.payments)} />
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="VAT %">
@@ -104,9 +130,9 @@ export default function Settings() {
               onChange={(e) => upd("payments", { delivery_fee: e.target.value === "" ? 0 : Number(e.target.value) })} />
           </Field>
         </div>
-      </Card>
+      </Card>}
 
-      <Card className="mb-5 p-5">
+      {tab === "ai" && <Card className="p-5">
         <SectionTitle title="AI host" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai)} />
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Bot name"><Input value={ai.name || ""} onChange={(e) => upd("ai", { name: e.target.value })} /></Field>
@@ -137,9 +163,9 @@ export default function Settings() {
             <Toggle on={!!ai.orders_enabled} onClick={() => upd("ai", { orders_enabled: !ai.orders_enabled })} />
           </Field>
         </div>
-      </Card>
+      </Card>}
 
-      <Card className="mb-5 p-5">
+      {tab === "branding" && <Card className="p-5">
         <SectionTitle title="Branding (your colors & logo — applied across the dashboard)" saved={saved === "basic_info_brand"} onSave={() => saveSection("basic_info", config.basic_info)} />
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Brand color">
@@ -176,14 +202,14 @@ export default function Settings() {
           )}
         </div>
         <p className="mt-2 text-xs text-zinc-500">Save, then refresh — the sidebar, buttons and highlights take your color.</p>
-      </Card>
+      </Card>}
 
-      <Card className="mb-5 p-5">
+      {tab === "menu" && <Card className="p-5">
         <SectionTitle title="Menu display (how the bot shows the menu)" saved={saved === "menu_config"} onSave={() => saveSection("menu_config", config.menu_config || {})} />
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="When a guest asks for the menu">
             <div className="flex gap-1 rounded-full bg-zinc-900 p-1">
-              {([["list", "📱 Tappable list"], ["text", "💬 One message"], ["pdf", "📄 PDF"]] as const).map(([k, label]) => (
+              {([["list", "Tappable list"], ["text", "One message"], ["pdf", "PDF"]] as const).map(([k, label]) => (
                 <button key={k} type="button"
                   onClick={() => upd("menu_config", { display: k })}
                   className={`rounded-full px-3 py-1 text-xs transition ${((config.menu_config || {}).display || "list") === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500"}`}>
@@ -200,9 +226,9 @@ export default function Settings() {
           )}
         </div>
         <p className="mt-2 text-xs text-zinc-500">List: categories the guest taps. One message: the whole menu as text. PDF: your designed menu file, sent as a document.</p>
-      </Card>
+      </Card>}
 
-      <Card className="mb-5 p-5">
+      {tab === "reservations" && <Card className="p-5">
         <SectionTitle title="Reservation policy" saved={saved === "reservation_policy"} onSave={() => saveSection("reservation_policy", config.reservation_policy)} />
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Slot size (min)"><Input type="number" value={rp.slot_minutes || 30} onChange={(e) => upd("reservation_policy", { slot_minutes: Number(e.target.value) })} /></Field>
@@ -218,9 +244,9 @@ export default function Settings() {
             <Input type="number" value={dep.applies_from_party || 1} onChange={(e) => upd("reservation_policy", { deposits: { ...dep, applies_from_party: Number(e.target.value) } })} />
           </Field>
         </div>
-      </Card>
+      </Card>}
 
-      <Card className="mb-5 p-5">
+      {tab === "offers" && <Card className="mb-5 p-5">
         <SectionTitle title="Offers (the bot may mention ONLY these)" saved={saved === "ai_offers"} onSave={() => saveSection("ai", config.ai)} />
         <div className="space-y-2">
           {(ai.offers || []).map((o: string, i: number) => (
@@ -233,9 +259,9 @@ export default function Settings() {
           ))}
           <Btn variant="ghost" onClick={() => upd("ai", { offers: [...(ai.offers || []), ""] })}>+ Add offer</Btn>
         </div>
-      </Card>
+      </Card>}
 
-      <Card className="mb-5 p-5">
+      {tab === "offers" && <Card className="p-5">
         <SectionTitle title="Tonight's specials (the bot pitches these — auto-expire on the date)" saved={saved === "ai_specials"} onSave={() => saveSection("ai", config.ai)} />
         <div className="space-y-2">
           {(ai.specials || []).map((s: any, i: number) => (
@@ -251,11 +277,11 @@ export default function Settings() {
           ))}
           <Btn variant="ghost" onClick={() => upd("ai", { specials: [...(ai.specials || []), { text: "" }] })}>+ Add special</Btn>
         </div>
-      </Card>
+      </Card>}
 
-      {suggested.length > 0 && (
+      {tab === "faqs" && suggested.length > 0 && (
         <Card className="mb-5 border-amber-500/40 p-5">
-          <h2 className="mb-1 text-sm font-semibold text-amber-300">🤖 Suggested by the bot — guests asked, it couldn't answer</h2>
+          <h2 className="mb-1 text-sm font-semibold text-amber-300">Suggested by the bot — guests asked, it couldn't answer</h2>
           <p className="mb-4 text-xs text-zinc-500">Write the answer and approve → becomes a FAQ the bot uses instantly.</p>
           <div className="space-y-4">
             {suggested.map((s) => (
@@ -273,7 +299,7 @@ export default function Settings() {
         </Card>
       )}
 
-      <Card className="p-5">
+      {tab === "faqs" && <Card className="p-5">
         <SectionTitle title="FAQs (the bot answers from these)" saved={saved === "faqs"} onSave={() => saveSection("faqs", config.faqs)} />
         <div className="space-y-3">
           {(config.faqs || []).map((f: any, i: number) => (
@@ -291,7 +317,8 @@ export default function Settings() {
           ))}
           <Btn variant="ghost" onClick={() => setConfig({ ...config, faqs: [...(config.faqs || []), { q: "", a: "" }] })}>+ Add FAQ</Btn>
         </div>
-      </Card>
+      </Card>}
+      </div>
     </div>
   );
 }
