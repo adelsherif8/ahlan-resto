@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CalendarClock, Grid3X3, Hourglass, UtensilsCrossed,
-  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator,
+  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator, ChevronDown,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import NotificationBell from "./NotificationBell";
@@ -17,20 +17,30 @@ function contrastFor(hex: string): string {
   return lum > 145 ? "#1c1917" : "#ffffff";
 }
 
+// Grouped nav: Overview stands alone, then labelled sections — the flat list
+// read as one long soup. Order inside a group = what staff reach for most.
 const NAV = [
-  { to: "/overview", label: "Overview", icon: LayoutDashboard, roles: ["admin", "manager"] },
-  { to: "/reservations", label: "Reservations", icon: CalendarClock, roles: ["admin", "manager", "host"] },
-  { to: "/floor", label: "Floor", icon: Grid3X3, roles: ["admin", "manager", "host"] },
-  { to: "/waitlist", label: "Waitlist", icon: Hourglass, roles: ["admin", "manager", "host"] },
-  { to: "/orders", label: "Orders", icon: ChefHat, roles: ["admin", "manager", "kitchen"] },
-  { to: "/pos", label: "POS", icon: Calculator, roles: ["admin", "manager", "kitchen", "host"] },
-  { to: "/delivery", label: "Delivery", icon: Bike, roles: ["admin", "manager", "kitchen"] },
-  { to: "/menu", label: "Menu", icon: UtensilsCrossed, roles: ["admin", "manager", "kitchen"] },
-  { to: "/diners", label: "Diners", icon: Users, roles: ["admin", "manager", "host"] },
-  { to: "/chats", label: "Chats", icon: MessageCircle, roles: ["admin", "manager", "host", "livechat"] },
-  { to: "/events", label: "Events", icon: PartyPopper, roles: ["admin", "manager"] },
-  { to: "/users", label: "Staff", icon: Users, roles: ["admin", "manager"] },
-  { to: "/settings", label: "Settings", icon: Settings, roles: ["admin", "manager"] },
+  { group: "", items: [
+    { to: "/overview", label: "Overview", icon: LayoutDashboard, roles: ["admin", "manager"] },
+  ]},
+  { group: "Service", items: [
+    { to: "/reservations", label: "Reservations", icon: CalendarClock, roles: ["admin", "manager", "host"] },
+    { to: "/waitlist", label: "Waitlist", icon: Hourglass, roles: ["admin", "manager", "host"] },
+    { to: "/orders", label: "Orders", icon: ChefHat, roles: ["admin", "manager", "kitchen"] },
+    { to: "/pos", label: "POS", icon: Calculator, roles: ["admin", "manager", "kitchen", "host"] },
+    { to: "/delivery", label: "Delivery", icon: Bike, roles: ["admin", "manager", "kitchen"] },
+    { to: "/floor", label: "Floor", icon: Grid3X3, roles: ["admin", "manager", "host"] },
+  ]},
+  { group: "Guests", items: [
+    { to: "/chats", label: "Chats", icon: MessageCircle, roles: ["admin", "manager", "host", "livechat"] },
+    { to: "/diners", label: "Diners", icon: Users, roles: ["admin", "manager", "host"] },
+    { to: "/events", label: "Events", icon: PartyPopper, roles: ["admin", "manager"] },
+  ]},
+  { group: "Setup", items: [
+    { to: "/menu", label: "Menu", icon: UtensilsCrossed, roles: ["admin", "manager", "kitchen"] },
+    { to: "/users", label: "Staff", icon: Users, roles: ["admin", "manager"] },
+    { to: "/settings", label: "Settings", icon: Settings, roles: ["admin", "manager"] },
+  ]},
 ];
 
 export default function DashboardLayout() {
@@ -42,12 +52,23 @@ export default function DashboardLayout() {
   // casual = orders-first: no reservations page AND no waitlist (fast food has
   // queues of tickets, not queues of parties); with table numbers off the Floor
   // page is decorative too — all three drop from the nav
-  const CASUAL_ORDER = ["/overview", "/orders", "/pos", "/delivery", "/menu", "/floor", "/chats", "/diners", "/events", "/users", "/settings"];
-  const items = NAV
-    .filter((n) => role === "admin" || n.roles.includes(role))
-    .filter((n) => (rtype === "casual" ? n.to !== "/reservations" && n.to !== "/waitlist" : true))
-    .filter((n) => (rtype === "casual" && !tablesOn ? n.to !== "/floor" : true))
-    .sort((a, b) => (rtype === "casual" ? CASUAL_ORDER.indexOf(a.to) - CASUAL_ORDER.indexOf(b.to) : 0));
+  const groups = NAV.map((g) => ({
+    ...g,
+    items: g.items
+      .filter((n) => role === "admin" || n.roles.includes(role))
+      .filter((n) => (rtype === "casual" ? n.to !== "/reservations" && n.to !== "/waitlist" : true))
+      .filter((n) => (rtype === "casual" && !tablesOn ? n.to !== "/floor" : true)),
+  })).filter((g) => g.items.length);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem("nav_collapsed") || "{}"); } catch { return {}; }
+  });
+  function toggleGroup(label: string) {
+    setCollapsed((c) => {
+      const next = { ...c, [label]: !c[label] };
+      localStorage.setItem("nav_collapsed", JSON.stringify(next));
+      return next;
+    });
+  }
 
   // unread chats badge — refreshed on a slow poll so reception never misses a guest
   const [unread, setUnread] = useState(0);
@@ -105,29 +126,40 @@ export default function DashboardLayout() {
           <NotificationBell />
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-          {items.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-                  isActive ? "font-semibold" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
-                }`
-              }
-              style={({ isActive }) =>
-                isActive
-                  ? { color: "var(--accent)", backgroundColor: "color-mix(in srgb, var(--accent) 12%, transparent)" }
-                  : undefined
-              }
-            >
-              <Icon size={17} />
-              <span className="flex-1">{label}</span>
-              {to === "/chats" && unread > 0 && (
-                <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none" style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
-                  {unread}
-                </span>
+          {groups.map((g) => (
+            <div key={g.group || "top"}>
+              {g.group && (
+                <button onClick={() => toggleGroup(g.group)}
+                  className="mt-3 flex w-full items-center justify-between px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-600 hover:text-zinc-400">
+                  {g.group}
+                  <ChevronDown size={12} className={`transition-transform ${collapsed[g.group] ? "-rotate-90" : ""}`} />
+                </button>
               )}
-            </NavLink>
+              {(!g.group || !collapsed[g.group]) && g.items.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+                      isActive ? "font-semibold" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+                    }`
+                  }
+                  style={({ isActive }) =>
+                    isActive
+                      ? { color: "var(--accent)", backgroundColor: "color-mix(in srgb, var(--accent) 12%, transparent)" }
+                      : undefined
+                  }
+                >
+                  <Icon size={17} />
+                  <span className="flex-1">{label}</span>
+                  {to === "/chats" && unread > 0 && (
+                    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none" style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
+                      {unread}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="border-t border-zinc-800 px-5 py-4">
