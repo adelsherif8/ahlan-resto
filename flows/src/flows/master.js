@@ -3,8 +3,8 @@
 // the classification is still real so Executions show true routing + the handoff hints work.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
-import { MODEL_FAST } from "../config.js";
-import { detectCloser, matchFaq, matchMenuCategory, matchService, matchItemPrice } from "../services/fastpaths.js";
+import { MODEL_FAST, MODEL_NANO } from "../config.js";
+import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo } from "../services/fastpaths.js";
 import { bump } from "../services/metrics.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm)\W*$/i;
@@ -60,6 +60,9 @@ defineFlow({
       if (closer) { bump("closer_hits"); return closer; }
       const faq = matchFaq(message, ctx.tenant.config, sticky);
       if (faq) { bump("faq_hits"); return faq; }
+      // staff-approved FAQ answers — every approval is a free turn forever
+      const afaq = matchApprovedFaq(message, ctx.tenant.config);
+      if (afaq) { bump("faq_approved_hits"); return afaq; }
       const svc = matchService(message, ctx.tenant.config, sticky);
       if (svc) { bump("service_hits"); return svc; }
       const currency = ctx.tenant.config.payments?.currency || "EGP";
@@ -67,6 +70,8 @@ defineFlow({
       if (catList) { bump("menu_category_hits"); return catList; }
       const itemPrice = await matchItemPrice(db, message, currency, sticky);
       if (itemPrice) { bump("item_price_hits"); return itemPrice; }
+      const itemInfo = await matchItemInfo(db, message, sticky);
+      if (itemInfo) { bump("item_info_hits"); return itemInfo; }
       return { kind: "none — needs classification + LLM" };
     }, { input: { message, sticky_language: input.stickyLanguage || null } });
 
@@ -88,6 +93,10 @@ defineFlow({
       }
       if (isAffirmative) {
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare affirmative)" } };
+      }
+      // a bare greeting is friendly, full stop — no model needed to know that
+      if (/^(hi+|hey+|hello+|yo|hala|ahlan|اهلا|أهلا|هلا|السلام عليكم|صباح الخير|مساء الخير|good (morning|evening))[\s!.😊👋🙏]*$/i.test(message.trim())) {
+        return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare greeting)" } };
       }
       // A live order session already tells us where this belongs. Short answers to
       // our own questions ("Maadi", "T3", "sprite", "card", an address) are the
@@ -127,7 +136,7 @@ CONTINUATION RULE (most important): ORDER IN PROGRESS is ${precheck.active_flow 
 OUR LAST MESSAGE: ${JSON.stringify(String(input.lastAiMessage || "").slice(0, 300))}
 Also detect mood: happy|neutral|frustrated|urgent|confused, and language: en|ar|franco|mixed.
 Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
-      return chatJSON(MODEL_FAST, system, message, { temperature: 0, maxTokens: 120 });
+      return chatJSON(MODEL_NANO, system, message, { temperature: 0, maxTokens: 120 });
     }, { input: { message, affirmative_shortcut: isAffirmative } });
 
     const cls = classification.value || {};

@@ -429,9 +429,9 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         lastSummaryAt.set(ctx.sessionId, Date.now());
         if (lastSummaryAt.size > 2000) lastSummaryAt.clear();
         const older = history.slice(0, -6).map((h) => `${h.role}: ${h.message}`).join("\n").slice(0, 4000);
-        const sum = await chatJSON(MODEL_FAST,
+        const sum = await chatJSON(MODEL_FAST /* flex lane */,
           'Summarize this restaurant WhatsApp conversation in 2-3 sentences capturing: guest preferences, unresolved topics, promises made. JSON: {"summary": "..."}',
-          older, { maxTokens: 120 }).catch(() => null);
+          older, { maxTokens: 120, flex: true }).catch(() => null);
         if (sum?.value?.summary) {
           await db.from("message_full").update({ conversation_summary: sum.value.summary }).eq("phone_number", ctx.sessionId);
           effects.push("summary-refreshed");

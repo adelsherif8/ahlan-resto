@@ -168,7 +168,7 @@ app.post("/api/ops/draft-reply", (req, res, next) => opsAuth(req, res, next), as
     const { data: diner } = await tenant.db.from("diners").select("name,allergies,preferences").eq("phone_number", String(sessionId)).maybeSingle();
     const system = `You draft ONE short reply a restaurant staff member could send to a guest on WhatsApp. Restaurant: ${tenant.config.name}. Match the guest's language (Arabic/English/Franco). Warm, human, brief — 1-3 sentences. Never invent prices, availability or promises. If the situation needs a decision only staff can make, draft the honest holding line instead. Output ONLY the reply text.`;
     const user = `Guest${diner?.name ? ` (${diner.name})` : ""}${diner?.allergies?.length ? `, allergies: ${diner.allergies.join(", ")}` : ""}.\nConversation so far:\n${recent}\n\nDraft the staff reply:`;
-    const r = await chatText(MODEL_FAST, system, user, { maxTokens: 200 });
+    const r = await chatText(MODEL_FAST, system, user, { maxTokens: 200, flex: true });
     res.json({ draft: String(r?.value || "").trim() });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -185,7 +185,7 @@ app.post("/api/ops/tidy-menu", (req, res, next) => opsAuth(req, res, next), asyn
     const { data: menu } = await tenant.db.from("menu_items").select("id,name,description").order("sort_order");
     const list = (menu || []).map((m) => ({ id: m.id, name: m.name, description: m.description || "" }));
     const system = `You clean up restaurant menu copy. For each item, fix ONLY: spelling/typos ("Pickels"→"Pickles"), truncated endings ("+ Fri"→"+ Fries"), casing and punctuation consistency. NEVER change what the dish IS, never add or remove ingredients, never translate, never rewrite style. Return JSON {"fixes":[{"id","description"}]} containing ONLY items that need a change.`;
-    const r = await chatJSON(MODEL_FAST, system, JSON.stringify(list), { maxTokens: 2000 });
+    const r = await chatJSON(MODEL_FAST, system, JSON.stringify(list), { maxTokens: 2000, flex: true });
     const fixes = (r?.value?.fixes || []).filter((f) => f.id && typeof f.description === "string");
     const byId = new Map(list.map((m) => [m.id, m]));
     res.json({
@@ -411,6 +411,11 @@ function opsAuth(req, res, next) {
 app.get("/api/ops/verify", opsAuth, (_req, res) => res.json({ ok: true }));
 app.get("/api/metrics", opsAuth, async (_req, res) => {
   const m = metrics();
+  // messages where a fast path ALMOST fired — the to-do list for new phrasings
+  try {
+    const { recentNearMisses } = await import("./services/fastpaths.js");
+    m.fastpath_near_misses = recentNearMisses();
+  } catch {}
   // conversation outcomes from the tenant DB (supabase-js returns errors, doesn't throw —
   // a count is just null until the relevant migration has run)
   try {

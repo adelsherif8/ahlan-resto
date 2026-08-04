@@ -7,7 +7,9 @@ import { OPENAI_API_KEY, llmReady, MODEL_SMART, MODEL_FAST } from "../config.js"
 const PRICES = {
   "gpt-4.1": [2.0, 8.0],
   "gpt-4.1-mini": [0.4, 1.6],
+  "gpt-4.1-nano": [0.1, 0.4],
   "gpt-4o-mini": [0.15, 0.6],
+  "deepseek-chat": [0.27, 1.1],
 };
 
 // OpenAI automatically caches identical prompt prefixes over ~1024 tokens and
@@ -23,23 +25,51 @@ function cost(model, tin, tout, cached = 0) {
 
 const RETRYABLE = new Set([429, 500, 502, 503, 529]);
 
-async function chat(model, messages, { json = false, temperature = 0.4, maxTokens = 700 } = {}) {
+// Optional budget lane for EXTRACTION calls (hosted, no GPU ops): set
+// DEEPSEEK_API_KEY on the service and ai.budget_extraction=true in the
+// restaurant config. Dormant without both; falls back to OpenAI on any error.
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
+const BUDGET_MODEL = process.env.BUDGET_MODEL || "deepseek-chat";
+export function budgetExtractionAvailable() { return !!DEEPSEEK_API_KEY; }
+
+async function chat(model, messages, opts = {}) {
+  const { json = false, temperature = 0.4, maxTokens = 700 } = opts;
   if (!llmReady) throw new Error("OPENAI_API_KEY not set");
   let res;
   let useModel = model;
+  let flexFailed = false;
+  let endpoint = "https://api.openai.com/v1/chat/completions";
+  let authKey = OPENAI_API_KEY;
+  if (opts.budget && DEEPSEEK_API_KEY) {
+    endpoint = "https://api.deepseek.com/chat/completions";
+    authKey = DEEPSEEK_API_KEY;
+    useModel = BUDGET_MODEL;
+  }
   for (let attempt = 0; ; attempt++) {
-    res = await fetch("https://api.openai.com/v1/chat/completions", {
+    res = await fetch(endpoint, {
       method: "POST",
-      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${authKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: useModel,
         messages,
         temperature,
         max_tokens: maxTokens,
         ...(json ? { response_format: { type: "json_object" } } : {}),
+        // background work (summaries, tidy, notes) rides the cheap slow lane;
+        // unsupported-model errors retry without it below
+        ...(opts.flex && !flexFailed ? { service_tier: "flex" } : {}),
       }),
     }).catch((e) => ({ ok: false, status: 0, text: async () => e.message }));
     if (res.ok) break;
+    // budget provider hiccup → fall straight back to OpenAI, never retry it
+    if (endpoint.includes("deepseek")) {
+      endpoint = "https://api.openai.com/v1/chat/completions";
+      authKey = OPENAI_API_KEY;
+      useModel = model;
+      continue;
+    }
+    // flex tier not supported for this model/account → plain call, same attempt
+    if (opts.flex && !flexFailed && res.status === 400) { flexFailed = true; continue; }
     // rate-limited on the big model → a smaller reply beats NO reply, every time
     if (res.status === 429 && useModel === MODEL_SMART) { useModel = MODEL_FAST; continue; }
     if (attempt >= 2 || (!RETRYABLE.has(res.status) && res.status !== 0)) break;

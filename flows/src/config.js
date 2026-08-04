@@ -16,6 +16,8 @@ export const FLUSH_TICK_MS = Number(process.env.FLUSH_TICK_MS || 1000);
 // multi-fact reasoning). FAST = mechanical work (classify, extract, summarize).
 export const MODEL_SMART = process.env.MODEL_SMART || "gpt-4.1";
 export const MODEL_FAST = process.env.MODEL_FAST || "gpt-4.1-mini";
+// nano tier: the router's classify call is tiny and structural — quarter price
+export const MODEL_NANO = process.env.MODEL_NANO || "gpt-4.1-nano";
 
 export const llmReady = !!OPENAI_API_KEY;
 

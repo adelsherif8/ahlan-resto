@@ -105,6 +105,80 @@ export function matchFaq(message, config, sticky) {
   return null;
 }
 
+// ---- approved FAQs answer for free — every Settings approval permanently
+// converts an LLM turn into a 0-LLM one. Matching is deterministic: normalized
+// equality, or ALL content words of the stored question present in the message.
+// This is "semantic caching" with a human validating every cache entry.
+const FAQ_STOP = new Set(["do", "you", "the", "a", "an", "is", "are", "what", "your", "there", "any", "have", "does", "can", "i", "we", "في", "هل", "ايه", "انتو", "عندكم"]);
+function faqTokens(q) {
+  return String(q).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 1 && !FAQ_STOP.has(w));
+}
+export function matchApprovedFaq(message, config) {
+  if (message.length > 120 || message.split("\n").length > 2) return null;
+  const probe = ` ${String(message).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim()} `;
+  for (const f of config.faqs || []) {
+    if (!f?.q || !f?.a) continue;
+    const toks = faqTokens(f.q);
+    if (toks.length < 2) continue; // too generic to match safely
+    if (toks.every((t) => probe.includes(` ${t}`) || probe.includes(`${t} `))) {
+      return { reply: String(f.a), kind: "faq_approved", language: null };
+    }
+  }
+  return null;
+}
+
+// ---- item facts straight from the DB: "what's in X" / "is X spicy" ----
+const INGREDIENTS_PAT = /\b(what'?s in|what is in|ingredients?|made (of|with)|contains?|فيه ايه|مكونات|بيتعمل من)\b/i;
+const SPICY_PAT = /\b(spicy|hot\??$|حار|سبايسي|حراق)\b/i;
+function findItem(data, message) {
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  const probe = ` ${norm(message)} `;
+  const items = (data || []).filter((m) => m.available);
+  return items.find((m) => probe.includes(` ${norm(m.name)} `))
+    || items.find((m) => { const t = norm(m.name).split(" ")[0]; return t.length >= 4 && probe.includes(` ${t} `); })
+    || null;
+}
+export async function matchItemInfo(db, message, sticky = null) {
+  if (message.length > 90) return null;
+  const wantsIngredients = INGREDIENTS_PAT.test(message);
+  const wantsSpice = SPICY_PAT.test(message);
+  if (!wantsIngredients && !wantsSpice) return null;
+  const data = await getMenu(db);
+  const item = findItem(data, message);
+  if (!item) { nearMiss("item_info", message); return null; }
+  const l = lang(message, sticky);
+  if (wantsIngredients) {
+    const src = item.ingredients || item.description;
+    if (!src) return null; // nothing real in the DB → the LLM stays honest instead
+    const replies = {
+      en: `${item.name}: ${src}`,
+      ar: `${item.name}: ${src}`,
+      franco: `${item.name}: ${src}`,
+    };
+    return { reply: replies[l] || replies.en, kind: "item_info", language: l };
+  }
+  if (wantsSpice) {
+    if (item.spice_level == null) return null;
+    const level = Number(item.spice_level);
+    const replies = {
+      en: level === 0 ? `${item.name} isn't spicy at all 👌` : `${item.name} is ${["not spicy", "mildly spicy 🌶", "medium spicy 🌶🌶", "properly hot 🌶🌶🌶"][level] || "spicy"}`,
+      ar: level === 0 ? `${item.name} مش حار خالص 👌` : `${item.name} ${["مش حار", "حار خفيف 🌶", "حار متوسط 🌶🌶", "حار جامد 🌶🌶🌶"][level] || "حار"}`,
+      franco: level === 0 ? `${item.name} mesh 7ar khales 👌` : `${item.name} ${["mesh 7ar", "7ar khafif 🌶", "7ar metwaset 🌶🌶", "7ar gamed 🌶🌶🌶"][level] || "7ar"}`,
+    };
+    return { reply: replies[l] || replies.en, kind: "item_spice", language: l };
+  }
+  return null;
+}
+
+// ---- near-miss telemetry: a fast path ALMOST fired — these messages tell us
+// exactly which phrasings to add next. Ring buffer surfaces in /api/metrics.
+const nearMisses = [];
+export function nearMiss(kind, message) {
+  nearMisses.push({ kind, message: String(message).slice(0, 120), at: new Date().toISOString() });
+  if (nearMisses.length > 50) nearMisses.shift();
+}
+export function recentNearMisses() { return [...nearMisses]; }
+
 // ---- "do you deliver?" — a config lookup, not a judgment call ----
 const SERVICE_PAT = /\b(do you |can i |is there |هل ?)?(deliver|delivery|توصيل|دليفري|بتوصلوا|takeaway|take ?away|pick ?up|تيك ?اواي|استلام)\b/i;
 
@@ -156,7 +230,7 @@ export async function matchItemPrice(db, message, currency = "EGP", sticky = nul
   const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g, " ").trim();
   const said = norm(message);
   const hits = items.filter((m) => norm(m.name) && said.includes(norm(m.name)));
-  if (hits.length !== 1) return null;
+  if (hits.length !== 1) { if (!hits.length) nearMiss("item_price", message); return null; }
   const m = hits[0];
   // an item with several priced formats has no single answer — let the model ask
   const priced = (m.options || []).find((g) => (g.choices || []).some((c) => c.price != null));
