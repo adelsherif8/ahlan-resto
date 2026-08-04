@@ -442,9 +442,11 @@ app.get("/api/metrics", opsAuth, async (_req, res) => {
   res.json(m);
 });
 
-app.post("/api/ops/run-regression", opsAuth, (_req, res) => {
-  runRegression(); // async — poll status
-  res.json({ started: true });
+app.post("/api/ops/run-regression", opsAuth, (req, res) => {
+  // {only: ["menudoc","photo"]} re-runs just those cases — cheap targeted verify
+  const only = Array.isArray(req.body?.only) && req.body.only.length ? req.body.only : undefined;
+  runRegression({ only }); // async — poll status
+  res.json({ started: true, only: only || "all" });
 });
 app.get("/api/ops/regression", opsAuth, (_req, res) => res.json(regressionStatus()));
 

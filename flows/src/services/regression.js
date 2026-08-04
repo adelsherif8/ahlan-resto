@@ -232,10 +232,17 @@ async function runCase(tenant, c, runId) {
     for (const rx of c.expect || []) if (!rx.test(reply)) failures.push(`missing ${rx}`);
     for (const rx of c.forbid || []) if (rx.test(reply)) failures.push(`forbidden ${rx}`);
     if (c.expect_media) {
-      const { data: mrows } = await tenant.db
-        .from("chat_messages").select("media_type,media_url")
-        .eq("session_id", sid).eq("sender", "ai").not("media_url", "is", null);
-      const kinds = (mrows || []).map((m) => m.media_type);
+      // the attachment row lands moments AFTER the text reply (deliver logs the
+      // doc/photo last) — retry briefly so a millisecond race isn't a red suite
+      let kinds = [];
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const { data: mrows } = await tenant.db
+          .from("chat_messages").select("media_type,media_url")
+          .eq("session_id", sid).eq("sender", "ai").not("media_url", "is", null);
+        kinds = (mrows || []).map((m) => m.media_type);
+        if ([].concat(c.expect_media).every((w) => kinds.includes(w))) break;
+        await new Promise((r) => setTimeout(r, 4000));
+      }
       for (const want of [].concat(c.expect_media)) {
         if (!kinds.includes(want)) failures.push(`no ${want} attachment actually sent`);
       }
