@@ -113,6 +113,17 @@ export default function Settings() {
           <Field label="Chat enabled">
             <Toggle on={!!ai.chat_enabled} onClick={() => upd("ai", { chat_enabled: !ai.chat_enabled })} />
           </Field>
+          <Field label="Voice quality (cost vs premium tone)">
+            <div className="flex gap-1 rounded-full bg-zinc-900 p-1">
+              {([["auto", "Auto (smart when it matters)"], ["smart", "Always premium"]] as const).map(([k, label]) => (
+                <button key={k} type="button"
+                  onClick={() => upd("ai", { voice_mode: k })}
+                  className={`rounded-full px-3 py-1 text-xs transition ${(ai.voice_mode || "auto") === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Field>
           <Field label="Personality" full>
             <Input value={ai.personality || ""} onChange={(e) => upd("ai", { personality: e.target.value })} />
           </Field>

@@ -157,7 +157,15 @@ defineFlow({
     const llmOut = await f.node("reply_llm", async () => {
       const bi = config.basic_info || {};
       const ai = config.ai || {};
-      const menuText = buildMenuText(context.menu, message, history, config.payments?.currency || "EGP");
+      // MENU TIERING: the full menu block is the single biggest token spend, and
+      // most turns (hours, location, chit-chat) never need it. A code check — the
+      // guest's own words vs THIS restaurant's item/category names + a generic
+      // food lexicon — decides per turn. The moment food comes up, the full block
+      // is back. Nothing here is restaurant-specific: names come from their menu.
+      const foodTalk = mentionsFood(message, history, context.menu);
+      const menuText = foodTalk
+        ? buildMenuText(context.menu, message, history, config.payments?.currency || "EGP")
+        : `[menu not loaded this turn — the guest isn't discussing food] Categories we serve: ${[...new Set(context.menu.map((m) => m.category))].join(", ")} (${context.menu.length} items). If food, dishes or prices unexpectedly come up, NEVER invent or answer from memory — give a natural bridging line and the full menu will be in your next turn.`;
 
       const system = `You are ${ai.name || "the host"} — the greeter at the door of ${config.name}, and the waiter who knows every dish by heart. You're a real hospitality person on WhatsApp, not a support bot.
 Personality: ${ai.personality || "warm and friendly"}.
@@ -243,11 +251,22 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 
 Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string}|null, "send_location_pin": boolean, "react_emoji": string|null, "staff_alert": {"type": string, "note": string}|null, "suggested_faq": {"question": string, "context": string}|null }`;
 
-      // mood/VIP routing + first impressions: frustrated, urgent, VIP — and the FIRST
-      // reply of any conversation (greetings are worth the bigger model) — get gpt-4.1
-      const model = MODEL_SMART; // the host's voice is the product — never the cheap brain
+      // VOICE MODE: "auto" (default) runs the fast model and escalates to the
+      // premium one exactly where voice sells — bad mood, VIP, a pending handoff,
+      // a brand-new guest's first impression, a long-time-no-see welcome.
+      // "smart" (Settings → AI host → Voice quality) forces premium on every turn;
+      // per-restaurant config, flippable from the dashboard without a deploy.
+      const escalate =
+        ["frustrated", "angry", "upset", "urgent"].includes(String(classification?.mood || "").toLowerCase()) ||
+        !!diner?.is_vip ||
+        context.handoffPending ||
+        (context.isNewConversation && context.situation === "first_timer") ||
+        context.situation === "long_time_no_see";
+      const model = (config.ai?.voice_mode || "auto") === "smart" ? MODEL_SMART : escalate ? MODEL_SMART : MODEL_FAST;
 
-      const convo = (history || []).slice(-12).map((h) => ({
+      // 8 verbatim turns + the rolling summary (already in the prompt) carry the
+      // conversation; 12 raw turns was paying for context the summary provides
+      const convo = (history || []).slice(-8).map((h) => ({
         role: h.role === "guest" ? "user" : "assistant",
         // staff takeover replies enter history too — mark them so the AI knows what
         // the team already promised and never contradicts it
@@ -323,7 +342,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         }
       }
       return r;
-    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, model: MODEL_SMART } });
+    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, model, food_talk: foodTalk } });
 
     const out = llmOut.value || {};
     let reply = (out.reply || "One second! 🙌").slice(0, 3500);
@@ -727,6 +746,22 @@ function priceOf(m, currency) {
   if (!g) return `${m.price} ${currency}`;
   const parts = g.choices.filter((c) => c.price != null).map((c) => `${c.name} ${c.price}`);
   return `${parts.join(" / ")} ${currency}`;
+}
+
+// Is this turn about food? Generic lexicon (EN/AR/Franco) + THIS restaurant's
+// own item and category tokens — nothing brand-specific hardcoded.
+const GENERIC_FOOD = /\b(menu|eat|eating|food|hungry|order|meal|dish|drink|dessert|veg(an|etarian)?|gluten|spicy|price|cost|how much|recommend|suggest|best.?seller|popular|بكام|سعر|منيو|اكل|آكل|جعان|طلب|وجبة|مشروب|حلو|اقتراح|تنصح|3ayez akol|gau3an|menue?)\b/i;
+function mentionsFood(message, history, menu) {
+  const recentGuest = (history || []).slice(-4).filter((h) => h.role === "guest").map((h) => h.message).slice(-2);
+  const probe = ` ${[message, ...recentGuest].join(" ").toLowerCase()} `;
+  if (GENERIC_FOOD.test(probe)) return true;
+  for (const m of menu) {
+    const cat = String(m.category || "").toLowerCase();
+    if (cat && probe.includes(cat)) return true;
+    const tok = String(m.name || "").toLowerCase().split(/\s+/)[0];
+    if (tok.length >= 4 && probe.includes(tok)) return true;
+  }
+  return false;
 }
 
 function buildMenuText(menu, message, history, currency) {
