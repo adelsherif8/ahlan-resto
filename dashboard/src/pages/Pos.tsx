@@ -4,16 +4,14 @@ import {
   Camera, Store, StickyNote, Trash2,
 } from "lucide-react";
 import { api, session } from "../config/api";
+import { printTicket as printSharedTicket } from "../lib/ticket";
 import { PageHeader, Btn, Empty } from "../components/ui";
 
 // The POS walks the SAME option questions the bot asks — one config, two fronts.
 // Pricing semantics mirror flows/order.js itemPrice: a chosen format's price
 // replaces the base, every delta adds on top.
 
-function money(n: any) {
-  const v = Number(n || 0);
-  return Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { money } from "../lib/format";
 const norm = (s: any) => String(s || "").toLowerCase().trim();
 
 function groupChoices(group: any, menu: any[]) {
@@ -170,32 +168,7 @@ export default function Pos() {
   }
 
   function printTicket(o: any) {
-    const rows = (o.items || []).map((i: any) => {
-      const mods = Object.entries(i.options || {}).filter(([k]) => k !== "slots")
-        .map(([, v]) => (Array.isArray(v) ? v.join(", ") : v));
-      const slots = Array.isArray(i.options?.slots)
-        ? i.options.slots.map((sl: any, si: number) => `${si + 1}) ${Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ")}${sl?.notes ? ` — ${sl.notes}` : ""}`)
-        : [];
-      return `<div class="r"><b>${i.qty}x ${i.name}</b><span>${money(Number(i.unit_price ?? i.price) * Number(i.qty))}</span></div>` +
-        [...mods, ...slots, ...(i.notes ? [`* ${i.notes}`] : [])].map((m) => `<div class="m">&raquo; ${m}</div>`).join("");
-    }).join("");
-    const w = window.open("", "_blank", "width=330,height=640");
-    if (!w) return;
-    w.document.write(`<html><head><title>${o.code}</title><style>
-      body{font-family:ui-monospace,Menlo,monospace;width:280px;margin:8px auto;color:#000}
-      .c{text-align:center}.big{font-size:30px;font-weight:800;letter-spacing:3px}
-      .r{display:flex;justify-content:space-between;margin:2px 0}.m{color:#444;font-size:11px;padding-left:12px}
-      hr{border:none;border-top:1px dashed #888;margin:6px 0}
-    </style></head><body>
-      <div class="c"><b>${String(o.order_type || "").replace("_", "-").toUpperCase()}${o.table_number ? " · T" + o.table_number : ""}</b></div>
-      <div class="c big">${o.code}</div>
-      <hr>${rows}<hr>
-      <div class="r"><b>TOTAL</b><b>EGP ${money(o.total)}</b></div>
-      ${o.payment_method ? `<div>PAYMENT: ${String(o.payment_method).toUpperCase()}</div>` : ""}
-      ${o.address ? `<div>DELIVER TO: ${o.address}</div>` : ""}
-    </body></html>`);
-    w.document.close(); w.focus();
-    setTimeout(() => { w.print(); w.close(); }, 250);
+    printSharedTicket(o, { branchName: branches.find((b: any) => b.key === o.branch)?.name });
   }
 
   return (

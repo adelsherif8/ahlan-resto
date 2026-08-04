@@ -9,16 +9,12 @@ import { bump } from "../services/metrics.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm)\W*$/i;
 
-// menu names for the verbless-order rule — cached, the menu changes rarely
-let menuNameCache = { at: 0, names: [] };
+import { getMenu } from "../services/menucache.js";
+
+// menu names for the verbless-order rule — served by the shared 20s menu cache
 async function menuNames(db) {
-  if (Date.now() - menuNameCache.at > 60_000) {
-    try {
-      const { data } = await db.from("menu_items").select("name").eq("available", true);
-      menuNameCache = { at: Date.now(), names: (data || []).map((m) => String(m.name).toLowerCase()) };
-    } catch { /* keep the stale cache */ }
-  }
-  return menuNameCache.names;
+  const rows = await getMenu(db).catch(() => []);
+  return rows.filter((m) => m.available).map((m) => String(m.name).toLowerCase());
 }
 
 defineFlow({
@@ -109,9 +105,11 @@ defineFlow({
         const names = await menuNames(db);
         const ml = ` ${message.toLowerCase()} `;
         const hit = names.some((n) => {
-          if (ml.includes(n)) return true;
+          if (ml.includes(` ${n} `) || ml.includes(` ${n},`) || ml.includes(` ${n}.`)) return true;
           const tok = n.split(/\s+/)[0];
-          return tok.length >= 4 && ml.includes(` ${tok}`);
+          // whole word only — a prefix match hijacked questions mentioning
+          // places/words that merely start like an item name
+          return tok.length >= 4 && new RegExp(`\\b${tok.replace(/[.*+?^${'$'}{}()|[\\]\\\\]/g, "\\$&")}\\b`).test(ml);
         });
         if (hit) {
           return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (menu item + order-type wording)" } };
@@ -142,7 +140,11 @@ Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
       // agent, waitlist via FRIENDLY) + ORDER agent; fine = reservation agent, orders via staff
       const rtype = ctx.tenant.config.basic_info?.restaurant_type || "fine";
       const reservable = rtype !== "casual" && ctx.tenant.config.ai?.reservations_enabled !== false;
-      const agent = (cls.bucket === "order" || precheck.active_flow === "order") && rtype === "casual" ? "order"
+      // The classifier already knows an order is in progress (CONTINUATION RULE) and
+      // is allowed to route a genuine subject change elsewhere — forcing the order
+      // agent for the whole draft TTL hijacked parking questions and complaints.
+      // The force survives only as a fallback when classification produced nothing.
+      const agent = (cls.bucket === "order" || (precheck.active_flow === "order" && !cls.bucket)) && rtype === "casual" ? "order"
         : (cls.bucket === "reservation" || precheck.active_flow === "reservation") && reservable ? "reservation"
         : cls.bucket === "arrival" && reservable ? "arrival"
         : "friendly";

@@ -26,15 +26,11 @@ router.get("/:id", async (req, res, next) => {
   try {
     const diner = await req.repo.get("diners", req.params.id);
     if (!diner) return res.status(404).json({ error: "Not found" });
-    const reservations = (await req.repo.list("reservations", { order: "date" }))
-      .filter((r) => r.diner_phone === diner.phone_number)
-      .slice(0, 20);
+    const reservations = (await req.repo.list("reservations", { where: { diner_phone: diner.phone_number }, order: "date", desc: true, limit: 20 })).reverse();
     // order history + derived stats — a CRM shows what they DO, not just fields
     let orders = [], stats = null;
     try {
-      orders = (await req.repo.list("orders", { order: "created_at", desc: true }))
-        .filter((o) => o.phone_number === diner.phone_number)
-        .slice(0, 25)
+      orders = (await req.repo.list("orders", { where: { phone_number: diner.phone_number }, order: "created_at", desc: true, limit: 25 }))
         .map((o) => ({
           id: o.id, code: o.code, status: o.status, order_type: o.order_type,
           total: o.total, branch: o.branch, created_at: o.created_at,

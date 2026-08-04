@@ -34,15 +34,22 @@ router.get("/kpis", async (req, res, next) => {
     // orders-first numbers for casual restaurants — test rows and other days excluded
     const isTest = (v) => /^web:(regress|convo|test)-/i.test(String(v || ""));
     const real = orders.filter((o) => !isTest(o.phone_number));
-    const todayOrders = real.filter((o) => String(o.created_at).slice(0, 10) === today);
-    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString("en-CA");
+    // day boundaries in the RESTAURANT'S timezone — an order placed 23:50 must
+    // not vanish from today's numbers because the server clock lives in UTC
+    const tz = req.restaurant?.basic_info?.timezone || "Africa/Cairo";
+    const dayOf = (ts) => new Date(ts).toLocaleDateString("en-CA", { timeZone: tz });
+    const todayTz = dayOf(Date.now());
+    const todayOrders = real.filter((o) => dayOf(o.created_at) === todayTz);
+    const yesterday = dayOf(Date.now() - 86400000);
     const kept = todayOrders.filter((o) => o.status !== "cancelled");
     const round2 = (n) => Math.round(n * 100) / 100;
     const revenue = round2(kept.reduce((s, o) => s + Number(o.total || 0), 0));
     const revenueYesterday = round2(real
-      .filter((o) => String(o.created_at).slice(0, 10) === yesterday && o.status !== "cancelled")
+      .filter((o) => dayOf(o.created_at) === yesterday && o.status !== "cancelled")
       .reduce((s, o) => s + Number(o.total || 0), 0));
-    const openNow = todayOrders.filter((o) => !["paid", "cancelled", "served", "delivered"].includes(o.status));
+    // live tickets are live regardless of which day they started — a 23:50 order
+    // still cooking at 00:05 stays in open/late
+    const openNow = real.filter((o) => !["paid", "cancelled", "served", "delivered"].includes(o.status));
     const lateNow = openNow.filter((o) => (Date.now() - new Date(o.created_at).getTime()) / 60000 > 20).length;
     const prep = kept
       .map((o) => { const end = o.ready_at || o.served_at; return end ? (new Date(end).getTime() - new Date(o.created_at).getTime()) / 60000 : null; })

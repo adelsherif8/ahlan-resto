@@ -5,17 +5,11 @@ import {
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { Card, PageHeader, Empty, Btn, Input } from "../components/ui";
+import { mins } from "../lib/format";
 
 const DRIVER_BASE = "https://ahlan-resto.vercel.app/driver";
 
-function money(n: any) {
-  const v = Number(n || 0);
-  return Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function mins(ts?: string | null) {
-  if (!ts) return null;
-  return Math.max(0, Math.round((Date.now() - new Date(ts).getTime()) / 60000));
-}
+import { money } from "../lib/format";
 
 const STAGE: Record<string, { label: string; cls: string }> = {
   pending: { label: "in kitchen", cls: "bg-zinc-800 text-zinc-300" },
@@ -69,8 +63,8 @@ export default function Delivery() {
 
   async function assign(o: any, courierId: string) {
     const c = couriers.find((x) => x.id === courierId);
-    setOrders((xs) => xs.map((x) => (x.id === o.id ? { ...x, courier_name: c?.name || null, courier_phone: c?.phone || null } : x)));
-    await api.patch(`/api/orders/${o.id}`, { courier_name: c?.name || null, courier_phone: c?.phone || null }).catch(load);
+    setOrders((xs) => xs.map((x) => (x.id === o.id ? { ...x, courier_name: c?.name || null, courier_phone: c?.phone_number || null } : x)));
+    await api.patch(`/api/orders/${o.id}`, { courier_name: c?.name || null, courier_phone: c?.phone_number || null }).catch(load);
   }
 
   function driverLink(o: any) { return o.courier_token ? `${DRIVER_BASE}/${o.courier_token}` : null; }
@@ -94,7 +88,7 @@ export default function Delivery() {
 
   async function addCourier() {
     if (!addName.trim()) return;
-    await api.post("/api/couriers", { name: addName.trim(), phone: addPhone.trim() || null }).catch((e: any) =>
+    await api.post("/api/couriers", { name: addName.trim(), phone_number: addPhone.trim() || null }).catch((e: any) =>
       alert(e.response?.data?.error === undefined ? "Run migration 013 first (couriers table)" : e.response?.data?.error));
     setAddName(""); setAddPhone("");
     load();
@@ -170,7 +164,7 @@ export default function Delivery() {
                           className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 disabled:opacity-60">
                           <option value="">{o.courier_name ? o.courier_name : "Assign courier…"}</option>
                           {couriers.filter((c) => c.active !== false).map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${c.phone}` : ""}</option>
+                            <option key={c.id} value={c.id}>{c.name}{c.phone_number ? ` · ${c.phone_number}` : ""}</option>
                           ))}
                         </select>
                       </div>
@@ -217,7 +211,7 @@ export default function Delivery() {
                 <div key={c.id} className={`flex items-center justify-between rounded-lg bg-zinc-900 px-2.5 py-1.5 text-xs ${c.active === false ? "opacity-50" : ""}`}>
                   <div>
                     <div className="font-medium text-zinc-200">{c.name}</div>
-                    {c.phone && <div className="text-zinc-500">{c.phone}</div>}
+                    {c.phone_number && <div className="text-zinc-500">{c.phone_number}</div>}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button title={c.active === false ? "Reactivate" : "Deactivate"}

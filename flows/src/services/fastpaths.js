@@ -45,10 +45,12 @@ const COMPOUND_PAT = /(\?[^?]*\?)|\b(and|also|plus|kaman|كمان|وكذلك)\b|
 
 // Guest tapped a category in the WhatsApp menu list (message = the category name):
 // full deterministic listing — every dish, price, flags. Zero LLM, zero teasing.
+import { getMenu } from "./menucache.js";
+
 export async function matchMenuCategory(db, message, currency = "EGP") {
   const probe = String(message).trim().split("\n")[0].trim();
   if (!probe || probe.length > 24 || /[?؟]/.test(probe)) return null;
-  const { data } = await db.from("menu_items").select("*").order("sort_order");
+  const data = await getMenu(db);
   const items = (data || []).filter((m) => m.available);
   const cat = [...new Set(items.map((m) => m.category))].find((c) => String(c).toLowerCase() === probe.toLowerCase());
   if (!cat) return null;
@@ -121,12 +123,16 @@ export function matchService(message, config, sticky) {
   const svc = config.basic_info?.services;
   if (!svc || typeof svc !== "object") return null; // nothing configured → never guess
   const l = lang(message, sticky);
+  // IRON RULE: an unset field is UNKNOWN, not yes — only fields explicitly true
+  // may be asserted in a 0-LLM answer. Anything unset falls through to the LLM,
+  // whose FACTS block says "not set → the team will confirm".
   const on = [
-    svc.delivery !== false ? { en: "delivery", ar: "توصيل", franco: "delivery" } : null,
-    svc.pickup !== false ? { en: "pickup", ar: "استلام من الفرع", franco: "pickup" } : null,
-    svc.dine_in !== false ? { en: "dine-in", ar: "الأكل في الفرع", franco: "dine-in" } : null,
+    svc.delivery === true ? { en: "delivery", ar: "توصيل", franco: "delivery" } : null,
+    svc.pickup === true ? { en: "pickup", ar: "استلام من الفرع", franco: "pickup" } : null,
+    svc.dine_in === true ? { en: "dine-in", ar: "الأكل في الفرع", franco: "dine-in" } : null,
   ].filter(Boolean);
-  if (!on.length) return null;
+  const unset = ["delivery", "pickup", "dine_in"].some((k) => svc[k] === undefined || svc[k] === null);
+  if (!on.length || unset) return null;
   const list = on.map((x) => x[l] || x.en);
   const join = l === "ar" ? " و" : ", ";
   const replies = {
@@ -145,7 +151,7 @@ export async function matchItemPrice(db, message, currency = "EGP", sticky = nul
   // a quantity means arithmetic, and "and"/"or" means more than one thing — both
   // belong to the model, which can add up and compare
   if (/\d/.test(message) || /\b(and|or|both|و|أو)\b/i.test(message)) return null;
-  const { data } = await db.from("menu_items").select("name,price,options,available").order("sort_order");
+  const data = await getMenu(db);
   const items = (data || []).filter((m) => m.available);
   const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g, " ").trim();
   const said = norm(message);

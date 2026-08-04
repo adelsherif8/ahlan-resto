@@ -4,6 +4,7 @@
 import PDFDocument from "pdfkit";
 import crypto from "node:crypto";
 import { log } from "../config.js";
+import { uploadPublicPdf } from "./storage.js";
 
 const BUCKET = "menus";
 // bump when the layout or text handling changes, or cached PDFs keep the old look
@@ -93,6 +94,9 @@ function buildPdf({ restaurant, menu, currency, accent, tagline, phone, website 
   });
 }
 
+// process-lifetime {storagePath → publicUrl} — a hit costs zero I/O
+const urlCache = new Map();
+
 // Returns { url, filename } or null — a missing PDF must never block a reply.
 export async function menuPdfUrl(db, { restaurant, menu, currency = "EGP", accent = "#111111", tagline, phone, website }) {
   try {
@@ -102,23 +106,19 @@ export async function menuPdfUrl(db, { restaurant, menu, currency = "EGP", accen
     const path = `${safe}-${hash}.pdf`;
     const filename = `${safe}-menu.pdf`;
 
+    // hot path: same menu hash → same URL, zero I/O (process-lifetime cache)
+    if (urlCache.get(path)) return { url: urlCache.get(path), filename };
     // already generated for this exact menu? reuse it — no pdfkit, no upload
     const { data: found } = await db.storage.from(BUCKET).list("", { search: path });
     if (found?.some((f) => f.name === path)) {
       const { data } = db.storage.from(BUCKET).getPublicUrl(path);
-      if (data?.publicUrl) return { url: data.publicUrl, filename };
+      if (data?.publicUrl) { urlCache.set(path, data.publicUrl); return { url: data.publicUrl, filename }; }
     }
 
     const buffer = await buildPdf({ restaurant, menu, currency, accent, tagline, phone, website });
-    const opts = { contentType: "application/pdf", upsert: true, cacheControl: "31536000" };
-    let { error } = await db.storage.from(BUCKET).upload(path, buffer, opts);
-    if (error) {
-      await db.storage.createBucket(BUCKET, { public: true }).catch(() => {});
-      ({ error } = await db.storage.from(BUCKET).upload(path, buffer, opts));
-      if (error) throw new Error(error.message);
-    }
-    const { data } = db.storage.from(BUCKET).getPublicUrl(path);
-    return data?.publicUrl ? { url: data.publicUrl, filename } : null;
+    const url = await uploadPublicPdf(db, BUCKET, path, buffer, { cacheControl: "31536000" });
+    if (url) { urlCache.set(path, url); return { url, filename }; }
+    return null;
   } catch (e) {
     log("menu pdf failed:", e.message);
     return null;

@@ -11,11 +11,8 @@ const W = 227;
 const M = 16;
 const INNER = W - M * 2;
 
-// money never reads "459.9" — whole numbers stay whole, fractions get two places
-function fmt(n) {
-  const v = Number(n) || 0;
-  return Number.isInteger(v) ? v.toLocaleString("en-US") : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { fmtMoney as fmt } from "./format.js";
+import { uploadPublicPdf } from "./storage.js";
 
 function dashed(doc, gap = 0.5) {
   doc.moveDown(0.35);
@@ -126,15 +123,7 @@ function paymentLabel(m) {
 export async function makeReceipt(db, { restaurant, order, branch, currency }) {
   try {
     const buffer = await buildPdf({ restaurant, order, branch, currency });
-    const path = `${order.code}.pdf`;
-    let { error } = await db.storage.from(BUCKET).upload(path, buffer, { contentType: "application/pdf", upsert: true });
-    if (error) {
-      await db.storage.createBucket(BUCKET, { public: true }).catch(() => {});
-      ({ error } = await db.storage.from(BUCKET).upload(path, buffer, { contentType: "application/pdf", upsert: true }));
-      if (error) throw new Error(error.message);
-    }
-    const { data } = db.storage.from(BUCKET).getPublicUrl(path);
-    return data?.publicUrl || null;
+    return await uploadPublicPdf(db, BUCKET, `${order.code}.pdf`, buffer);
   } catch (e) {
     log("receipt failed:", e.message);
     return null; // a missing PDF must never block an order

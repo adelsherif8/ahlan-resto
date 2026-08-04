@@ -6,6 +6,8 @@ import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, log } from "../config.js";
 import { notifyDashboard } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
+import { getMenu } from "../services/menucache.js";
+import { fmtMoney } from "../services/format.js";
 import { makeReceipt } from "../services/receipt.js";
 import { menuPdfUrl } from "../services/menupdf.js";
 
@@ -33,13 +35,12 @@ defineFlow({
     const branches = (config.basic_info?.branches || []).filter((b) => b && typeof b === "object" && b.key);
 
     const loaded = await f.node("load", async () => {
-      const { data: menuRows } = await db.from("menu_items").select("*").order("sort_order");
+      const menuRows = await getMenu(db);
       const today_ = new Date().toISOString().slice(0, 10);
       // 86'd-for-today items stay matchable so we can say "sold out today" honestly
       // instead of pretending they don't exist; hard-disabled items don't exist
       const soldOutToday = new Set((menuRows || []).filter((m) => m.available && m.sold_out_until && String(m.sold_out_until).slice(0, 10) >= today_).map((m) => m.name));
       const menu = (menuRows || []).filter((m) => m.available && !soldOutToday.has(m.name));
-      const menuAll = (menuRows || []).filter((m) => m.available);
       const { data: open } = await db.from("orders").select("*")
         .eq("phone_number", ctx.sessionId)
         .in("status", ["pending", "accepted", "preparing", "ready"])
@@ -49,7 +50,7 @@ defineFlow({
       const p = diner?.preferences?.pending_order;
       const pending = p && Date.now() - new Date(p.at || 0).getTime() < 120 * 60_000 ? p : null;
       return {
-        menu, soldOutToday, menuAll, openOrder: open?.[0] || null,
+        menu, soldOutToday, openOrder: open?.[0] || null,
         tableNumbers: (tables || []).map((t) => String(t.table_number).toUpperCase()),
         // sticky only within the CURRENT draft — every new order asks the branch
         // again (guests of a 9-branch chain move around); their usual is a hint,
@@ -102,7 +103,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         if (!loaded.openOrder) return { kind: "no_open_order" };
         if (["ready"].includes(loaded.openOrder.status)) return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder) };
         await db.from("orders").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", loaded.openOrder.id);
-        if (diner?.id) {
+        if (diner?.id && loaded.openOrder.status !== "cancelled") {
           // cancellation reverses the CRM bump the placement made
           await db.from("diners").update({
             total_spend: Math.max(0, Math.round(((Number(diner.total_spend) || 0) - Number(loaded.openOrder.total || 0)) * 100) / 100),
@@ -156,18 +157,30 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         //   "make it just 1"      → qty change (same item, different qty, or the
         //                            bare deterministic form below)
         const ADD_VERB = /\b(add|also|kaman|zawe?d|زود|كمان|ضيف|وهات)\b/i;
-        if (loaded.pending?.items?.length && input.message.trim().length <= 28 && items.length && !e.edits?.length) {
+        // a draft older than 20 min is an abandoned session, not the context for
+        // this message — a fresh "2 iconic meals" then REPLACES it instead of
+        // being swallowed by "how would you like to pay?" about old food
+        const draftAgeMs = Date.now() - new Date(loaded.pending?.at || 0).getTime();
+        const draftStale = draftAgeMs > 20 * 60_000;
+        if (loaded.pending?.items?.length && input.message.trim().length <= 28 && items.length && !e.edits?.length && !draftStale) {
           const prev = loaded.pending.items;
           if (items.length === 1 && !loaded.pending.awaiting_option) {
             const line = prev.find((it) => normName(it.name) === normName(items[0].name));
             if (line && Number(items[0].qty) !== Number(line.qty) && /\d|one|two|three|واحد|اتنين|٢|١/i.test(input.message)) {
               line.qty = items[0].qty;
-            } else if (!line && ADD_VERB.test(input.message)) {
-              prev.push(items[0]); // a genuine addition, not an answer
+            } else if (!line && (ADD_VERB.test(input.message) || /^\s*\d/.test(input.message))) {
+              // "add a loaded fries" OR a leading quantity ("2 cokes") — both are
+              // genuine additions, not answers to an open question
+              prev.push(items[0]);
             }
           }
           items = prev;
           unknown = [];
+        }
+        // a stale draft being replaced by fresh items must not leak its old
+        // answers (an "options" pointer at a different item, a 2-hour-old "cash")
+        if (draftStale && items.length && loaded.pending) {
+          loaded.pending = { ...loaded.pending, items: [], awaiting_option: null, awaiting_confirm: null, payment_method: null };
         }
         // Bare "make it just 1" with a single-line draft — no model needed at all.
         if (loaded.pending?.items?.length === 1 && !items.length && !e.edits?.length) {
@@ -308,7 +321,15 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // remember the in-progress order so the next short answer doesn't lose it
       const savePending = async (extra = {}) => {
         if (!diner?.id) return;
-        const preferences = { ...(diner.preferences || {}), pending_order: { items, order_type: orderType, table_number: tableNumber, branch, address, map_link: mapLinkRaw, at: new Date().toISOString(), ...extra } };
+        // MERGE over the previous draft — rebuilding from scratch erased fields
+        // other gates had saved (payment_method said early, upsell_offered, …)
+        const pending_order = {
+          ...(loaded.pending || {}),
+          items, order_type: orderType, table_number: tableNumber, branch, address, map_link: mapLinkRaw,
+          at: new Date().toISOString(),
+          ...extra,
+        };
+        const preferences = { ...(diner.preferences || {}), pending_order };
         await db.from("diners").update({ preferences }).eq("id", diner.id);
       };
 
@@ -316,7 +337,8 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // While gathering, echo back what's already on the order so the guest can see
       // it building. Item lines and a subtotal only — the TOTAL isn't knowable until
       // the type settles which charges apply, and quoting one early would be a lie.
-      const running = items.length ? { items, subtotal: items.reduce((s, i) => s + itemPrice(i) * i.qty, 0), currency } : null;
+      const runningOf = (its) => (its.length ? { items: its, subtotal: its.reduce((s2, i2) => s2 + itemPrice(i2) * i2.qty, 0), currency } : null);
+      let running = runningOf(items);
 
       // 1) WHAT first — the food IS the order; where it goes comes at the end
       // an "unknown" item that's actually 86'd for today gets the honest answer,
@@ -325,20 +347,24 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         const sold = unknown.filter((u) => [...loaded.soldOutToday].some((s) => normName(s).includes(normName(u)) || normName(u).includes(normName(s))));
         if (sold.length) {
           unknown = unknown.filter((u) => !sold.includes(u));
-          return { kind: "sold_out_today", sold, items, running: items.length ? { items, subtotal: items.reduce((s, i) => s + itemPrice(i) * i.qty, 0), currency } : null };
+          await savePending({}); // keep type/branch/matched items — losing them re-asked everything
+          return { kind: "sold_out_today", sold, items, running: runningOf(items) };
         }
       }
-      if (!items.length) return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
+      if (!items.length) {
+        await savePending({}); // marks the session as ordering — "loaded fries" next turn stays here
+        return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
+      }
 
       // 2) OPTIONS — finish configuring every item
       const step = nextQuestion(items, loaded.menu, input.message, loaded.pending, currency);
       items = step.items;
+      running = runningOf(items); // this turn's answers are in — never echo the stale bill
       if (step.ask) {
         await savePending({ awaiting_option: { index: step.ask.index, keys: step.ask.keys } });
         // recompute the bill AFTER this turn's answer — showing the pre-answer
         // state made prices look like they jumped a turn late
-        const runningNow = items.length ? { items, subtotal: items.reduce((s2, i2) => s2 + itemPrice(i2) * i2.qty, 0), currency } : null;
-        return { kind: "ask_choice", items, running: runningNow, ...step.ask };
+        return { kind: "ask_choice", items, running, ...step.ask };
       }
 
       // 3) FULFILLMENT — type + branch + table/address, everything still missing
@@ -350,7 +376,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       const needTable = orderType === "dine_in" && tablesOn && !tableNumber;
       const needAddress = orderType === "delivery" && !address && !mapLink && !sharedPin;
       if (needType || needBranch || needTable || needAddress) {
-        await savePending({ address, map_link: mapLinkRaw });
+        await savePending({ address, map_link: mapLinkRaw, awaiting_option: null });
         const loc = freshLocation(diner);
         const near = loc ? nearestBranches(branches, loc.lat, loc.lng, 3).map((b) => `${b.name} (${b.km} km)`) : null;
         return {
@@ -454,6 +480,8 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       if (orderType === "delivery") {
         const courierToken = Array.from({ length: 22 }, () => "abcdefghijkmnpqrstuvwxyz23456789"[Math.floor(Math.random() * 32)]).join("");
         await db.from("orders").update({ courier_token: courierToken }).eq("code", code).then(() => {}, () => {});
+        // itemized receipts need the fee as data, not a re-derivation (migration 014)
+        if (bill.delivery_fee > 0) await db.from("orders").update({ delivery_fee: bill.delivery_fee }).eq("code", code).then(() => {}, () => {});
       }
       if (diner?.id) { // order placed → the in-progress draft is done
         const { pending_order: _p, ...rest } = diner.preferences || {};
@@ -767,8 +795,10 @@ function modifiers(it) {
 // group.count  = ask for that many picks · group.from_category = read the live menu
 function groupChoices(group, menu) {
   if (group.from_category) {
-    const re = new RegExp(group.from_category, "i");
-    return menu.filter((m) => re.test(String(m.category || ""))).map((m) => ({ name: m.name }));
+    // staff type this free-form in the dashboard — treat it as a literal
+    // substring, never compile it as a regex (an unbalanced paren killed orders)
+    const want = normName(group.from_category);
+    return menu.filter((m) => normName(m.category || "").includes(want)).map((m) => ({ name: m.name }));
   }
   return (group.choices || []).filter((c) => c?.name);
 }
@@ -866,9 +896,12 @@ function matchSlotValue(raw, names) {
     });
   }
   if (hit) return { value: hit };
-  // they asked for a soda we don't carry → the closest one we DO carry, flagged
+  // cola-family ask we don't carry → the cola-family drink we DO carry, and the
+  // switch is ANNOUNCED in the reply's notices (founder-specified behavior).
+  // Anything else unmatched stays unmatched — never silently hand the guest the
+  // first drink on the list; the slot re-asks with the real choices instead.
   if (SODA_WORDS.test(raw)) {
-    const sub = names.find((n) => /cola|pepsi/i.test(n)) || names[0];
+    const sub = names.find((n) => /cola|pepsi/i.test(n));
     if (sub) return { value: sub, switched: raw.trim() };
   }
   return { value: null, unmatched: raw.trim() };
@@ -1112,7 +1145,9 @@ function priceOrder(items, config, orderType) {
   const rateOf = (...keys) => {
     for (const k of keys) {
       const v = Number(p[k]);
-      if (Number.isFinite(v) && v > 0) return v > 1 ? v / 100 : v;
+      // >= 1 always means percent: 14 → 14%, 1 → 1%. (Nobody configures a 100%
+      // charge; reading a whole-number 1 as the fraction 1.0 doubled bills.)
+      if (Number.isFinite(v) && v > 0) return v >= 1 ? v / 100 : v;
     }
     return 0;
   };
@@ -1134,13 +1169,7 @@ function priceOrder(items, config, orderType) {
 
 // The bill as the guest sees it. Built here so the model never writes a number
 // or a currency symbol — it phrases around this block, it doesn't compose it.
-// money never reads "459.9" — whole numbers stay whole, fractions get two places
-function fmtAmount(n) {
-  const v = Number(n) || 0;
-  return Number.isInteger(v)
-    ? v.toLocaleString("en-US")
-    : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+const fmtAmount = fmtMoney;
 
 function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, restaurant, when }) {
   const money = (n) => `${fmtAmount(n)} ${currency}`;

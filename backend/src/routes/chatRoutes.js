@@ -82,8 +82,7 @@ router.get("/sessions/:sessionId/context", async (req, res, next) => {
     // full order picture: history, lifetime spend, their "usual", the draft in progress
     let orders = [], lifetime = 0, usual = null, draft = null;
     try {
-      const all = (await req.repo.list("orders", { order: "created_at", desc: true }))
-        .filter((o) => o.phone_number === sid);
+      const all = await req.repo.list("orders", { where: { phone_number: sid }, order: "created_at", desc: true, limit: 50 });
       orders = all.slice(0, 6).map((o) => ({
         code: o.code, status: o.status, order_type: o.order_type, total: o.total,
         created_at: o.created_at, branch: o.branch,

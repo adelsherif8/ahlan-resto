@@ -35,7 +35,9 @@ router.post("/", async (req, res, next) => {
     const tax = round(subtotal * rateOf("tax", "tax_pct", "vat_pct"));
     const delivery_fee = order_type === "delivery" ? round(Number(p.delivery_fee) || 0) : 0;
     const total = round(subtotal + service_charge + tax + delivery_fee);
-    const code = "O-" + Array.from({ length: 4 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+    // SAME alphabet as flows/order.js CODE_ALPHABET — no I/L/O/U confusables
+    const AB = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
+    const code = "O-" + Array.from({ length: 4 }, () => AB[Math.floor(Math.random() * AB.length)]).join("");
     const row = await req.repo.insert("orders", {
       code,
       phone_number: phone_number || `walkin:${Date.now()}`,
@@ -47,7 +49,7 @@ router.post("/", async (req, res, next) => {
         ...(i.options && Object.keys(i.options).length ? { options: i.options } : {}),
         ...(i.notes ? { notes: i.notes } : {}),
       })),
-      subtotal, service_charge, tax, total,
+      subtotal, service_charge, tax, total, delivery_fee,
       payment_method: payment_method || null,
       status: "pending", payment_status: "unpaid",
       address: order_type === "delivery" ? address || null : null,
@@ -91,9 +93,14 @@ router.patch("/:id", async (req, res, next) => {
       if (k in req.body) patch[k] = req.body[k];
     if (patch.status && STAMP[patch.status]) patch[STAMP[patch.status]] = new Date().toISOString();
     if (patch.status === "cancelled" && req.body.cancel_reason) patch.cancel_reason = String(req.body.cancel_reason).slice(0, 120);
-    const before = ["cancelled", "delivered"].includes(patch.status) ? await req.repo.get("orders", req.params.id) : null;
+    const before = patch.status ? await req.repo.get("orders", req.params.id) : null;
     // COD is collected at the door — delivered means paid for cash orders
     if (patch.status === "delivered" && before?.payment_method === "cash") patch.payment_status = "paid";
+    // status RANK: moving backwards = an undo. Re-arm guest notifications so the
+    // real transition still pushes, and never push the backwards move itself.
+    const RANK = { pending: 0, accepted: 0, preparing: 1, ready: 2, out_for_delivery: 3, served: 4, delivered: 4, paid: 4, cancelled: 9 };
+    const movingBack = patch.status && before && (RANK[patch.status] ?? 0) < (RANK[before.status] ?? 0) && patch.status !== "cancelled";
+    if (movingBack) patch.notified_status = null;
     let row;
     try {
       row = await req.repo.update("orders", req.params.id, patch);
@@ -104,17 +111,20 @@ router.patch("/:id", async (req, res, next) => {
       row = await req.repo.update("orders", req.params.id, bare);
     }
     if (!row) return res.status(404).json({ error: "Not found" });
-    // kitchen cancelled it → reverse the CRM bump the placement made
-    if (patch.status === "cancelled" && before && before.status !== "cancelled" && row.phone_number) {
+    // kitchen cancelled it → reverse the CRM bump the placement made;
+    // un-cancelling (Undo) restores it — a mis-tap must not cost the guest's history
+    const crmDelta = patch.status === "cancelled" && before && before.status !== "cancelled" ? -1
+      : patch.status && patch.status !== "cancelled" && before?.status === "cancelled" ? 1 : 0;
+    if (crmDelta !== 0 && row.phone_number) {
       try {
         const [d] = await req.repo.list("diners", { where: { phone_number: row.phone_number }, limit: 1 });
         if (d) await req.repo.update("diners", d.id, {
-          total_spend: Math.max(0, Math.round(((Number(d.total_spend) || 0) - Number(row.total || 0)) * 100) / 100),
-          visit_count: Math.max(0, (Number(d.visit_count) || 0) - 1),
+          total_spend: Math.max(0, Math.round(((Number(d.total_spend) || 0) + crmDelta * Number(row.total || 0)) * 100) / 100),
+          visit_count: Math.max(0, (Number(d.visit_count) || 0) + crmDelta),
         });
-      } catch (err) { log("diner rollback on cancel failed:", err.message); }
+      } catch (err) { log("diner CRM adjust on status change failed:", err.message); }
     }
-    if (patch.status) pushStatus(row.code, patch.status); // guest gets the update
+    if (patch.status && !movingBack) pushStatus(row.code, patch.status); // guest gets the update (never for undos)
     res.json(row);
   } catch (e) { next(e); }
 });

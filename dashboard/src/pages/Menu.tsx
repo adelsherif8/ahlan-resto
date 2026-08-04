@@ -11,10 +11,7 @@ const TAG_ICON: Record<string, any> = { vegan: Leaf, vegetarian: Leaf, gf: Wheat
 
 const PDF_URL = "https://ahlan-resto.vercel.app/menu.pdf";
 
-function money(n: any) {
-  const v = Number(n || 0);
-  return Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { money } from "../lib/format";
 
 const todayISO = () => new Date().toLocaleDateString("en-CA");
 const soldOutToday = (item: any) => item.sold_out_until && String(item.sold_out_until).slice(0, 10) >= todayISO();
@@ -440,18 +437,12 @@ function NewItemModal({ items, onClose, onCreated }: { items: any[]; onClose: ()
   // meal template: cloned from your most complete existing meal, renamed to this item
   const mealSrc = items.find((i) => (i.options || []).some((g: any) => g.key === "format"));
   const [groups, setGroups] = useState<any[]>([]);
+  // template loads ONCE per kind/source — renaming the item must never wipe the
+  // user's choice edits; the base→name substitution happens at create time
   useEffect(() => {
     if (kind !== "meal") return;
-    if (!mealSrc) { setGroups([]); return; }
-    const base = (mealSrc.name || "").replace(/\s+Meal$/i, "");
-    const mine = (name || "New item").replace(/\s+Meal$/i, "");
-    const g = deepCopy(mealSrc.options).map((grp: any) => ({
-      ...grp,
-      when: grp.when?.format ? { format: grp.when.format.map((w: string) => w.split(base).join(mine)) } : grp.when,
-      choices: (grp.choices || []).map((c: any) => ({ ...c, name: String(c.name).split(base).join(mine) })),
-    }));
-    setGroups(g);
-  }, [kind, name, mealSrc?.id]);
+    setGroups(mealSrc ? deepCopy(mealSrc.options) : []);
+  }, [kind, mealSrc?.id]);
 
   // bundle: pick the sandwiches guests can choose between
   const bundleSrc = items.find((i) => (i.options || []).some((g: any) => g.key === "slots"));
@@ -476,8 +467,14 @@ function NewItemModal({ items, onClose, onCreated }: { items: any[]; onClose: ()
 
   function buildOptions(): any[] | null {
     if (kind === "meal") {
-      return groups.map((g) => ({ ...g, choices: (g.choices || []).filter((c: any) => String(c.name).trim()) }))
-        .filter((g) => (g.choices || []).length);
+      const base = (mealSrc?.name || "").replace(/\s+Meal$/i, "");
+      const mine = (name || "New item").replace(/\s+Meal$/i, "");
+      const sub = (v: string) => (base ? String(v).split(base).join(mine) : String(v));
+      return groups.map((g) => ({
+        ...g,
+        when: g.when?.format ? { format: g.when.format.map(sub) } : g.when,
+        choices: (g.choices || []).filter((c: any) => String(c.name).trim()).map((c: any) => ({ ...c, name: sub(c.name) })),
+      })).filter((g) => (g.choices || []).length);
     }
     if (kind === "bundle") {
       const slot_groups: any[] = [{ key: "sandwich", label: "Sandwich", choices: picked.map((n) => ({ name: n })) }];

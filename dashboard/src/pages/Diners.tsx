@@ -8,10 +8,7 @@ import { api } from "../config/api";
 import { Card, PageHeader, Pill, Input, Empty } from "../components/ui";
 
 // money never reads "478.8" — whole numbers stay whole, fractions get two places
-function money(n: any) {
-  const v = Number(n || 0);
-  return Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { money } from "../lib/format";
 
 function relTime(ts?: string | null): string {
   if (!ts) return "never";

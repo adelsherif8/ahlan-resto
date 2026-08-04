@@ -4,7 +4,10 @@ import {
   Bell, BellOff, Monitor, Printer, Phone, MapPin, Store, X, AlertTriangle,
   Plus, Search, MessageCircle, Minus,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { api, session } from "../config/api";
+import { money, mins } from "../lib/format";
+import { modLines, printTicket as printSharedTicket } from "../lib/ticket";
 import { PageHeader, Btn } from "../components/ui";
 
 // Fast-food ticket board (KDS): tickets flow left → right, one tap advances.
@@ -39,34 +42,6 @@ const TEAR = {
 
 const CANCEL_REASONS = ["Guest cancelled", "Out of stock", "Entered by mistake"];
 
-function mins(since: string) {
-  return Math.max(0, Math.round((Date.now() - new Date(since).getTime()) / 60000));
-}
-
-function money(n: any) {
-  const v = Number(n || 0);
-  return Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-const KEY_ORDER = ["format", "size", "side", "drink"];
-function modLines(i: any): string[] {
-  const entries = Object.entries(i.options || {}).filter(([k]) => k !== "slots");
-  entries.sort(([a], [b]) => {
-    const ia = KEY_ORDER.indexOf(a), ib = KEY_ORDER.indexOf(b);
-    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-  });
-  const out = entries.map(([, v]) => (Array.isArray(v) ? v.join(", ") : String(v)));
-  const slots = (i.options || {}).slots;
-  if (Array.isArray(slots)) {
-    slots.forEach((sl: any, si: number) => {
-      const vals = Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ");
-      out.push(`${si + 1}) ${vals}${sl?.notes ? ` — ${sl.notes}` : ""}`);
-    });
-  }
-  if (i.notes) out.push(`* ${i.notes}`);
-  return out;
-}
-
 function ding() {
   try {
     const ac = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -81,31 +56,7 @@ function ding() {
 }
 
 function printTicket(o: any, branchName: string) {
-  const t = typeOf(o.order_type);
-  const rows = (o.items || []).map((i: any) =>
-    `<div class="r"><b>${i.qty}x ${i.name}</b><span>${money(Number(i.unit_price ?? i.price) * Number(i.qty))}</span></div>` +
-    modLines(i).map((m) => `<div class="m">&raquo; ${m}</div>`).join("")
-  ).join("");
-  const w = window.open("", "_blank", "width=330,height=640");
-  if (!w) return;
-  w.document.write(`<html><head><title>${o.code}</title><style>
-    body{font-family:ui-monospace,Menlo,monospace;width:280px;margin:8px auto;color:#000}
-    .c{text-align:center}.big{font-size:30px;font-weight:800;letter-spacing:3px}
-    .r{display:flex;justify-content:space-between;margin:2px 0}.m{color:#444;font-size:11px;padding-left:12px}
-    hr{border:none;border-top:1px dashed #888;margin:6px 0}
-  </style></head><body>
-    <div class="c"><b>${t.label}${o.table_number ? " · T" + o.table_number : ""}</b></div>
-    <div class="c big">${o.code}</div>
-    <div class="c">${o.diner_name || o.phone_number || "guest"}${branchName ? " · " + branchName : ""}</div>
-    <hr>${rows}<hr>
-    <div class="r"><b>TOTAL</b><b>EGP ${money(o.total)}</b></div>
-    ${o.payment_method ? `<div>PAYMENT: ${String(o.payment_method).toUpperCase()}</div>` : ""}
-    ${o.address ? `<div>DELIVER TO: ${o.address}</div>` : ""}
-    ${o.notes ? `<div>!! ${o.notes}</div>` : ""}
-  </body></html>`);
-  w.document.close();
-  w.focus();
-  setTimeout(() => { w.print(); w.close(); }, 250);
+  printSharedTicket(o, { typeLabel: typeOf(o.order_type).label, branchName });
 }
 
 export default function Orders() {
@@ -121,7 +72,7 @@ export default function Orders() {
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
   const [showCancelled, setShowCancelled] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<any | null>(null);
-  const [showNew, setShowNew] = useState(false);
+  const nav = useNavigate();
   const [findCode, setFindCode] = useState("");
   const [syncedAt, setSyncedAt] = useState<number>(Date.now());
   const knownIds = useRef<Set<string> | null>(null);
@@ -250,7 +201,7 @@ export default function Orders() {
                   </select>
                 )
               )}
-              <Btn onClick={() => setShowNew(true)}><span className="flex items-center gap-1.5"><Plus size={14} /> New order</span></Btn>
+              <Btn onClick={() => nav("/pos")}><span className="flex items-center gap-1.5"><Plus size={14} /> New order (POS)</span></Btn>
             </div>
           }
         />
@@ -368,7 +319,6 @@ export default function Orders() {
         </div>
       )}
 
-      {showNew && <NewOrderModal branches={branches} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); load(); }} />}
     </div>
   );
 }
@@ -511,166 +461,3 @@ function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, on
   );
 }
 
-// Phone orders & walk-ups get tickets too — same board, same bill rules.
-function NewOrderModal({ branches, onClose, onCreated }: any) {
-  const [menu, setMenu] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any>({});
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [orderType, setOrderType] = useState("pickup");
-  const [branchKey, setBranchKey] = useState("");
-  const [table, setTable] = useState("");
-  const [address, setAddress] = useState("");
-  const [pay, setPay] = useState("cash");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [cat, setCat] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    api.get("/api/menu").then((r) => {
-      const av = (r.data || []).filter((m: any) => m.available);
-      setMenu(av);
-      setCat(av[0]?.category || "");
-    }).catch(() => {});
-    api.get("/api/settings").then((r) => setPayments(r.data?.payments || {})).catch(() => {});
-  }, []);
-
-  const cats = [...new Set(menu.map((m) => m.category))];
-  const round = (n: number) => Math.round(n * 100) / 100;
-  const rateOf = (...keys: string[]) => { for (const k of keys) { const v = Number(payments[k]); if (Number.isFinite(v) && v > 0) return v > 1 ? v / 100 : v; } return 0; };
-  const lines = menu.filter((m) => cart[m.id]).map((m) => ({ id: m.id, name: m.name, qty: cart[m.id], price: Number(m.price) }));
-  const subtotal = round(lines.reduce((s, l) => s + l.price * l.qty, 0));
-  const service = orderType === "dine_in" ? round(subtotal * rateOf("service_charge", "service_charge_pct")) : 0;
-  const vat = round(subtotal * rateOf("tax", "tax_pct", "vat_pct"));
-  const delivery = orderType === "delivery" ? round(Number(payments.delivery_fee) || 0) : 0;
-  const total = round(subtotal + service + vat + delivery);
-
-  async function create() {
-    if (!lines.length || saving) return;
-    setSaving(true);
-    try {
-      await api.post("/api/orders", {
-        items: lines, order_type: orderType, branch: branchKey || null,
-        table_number: table.trim() || null, address: address.trim() || null,
-        payment_method: pay, diner_name: name.trim() || null,
-        phone_number: phone.trim() || null,
-      });
-      onCreated();
-    } catch (e: any) {
-      alert(e.response?.data?.error || "Failed to create the order");
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="grid max-h-[86vh] w-full max-w-3xl grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
-          <div className="text-sm font-semibold">New order — phone / walk-up</div>
-          <button onClick={onClose}><X size={16} className="text-zinc-500 hover:text-zinc-200" /></button>
-        </div>
-
-        <div className="grid min-h-0 md:grid-cols-2">
-          <div className="min-h-0 overflow-y-auto border-r border-zinc-800 p-4">
-            <div className="mb-2 flex flex-wrap gap-1">
-              {cats.map((c) => (
-                <button key={c} onClick={() => setCat(c)}
-                  className={`rounded-full px-2.5 py-1 text-[11px] ${cat === c ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>
-                  {c}
-                </button>
-              ))}
-            </div>
-            <div className="space-y-1">
-              {menu.filter((m) => m.category === cat).map((m) => (
-                <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800/70 px-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <div className="truncate">{m.name}</div>
-                    <div className="text-[11px] text-zinc-500">EGP {money(m.price)}</div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {cart[m.id] ? (
-                      <>
-                        <button onClick={() => setCart({ ...cart, [m.id]: Math.max(0, (cart[m.id] || 0) - 1) })}
-                          className="rounded-md border border-zinc-700 p-1 text-zinc-300"><Minus size={12} /></button>
-                        <span className="w-5 text-center text-sm font-bold tabular-nums">{cart[m.id]}</span>
-                      </>
-                    ) : null}
-                    <button onClick={() => setCart({ ...cart, [m.id]: (cart[m.id] || 0) + 1 })}
-                      className="rounded-md border border-zinc-700 p-1 text-zinc-300"><Plus size={12} /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="min-h-0 overflow-y-auto p-4 text-sm">
-            <div className="mb-3 flex gap-1">
-              {[["dine_in", "Dine-in"], ["pickup", "Pickup"], ["delivery", "Delivery"]].map(([k, l]) => (
-                <button key={k} onClick={() => setOrderType(k)}
-                  className={`flex-1 rounded-lg px-2 py-1.5 text-xs ${orderType === k ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>
-                  {l}
-                </button>
-              ))}
-            </div>
-            {branches.length > 1 && (
-              <select value={branchKey} onChange={(e) => setBranchKey(e.target.value)}
-                className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100">
-                <option value="">Branch…</option>
-                {branches.map((b: any) => (<option key={b.key} value={b.key}>{b.name}</option>))}
-              </select>
-            )}
-            {orderType === "dine_in" && (
-              <input value={table} onChange={(e) => setTable(e.target.value)} placeholder="Table (optional)"
-                className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100" />
-            )}
-            {orderType === "delivery" && (
-              <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address"
-                className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100" />
-            )}
-            <div className="mb-2 grid grid-cols-2 gap-2">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Guest name"
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100" />
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)"
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100" />
-            </div>
-            <select value={pay} onChange={(e) => setPay(e.target.value)}
-              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100">
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="instapay">InstaPay</option>
-            </select>
-
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-              {lines.length === 0 ? (
-                <div className="py-2 text-center text-zinc-600">Add items from the left</div>
-              ) : (
-                <>
-                  {lines.map((l) => (
-                    <div key={l.id} className="flex justify-between text-zinc-300">
-                      <span>{l.qty}× {l.name}</span>
-                      <span className="tabular-nums">{money(l.price * l.qty)}</span>
-                    </div>
-                  ))}
-                  <div className="mt-2 border-t border-dashed border-zinc-700 pt-2 text-zinc-400">
-                    <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{money(subtotal)}</span></div>
-                    {service > 0 && <div className="flex justify-between"><span>Service</span><span className="tabular-nums">{money(service)}</span></div>}
-                    {vat > 0 && <div className="flex justify-between"><span>VAT</span><span className="tabular-nums">{money(vat)}</span></div>}
-                    {delivery > 0 && <div className="flex justify-between"><span>Delivery</span><span className="tabular-nums">{money(delivery)}</span></div>}
-                    <div className="mt-1 flex justify-between text-sm font-bold text-zinc-100"><span>TOTAL</span><span className="tabular-nums">EGP {money(total)}</span></div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-zinc-800 px-5 py-3">
-          <button onClick={onClose} className="rounded-xl border border-zinc-700 px-4 py-2 text-xs text-zinc-300">Cancel</button>
-          <Btn onClick={create} className={lines.length ? "" : "pointer-events-none opacity-50"}>
-            {saving ? "Creating…" : `Create ticket · EGP ${money(total)}`}
-          </Btn>
-        </div>
-      </div>
-    </div>
-  );
-}

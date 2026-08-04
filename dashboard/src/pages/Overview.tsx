@@ -3,10 +3,7 @@ import { AlertCircle, Bot, Store, TrendingUp, TrendingDown } from "lucide-react"
 import { api } from "../config/api";
 import { Card, PageHeader, Pill, Empty } from "../components/ui";
 
-function money(n: any) {
-  const v = Number(n || 0);
-  return Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { money } from "../lib/format";
 
 export default function Overview() {
   const [kpis, setKpis] = useState<any | null>(null);

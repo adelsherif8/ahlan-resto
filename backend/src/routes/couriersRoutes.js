@@ -14,9 +14,9 @@ router.get("/", async (req, res, next) => {
 
 router.post("/", async (req, res, next) => {
   try {
-    const { name, phone, branch } = req.body || {};
+    const { name, phone_number, branch } = req.body || {};
     if (!name) return res.status(400).json({ error: "name required" });
-    const row = await req.repo.insert("couriers", { name: String(name).trim(), phone: phone || null, branch: branch || null, active: true });
+    const row = await req.repo.insert("couriers", { name: String(name).trim(), phone_number: phone_number || null, branch: branch || null, active: true });
     res.status(201).json(row);
   } catch (e) { next(e); }
 });
@@ -24,7 +24,7 @@ router.post("/", async (req, res, next) => {
 router.patch("/:id", async (req, res, next) => {
   try {
     const patch = {};
-    for (const k of ["name", "phone", "branch", "active"]) if (k in req.body) patch[k] = req.body[k];
+    for (const k of ["name", "phone_number", "branch", "active"]) if (k in req.body) patch[k] = req.body[k];
     const row = await req.repo.update("couriers", req.params.id, patch);
     res.json(row || { ok: true });
   } catch (e) { next(e); }

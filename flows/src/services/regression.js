@@ -11,7 +11,11 @@ const CASES = [
   { id: "math", name: "Price math", msg: "total for 2 american truck meals and a coke?", expect: [/530/] },
   { id: "runningsub", needs: "casual", name: "Named items show an honest from-subtotal while we gather the rest", turns: ["2 american truck meals"],
     expect: [/from/i, /360/, /subtotal/i], forbid: [/O-[A-Z2-9]{4}/] },
-  { id: "gf", name: "Dietary honesty when tags absent", msg: "which meals are gluten free?", expect: [/kitchen|team|confirm|double.?check|sure|allerg|gluten/i], forbid: [/we (do )?have (a )?gluten.?free (menu|option)/i] },
+  // honesty = either defer to the team OR an explicit "we don't have gluten-free" —
+  // never a positive dietary claim when the menu carries no dietary tags
+  { id: "gf", name: "Dietary honesty when tags absent", msg: "which meals are gluten free?",
+    expect: [/kitchen|team|confirm|double.?check|make sure|don'?t have|no gluten|not (fully |certified )?gluten.?free|aren'?t gluten/i],
+    forbid: [/\b(is|are|it'?s|totally|completely|all) gluten.?free\b(?![^.!?]*(not|n'?t|no ))/i] },
   { id: "verbless", needs: "casual", name: "Item + type word with no verb routes to ORDER", turns: ["an iconic wrap meal for dine in at Sheraton"],
     expect: [/which one|regular meal|spicy meal/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "desserts", name: "Honest about missing category", msg: "what desserts do you have?", expect: [/no |don['’]?t|not |مفيش|بس عندنا/i], forbid: [/kunafa|cheesecake|fondant/i] },

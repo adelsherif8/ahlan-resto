@@ -249,6 +249,15 @@ app.post("/api/order/status", (req, res, next) => opsAuth(req, res, next), async
 // The kitchen sends the courier one link: order details, guest address + maps,
 // the money to collect, and four buttons that message the guest on WhatsApp.
 
+// everything guest- or staff-typed gets escaped before it touches driver HTML —
+// the address comes verbatim from a WhatsApp message and the token is the auth
+const escHtml = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const safeHttpUrl = (u) => {
+  const s = String(u || "");
+  return /^https?:\/\/[^\s"'<>]+$/i.test(s) ? escHtml(s) : null;
+};
+const FLOWS_PUBLIC = process.env.FLOWS_PUBLIC_URL || "https://flows-production-e528.up.railway.app";
+
 async function driverOrder(token) {
   if (!token || !/^[a-z2-9]{16,30}$/.test(String(token))) return null;
   const tenant = await resolveRestaurant();
@@ -271,15 +280,16 @@ app.get("/driver/:token", async (req, res) => {
     const { tenant, order } = hit;
     const branches = (tenant.config.basic_info?.branches || []).filter((b) => b?.key);
     const br = branches.find((b) => b.key === order.branch) || null;
-    const guestMaps = order.map_link || (order.lat && order.lng ? `https://maps.google.com/?q=${order.lat},${order.lng}` : `https://maps.google.com/?q=${encodeURIComponent(order.address || "")}`);
-    const brMaps = br?.lat && br?.lng ? `https://maps.google.com/?q=${br.lat},${br.lng}` : null;
+    const guestMaps = safeHttpUrl(order.map_link)
+      || (order.lat && order.lng ? `https://maps.google.com/?q=${Number(order.lat)},${Number(order.lng)}` : `https://maps.google.com/?q=${encodeURIComponent(order.address || "")}`);
+    const brMaps = br?.lat && br?.lng ? `https://maps.google.com/?q=${Number(br.lat)},${Number(br.lng)}` : null;
     const cod = order.payment_method === "cash" ? Number(order.total) : 0;
-    const items = (order.items || []).map((i) => `<div class="it"><b>${i.qty}× ${String(i.name)}</b></div>`).join("");
+    const items = (order.items || []).map((i) => `<div class="it"><b>${escHtml(i.qty)}× ${escHtml(i.name)}</b></div>`).join("");
     const phone = String(order.phone_number || "").replace(/[^+\d]/g, "");
-    const accent = tenant.config.basic_info?.brand?.primary || "#ea0000";
+    const accent = /^#[0-9a-f]{6}$/i.test(tenant.config.basic_info?.brand?.primary || "") ? tenant.config.basic_info.brand.primary : "#ea0000";
     res.setHeader("content-type", "text/html; charset=utf-8");
     res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${order.code} — delivery</title><style>
+<title>${escHtml(order.code)} — delivery</title><style>
   body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f5f4f1;margin:0;padding:16px;color:#1c1917}
   .card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
   h1{font-size:30px;letter-spacing:3px;text-align:center;margin:4px 0}
@@ -296,8 +306,8 @@ app.get("/driver/:token", async (req, res) => {
   .muted{color:#78716c;font-size:12px;text-align:center}
 </style></head><body>
   <div class="card">
-    <div class="sub">${tenant.config.name} — delivery</div>
-    <h1>${order.code}</h1>
+    <div class="sub">${escHtml(tenant.config.name)} — delivery</div>
+    <h1>${escHtml(order.code)}</h1>
     <div class="sub">${order.status === "delivered" ? "DELIVERED ✅" : String(order.status).replace(/_/g, " ").toUpperCase()}</div>
     ${items}
     <div class="row"><span>Total</span><b>EGP ${Number(order.total).toLocaleString()}</b></div>
@@ -305,23 +315,24 @@ app.get("/driver/:token", async (req, res) => {
   </div>
   <div class="card">
     <div style="font-size:13px;color:#78716c;margin-bottom:6px">DELIVER TO</div>
-    <div style="font-size:15px;font-weight:600;margin-bottom:10px">${order.address || "—"}</div>
-    <a class="link" href="${guestMaps}" target="_blank">🗺 Open guest location</a>
-    ${phone && !phone.startsWith("web") ? `<a class="link" href="tel:${phone}">📞 Call guest</a>` : ""}
-    ${brMaps ? `<a class="link" href="${brMaps}" target="_blank">🏪 Pickup from ${br.name}</a>` : ""}
+    <div style="font-size:15px;font-weight:600;margin-bottom:10px">${escHtml(order.address || "—")}</div>
+    <a class="link" href="${escHtml(guestMaps)}" target="_blank" rel="noopener">🗺 Open guest location</a>
+    ${phone && !phone.startsWith("web") ? `<a class="link" href="tel:${escHtml(phone)}">📞 Call guest</a>` : ""}
+    ${brMaps ? `<a class="link" href="${escHtml(brMaps)}" target="_blank" rel="noopener">🏪 Pickup from ${escHtml(br.name)}</a>` : ""}
   </div>
   <div class="card">
     <button class="primary" onclick="act('out')">🛵 On my way</button>
     <button class="ghost" onclick="act('near')">📍 I'm 2 minutes away</button>
     <button class="ghost" onclick="act('delay')">⏳ Running ~10 min late</button>
-    <button class="ok" onclick="if(confirm('Mark ${order.code} as DELIVERED?'))act('delivered')">✅ Delivered</button>
+    <button class="ok" onclick="if(confirm('Mark ${escHtml(order.code)} as DELIVERED?'))act('delivered')">✅ Delivered</button>
     <div id="msg"></div>
     <div class="muted">Each button sends the guest a WhatsApp update. Location sharing helps the restaurant see where you are.</div>
   </div>
 <script>
   const T = ${JSON.stringify(String(req.params.token))};
+  const API = ${JSON.stringify(FLOWS_PUBLIC)};
   async function act(action){
-    const r = await fetch('/api/driver/'+T+'/action', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action})});
+    const r = await fetch(API+'/api/driver/'+T+'/action', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action})});
     const j = await r.json().catch(()=>({}));
     document.getElementById('msg').textContent = j.ok ? (j.note || 'Guest notified ✓') : (j.error || 'Failed — try again');
     if(action==='delivered' && j.ok) setTimeout(()=>location.reload(), 800);
@@ -329,7 +340,7 @@ app.get("/driver/:token", async (req, res) => {
   // best-effort breadcrumb so the kitchen can see where the rider is
   if (navigator.geolocation) {
     navigator.geolocation.watchPosition((p) => {
-      fetch('/api/driver/'+T+'/loc', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({lat:p.coords.latitude,lng:p.coords.longitude})}).catch(()=>{});
+      fetch(API+'/api/driver/'+T+'/loc', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({lat:p.coords.latitude,lng:p.coords.longitude})}).catch(()=>{});
     }, () => {}, { enableHighAccuracy: false, maximumAge: 30000 });
   }
 </script></body></html>`);

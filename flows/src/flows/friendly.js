@@ -1,6 +1,7 @@
 // FRIENDLY (host agent) — the restaurant's voice. Answers ONLY from config + DB.
 // Ported logic: hotel friendly.json context builder + persona prompt, restaurant domain.
 import { defineFlow } from "../engine/flow.js";
+import { getMenu } from "../services/menucache.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE } from "../config.js";
 import { hoursToday } from "../services/tenant.js";
@@ -30,10 +31,7 @@ defineFlow({
 
     // ---- build_context: everything the LLM is ALLOWED to know (code, no LLM) ----
     const context = await f.node("build_context", async () => {
-      const { data: menuRows } = await db
-        .from("menu_items")
-        .select("*")
-        .order("sort_order");
+      const menuRows = await getMenu(db);
       // "today" in the RESTAURANT'S timezone — the server clock lives in UTC
       const today = todayISO(config.basic_info?.timezone || "Africa/Cairo");
       // hard-disabled items don't exist; 86'd-for-today ones are named honestly
@@ -191,7 +189,7 @@ FACTS — the ONLY things you know (never invent anything beyond this):
 - Services: dine-in yes · delivery ${bi.services?.delivery === true ? "YES" : bi.services?.delivery === false ? "no" : "not set"} · pickup ${bi.services?.pickup === true ? "YES" : bi.services?.pickup === false ? "no" : "not set"}
 - House policies: alcohol ${bi.policies?.alcohol ?? "not set"} · shisha ${bi.policies?.shisha ?? "not set"} · kids ${bi.policies?.kids ?? "not set"} · smoking ${bi.policies?.smoking ?? "not set"}
 ${branchFacts(config, diner, message)}${config.basic_info?.restaurant_type === "casual" ? "" : `- Reservation policy: ${reservationPolicyLine(config.reservation_policy)}`}
-${(ai.offers || []).length ? `- Current offers (ONLY these exist): ${JSON.stringify(ai.offers)}` : "- NO discounts/deals/offers exist — never imply any"}
+${(ai.offers || []).length ? `- Current offers (ONLY these exist): ${JSON.stringify(ai.offers)}` : "- Offers/discounts: none configured — NEVER invent one; if asked, say you\'ll check with the team"}
 ${context.specials.length ? `- TONIGHT'S SPECIALS (mention when relevant — never invent others): ${context.specials.join("; ")}\n` : ""}${context.sold_out?.length ? `- SOLD OUT TODAY (if asked about these, say honestly they ran out today and are back soon): ${context.sold_out.join(", ")}\n` : ""}- MENU (available right now — if an item is not listed, it is NOT available tonight):
 ${menuText || "(menu not loaded)"}
 ${context.events.length ? `- UPCOMING EVENTS: ${context.events.map((e) => `${e.title} on ${e.date}${e.start_time ? " at " + String(e.start_time).slice(0, 5) : ""}${e.price ? " (EGP " + e.price + ")" : ""}`).join("; ")}` : "- UPCOMING EVENTS: none announced"}
