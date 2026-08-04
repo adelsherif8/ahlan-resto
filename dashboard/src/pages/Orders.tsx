@@ -103,13 +103,21 @@ export default function Orders() {
     return () => document.removeEventListener("fullscreenchange", f);
   }, []);
 
+  const DONE = ["served", "delivered", "paid"];
+  // an open ticket never expires off the board: a pending order from Saturday
+  // used to be invisible on the today-only view AND stuck forever — carried-over
+  // open tickets ride along on today's board, marked with their original day
   const dayRows = useMemo(
     () => rows.filter((o) => String(o.created_at).slice(0, 10) === date),
     [rows, date]
   );
-  const visible = dayRows.filter((o) => o.status !== "cancelled");
+  const carried = useMemo(
+    () => (isToday ? rows.filter((o) => String(o.created_at).slice(0, 10) < today && !DONE.includes(o.status) && o.status !== "cancelled") : []),
+    [rows, isToday, today]
+  );
+  const visible = [...carried, ...dayRows.filter((o) => o.status !== "cancelled")];
   const cancelled = dayRows.filter((o) => o.status === "cancelled");
-  const DONE = ["served", "delivered", "paid"];
+  const carriedIds = useMemo(() => new Set(carried.map((o) => String(o.id))), [carried]);
   const active = isToday ? visible.filter((o) => !DONE.includes(o.status)) : [];
   const fresh = isToday ? visible.filter((o) => COLS[0].statuses.includes(o.status)) : [];
 
@@ -227,6 +235,11 @@ export default function Orders() {
           {cancelled.map((o) => (
             <div key={o.id} className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-1.5 text-xs text-zinc-400">
               <span className="font-mono font-bold text-zinc-300">{o.code}</span>
+              {carriedIds.has(String(o.id)) && (
+                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                  {new Date(o.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                </span>
+              )}
               <span>{(o.items || []).map((i: any) => `${i.qty}× ${i.name}`).join(", ")}</span>
               <span className="text-red-300">{o.cancel_reason || "no reason recorded"}</span>
               <span>EGP {money(o.total)}</span>
