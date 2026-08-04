@@ -39,12 +39,13 @@ export default function DashboardLayout() {
   const [brand, setBrand] = useState<{ primary?: string; logo_url?: string; name?: string }>({});
   const [rtype, setRtype] = useState<string>("fine");
   const [tablesOn, setTablesOn] = useState(true);
-  // casual = orders-first, no reservations page (walk-in + waitlist world);
-  // with table numbers off the Floor page is decorative — drop it from the nav
-  const CASUAL_ORDER = ["/overview", "/orders", "/pos", "/delivery", "/menu", "/floor", "/waitlist", "/chats", "/diners", "/events", "/users", "/settings"];
+  // casual = orders-first: no reservations page AND no waitlist (fast food has
+  // queues of tickets, not queues of parties); with table numbers off the Floor
+  // page is decorative too — all three drop from the nav
+  const CASUAL_ORDER = ["/overview", "/orders", "/pos", "/delivery", "/menu", "/floor", "/chats", "/diners", "/events", "/users", "/settings"];
   const items = NAV
     .filter((n) => role === "admin" || n.roles.includes(role))
-    .filter((n) => (rtype === "casual" ? n.to !== "/reservations" : true))
+    .filter((n) => (rtype === "casual" ? n.to !== "/reservations" && n.to !== "/waitlist" : true))
     .filter((n) => (rtype === "casual" && !tablesOn ? n.to !== "/floor" : true))
     .sort((a, b) => (rtype === "casual" ? CASUAL_ORDER.indexOf(a.to) - CASUAL_ORDER.indexOf(b.to) : 0));
 
