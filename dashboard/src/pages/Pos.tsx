@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Plus, Minus, X, Printer, ShoppingCart, User, ParkingSquare,
-  Camera, Store, StickyNote, Trash2,
+  Camera, StickyNote, Trash2, Star, Flame, Leaf, Pencil, Eraser, Check,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { printTicket as printSharedTicket } from "../lib/ticket";
-import { PageHeader, Btn, Empty } from "../components/ui";
+import { PageHeader, Btn } from "../components/ui";
 
 // The POS walks the SAME option questions the bot asks — one config, two fronts.
 // Pricing semantics mirror flows/order.js itemPrice: a chosen format's price
@@ -47,6 +47,9 @@ function priceOf(item: any, picked: Record<string, any>, menu: any[]) {
 
 type CartLine = { uid: string; item: any; qty: number; options: Record<string, any>; notes: string; unit: number };
 
+const lineKey = (l: { item: any; options: any; notes: string }) =>
+  `${l.item.id}|${JSON.stringify(l.options)}|${l.notes}`;
+
 export default function Pos() {
   const [menu, setMenu] = useState<any[]>([]);
   const [payments, setPayments] = useState<any>({});
@@ -55,7 +58,7 @@ export default function Pos() {
   const [cat, setCat] = useState("");
   const [q, setQ] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [configuring, setConfiguring] = useState<any | null>(null);
+  const [configuring, setConfiguring] = useState<{ item: any; line?: CartLine } | null>(null);
   const [orderType, setOrderType] = useState("pickup");
   const [branchKey, setBranchKey] = useState(staffBranch || "");
   const [table, setTable] = useState("");
@@ -67,6 +70,7 @@ export default function Pos() {
   const [parked, setParked] = useState<any[]>(() => { try { return JSON.parse(localStorage.getItem("pos_parked") || "[]"); } catch { return []; } });
   const [saving, setSaving] = useState(false);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.get("/api/menu").then((r) => {
@@ -78,6 +82,18 @@ export default function Pos() {
       setPayments(r.data?.payments || {});
       setBranches(r.data?.basic_info?.branches || []);
     }).catch(() => {});
+  }, []);
+
+  // "/" jumps to search from anywhere — cashiers live on the keyboard
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
   }, []);
 
   // guest lookup by phone — the CRM knows their name and addresses
@@ -98,18 +114,31 @@ export default function Pos() {
     let list = menu;
     if (q.trim()) {
       const n = q.trim().toLowerCase();
-      list = list.filter((m) => m.name.toLowerCase().includes(n));
+      list = list.filter((m) => m.name.toLowerCase().includes(n) || String(m.description || "").toLowerCase().includes(n));
     } else list = list.filter((m) => m.category === cat);
     return list;
   }, [menu, cat, q]);
 
+  const inCartQty = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const l of cart) map[l.item.id] = (map[l.item.id] || 0) + l.qty;
+    return map;
+  }, [cart]);
+
   function tapItem(item: any) {
     const hasQuestions = (item.options || []).some((g: any) => g.key === "slots" || groupChoices(g, menu).length);
-    if (hasQuestions) setConfiguring(item);
+    if (hasQuestions || item.description || item.ingredients) setConfiguring({ item });
     else addLine(item, {}, "", 1);
   }
-  function addLine(item: any, options: Record<string, any>, notes: string, qty: number) {
-    setCart((c) => [...c, { uid: Math.random().toString(36).slice(2), item, qty, options, notes, unit: priceOf(item, options, menu) }]);
+  function addLine(item: any, options: Record<string, any>, notes: string, qty: number, editingUid?: string) {
+    setCart((c) => {
+      const fresh: CartLine = { uid: Math.random().toString(36).slice(2), item, qty, options, notes, unit: priceOf(item, options, menu) };
+      if (editingUid) return c.map((x) => (x.uid === editingUid ? { ...fresh, uid: editingUid } : x));
+      // identical line already in the cart → just bump its qty
+      const twin = c.find((x) => lineKey(x) === lineKey(fresh));
+      if (twin) return c.map((x) => (x.uid === twin.uid ? { ...x, qty: x.qty + qty } : x));
+      return [...c, fresh];
+    });
     setConfiguring(null);
   }
 
@@ -120,6 +149,7 @@ export default function Pos() {
   const vat = round(subtotal * rateOf("tax", "tax_pct", "vat_pct"));
   const delivery = orderType === "delivery" ? round(Number(payments.delivery_fee) || 0) : 0;
   const total = round(subtotal + service + vat + delivery);
+  const itemCount = cart.reduce((s, l) => s + l.qty, 0);
 
   function park() {
     if (!cart.length) return;
@@ -197,33 +227,60 @@ export default function Pos() {
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…"
-                className="w-36 rounded-lg border border-zinc-800 bg-zinc-900 py-1.5 pl-8 pr-2 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
+              <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…  ( / )"
+                className="w-40 rounded-lg border border-zinc-800 bg-zinc-900 py-1.5 pl-8 pr-2 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
             </div>
-            {cats.map((c) => (
-              <button key={c} onClick={() => { setCat(c); setQ(""); }}
-                className={`rounded-full px-2.5 py-1 text-[11px] ${cat === c && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
-                {c}
-              </button>
-            ))}
+            {cats.map((c) => {
+              const count = menu.filter((m) => m.category === c).length;
+              return (
+                <button key={c} onClick={() => { setCat(c); setQ(""); }}
+                  className={`rounded-full px-2.5 py-1 text-[11px] ${cat === c && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
+                  {c} <span className={cat === c && !q ? "text-zinc-600" : "text-zinc-600"}>{count}</span>
+                </button>
+              );
+            })}
           </div>
           <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-4">
-            {shown.map((m) => (
-              <button key={m.id} onClick={() => tapItem(m)}
-                className="flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 text-left transition hover:border-zinc-600">
-                {m.photo_url ? (
-                  <img src={m.photo_url} alt="" className="h-20 w-full object-cover" />
-                ) : (
-                  <div className="flex h-20 w-full items-center justify-center bg-zinc-900 text-zinc-700"><Camera size={18} /></div>
-                )}
-                <div className="p-2">
-                  <div className="truncate text-xs font-medium text-zinc-200">{m.name}</div>
-                  <div className="text-[11px] text-zinc-500">
-                    {(m.options || []).some((g: any) => (g.choices || []).some((c: any) => c.price != null)) ? "from " : ""}EGP {money(m.price)}
+            {shown.map((m) => {
+              const fromPrice = (m.options || []).some((g: any) => (g.choices || []).some((c: any) => c.price != null));
+              const inCart = inCartQty[m.id];
+              return (
+                <button key={m.id} onClick={() => tapItem(m)}
+                  className="group relative flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 text-left transition hover:border-zinc-500 active:scale-[0.98]">
+                  {inCart ? (
+                    <span className="absolute right-1.5 top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1 text-[11px] font-bold text-zinc-950">
+                      {inCart}
+                    </span>
+                  ) : null}
+                  {m.photo_url ? (
+                    <img src={m.photo_url} alt="" className="h-24 w-full object-cover transition group-hover:scale-[1.03]" />
+                  ) : (
+                    <div className="flex h-24 w-full items-center justify-center bg-zinc-900 text-zinc-700"><Camera size={18} /></div>
+                  )}
+                  <div className="flex flex-1 flex-col p-2">
+                    <div className="flex items-center gap-1">
+                      <span className="truncate text-xs font-medium text-zinc-200">{m.name}</span>
+                      {m.bestseller ? <Star size={10} className="shrink-0 fill-amber-400 text-amber-400" /> : null}
+                    </div>
+                    {m.description ? (
+                      <div className="mt-0.5 line-clamp-1 text-[10px] text-zinc-500">{m.description}</div>
+                    ) : null}
+                    <div className="mt-auto flex items-center justify-between pt-1">
+                      <span className="text-[11px] tabular-nums text-zinc-400">{fromPrice ? "from " : ""}EGP {money(m.price)}</span>
+                      <span className="flex items-center gap-0.5">
+                        {m.spice_level ? Array.from({ length: Math.min(3, Number(m.spice_level)) }, (_, i) => (
+                          <Flame key={i} size={9} className="text-red-400" />
+                        )) : null}
+                        {(m.dietary_tags || []).some((t: string) => /veg/i.test(t)) ? <Leaf size={9} className="text-emerald-400" /> : null}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
+            {shown.length === 0 && (
+              <div className="col-span-full py-10 text-center text-xs text-zinc-600">Nothing matches "{q}"</div>
+            )}
           </div>
         </div>
 
@@ -286,17 +343,22 @@ export default function Pos() {
               </div>
             ) : cart.map((l) => (
               <div key={l.uid} className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2.5 py-2 text-xs">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-zinc-200">{l.item.name}</span>
-                  <span className="tabular-nums text-zinc-300">{money(l.unit * l.qty)}</span>
-                </div>
-                {Object.entries(l.options).filter(([k]) => k !== "slots").map(([k, v]) => (
-                  <div key={k} className="text-[11px] text-zinc-500">{Array.isArray(v) ? v.join(", ") : String(v)}</div>
-                ))}
-                {Array.isArray(l.options.slots) && l.options.slots.map((sl: any, si: number) => (
-                  <div key={si} className="text-[11px] text-zinc-500">{si + 1}) {Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ")}{sl?.notes ? ` — ${sl.notes}` : ""}</div>
-                ))}
-                {l.notes && <div className="flex items-center gap-1 text-[11px] text-amber-300"><StickyNote size={10} /> {l.notes}</div>}
+                <button onClick={() => setConfiguring({ item: l.item, line: l })} className="block w-full text-left">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 font-medium text-zinc-200">
+                      {l.item.name}
+                      <Pencil size={9} className="text-zinc-600" />
+                    </span>
+                    <span className="tabular-nums text-zinc-300">{money(l.unit * l.qty)}</span>
+                  </div>
+                  {Object.entries(l.options).filter(([k]) => k !== "slots").map(([k, v]) => (
+                    <div key={k} className="text-[11px] text-zinc-500">{Array.isArray(v) ? v.join(", ") : String(v)}</div>
+                  ))}
+                  {Array.isArray(l.options.slots) && l.options.slots.map((sl: any, si: number) => (
+                    <div key={si} className="text-[11px] text-zinc-500">{si + 1}) {Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ")}{sl?.notes ? ` — ${sl.notes}` : ""}</div>
+                  ))}
+                  {l.notes && <div className="flex items-center gap-1 text-[11px] text-amber-300"><StickyNote size={10} /> {l.notes}</div>}
+                </button>
                 <div className="mt-1 flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => setCart((c) => c.map((x) => x.uid === l.uid ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}
@@ -309,11 +371,16 @@ export default function Pos() {
                 </div>
               </div>
             ))}
+            {cart.length > 0 && (
+              <button onClick={() => setCart([])} className="flex items-center gap-1 pt-1 text-[11px] text-zinc-600 hover:text-red-400">
+                <Eraser size={11} /> clear all
+              </button>
+            )}
           </div>
 
           <div className="border-t border-zinc-800 p-3 text-xs">
             <div className="space-y-0.5 text-zinc-400">
-              <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{money(subtotal)}</span></div>
+              <div className="flex justify-between"><span>Subtotal · {itemCount} item{itemCount === 1 ? "" : "s"}</span><span className="tabular-nums">{money(subtotal)}</span></div>
               {service > 0 && <div className="flex justify-between"><span>Service</span><span className="tabular-nums">{money(service)}</span></div>}
               {vat > 0 && <div className="flex justify-between"><span>VAT</span><span className="tabular-nums">{money(vat)}</span></div>}
               {delivery > 0 && <div className="flex justify-between"><span>Delivery</span><span className="tabular-nums">{money(delivery)}</span></div>}
@@ -330,7 +397,7 @@ export default function Pos() {
                 <ParkingSquare size={13} /> Park
               </button>
               <Btn onClick={create} className={`flex-1 ${cart.length ? "" : "pointer-events-none opacity-50"}`}>
-                {saving ? "Creating…" : createdCode ? `${createdCode} on the board ✓` : `Create · EGP ${money(total)}`}
+                {saving ? "Creating…" : createdCode ? `${createdCode} on the board` : `Create · EGP ${money(total)}`}
               </Btn>
             </div>
           </div>
@@ -338,28 +405,43 @@ export default function Pos() {
       </div>
 
       {configuring && (
-        <OptionWalker item={configuring} menu={menu} onCancel={() => setConfiguring(null)} onDone={addLine} />
+        <OptionWalker
+          item={configuring.item} line={configuring.line} menu={menu}
+          onCancel={() => setConfiguring(null)} onDone={addLine}
+        />
       )}
     </div>
   );
 }
 
+const QUICK_NOTES = ["No onion", "No pickles", "Extra sauce", "Well done", "Cut in half"];
+
 // The same questions the bot asks, as taps: format → size → fries → drink,
-// or per-slot sandwich picks for bundles. Price updates live.
-function OptionWalker({ item, menu, onCancel, onDone }: any) {
-  const [picked, setPicked] = useState<Record<string, any>>({});
+// or per-slot sandwich picks for bundles. Price updates live; the sandwich's
+// own story (photo, description, ingredients) leads so staff can answer
+// "what's in it?" without leaving the screen. Tapping a cart line re-opens
+// this prefilled to edit in place.
+function OptionWalker({ item, line, menu, onCancel, onDone }: any) {
+  const [picked, setPicked] = useState<Record<string, any>>(() => {
+    if (!line) return {};
+    const { slots: _s, ...rest } = line.options || {};
+    return { ...rest };
+  });
   const [slots, setSlots] = useState<any[]>(() => {
+    if (line && Array.isArray(line.options?.slots)) return line.options.slots.map((x: any) => ({ ...x }));
     const sg = (item.options || []).find((g: any) => g.key === "slots");
     return sg ? Array.from({ length: Number(sg.count) || 2 }, () => ({})) : [];
   });
-  const [qty, setQty] = useState(1);
-  const [notes, setNotes] = useState("");
+  const [qty, setQty] = useState(line?.qty || 1);
+  const [notes, setNotes] = useState(line?.notes || "");
   const slotsGroup = (item.options || []).find((g: any) => g.key === "slots");
   const groups = (item.options || []).filter((g: any) => g.key !== "slots" && groupApplies(g, picked) && groupChoices(g, menu).length);
   const unit = priceOf(item, picked, menu);
 
+  const answered = groups.filter((g: any) => picked[g.key]).length;
   const missing = groups.filter((g: any) => g.required && !picked[g.key]).length +
     (slotsGroup ? slots.filter((sl) => !(slotsGroup.slot_groups || []).filter((sg: any) => !sg.free).every((sg: any) => sl[sg.key])).length : 0);
+  const nextGroup = groups.find((g: any) => g.required && !picked[g.key]);
 
   function pick(g: any, name: string) {
     setPicked((p) => {
@@ -371,23 +453,55 @@ function OptionWalker({ item, menu, onCancel, onDone }: any) {
       return next;
     });
   }
+  function toggleQuickNote(n: string) {
+    setNotes((cur: string) => {
+      const parts = cur.split(",").map((x) => x.trim()).filter(Boolean);
+      return (parts.includes(n) ? parts.filter((x) => x !== n) : [...parts, n]).join(", ");
+    });
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
       <div className="grid max-h-[86vh] w-full max-w-lg grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
-          <div className="text-sm font-semibold">{item.name}</div>
-          <button onClick={onCancel}><X size={16} className="text-zinc-500 hover:text-zinc-200" /></button>
+        <div className="border-b border-zinc-800">
+          {item.photo_url && <img src={item.photo_url} alt="" className="h-32 w-full object-cover" />}
+          <div className="flex items-start justify-between gap-3 px-5 py-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                {item.name}
+                {item.bestseller ? <Star size={11} className="fill-amber-400 text-amber-400" /> : null}
+                {item.spice_level ? Array.from({ length: Math.min(3, Number(item.spice_level)) }, (_, i) => (
+                  <Flame key={i} size={10} className="text-red-400" />
+                )) : null}
+              </div>
+              {item.description && <div className="mt-0.5 text-[11px] leading-snug text-zinc-400">{item.description}</div>}
+              {item.ingredients && <div className="mt-1 text-[11px] leading-snug text-zinc-500">{item.ingredients}</div>}
+            </div>
+            <button onClick={onCancel}><X size={16} className="text-zinc-500 hover:text-zinc-200" /></button>
+          </div>
+          {groups.length > 0 && (
+            <div className="flex items-center gap-2 px-5 pb-2.5">
+              <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-800">
+                <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${groups.length ? (answered / groups.length) * 100 : 0}%` }} />
+              </div>
+              <span className="text-[10px] tabular-nums text-zinc-500">{answered}/{groups.length}</span>
+            </div>
+          )}
         </div>
 
         <div className="min-h-0 overflow-y-auto p-4">
           {groups.map((g: any) => (
             <div key={g.key} className="mb-4">
-              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">{g.label || g.key}</div>
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                {g.label || g.key}
+                {picked[g.key]
+                  ? <Check size={11} className="text-emerald-400" />
+                  : nextGroup?.key === g.key ? <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold normal-case tracking-normal text-amber-300">next</span> : null}
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {groupChoices(g, menu).map((c: any) => (
                   <button key={c.name} onClick={() => pick(g, c.name)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-xs ${norm(picked[g.key]) === norm(c.name) ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
+                    className={`rounded-lg border px-2.5 py-1.5 text-xs transition active:scale-95 ${norm(picked[g.key]) === norm(c.name) ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
                     {c.name}{c.price != null ? ` · ${money(c.price)}` : c.delta ? ` +${money(c.delta)}` : ""}
                   </button>
                 ))}
@@ -407,7 +521,7 @@ function OptionWalker({ item, menu, onCancel, onDone }: any) {
                   {(sg.choices || []).map((c: any) => (
                     <button key={c.name}
                       onClick={() => setSlots((xs) => xs.map((x, i) => (i === si ? { ...x, [sg.key]: c.name } : x)))}
-                      className={`rounded-lg border px-2 py-1 text-[11px] ${norm(sl[sg.key]) === norm(c.name) ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
+                      className={`rounded-lg border px-2 py-1 text-[11px] transition active:scale-95 ${norm(sl[sg.key]) === norm(c.name) ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
                       {c.name}
                     </button>
                   ))}
@@ -416,21 +530,32 @@ function OptionWalker({ item, menu, onCancel, onDone }: any) {
             </div>
           ))}
 
+          <div className="mb-1.5 flex flex-wrap gap-1.5">
+            {QUICK_NOTES.map((n) => {
+              const on = notes.split(",").map((x: string) => x.trim()).includes(n);
+              return (
+                <button key={n} onClick={() => toggleQuickNote(n)}
+                  className={`rounded-full border px-2 py-1 text-[10px] transition ${on ? "border-amber-400/60 bg-amber-500/15 text-amber-300" : "border-zinc-800 text-zinc-500 hover:text-zinc-300"}`}>
+                  {n}
+                </button>
+              );
+            })}
+          </div>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Item notes — no onion, extra sauce…"
             className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-xs text-zinc-100" />
         </div>
 
         <div className="flex items-center justify-between border-t border-zinc-800 px-5 py-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => setQty((n) => Math.max(1, n - 1))} className="rounded border border-zinc-700 p-1 text-zinc-300"><Minus size={12} /></button>
+            <button onClick={() => setQty((n: number) => Math.max(1, n - 1))} className="rounded border border-zinc-700 p-1 text-zinc-300"><Minus size={12} /></button>
             <span className="w-5 text-center text-sm font-bold tabular-nums">{qty}</span>
-            <button onClick={() => setQty((n) => n + 1)} className="rounded border border-zinc-700 p-1 text-zinc-300"><Plus size={12} /></button>
+            <button onClick={() => setQty((n: number) => n + 1)} className="rounded border border-zinc-700 p-1 text-zinc-300"><Plus size={12} /></button>
           </div>
           <Btn
-            onClick={() => onDone(item, slotsGroup ? { ...picked, slots } : picked, notes.trim(), qty)}
+            onClick={() => onDone(item, slotsGroup ? { ...picked, slots } : picked, notes.trim(), qty, line?.uid)}
             className={missing ? "pointer-events-none opacity-50" : ""}
           >
-            {missing ? `${missing} choice${missing > 1 ? "s" : ""} left` : `Add ${qty} · EGP ${money(unit * qty)}`}
+            {missing ? `${missing} choice${missing > 1 ? "s" : ""} left` : line ? `Update · EGP ${money(unit * qty)}` : `Add ${qty} · EGP ${money(unit * qty)}`}
           </Btn>
         </div>
       </div>
