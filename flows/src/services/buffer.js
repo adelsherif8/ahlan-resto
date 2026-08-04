@@ -5,7 +5,7 @@
 // - graceful drain on shutdown, boot sweep for stray rows
 import { BUFFER_WINDOW_MS, log } from "../config.js";
 
-export const MAX_CAP_MS = 25_000;
+export const MAX_CAP_MS = 20_000; // founder ceiling: no guest waits past 20s, even mid-burst
 const TYPING_EXTEND_MS = 3_000;
 
 // sessionId -> { firstAt, lastAt, windowMs, typingUntil, channel, count }

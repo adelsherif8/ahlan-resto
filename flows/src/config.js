@@ -8,7 +8,9 @@ export const AHLAN_URL = process.env.SUPABASE_AHLAN_URL || "";
 export const AHLAN_KEY = process.env.SUPABASE_AHLAN_SERVICE_KEY || "";
 export const RESTAURANT_SLUG = process.env.RESTAURANT_SLUG || "ahlan-pilot";
 
-export const BUFFER_WINDOW_MS = Number(process.env.BUFFER_WINDOW_MS || 8000);
+// 5s of silence = the guest is done typing. 8s read as "the bot is slow" —
+// questions already flush at 2.5s and the 3s typing extension guards real bursts.
+export const BUFFER_WINDOW_MS = Number(process.env.BUFFER_WINDOW_MS || 5000);
 export const FLUSH_TICK_MS = Number(process.env.FLUSH_TICK_MS || 1000);
 
 // Model policy — one place, so "which brain" is never scattered across flows.

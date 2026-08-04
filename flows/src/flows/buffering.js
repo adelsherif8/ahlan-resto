@@ -245,7 +245,9 @@ defineFlow({
         const pnid = route.phoneNumberId || WA_PHONE_NUMBER_ID;
         if (pnid) markReadWithTyping(pnid, burst.last_message_id).catch(() => {});
       }
-      const ms = Math.min(Number(config.ai?.response_delay_ms) || 800, 4000);
+      // after the buffer + LLM the reply is already seconds old — a long extra
+      // pause reads as lag, not humanity
+      const ms = Math.min(Number(config.ai?.response_delay_ms) || 300, 2000);
       await new Promise((r) => setTimeout(r, ms));
       return { delayed_ms: ms };
     }, { input: { configured: config.ai?.response_delay_ms || "default 800ms" } });
