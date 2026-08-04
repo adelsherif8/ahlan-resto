@@ -200,6 +200,11 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         // is an attempted answer, never a replacement for the order in progress —
         // letting it through drops the burger and leaves a lone drink.
         if (loaded.pending?.awaiting_option && loaded.pending?.items?.length && !e.edits?.length) {
+          // an explicit add-verb naming an item NOT on the draft is an addition
+          // even while an option question is open — never an answer to it
+          const adding = items.length === 1 && ADD_VERB.test(input.message) &&
+            !loaded.pending.items.find((it) => normName(it.name) === normName(items[0].name));
+          if (adding) loaded.pending.items.push(items[0]);
           items = loaded.pending.items;
           unknown = [];
         }
@@ -365,6 +370,13 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         // recompute the bill AFTER this turn's answer — showing the pre-answer
         // state made prices look like they jumped a turn late
         return { kind: "ask_choice", items, running, ...step.ask };
+      }
+      if (loaded.pending?.awaiting_option) {
+        // savePending MERGES now, so the answered question must be closed
+        // explicitly — a stale awaiting_option made every later "add a loaded
+        // fries" get swallowed as an option answer and silently dropped
+        loaded.pending.awaiting_option = null;
+        await savePending({ awaiting_option: null });
       }
 
       // 3) FULFILLMENT — type + branch + table/address, everything still missing

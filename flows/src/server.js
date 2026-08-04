@@ -323,6 +323,7 @@ app.get("/driver/:token", async (req, res) => {
   <div class="card">
     <button class="primary" onclick="act('out')">🛵 On my way</button>
     <button class="ghost" onclick="act('near')">📍 I'm 2 minutes away</button>
+    <button class="ghost" onclick="act('arrived')">🚪 I've arrived</button>
     <button class="ghost" onclick="act('delay')">⏳ Running ~10 min late</button>
     <button class="ok" onclick="if(confirm('Mark ${escHtml(order.code)} as DELIVERED?'))act('delivered')">✅ Delivered</button>
     <div id="msg"></div>
@@ -365,6 +366,12 @@ app.post("/api/driver/:token/action", async (req, res) => {
     if (action === "near") {
       await pushGuest(tenant, order, `📍 Your rider is 2 minutes away with order ${order.code} — see you in a moment!`);
       return res.json({ ok: true, note: "Guest told you're near ✓" });
+    }
+    if (action === "arrived") {
+      // the RESTAURANT's number tells the guest — the rider never messages from his own
+      await db.from("orders").update({ courier_arrived_at: new Date().toISOString() }).eq("id", order.id).then(() => {}, () => {});
+      await pushGuest(tenant, order, `🚪 Your rider has ARRIVED with order ${order.code} — he's at your door now!${order.payment_method === "cash" ? ` Cash to have ready: EGP ${Number(order.total).toLocaleString()}.` : ""}`);
+      return res.json({ ok: true, note: "Guest told you've arrived ✓" });
     }
     if (action === "delay") {
       const extra = (Number(order.eta_extra_min) || 0) + 10;
