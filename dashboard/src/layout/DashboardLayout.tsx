@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CalendarClock, Grid3X3, Hourglass, UtensilsCrossed,
-  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike,
+  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import NotificationBell from "./NotificationBell";
@@ -23,6 +23,7 @@ const NAV = [
   { to: "/floor", label: "Floor", icon: Grid3X3, roles: ["admin", "manager", "host"] },
   { to: "/waitlist", label: "Waitlist", icon: Hourglass, roles: ["admin", "manager", "host"] },
   { to: "/orders", label: "Orders", icon: ChefHat, roles: ["admin", "manager", "kitchen"] },
+  { to: "/pos", label: "POS", icon: Calculator, roles: ["admin", "manager", "kitchen", "host"] },
   { to: "/delivery", label: "Delivery", icon: Bike, roles: ["admin", "manager", "kitchen"] },
   { to: "/menu", label: "Menu", icon: UtensilsCrossed, roles: ["admin", "manager", "kitchen"] },
   { to: "/diners", label: "Diners", icon: Users, roles: ["admin", "manager", "host"] },
@@ -40,7 +41,7 @@ export default function DashboardLayout() {
   const [tablesOn, setTablesOn] = useState(true);
   // casual = orders-first, no reservations page (walk-in + waitlist world);
   // with table numbers off the Floor page is decorative — drop it from the nav
-  const CASUAL_ORDER = ["/overview", "/orders", "/delivery", "/menu", "/floor", "/waitlist", "/chats", "/diners", "/events", "/users", "/settings"];
+  const CASUAL_ORDER = ["/overview", "/orders", "/pos", "/delivery", "/menu", "/floor", "/waitlist", "/chats", "/diners", "/events", "/users", "/settings"];
   const items = NAV
     .filter((n) => role === "admin" || n.roles.includes(role))
     .filter((n) => (rtype === "casual" ? n.to !== "/reservations" : true))

@@ -41,13 +41,29 @@ router.post("/", async (req, res, next) => {
       phone_number: phone_number || `walkin:${Date.now()}`,
       diner_name: diner_name || null,
       order_type, table_number: table_number || null, branch: branch || null,
-      items: items.map((i) => ({ name: i.name, qty: Number(i.qty) || 1, unit_price: Number(i.price) || 0, price: Number(i.price) || 0 })),
+      items: items.map((i) => ({
+        name: i.name, qty: Number(i.qty) || 1,
+        unit_price: Number(i.price) || 0, price: Number(i.price) || 0,
+        ...(i.options && Object.keys(i.options).length ? { options: i.options } : {}),
+        ...(i.notes ? { notes: i.notes } : {}),
+      })),
       subtotal, service_charge, tax, total,
       payment_method: payment_method || null,
       status: "pending", payment_status: "unpaid",
       address: order_type === "delivery" ? address || null : null,
       notes: notes || null,
     });
+    // a POS order for a known guest moves their CRM numbers, same as a bot order
+    if (phone_number) {
+      try {
+        const [d] = await req.repo.list("diners", { where: { phone_number }, limit: 1 });
+        if (d) await req.repo.update("diners", d.id, {
+          total_spend: Math.round(((Number(d.total_spend) || 0) + total) * 100) / 100,
+          visit_count: (Number(d.visit_count) || 0) + 1,
+          last_visit_at: new Date().toISOString(),
+        });
+      } catch { /* CRM bump is best-effort */ }
+    }
     res.status(201).json(row);
   } catch (e) { next(e); }
 });

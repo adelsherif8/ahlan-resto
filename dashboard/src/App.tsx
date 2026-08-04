@@ -9,6 +9,7 @@ import FloorMap from "./pages/FloorMap";
 import Waitlist from "./pages/Waitlist";
 import Orders from "./pages/Orders";
 import Delivery from "./pages/Delivery";
+import Pos from "./pages/Pos";
 import Menu from "./pages/Menu";
 import Diners from "./pages/Diners";
 import Chats from "./pages/Chats";
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/waitlist" element={<ProtectedRoute roles={["manager", "host"]}><Waitlist /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute roles={["manager", "kitchen"]}><Orders /></ProtectedRoute>} />
         <Route path="/delivery" element={<ProtectedRoute roles={["manager", "kitchen"]}><Delivery /></ProtectedRoute>} />
+        <Route path="/pos" element={<ProtectedRoute roles={["manager", "kitchen", "host"]}><Pos /></ProtectedRoute>} />
         <Route path="/menu" element={<ProtectedRoute roles={["manager", "kitchen"]}><Menu /></ProtectedRoute>} />
         <Route path="/diners" element={<ProtectedRoute roles={["manager", "host"]}><Diners /></ProtectedRoute>} />
         <Route path="/chats" element={<ProtectedRoute roles={["manager", "host", "livechat"]}><Chats /></ProtectedRoute>} />
