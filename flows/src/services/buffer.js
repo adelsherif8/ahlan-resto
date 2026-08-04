@@ -16,7 +16,7 @@ const repliedBursts = new Set(); // idempotency: burst signature -> already repl
 function heuristicWindow(message, base) {
   const t = (message || "").trim().toLowerCase();
   // incomplete thought → wait longer
-  if (/(\.\.\.|…|,)$/.test(t) || /\b(and|also|w|wa|kaman|كمان|و|bas|بس)$/.test(t)) return base + 4000;
+  if (/(\.\.\.|…|,)$/.test(t) || /(?<![\p{L}\p{N}])(and|also|w|wa|kaman|كمان|و|bas|بس)$/u.test(t)) return base + 4000;
   // direct question → answer faster
   if (/[?؟]$/.test(t)) return Math.max(2500, base - 3000);
   return base;

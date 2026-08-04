@@ -29,9 +29,9 @@ export function detectCloser(message, sticky) {
 }
 
 // ---- FAQ cache ----
-const HOURS_PAT = /\b(open|close|closing|opening|hours|what time|until when|when do you|فاتحين|بتفتحوا|بتقفلوا|امتى|مواعيد|شغالين|fat7in|bteftahu|bte2felo|emta|maw3id|maw3eed|sha8alin)\b/i;
-const LOCATION_PAT = /\b(where|address|location|located|directions|how (do i|to) get|فين|عنوان|مكان|وصل|ازاي اجي|fein|fen|makan|3enwan|ezay agi)\b/i;
-const CONTACT_PAT = /\b(phone number|call you|contact number|رقم|اتصل|كلمكم|ra2m|rakam|ttsl)\b/i;
+const HOURS_PAT = /(?<![\p{L}\p{N}])(open|close|closing|opening|hours|what time|until when|when do you|فاتحين|بتفتحوا|بتقفلوا|امتى|مواعيد|شغالين|fat7in|bteftahu|bte2felo|emta|maw3id|maw3eed|sha8alin)(?![\p{L}\p{N}])/iu;
+const LOCATION_PAT = /(?<![\p{L}\p{N}])(where|address|location|located|directions|how (do i|to) get|فين|عنوان|مكان|وصل|ازاي اجي|fein|fen|makan|3enwan|ezay agi)(?![\p{L}\p{N}])/iu;
+const CONTACT_PAT = /(?<![\p{L}\p{N}])(phone number|call you|contact number|رقم|اتصل|كلمكم|ra2m|rakam|ttsl)(?![\p{L}\p{N}])/iu;
 
 function fmtRanges(ranges) {
   if (!ranges?.length) return null;
@@ -39,9 +39,9 @@ function fmtRanges(ranges) {
 }
 
 // day-specific hours ("friday", "tomorrow") — the template only knows TODAY; weekly needs the LLM
-const DAY_PAT = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|weekend|bokra|بكرة|بكره|الويكند|الجمعة|الجمعه|السبت|الأحد|الاحد|الاثنين|الإثنين|الثلاثاء|الأربعاء|الاربعاء|الخميس)\b/i;
+const DAY_PAT = /(?<![\p{L}\p{N}])(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|weekend|bokra|بكرة|بكره|الويكند|الجمعة|الجمعه|السبت|الأحد|الاحد|الاثنين|الإثنين|الثلاثاء|الأربعاء|الاربعاء|الخميس)(?![\p{L}\p{N}])/iu;
 // compound messages ("...and do you have vegan food?") — the template would swallow the other half
-const COMPOUND_PAT = /(\?[^?]*\?)|\b(and|also|plus|kaman|كمان|وكذلك)\b|(^|\s)و\s/i;
+const COMPOUND_PAT = /(\?[^?]*\?)|(?<![\p{L}\p{N}])(and|also|plus|kaman|كمان|وكذلك)(?![\p{L}\p{N}])|(^|\s)و\s/iu;
 
 // Guest tapped a category in the WhatsApp menu list (message = the category name):
 // full deterministic listing — every dish, price, flags. Zero LLM, zero teasing.
@@ -66,7 +66,7 @@ export function matchFaq(message, config, sticky) {
   if (message.length > 90 || message.split("\n").length > 2) return null;
   if (DAY_PAT.test(message) || COMPOUND_PAT.test(message)) return null;
   // nuanced hours questions (kitchen close, last order, specific days) need the LLM's judgment
-  if (/\b(kitchen|last order|مطبخ|اخر طلب|آخر طلب)\b/i.test(message)) return null;
+  if (/(?<![\p{L}\p{N}])(kitchen|last order|مطبخ|اخر طلب|آخر طلب)(?![\p{L}\p{N}])/iu.test(message)) return null;
   const l = lang(message, sticky);
   const bi = config.basic_info || {};
   const h = hoursToday(config.hours, bi.timezone);
@@ -128,8 +128,8 @@ export function matchApprovedFaq(message, config) {
 }
 
 // ---- item facts straight from the DB: "what's in X" / "is X spicy" ----
-const INGREDIENTS_PAT = /\b(what'?s in|what is in|ingredients?|made (of|with)|contains?|فيه ايه|مكونات|بيتعمل من)\b/i;
-const SPICY_PAT = /\b(spicy|hot\??$|حار|سبايسي|حراق)\b/i;
+const INGREDIENTS_PAT = /(?<![\p{L}\p{N}])(what'?s in|what is in|ingredients?|made (of|with)|contains?|فيه ايه|مكونات|بيتعمل من)(?![\p{L}\p{N}])/iu;
+const SPICY_PAT = /(?<![\p{L}\p{N}])(spicy|hot\??$|حار|سبايسي|حراق)(?![\p{L}\p{N}])/iu;
 function findItem(data, message) {
   const norm = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
   const probe = ` ${norm(message)} `;
@@ -186,14 +186,14 @@ export function matchService(message, config, sticky) {
   if (message.length > 70 || !SERVICE_PAT.test(message)) return null;
   // Must be someone ASKING whether we do it. "2 fries for pickup from Maadi" also
   // contains the word — answering that with "yes we do pickup" swallows an order.
-  if (!/[?؟]/.test(message) && !/^(do|does|can|is|are|هل|بتوصلوا|في)\b/i.test(message.trim())) return null;
+  if (!/[?؟]/.test(message) && !/^(do|does|can|is|are|هل|بتوصلوا|في)(?![\p{L}\p{N}])/iu.test(message.trim())) return null;
   if (/\d/.test(message)) return null;
   // "can I get an iconic meal for pickup" starts with "can" and contains "pickup",
   // but it is an ORDER. An ordering verb means hands off — answering it with
   // "yes we do pickup" throws the order away and the guest starts over.
-  if (/\b(get|want|order|have|take|gimme|make|bring|عايز|عاوز|أريد|اريد|هات|اطلب)\b/i.test(message)) return null;
+  if (/(?<![\p{L}\p{N}])(get|want|order|have|take|gimme|make|bring|عايز|عاوز|أريد|اريد|هات|اطلب)(?![\p{L}\p{N}])/iu.test(message)) return null;
   // "deliver to Maadi?" / "how much is delivery" need real answers, not a yes/no
-  if (/\b(to|fee|cost|charge|how much|بكام|لفين|كام)\b/i.test(message)) return null;
+  if (/(?<![\p{L}\p{N}])(to|fee|cost|charge|how much|بكام|لفين|كام)(?![\p{L}\p{N}])/iu.test(message)) return null;
   const svc = config.basic_info?.services;
   if (!svc || typeof svc !== "object") return null; // nothing configured → never guess
   const l = lang(message, sticky);
@@ -218,13 +218,79 @@ export function matchService(message, config, sticky) {
 }
 
 // ---- "how much is the iconic meal?" — one named item, one price ----
-const PRICE_PAT = /\b(how much|price of|price for|what'?s the price|بكام|السعر|سعر|kam|be?kam)\b/i;
+const PRICE_PAT = /(?<![\p{L}\p{N}])(how much|price of|price for|what'?s the price|بكام|السعر|سعر|kam|be?kam)(?![\p{L}\p{N}])/iu;
+
+// ---- multi-item price math: "total for 2 american truck meals and a coke?" ----
+// Arithmetic is code's job — the model once quoted "250 each + 30" and totalled
+// it as 680. Fires ONLY when every segment resolves to exactly one unambiguous
+// unit price; anything unresolved falls through to the model with the menu.
+const MATH_PAT = /(?<![\p{L}\p{N}])(total|how much|cost|price|بكام|كام|الاجمالي|الإجمالي|bekam|be kam|kam)(?![\p{L}\p{N}])/iu;
+export async function matchPriceMath(db, message, currency = "EGP", sticky = null) {
+  if (message.length > 160 || !MATH_PAT.test(message)) return null;
+  if (!/\d/.test(message) && !/(?<![\p{L}\p{N}])(a|an|one)(?![\p{L}\p{N}])/iu.test(message)) return null;
+  const data = await getMenu(db);
+  const items = (data || []).filter((m) => m.available);
+  const norm = (x) => String(x || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  // every sellable name we can price: priced option choices first (they're the
+  // most specific — "american truck meal" = the 250 choice), then items whose
+  // top-level price is the whole answer (no priced options underneath)
+  const priceBook = [];
+  for (const m of items) {
+    const pricedGroups = (m.options || []).filter((g) => (g.choices || []).some((c) => c.price != null));
+    for (const g of pricedGroups) for (const c of g.choices || []) {
+      if (c.price != null && c.name) priceBook.push({ name: norm(c.name), label: c.name, price: Number(c.price) });
+    }
+    if (!pricedGroups.length && m.price != null) priceBook.push({ name: norm(m.name), label: m.name, price: Number(m.price) });
+  }
+  priceBook.sort((a, b) => b.name.length - a.name.length); // longest name wins
+  const ALIASES = { coke: "coca cola", cocacola: "coca cola", كوكاكولا: "coca cola", كوكا: "coca cola", بيبسي: "pepsi" };
+  // strip the question part, then each comma/"and" segment must resolve
+  const bodyRaw = norm(message)
+    .replace(/(?<![\p{L}\p{N}])(what'?s|whats|the|total|for|of|how|much|is|are|cost|price|please|بكام|كام|الاجمالي|الإجمالي|bekam|kam)(?![\p{L}\p{N}])/giu, " ")
+    .replace(/\s+/g, " ").trim();
+  const segments = bodyRaw.split(/(?<![\p{L}\p{N}])(?:and|kaman|w|و|\+|,)(?![\p{L}\p{N}])|,/iu).map((x) => x.trim()).filter(Boolean);
+  if (!segments.length || segments.length > 6) return null;
+  const lines = [];
+  let total = 0;
+  for (const seg of segments) {
+    let rest = seg;
+    let qty = 1;
+    const qm = rest.match(/^(\d{1,2})\s+/) || rest.match(/^(a|an|one|واحد|واحدة)\s+/iu);
+    if (qm) { qty = /^\d/.test(qm[1]) ? parseInt(qm[1], 10) : 1; rest = rest.slice(qm[0].length).trim(); }
+    if (!rest || qty < 1 || qty > 20) return null;
+    const depluraled = rest.replace(/s$/i, "");
+    const candidates = [rest, depluraled, ALIASES[rest.replace(/\s+/g, "")] || ALIASES[rest], ALIASES[depluraled]].filter(Boolean);
+    let hit = null;
+    for (const cand of candidates) {
+      hit = priceBook.find((p) => p.name === cand) || priceBook.find((p) => p.name === cand.replace(/\s+/g, " "));
+      if (hit) break;
+    }
+    // last resort: the segment IS the book name minus filler ("coca cola" ⊇ "cola" is
+    // too loose — require the book name to contain the whole said phrase as words)
+    if (!hit) {
+      const matches = priceBook.filter((p) => ` ${p.name} `.includes(` ${depluraled} `));
+      if (matches.length === 1) hit = matches[0];
+    }
+    if (!hit || !Number.isFinite(hit.price)) return null; // anything unresolved → the model handles it
+    total += qty * hit.price;
+    lines.push(`${qty}× ${hit.label} (${hit.price})`);
+  }
+  if (lines.length < 2 && !/\d/.test(message)) return null; // single unqty'd item → matchItemPrice's job
+  const l = lang(message, sticky);
+  const breakdown = lines.join(" + ");
+  const replies = {
+    en: `That's ${total} ${currency}: ${breakdown} 🙂`,
+    ar: `الاجمالي ${total} ${currency}: ${breakdown} 🙂`,
+    franco: `El total ${total} ${currency}: ${breakdown} 🙂`,
+  };
+  return { reply: replies[l] || replies.en, kind: "price_math", language: l };
+}
 
 export async function matchItemPrice(db, message, currency = "EGP", sticky = null) {
   if (message.length > 70 || !PRICE_PAT.test(message)) return null;
   // a quantity means arithmetic, and "and"/"or" means more than one thing — both
   // belong to the model, which can add up and compare
-  if (/\d/.test(message) || /\b(and|or|both|و|أو)\b/i.test(message)) return null;
+  if (/\d/.test(message) || /(?<![\p{L}\p{N}])(and|or|both|و|أو)(?![\p{L}\p{N}])/iu.test(message)) return null;
   const data = await getMenu(db);
   const items = (data || []).filter((m) => m.available);
   const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g, " ").trim();

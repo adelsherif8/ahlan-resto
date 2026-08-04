@@ -4,7 +4,7 @@
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_FAST, MODEL_NANO } from "../config.js";
-import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo } from "../services/fastpaths.js";
+import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath } from "../services/fastpaths.js";
 import { bump } from "../services/metrics.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm)\W*$/i;
@@ -70,6 +70,9 @@ defineFlow({
       if (catList) { bump("menu_category_hits"); return catList; }
       const itemPrice = await matchItemPrice(db, message, currency, sticky);
       if (itemPrice) { bump("item_price_hits"); return itemPrice; }
+      // multi-item totals are arithmetic — code adds, never the model
+      const priceMath = await matchPriceMath(db, message, currency, sticky);
+      if (priceMath) { bump("price_math_hits"); return priceMath; }
       const itemInfo = await matchItemInfo(db, message, sticky);
       if (itemInfo) { bump("item_info_hits"); return itemInfo; }
       return { kind: "none — needs classification + LLM" };
@@ -106,10 +109,17 @@ defineFlow({
       if (precheck.active_flow === "order" && message.trim().length <= 45) {
         return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (short answer inside an active order)" } };
       }
+      // A filled-in slots template ("FIRST CHOICE / SANDWICH: iconic / NOTES: …")
+      // is structurally an order answer. The classifier once filed one under
+      // friendly and dropped the whole order — structure is code's job, not a
+      // model's. Two or more "LABEL:" lines during an active order = order.
+      if (precheck.active_flow === "order" && (message.match(/^\s*[\p{L} ]{2,24}:/gmu) || []).length >= 2) {
+        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (filled template inside an active order)" } };
+      }
       // "an iconic wrap meal for dine in at Sheraton" — no verb, but a menu item
       // plus an order-type word is an order, period. Real guests phrase it exactly
       // like this and the model sometimes filed it under friendly.
-      const TYPE_WORD = /\b(dine.?in|pick.?up|pickup|take.?away|deliver(y|ed)?|توصيل|استلام|تيك ?اواي)\b/i;
+      const TYPE_WORD = /(?<![\p{L}\p{N}])(dine.?in|pick.?up|pickup|take.?away|deliver(y|ed)?|توصيل|استلام|تيك ?اواي)(?![\p{L}\p{N}])/iu;
       if (TYPE_WORD.test(message) && !/[?؟]/.test(message)) {
         const names = await menuNames(db);
         const ml = ` ${message.toLowerCase()} `;

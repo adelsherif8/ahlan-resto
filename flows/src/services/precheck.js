@@ -7,7 +7,7 @@ const SESSION_TTL_MS = 4 * 60 * 60 * 1000;
 const MAX_TURNS_SESSION = 20;
 
 const AFFIRMATIVE = /^(yes|ya|yh|yea|yep|yeah|ok|okay|sure|confirm|done|tamam|tmam|aywa|ah|aiwa|maashi|mashy|akeed|اه|ايوه|أيوة|تمام|ماشي|اكيد|👍|✅)[\s!.]*$/i;
-const SELF_CORRECTION = /\b(wait|actually|no wait|hold on|nvm|never ?mind|la2|la khalas|استنى|لا خلاص|مش كده|قصدي|asdi|2asdy)\b/i;
+const SELF_CORRECTION = /(?<![\p{L}\p{N}])(wait|actually|no wait|hold on|nvm|never ?mind|la2|la khalas|استنى|لا خلاص|مش كده|قصدي|asdi|2asdy)(?![\p{L}\p{N}])/iu;
 
 export async function sessionPrecheck(db, sessionId, history) {
   const out = {

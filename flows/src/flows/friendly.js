@@ -750,11 +750,15 @@ function priceOf(m, currency) {
 
 // Is this turn about food? Generic lexicon (EN/AR/Franco) + THIS restaurant's
 // own item and category tokens — nothing brand-specific hardcoded.
-const GENERIC_FOOD = /\b(menu|eat|eating|food|hungry|order|meal|dish|drink|dessert|veg(an|etarian)?|gluten|spicy|price|cost|how much|recommend|suggest|best.?seller|popular|بكام|سعر|منيو|اكل|آكل|جعان|طلب|وجبة|مشروب|حلو|اقتراح|تنصح|3ayez akol|gau3an|menue?)\b/i;
+const GENERIC_FOOD = /\b(menu|eat|eating|food|hungry|order|meal|dish|drink|dessert|burger|sandwich|wrap|fries|wings|veg(an|etarian)?|gluten|spicy|price|cost|how much|recommend|suggest|best.?seller|popular|3ayez akol|gau3an|menue?)\b/i;
+// Arabic glues prefixes onto the word (البرجرات = ال+برجر+ات) and JS \b never
+// matches beside Arabic script — so Arabic food talk is detected by substring.
+const GENERIC_FOOD_AR = ["بكام", "سعر", "منيو", "اكل", "آكل", "جعان", "طلب", "وجبة", "مشروب", "حلو", "اقتراح", "تنصح", "برجر", "برغر", "بورجر", "ساندوتش", "ساندويتش", "سندوتش", "بطاطس", "فرايز", "وينجز"];
 function mentionsFood(message, history, menu) {
   const recentGuest = (history || []).slice(-4).filter((h) => h.role === "guest").map((h) => h.message).slice(-2);
   const probe = ` ${[message, ...recentGuest].join(" ").toLowerCase()} `;
   if (GENERIC_FOOD.test(probe)) return true;
+  if (GENERIC_FOOD_AR.some((w) => probe.includes(w))) return true;
   for (const m of menu) {
     const cat = String(m.category || "").toLowerCase();
     if (cat && probe.includes(cat)) return true;

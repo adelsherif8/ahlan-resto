@@ -89,7 +89,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         : null) || matchBranchByText(branches, `${e.branch || ""} ${input.message}`);
       // "usual"/"same branch" resolves to their remembered branch without retyping it
       const usualKey = branches.some((b) => b.key === diner?.preferred_branch) ? diner.preferred_branch : null;
-      const askedUsual = usualKey && /\b(usual|same branch|نفس الفرع)\b/i.test(input.message) ? usualKey : null;
+      const askedUsual = usualKey && /(?<![\p{L}\p{N}])(usual|same branch|نفس الفرع)(?![\p{L}\p{N}])/iu.test(input.message) ? usualKey : null;
       let branch = named?.key || askedUsual || loaded.branch || null;
       if (named && diner?.id && named.key !== diner.preferred_branch) {
         // pre-migration safe: column may not exist yet
@@ -156,7 +156,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         //   "add a loaded fries"  → append (add-verb + an item not on the draft)
         //   "make it just 1"      → qty change (same item, different qty, or the
         //                            bare deterministic form below)
-        const ADD_VERB = /\b(add|also|kaman|zawe?d|زود|كمان|ضيف|وهات)\b/i;
+        const ADD_VERB = /(?<![\p{L}\p{N}])(add|also|kaman|zawe?d|زود|كمان|ضيف|وهات)(?![\p{L}\p{N}])/iu;
         // a draft older than 20 min is an abandoned session, not the context for
         // this message — a fresh "2 iconic meals" then REPLACES it instead of
         // being swallowed by "how would you like to pay?" about old food
@@ -281,7 +281,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // they tapped/typed one of their saved ones (WhatsApp truncates button titles,
       // so a prefix counts) or said "same as last time" with only one on file
       const reuse = matchSaved(input.message, saved) ||
-        (saved.length === 1 && /\b(same|usual|نفس|زي كل مرة)\b/i.test(input.message) ? saved[0] : null);
+        (saved.length === 1 && /(?<![\p{L}\p{N}])(same|usual|نفس|زي كل مرة)(?![\p{L}\p{N}])/iu.test(input.message) ? saved[0] : null);
       if (reuse && !loaded.pending?.address) address = reuse.text;
       // Deterministic address capture: we're mid-delivery waiting for the address,
       // nothing else in the message fits — the guest's words ARE the address. The
@@ -289,9 +289,9 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       if (!address && orderType === "delivery" && loaded.pending?.order_type === "delivery" && items.length) {
         const t = input.message.trim();
         const isCommand = (e.items?.length) || (e.edits?.length) ||
-          /^(dine.?in|pick.?up|pickup|delivery|توصيل|استلام|في المطعم)\b/i.test(t) ||
-          /^(cash|card|visa|instapay|كاش|فيزا|بطاقة|انستاباي)\b/i.test(t) ||
-          /^(yes|ok|okay|sure|confirm|tamam|تمام|ماشي|اه|ايوه)\b[\s!.]*$/i.test(t) ||
+          /^(dine.?in|pick.?up|pickup|delivery|توصيل|استلام|في المطعم)(?![\p{L}\p{N}])/iu.test(t) ||
+          /^(cash|card|visa|instapay|كاش|فيزا|بطاقة|انستاباي)(?![\p{L}\p{N}])/iu.test(t) ||
+          /^(yes|ok|okay|sure|confirm|tamam|تمام|ماشي|اه|ايوه)(?![\p{L}\p{N}])[\s!.]*$/iu.test(t) ||
           /[?؟]\s*$/.test(t);
         if (!isCommand && t.length >= 3 && t.length <= 200) address = t;
       }
@@ -422,7 +422,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // Only a yes to a bill WE actually showed counts: the extractor reads "cash" as
       // intent=confirm, which would otherwise place the order the moment they pick a
       // payment method, before they've ever seen a total.
-      const AFFIRM = /\b(yes|yeah|yep|confirm|confirmed|ok|okay|sure|go ahead|tamam|تمام|اكيد|أكيد|ماشي|maashi|mashy|aywa|ايوه|أيوة|اه)\b/i;
+      const AFFIRM = /(?<![\p{L}\p{N}])(yes|yeah|yep|confirm|confirmed|ok|okay|sure|go ahead|tamam|تمام|اكيد|أكيد|ماشي|maashi|mashy|aywa|ايوه|أيوة|اه)(?![\p{L}\p{N}])/iu;
       const confirmed = loaded.pending?.awaiting_confirm === true &&
         (e.intent === "confirm" || (input.message.trim().length <= 24 && AFFIRM.test(input.message)));
       if (!confirmed) {
@@ -882,7 +882,7 @@ function renderSlotsTemplate(g) {
 }
 
 // near-miss auto-switch: "cola"/"coke" → whatever cola we stock; else first option
-const SODA_WORDS = /\b(cola|coke|pepsi|soda|كولا|بيبسي)\b/i;
+const SODA_WORDS = /(?<![\p{L}\p{N}])(cola|coke|pepsi|soda|كولا|بيبسي)(?![\p{L}\p{N}])/iu;
 function matchSlotValue(raw, names) {
   const said = normName(raw);
   if (!said) return { value: null };

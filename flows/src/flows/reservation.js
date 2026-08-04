@@ -218,8 +218,8 @@ side_question = any NON-booking question in the same message ("also do you have 
           const sess = s.session;
           // step 2 of the two-step: they already saw "cancel R-XXXX?"
           if (sess?.session_status === "awaiting_cancel_confirm") {
-            const NEG = /\b(no|nah|keep|kept|khalli|khaleeha|seebha|mesh 3ayez|el3'i|لا|خلي|خليها|سيبها|مش عايز)\b/i;
-            const saidNo = NEG.test(s.message) && !/\b(cancel it|الغيه|الغيها|el3'ih)\b/i.test(s.message);
+            const NEG = /(?<![\p{L}\p{N}])(no|nah|keep|kept|khalli|khaleeha|seebha|mesh 3ayez|el3'i|لا|خلي|خليها|سيبها|مش عايز)(?![\p{L}\p{N}])/iu;
+            const saidNo = NEG.test(s.message) && !/(?<![\p{L}\p{N}])(cancel it|الغيه|الغيها|el3'ih)(?![\p{L}\p{N}])/iu.test(s.message);
             const saidYes = !saidNo && (s.isAffirmative || s.extraction?.intent === "confirm" || s.extraction?.intent === "cancel");
             const target = s.upcoming.find((r) => r.id === sess.quoted?.cancel_id);
             if (saidNo || !target) {
@@ -255,7 +255,7 @@ side_question = any NON-booking question in the same message ("also do you have 
           const target = s.upcoming[0];
           if (!target) return { outcome: { kind: "nothing_to_modify" }, sessionPatch: null };
           // a bare number in a modify message is a TIME unless people-words are present
-          const PEOPLE_WORDS = /\b(people|persons?|ppl|guests?|anfar|nafar|nas|afrad|شخص|اشخاص|أشخاص|افراد|أفراد|نفر|واحد)\b/i;
+          const PEOPLE_WORDS = /(?<![\p{L}\p{N}])(people|persons?|ppl|guests?|anfar|nafar|nas|afrad|شخص|اشخاص|أشخاص|افراد|أفراد|نفر|واحد)(?![\p{L}\p{N}])/iu;
           const want = {
             party_size: s.extraction?.party_size && PEOPLE_WORDS.test(s.message) ? s.extraction.party_size : target.party_size,
             date: s.slots.date || target.date,
@@ -352,7 +352,7 @@ side_question = any NON-booking question in the same message ("also do you have 
       // CODE BACKSTOP: change/move words + an existing booking = modify, whatever the LLM said.
       // (Mid-collect corrections stay in the booking flow — only fires when no session is active.)
       const MODIFY_HINT = /\b(ne2adem|n2adem|ne2a5ar|n2a5ar|ne2akhar|3adel|3addel|ghayyar|move|change|reschedule|shift|postpone|push (it|the)|عدل|عدّل|غير|غيّر|نقدم|نقدّم|نأخر|أجل|بدّل|بدل)\b/i;
-      const BOOKING_REF = /\b(7agz|el ?7agz|booking|reservation|ma3ad|el ?ma3ad|حجز|حجزي|الحجز|المعاد|معادي)\b/i;
+      const BOOKING_REF = /(?<![\p{L}\p{N}])(7agz|el ?7agz|booking|reservation|ma3ad|el ?ma3ad|حجز|حجزي|الحجز|المعاد|معادي)(?![\p{L}\p{N}])/iu;
       const sessionActive = sess && ["incomplete", "quoted", "awaiting_confirm"].includes(sess.session_status);
       if (MODIFY_HINT.test(s.message) && !sessionActive) {
         if (s.upcoming.length && (BOOKING_REF.test(s.message) || ex.intent === "modify" || ex.time || ex.date)) return "modify";
@@ -369,7 +369,7 @@ side_question = any NON-booking question in the same message ("also do you have 
         if (s.upcoming.length) return "info";
         return "confirm"; // truly nothing → playful nothing_to_confirm
       }
-      if (ex.intent === "waitlist" || /\b(waitlist|waiting list|ويتنج|الانتظار|لستة الانتظار)\b/i.test(s.message)) return "waitlist";
+      if (ex.intent === "waitlist" || /(?<![\p{L}\p{N}])(waitlist|waiting list|ويتنج|الانتظار|لستة الانتظار)(?![\p{L}\p{N}])/iu.test(s.message)) return "waitlist";
       if (ex.intent === "modify" && s.upcoming.length) return "modify";
       if (ex.intent === "modify" && !s.upcoming.length) return "info"; // "change my booking" with none → say so, don't start collecting
       if (ex.intent === "info" && !ex.party_size && !ex.date && !ex.time) return "info";
@@ -478,7 +478,7 @@ OUTCOME KINDS:
 FRANCO TONE: Egyptian colloquial in Latin letters ("kam wa7ed hatkono?", "emta ya basha?") — never transliterated formal Arabic.
 NEVER, under any outcome except confirmed/already_confirmed/modified, say or imply the booking is done — no "7agezt", "booked", "حجزتلك", "reserved".
 Return JSON: {"reply": string, "quick_replies": string[]|null}`;
-  const BOOKED_CLAIM = /\b(booked|reserved|confirmed your|i'?ve confirmed|7agezt|hagezt|حجزتلك|حجزت لك|اتحجز|تم الحجز|تم تأكيد)\b/i;
+  const BOOKED_CLAIM = /(?<![\p{L}\p{N}])(booked|reserved|confirmed your|i'?ve confirmed|7agezt|hagezt|حجزتلك|حجزت لك|اتحجز|تم الحجز|تم تأكيد)(?![\p{L}\p{N}])/iu;
   const SAFE_KINDS = new Set(["confirmed", "already_confirmed", "modified"]);
   try {
     const user = `OUTCOME: ${JSON.stringify(o)}\nGuest message: ${s.message}`;
