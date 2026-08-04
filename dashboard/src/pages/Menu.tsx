@@ -368,50 +368,85 @@ function TidyModal({ fixes, onClose, onApplied }: { fixes: any[]; onClose: () =>
   );
 }
 
-// The waiter-brain fields: every one you fill kills a "the team will confirm".
+// Full edit parity with adding: everything about the dish in one place —
+// name, category, price, description, ingredients, spice, pairing, dietary
+// tags — plus delete. Options stay in the dedicated options editor.
 function DetailsEditor({ item, onSaved }: { item: any; onSaved: () => void }) {
   const [f, setF] = useState({
+    name: item.name || "",
+    category: item.category || "",
+    price: String(item.price ?? ""),
     ingredients: item.ingredients || "",
     spice_level: item.spice_level ?? "",
     pairs_with: item.pairs_with || "",
     description: item.description || "",
+    dietary_tags: (item.dietary_tags || []) as string[],
   });
+  const TAGS = ["vegetarian", "vegan", "gf", "spicy"];
   return (
-    <div className="mt-3 grid gap-2 border-t border-zinc-800 pt-3 md:grid-cols-4">
-      <Input placeholder="Description" className="md:col-span-2" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
-      <Input placeholder="Ingredients (comma-sep)" value={f.ingredients} onChange={(e) => setF({ ...f, ingredients: e.target.value })} />
-      <select
-        className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200"
-        value={String(f.spice_level)}
-        onChange={(e) => setF({ ...f, spice_level: e.target.value })}
-      >
-        <option value="">Spice: unknown</option>
-        <option value="0">Spice: none</option>
-        <option value="1">Spice: mild</option>
-        <option value="2">Spice: medium</option>
-        <option value="3">Spice: hot</option>
-      </select>
-      <Input placeholder="Pairs well with…" value={f.pairs_with} onChange={(e) => setF({ ...f, pairs_with: e.target.value })} />
-      <div className="flex items-center gap-3">
-        <Btn
-          className="px-3 py-1.5 text-xs"
-          onClick={async () => {
-            await api.patch(`/api/menu/${item.id}`, {
-              description: f.description.trim() || null,
-              ingredients: f.ingredients.trim() || null,
-              spice_level: f.spice_level === "" ? null : Number(f.spice_level),
-              pairs_with: f.pairs_with.trim() || null,
-            });
-            onSaved();
-          }}
+    <div className="mt-3 border-t border-zinc-800 pt-3">
+      <div className="grid gap-2 md:grid-cols-3">
+        <Input placeholder="Name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <Input placeholder="Category" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} />
+        <Input type="number" step="any" placeholder="Price" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
+        <Input className="md:col-span-3" placeholder="Description — what's in it, how it's made" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
+        <Input className="md:col-span-2" placeholder="Ingredients (comma-sep — the bot answers from these)" value={f.ingredients} onChange={(e) => setF({ ...f, ingredients: e.target.value })} />
+        <Input placeholder="Pairs well with…" value={f.pairs_with} onChange={(e) => setF({ ...f, pairs_with: e.target.value })} />
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select
+          className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200"
+          value={String(f.spice_level)}
+          onChange={(e) => setF({ ...f, spice_level: e.target.value })}
         >
-          Save
-        </Btn>
+          <option value="">Spice: unknown</option>
+          <option value="0">Spice: none</option>
+          <option value="1">Spice: mild</option>
+          <option value="2">Spice: medium</option>
+          <option value="3">Spice: hot</option>
+        </select>
+        {TAGS.map((t) => (
+          <button key={t} type="button"
+            onClick={() => setF({ ...f, dietary_tags: f.dietary_tags.includes(t) ? f.dietary_tags.filter((x) => x !== t) : [...f.dietary_tags, t] })}
+            className={`rounded-full px-2.5 py-1 text-[11px] ${f.dietary_tags.includes(t) ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800/70 text-zinc-500"}`}>
+            {t}
+          </button>
+        ))}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              if (!confirm(`Delete "${item.name}" from the menu permanently? The bot stops knowing it exists.`)) return;
+              await api.delete(`/api/menu/${item.id}`).catch((e: any) => alert(e.response?.data?.error || "Delete failed"));
+              onSaved();
+            }}
+            className="flex items-center gap-1 rounded-xl border border-red-500/40 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
+          >
+            <X size={12} /> Delete item
+          </button>
+          <Btn
+            className="px-4 py-1.5 text-xs"
+            onClick={async () => {
+              await api.patch(`/api/menu/${item.id}`, {
+                name: f.name.trim() || item.name,
+                category: f.category.trim() || item.category,
+                price: f.price === "" ? item.price : Number(f.price),
+                description: f.description.trim() || null,
+                ingredients: f.ingredients.trim() || null,
+                spice_level: f.spice_level === "" ? null : Number(f.spice_level),
+                pairs_with: f.pairs_with.trim() || null,
+                dietary_tags: f.dietary_tags,
+              });
+              onSaved();
+            }}
+          >
+            Save
+          </Btn>
+        </div>
       </div>
     </div>
   );
 }
-
 // ---------- the item builder: everything in one place, prefilled from the menu ----------
 // Kind decides the shape: a simple item, a meal with combo questions (sizes,
 // fries, drinks — cloned from your existing meals, editable inline), or a
@@ -640,3 +675,4 @@ function NewItemModal({ items, onClose, onCreated }: { items: any[]; onClose: ()
     </div>
   );
 }
+
