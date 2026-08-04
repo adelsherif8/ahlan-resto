@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Bot, Store, TrendingUp, TrendingDown } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AlertCircle, Bot, Store, TrendingUp, TrendingDown, CheckCircle2, Flame, UtensilsCrossed, Bike, ShoppingBag, Activity } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Pill, Empty } from "../components/ui";
 
@@ -11,6 +12,7 @@ export default function Overview() {
   const [guests, setGuests] = useState<any[]>([]);
   const [rtype, setRtype] = useState<string>("fine");
   const [sampleCount, setSampleCount] = useState(0);
+  const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
     api.get("/api/diners").then((r) => setGuests(r.data || [])).catch(() => {});
@@ -22,7 +24,10 @@ export default function Overview() {
   }, []);
 
   useEffect(() => {
-    const load = () => api.get("/api/dashboard/kpis").then((r) => setKpis(r.data)).catch(() => {});
+    const load = () => {
+      api.get("/api/dashboard/kpis").then((r) => setKpis(r.data)).catch(() => {});
+      api.get("/api/orders").then((r) => setOrders(r.data || [])).catch(() => {});
+    };
     load();
     api.get("/api/dashboard/agent-stats").then((r) => setAgent(r.data)).catch(() => {});
     const t = setInterval(load, 15000);
@@ -33,27 +38,33 @@ export default function Overview() {
   const casual = rtype === "casual";
   const O = kpis.orders_today || {};
 
-  // one strip for everything that needs a human, instead of scattered banners
-  const needs: { text: string; to?: string }[] = [];
-  if (kpis.needs_attention > 0) needs.push({ text: `${kpis.needs_attention} conversation${kpis.needs_attention > 1 ? "s" : ""} need${kpis.needs_attention > 1 ? "" : "s"} a human — check Chats` });
-  if (O.late_now > 0) needs.push({ text: `${O.late_now} order${O.late_now > 1 ? "s" : ""} running late on the board` });
-  if (sampleCount > 0) needs.push({ text: `${sampleCount} menu item${sampleCount > 1 ? "s" : ""} still ha${sampleCount > 1 ? "ve" : "s"} unverified prices — Menu page` });
+  // one strip for everything that needs a human, instead of scattered banners —
+  // each row is a door to the page that fixes it, red when guests are waiting
+  const needs: { text: string; to: string; hot?: boolean }[] = [];
+  if (O.late_now > 0) needs.push({ text: `${O.late_now} order${O.late_now > 1 ? "s" : ""} running late on the board`, to: "/orders", hot: true });
+  if (kpis.needs_attention > 0) needs.push({ text: `${kpis.needs_attention} conversation${kpis.needs_attention > 1 ? "s" : ""} need${kpis.needs_attention > 1 ? "" : "s"} a human`, to: "/chats" });
+  if (sampleCount > 0) needs.push({ text: `${sampleCount} menu item${sampleCount > 1 ? "s" : ""} still ha${sampleCount > 1 ? "ve" : "s"} unverified prices`, to: "/menu" });
 
   return (
     <div>
       <PageHeader title="Overview" subtitle={casual ? "Today at a glance" : "Tonight at a glance"} />
 
-      {needs.length > 0 && (
-        <div className="mb-5 space-y-1.5">
-          {needs.map((n, i) => (
-            <div key={i} className="flex items-center gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-zinc-100">
-              <AlertCircle size={15} className="shrink-0 text-amber-400" /> {n.text}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mb-5 space-y-1.5">
+        {needs.length === 0 ? (
+          <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5 text-sm text-zinc-300">
+            <CheckCircle2 size={15} className="shrink-0 text-emerald-400" /> All clear — no late orders, no stuck chats, nothing waiting on you.
+          </div>
+        ) : needs.map((n, i) => (
+          <Link key={i} to={n.to}
+            className={`flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm text-zinc-100 transition hover:brightness-125 ${n.hot ? "border-red-500/50 bg-red-500/10" : "border-amber-500/40 bg-amber-500/10"}`}>
+            <AlertCircle size={15} className={`shrink-0 ${n.hot ? "text-red-400" : "text-amber-400"}`} />
+            <span className="flex-1">{n.text}</span>
+            <span className="text-xs text-zinc-500">open</span>
+          </Link>
+        ))}
+      </div>
 
-      {casual ? <CasualBoard O={O} kpis={kpis} /> : <FineBoard kpis={kpis} agent={agent} />}
+      {casual ? <CasualBoard O={O} kpis={kpis} orders={orders} /> : <FineBoard kpis={kpis} agent={agent} />}
 
       <GuestsCard guests={guests} />
 
@@ -64,17 +75,25 @@ export default function Overview() {
 
 // ---------------- casual: orders-first ----------------
 
-function CasualBoard({ O, kpis }: any) {
+function CasualBoard({ O, kpis, orders }: any) {
   const delta = O.revenue_yesterday > 0 ? Math.round(((O.revenue - O.revenue_yesterday) / O.revenue_yesterday) * 100) : null;
   const aiPct = O.count > 0 ? Math.round(((O.ai_count || 0) / O.count) * 100) : null;
+  const today = new Date().toLocaleDateString("en-CA");
+  const todays = (orders || []).filter((o: any) => String(o.created_at).slice(0, 10) === today && o.status !== "cancelled");
+  const byType: Record<string, number> = {};
+  for (const o of todays) byType[o.order_type] = (byType[o.order_type] || 0) + 1;
+  const avgTicket = O.count > 0 ? Math.round((O.revenue || 0) / O.count) : null;
   const stats = [
     { label: "Revenue today", value: `EGP ${money(O.revenue || 0)}`, sub: delta !== null ? `${delta >= 0 ? "+" : ""}${delta}% vs yesterday` : null, up: delta !== null ? delta >= 0 : null },
     { label: "Orders today", value: O.count ?? 0, sub: O.cancelled ? `${O.cancelled} cancelled` : null },
+    { label: "Avg ticket", value: avgTicket != null ? `EGP ${money(avgTicket)}` : "—" },
     { label: "Open now", value: O.open_now ?? 0, sub: O.late_now ? `${O.late_now} late` : null },
     { label: "Avg prep", value: O.avg_prep != null ? `${O.avg_prep} min` : "—" },
     { label: "AI-taken", value: aiPct != null ? `${aiPct}%` : "—", sub: O.ai_count != null ? `${O.ai_count} of ${O.count}` : null },
-    { label: "Avg rating", value: kpis.avg_rating ?? "—" },
   ];
+  const TYPE_META: [string, string, any][] = [["dine_in", "Dine-in", UtensilsCrossed], ["pickup", "Pickup", ShoppingBag], ["delivery", "Delivery", Bike]];
+  const feed = [...todays].sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 6);
+  const ago = (t: string) => { const m = Math.round((Date.now() - new Date(t).getTime()) / 60000); return m < 1 ? "now" : m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ${m % 60}m ago`; };
   const maxHour = Math.max(1, ...(O.by_hour || []).map((h: any) => h.count));
   return (
     <>
@@ -142,6 +161,49 @@ function CasualBoard({ O, kpis }: any) {
           </div>
         </Card>
       )}
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card className="p-5">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-300">Where orders come from</h2>
+          <div className="space-y-2.5">
+            {TYPE_META.map(([k, label, Icon]) => {
+              const n = byType[k] || 0;
+              const pct = todays.length ? Math.round((n / todays.length) * 100) : 0;
+              return (
+                <div key={k}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-zinc-300"><Icon size={12} /> {label}</span>
+                    <span className="tabular-nums text-zinc-500">{n} · {pct}%</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: "var(--accent)" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+        <Card className="p-5 lg:col-span-2">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-300"><Activity size={14} /> Live feed</h2>
+          {feed.length === 0 ? <Empty text="Quiet for now — the next ticket lands here" /> : (
+            <div className="space-y-1.5">
+              {feed.map((o: any) => (
+                <div key={o.id} className="flex items-center justify-between rounded-xl bg-zinc-900 px-3 py-2 text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-zinc-300">{o.code}</span>
+                    <span className="text-xs text-zinc-500">{(o.items || []).reduce((s2: number, i2: any) => s2 + Number(i2.qty || 1), 0)} items · {String(o.order_type).replace("_", "-")}{o.branch ? ` · ${o.branch}` : ""}</span>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="tabular-nums text-xs text-zinc-400">EGP {money(o.total || 0)}</span>
+                    <Pill value={o.status} />
+                    <span className="w-14 text-right text-[10px] tabular-nums text-zinc-600">{ago(o.created_at)}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
 
       <Card className="mt-4 border-emerald-500/30 p-5">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-300"><Bot size={15} /> AI order agent — today</h2>
