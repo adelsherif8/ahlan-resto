@@ -1180,6 +1180,14 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
       if (strict.length === 1 && need2 === 1) it2.options[g.key] = strict[0].name;
     }
   }
+  // notes that only restate applied choices are ticket noise — drop them
+  for (const it2 of out) {
+    if (!it2.notes) continue;
+    const chosen = normName(Object.values(it2.options).filter((v) => typeof v === "string").join(" "));
+    const FILLER = new Set(["and", "with", "a", "an", "the", "please", "و", "مع"]);
+    const words = normName(arOptionWords(it2.notes)).split(" ").filter((w) => w && !FILLER.has(w));
+    if (words.length && words.every((w) => chosen.includes(w))) it2.notes = null;
+  }
 
   // ---- a filled bundle template answers its slots ----
   const aw = pending?.awaiting_option;
