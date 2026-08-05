@@ -28,8 +28,40 @@ link asking them to review.
    message (Meta approval) — until templates are approved, only prompt guests whose
    last message is within the window (the 1h-after-delivery case always is).
 
-## Ideas to decide on (founder input wanted)
-- Auto-reply thanking 5-star reviewers with a small perk ("free drink next visit")?
-- Bad-review SLA: who gets pinged (manager WhatsApp?) when a complaint sits unhandled?
-- Show a "reviews this week" digest on Overview?
-- Pipe Google reviews back in (scrape/API) so the tab shows BOTH in-chat and Google?
+## Idea pool (2026-08-05, competitor-grounded: Ovation / Tattle / Birdeye — founder picks)
+
+### Capture
+1. 2-tap star buttons in chat after delivery (⭐1–5 buttons, not free text) — Ovation's model, highest response rates.
+2. QR on receipts/tables → lands in the WhatsApp rating flow (reuses receipt-QR machinery).
+3. Photo complaints auto-attached to the review (vision already classifies complaint_photo).
+4. Voice complaints transcribed into the record (transcription already live).
+
+### Intelligence
+5. AI theme tagging — food quality / delivery time / rider / wrong item / staff / price → "cold fries mentioned 6× this week".
+6. Per-item complaint linking — Menu Engineering panel shows "Loaded Fries: 3 complaints this month" next to margin.
+7. Per-branch rating scoreboard (league table).
+8. Rider quality scores — delivery complaints tag the assigned courier, score in the Delivery tab.
+9. Ratings × ops correlation — "orders >40 min rate 1.8 stars lower" (ratings vs prep/late data).
+
+### Service recovery (the money features)
+10. Instant recovery flow — ≤2 stars triggers apology + optional auto-voucher via the promos engine, BEFORE they reach Google.
+11. Manager WhatsApp alert on bad reviews — guest + order + complaint, one-tap "I'll handle it".
+12. 48h close-the-loop — "did we make it right?" after resolution; reopens if not.
+13. Comeback voucher for resolved complainers after X days (needs Meta template).
+14. Comp tracking — resolutions attach comps/refunds logged into the discounts/Z-report machinery.
+
+### Public reputation
+15. Feedback-first funnel — private rating first; promoters get the Google link, unhappy get recovery (soft-gating, Google-policy-safe phrasing).
+16. Google reviews imported (Places API) → same inbox as in-chat reviews.
+17. Reply to Google reviews from the dashboard with AI-drafted replies the owner approves (Ovation's newest feature).
+18. 5-star quote cards — best reviews rendered as branded Instagram-story images (canvas, no AI cost).
+19. Competitor rating watch — nearby competitors' Google ratings side-by-side.
+
+### Analytics
+20. Proper NPS ("would you recommend us?") occasionally, NPS trend on Overview.
+21. Weekly digest — avg rating, themes, unhandled count on Overview or to the manager's WhatsApp.
+22. Staff resolution leaderboard — who resolves, how fast.
+
+Earlier open questions folded in: 5-star perk (see 10/13), bad-review SLA ping (see 11), weekly digest (see 21), Google import (see 16).
+
+Claude's suggested pilot shortlist: 1, 5, 10, 11, 15, 16 (complete loop: capture → tags → recovery → escalation → funnel → unified inbox); 6 and 8 as the differentiators nobody in Egypt has.
