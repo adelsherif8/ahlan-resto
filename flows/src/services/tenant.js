@@ -63,6 +63,7 @@ function shapeConfig(r) {
     ai: r.ai || {},
     faqs: r.faqs || [],
     menu_config: r.menu_config || {},
+    pos: r.pos || {}, // cashiers, stations, promos, loyalty rule, order-code format (migration 022)
   };
 }
 
