@@ -9,7 +9,9 @@ export async function transcribeAudio(buffer, mime) {
   if (!OPENAI_API_KEY) return "[voice note — transcription unavailable]";
   const form = new FormData();
   form.append("file", new Blob([buffer], { type: mime }), "audio.ogg");
-  form.append("model", "whisper-1");
+  // gpt-4o-mini-transcribe: better WER than whisper-1 (Arabic included) at half
+  // the price ($0.003/min) — founder-approved 2026-08-05
+  form.append("model", "gpt-4o-mini-transcribe");
   const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
     headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },

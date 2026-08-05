@@ -227,10 +227,16 @@ defineFlow({
       await notifyDashboard(db, "handoff", "Human needed: conversation stuck", `Session ${ctx.sessionId} — ${precheck.loop_detected ? "bot repeated itself" : "20+ turns"}`, ctx.sessionId);
     } else {
       // ---- master: EVERY burst goes through the router (fast paths live inside it) ----
+      // SLA guard: past 15s of thinking the guest hears SOMETHING — silence
+      // reads as "the bot died". The real reply still lands right after.
+      const interim = setTimeout(() => {
+        respondDirect(ctx, "لحظة واحدة 🙏 One sec…").catch(() => {});
+      }, 15_000);
       routed = await f.node("master", async () => {
         const lastAiMessage = [...(history || [])].reverse().find((h) => h.role === "ai")?.message || null;
         return f.flow("master", { message: merged, history, precheck, stickyLanguage: sticky, lastAiMessage });
       }, { input: { message: merged, precheck_active_flow: precheck.active_flow, sticky_language: sticky } });
+      clearTimeout(interim);
       reply = routed?.reply || "Sorry — something went wrong on our side 🙏 A team member will follow up.";
       if (routed?.language) setSessionLanguage(ctx.sessionId, routed.language);
       if (routed?.fast_path === "closer") await setSessionFlags(db, ctx.sessionId, { status: "closed" }).catch(() => {});
