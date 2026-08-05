@@ -63,6 +63,13 @@ cheese, lettuce; ~13MB total), a demo login screen, `__MACOSX` junk to strip.
 - **Counter kiosk mode**: same page fullscreen on a tablet in-store.
 - **Trending builds**: weekly "most built" — the bot can pitch it ("this week everyone's
   making double-cheese + mushroom — want to try it?").
+- **Interactive layer boxes**: besides the 3D view, each layer is a visual CARD/box
+  (photo + name + price) you tap to stack — the 3D burger updates live as boxes are
+  picked; tap a stacked layer to remove it. Choose-how-it-looks, not a dropdown form.
+- **Full brand theming**: the page pulls the restaurant's `brand.primary` color, logo
+  and fonts from Settings (same as the dashboard does) — buttons, progress, highlights
+  all in the restaurant's identity, logo in the header. Multi-tenant by design: every
+  restaurant's builder looks like THEIR page, zero code changes.
 
 Total: ~2 days of focused work. Decision needed from founder before starting:
 - (a) phone-entry or bot-link-only access?
