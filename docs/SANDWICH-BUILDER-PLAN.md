@@ -39,6 +39,31 @@ cheese, lettuce; ~13MB total), a demo login screen, `__MACOSX` junk to strip.
 9. Mobile QA (the page is desktop-oriented today), brand colors from Settings,
    Arabic/Franco labels, camera controls tuning.
 
+## SELECTED by founder (2026-08-05) — build these when the builder gets the go
+
+1. **Doneness & sauce sliders** — well-done ↔ juicy, sauce light ↔ extra, chips on the build.
+2. **Allergy filter** — guest marks no dairy/gluten/nuts first → incompatible layers grey
+   out, from the menu's dietary data only (never guessed).
+3. **Random burger button** — "surprise me" builds a valid random stack.
+4. **"Your build ≈" comparison** — closest real menu item + price delta ("basically an
+   Iconic +25 EGP"). PURE CODE: layer-set diff against menu items, no AI.
+5. **Build photo card** — branded image of the creation (name + layers + logo) for
+   receipt/WhatsApp/story. PURE CODE: canvas render, no AI.
+6. **Assembly animation** — layers drop into place with a sizzle on confirm.
+7. **QR re-order from the receipt** — scan → builder preloaded with that exact build.
+8. **Light mode fallback** — 2D stacked-list version for weak phones/slow data
+   (13MB 3D assets must never lose an order).
+9. **Kids mode** — smaller portions, bigger buttons, sillier names.
+10. **Sides builder** — same engine for loaded fries (base + toppings).
+11. **Limited-time layers** — seasonal ingredient with countdown badge, auto-expires
+    like specials.
+12. **Protein counter** — protein per layer for the gym crowd (configured data only).
+
+## In consideration (trend watch — not committed)
+- **Half/half sandwich** — left half one setup, right half another (two people, one burger).
+- **Build challenges** — "beat the chef": restaurant posts a weekly target build,
+  ordering it earns a configured perk.
+
 ## Idea pool (founder round, 2026-08-05 — each is an ON/OFF toggle in Settings → Builder)
 
 - **Make-it-a-meal step**: after the sandwich is built → "add fries & a drink?" with the
