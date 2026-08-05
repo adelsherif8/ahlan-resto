@@ -18,7 +18,7 @@ const CASES = [
     forbid: [/\b(is|are|it'?s|totally|completely|all) gluten.?free\b(?![^.!?]*(not|n'?t|no ))/i] },
   { id: "verbless", needs: "casual", name: "Item + type word with no verb routes to ORDER", turns: ["an iconic wrap meal for dine in at Sheraton"],
     expect: [/which one|regular meal|spicy meal/i], forbid: [/O-[A-Z2-9]{4}/] },
-  { id: "desserts", name: "Honest about missing category", msg: "what desserts do you have?", expect: [/no |don['’]?t|not |مفيش|بس عندنا/i], forbid: [/kunafa|cheesecake|fondant/i] },
+  { id: "desserts", name: "Honest about missing category", msg: "what desserts do you have?", expect: [/no |don['’]?t|not |aren['’]?t|isn['’]?t|مفيش|بس عندنا/i], forbid: [/kunafa|cheesecake|fondant/i] },
   { id: "location", name: "Address + maps from config", msg: "where are you located?", expect: [/90th|new cairo/i] },
   { id: "phone", name: "Phone from config", msg: "what's your phone number?", expect: [/19887/] },
   { id: "delivery", name: "Delivery per config", msg: "do you deliver?", expect: [/deliver|pickup|pick.?up/i] },
