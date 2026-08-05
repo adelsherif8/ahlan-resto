@@ -65,6 +65,9 @@ export function matchFaq(message, config, sticky) {
   // a guest SHARING a location pin ("[shared location] (lat,lng)") is giving us
   // their address, not asking for ours — the word "location" must not trip this
   if (/\[shared location\]|\[location\]/i.test(message)) return null;
+  // "where's MY ORDER / my food / my delivery" asks about their ticket, not our
+  // address — it belongs to the order agent's status flow, never to this FAQ
+  if (/(?<![\p{L}\p{N}])(my |the |our )?(order|food|delivery|rider|driver|طلب(ي|ه)?|الطلب|الاوردر|الأوردر|اوردري|الدليفري|السواق)(?![\p{L}\p{N}])/iu.test(message)) return null;
   // only fire on short, single-topic questions — anything nuanced goes to the LLM
   if (message.length > 90 || message.split("\n").length > 2) return null;
   if (DAY_PAT.test(message) || COMPOUND_PAT.test(message)) return null;
