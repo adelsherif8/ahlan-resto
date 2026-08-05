@@ -94,14 +94,22 @@ CRM + driver page in one box, no commission.
 The rule that decides everything: WhatsApp allows FREE-FORM messages only within 24h of
 the guest's last message. Outside that window, ONLY Meta-approved template messages.
 
-### A. Build now — no template, no external anything (8)
+### FOUNDER DECISIONS (2026-08-05)
+- BUILD bucket A now. Item 8 (pre-orders polish) and 15 (birthdays): NOT NOW.
+- 18 Talabat/Mrsool: REMOVED for now.
+- 3 Reorder reminders: per-restaurant TOGGLE in Settings (sends unlock when its
+  Meta template is approved).
+- A-items get dashboard Settings toggles ("Automations" block in AI host tab).
+- Costs: all A pushes are free-form in-window = $0 Meta cost, 0 LLM (code-built
+  text). Voice notes ALREADY LIVE (whisper-1, ~$0.006/min). Template sends (B)
+  will cost per message when approved (~$0.02–0.06 in Egypt, marketing tier).
+
+### A. Build now — no template, no external anything
 - **1 Abandoned-order recovery** — the draft is <24h old by definition; janitor sweep + one push.
 - **2 Post-order upsell ping** — 5 min after confirm = deep inside the window.
 - **4 Smart cross-sell** — nightly attach-rate compute + one suggestion line.
 - **7 Order-tracking timeline** — guest asked = window open.
-- **8 Pre-orders** — pickup_time + pre-order lane already exist; polish the ask-flow.
-- **10 Voice-note orders** — Whisper transcription on our existing OpenAI account
-  (~$0.006/min, no new vendor) → same extraction pipeline.
+- **10 Voice-note orders** — ALREADY LIVE (media.js: whisper-1 → same pipeline).
 - **11 Saved-address chips** — CRM addresses as quick replies.
 - **12 Loyalty in chat** — pos.loyalty rule, code-checked.
 - **16 Rider-status copy unify** + **20 SLA guard** — internal hardening.
@@ -125,7 +133,6 @@ the guest's last message. Outside that window, ONLY Meta-approved template messa
 - **6 Catalog carousels** + **19 catalog sync** → Meta Commerce Manager catalog
   connected to the WABA (founder grants asset access; then our code syncs menu_items)
 - **17 Multi-number routing** → extra phone numbers bought + verified on the WABA
-- **18 Talabat/Mrsool ingestion** → their partner API credentials (application process)
 
 Nothing on the list is technically impossible for us — D items are credentials/approvals,
 not capability gaps.

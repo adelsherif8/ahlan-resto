@@ -75,7 +75,7 @@ Return JSON only:
  "branch": "<exact branch NAME from this list if the guest names one, else null>",
  "edits": [{"op": "add"|"remove"|"set_qty", "item": "<closest MENU name>", "qty": number|null}]|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
+Rules: qty defaults 1; ONLY names from MENU (closest match); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/garbled word (voice notes!) with no confident menu match is SKIPPED, never guessed; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -122,6 +122,8 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
       // ---- build the order — CODE matches every item against the real menu and prices it ----
       let items = [];
       let unknown = [];
+      let removedNames = null;
+      const outcomeNotices = [];
       let typeHint = null;
       if (e.intent === "repeat_last") {
         // rebuild from their real history at CURRENT prices; unavailable items are dropped honestly
@@ -148,6 +150,35 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
           // "no onion", "extra sauce" ride WITH the item so the kitchen sees them on the line
           items.push({ id: hit.id, name: hit.name, qty, price: Number(hit.price), notes: (w.notes || "").trim() || null, options: {}, option_defs: hit.options || [] });
         }
+        // "iconic meal with fries and a cola" — the fries/drink are the MEAL's
+        // option choices, not separate order lines. Any matched item whose name
+        // also names a choice inside another matched item's option groups
+        // collapses into that group: exactly one choice hit = answered; several
+        // (a bare "fries") = dropped and the group gets asked. Pure code.
+        if (items.length > 1) {
+          const absorbed = new Set();
+          for (const host of items) {
+            for (const g of host.option_defs || []) {
+              if (g.key === "slots") continue;
+              const choices = (g.choices || []).filter((c) => c?.name);
+              if (!choices.length) continue;
+              for (const other of items) {
+                if (other === host || absorbed.has(other) || other.qty > host.qty) continue;
+                const oNorm = normName(other.name);
+                if (!oNorm) continue;
+                const hitsC = choices.filter((c) => {
+                  const cn = normName(c.name);
+                  return cn === oNorm || cn.includes(oNorm) || oNorm.includes(cn);
+                });
+                if (!hitsC.length) continue;
+                absorbed.add(other);
+                if (hitsC.length === 1 && !host.options[g.key]) host.options[g.key] = hitsC[0].name;
+              }
+            }
+          }
+          if (absorbed.size) items = items.filter((it) => !absorbed.has(it));
+        }
+
         // Mid-order, a SHORT reply is an answer to our question — never a new order.
         // The extractor happily matches "French fries" or "sprite" to a menu item;
         // letting that through replaces the burger being configured with a side.
@@ -210,6 +241,26 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         }
         // nothing new — carry the in-progress order across turns
         if (!items.length && loaded.pending?.items?.length) { items = loaded.pending.items; unknown = []; }
+
+        // "remove the croquette fries" / "I didn't order that" — removal is
+        // code's job. A named pending line goes, whatever the extractor said.
+        const NEG_REMOVE = /(?<![\p{L}\p{N}])(remove|take (it |that )?off|didn'?t (choose|order|want|ask for)|never (ordered|asked)|شيل|شيلي|امسح|الغي|مش عايز|ماطلبتش|مطلبتش)(?![\p{L}\p{N}])/iu;
+        if (loaded.pending?.items?.length > 1 && NEG_REMOVE.test(input.message)) {
+          const saidR = normName(arOptionWords(input.message));
+          const kept = loaded.pending.items.filter((it) => {
+            const n = normName(it.name);
+            const tok = n.split(" ").filter((t) => t.length >= 4);
+            return !(saidR.includes(n) || (tok.length && tok.every((t) => saidR.includes(t))));
+          });
+          if (kept.length < loaded.pending.items.length && kept.length > 0) {
+            const gone = loaded.pending.items.filter((it) => !kept.includes(it)).map((it) => it.name);
+            loaded.pending.items = kept;
+            items = kept;
+            unknown = [];
+            if (e.edits) e.edits = null; // handled here — don't double-apply
+            removedNames = gone;
+          }
+        }
 
         // ---- EDITS: "add a coke" / "remove the fries" / "make it 2" ----
         // Applied by CODE against the order being built, so changing your mind is a
@@ -363,13 +414,17 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
 
       // 2) OPTIONS — finish configuring every item
       const step = nextQuestion(items, loaded.menu, input.message, loaded.pending, currency);
+      if (removedNames?.length) {
+        step.items = step.items || items;
+        outcomeNotices.push(`Removed: ${removedNames.join(", ")} ✂️`);
+      }
       items = step.items;
       running = runningOf(items); // this turn's answers are in — never echo the stale bill
       if (step.ask) {
         await savePending({ awaiting_option: { index: step.ask.index, keys: step.ask.keys } });
         // recompute the bill AFTER this turn's answer — showing the pre-answer
         // state made prices look like they jumped a turn late
-        return { kind: "ask_choice", items, running, ...step.ask };
+        return { kind: "ask_choice", items, running, ...step.ask, notices: [...(step.ask.notices || []), ...outcomeNotices] };
       }
       if (loaded.pending?.awaiting_option) {
         // savePending MERGES now, so the answered question must be closed
@@ -585,9 +640,9 @@ LIST RULE (absolute): whenever you present 3+ choices of ANYTHING (options, bran
 OUTCOMES:
 - order_placed: confirm the ticket 🎫 with the CODE, the honest ETA ("about <eta_minutes> min"), and what happens next BY TYPE — dine_in: "the kitchen's on it, coming to table X" · pickup: "we'll message you the moment it's ready at <branch>" · delivery: "we'll message you when it's on its way to <address>". Say the receipt is attached if receipt_url exists. If unknown[] has entries, add "couldn't find <names> on the menu".
 - ask_fulfillment: ONE short lead-in line (e.g. "Almost done — just the last details 👇"). The questions themselves are appended automatically — NEVER write or answer them yourself.
-- ask_choice: write ONE short lead-in line for configuring <item> (e.g. "Quick choices for your Soo Classic Meal — you can answer in one go 👇"). The questions themselves are appended below your line automatically. NEVER list options yourself, NEVER mention any OTHER item in the order — its turn comes next.
+- ask_choice: write ONE short lead-in line for configuring <item> (e.g. "Quick choices for your Soo Classic Meal — you can answer in one go 👇"). The questions themselves are appended below your line automatically. NEVER list options yourself, NEVER mention any OTHER item in the order — its turn comes next. NEVER claim any choice was recorded and NEVER ask to confirm — nothing is chosen until the guest answers the printed questions; quick_replies must be null here.
 - ask_payment: ask how they'd like to pay, then the methods given as a bullet list, one per line. If "upsell" is present, add ONE casual offer of it in the same breath ("want to add loaded fries for 99?") — never push twice. The bill is below. quick_replies: the methods (e.g. ["Cash","Card","InstaPay"]).
-- confirm_order: one line asking them to confirm before it goes to the kitchen. The full bill is below. quick_replies: ["Confirm ✅","Change something"].
+- confirm_order: your line comes AFTER the printed receipt — ONE short line asking them to confirm so it goes to the kitchen (e.g. "كله تمام؟ أكد وهيروح للمطبخ ✅"). Never restate items or numbers. quick_replies: ["Confirm ✅","Change something"].
 - ask_items: the full menu PDF is attached automatically — say it's below/attached and ask what they'd like. NEVER ask "what would you like?" on its own as if they can already see the menu.
 - ask_table (rare): which table are they at? NEVER say the order is placed — nothing has been sent yet.
 - bad_table: the number they gave isn't one of ours. Say so plainly, list the real ones from "tables", and ask which they're at. NEVER claim the order is placed.
@@ -666,7 +721,19 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
         const head = `${q.label}${q.of > 1 ? ` — ${q.remaining} to pick` : ""}${q.mixable ? ` (you can mix across your ${q.mixable})` : ""}`;
         return `${head}:\n${q.options.map((o) => `• ${o}`).join("\n")}`;
       }).join("\n\n");
-      reply = `${reply.split("\n")[0]}\n\n${qBlock}`;
+      let lead = reply.split("\n")[0];
+      if (outcome.notices?.length) lead = `${outcome.notices.join("\n")}\n${lead}`;
+      // zero-hallucination guard: no choice exists until the guest answers the
+      // questions below — a lead-in claiming "you chose… confirm?" is dropped
+      const CLAIMS = /تؤكد|تأكيد|أكد الطلب|اخترت|اخترتي|اختارت|confirm|you (chose|picked|selected)|chosen|noted|got it as/i;
+      if (CLAIMS.test(lead)) {
+        const ar = /[\u0600-\u06FF]/.test(lead);
+        lead = ar
+          ? `اختيارات سريعة لـ ${outcome.item} — ممكن تجاوب كلها مرة واحدة 👇`
+          : `Quick choices for your ${outcome.item} — you can answer in one go 👇`;
+        if (value.value) value.value.quick_replies = [];
+      }
+      reply = `${lead}\n\n${qBlock}`;
     }
 
     // Bundle template turns: the model writes one lead-in line; everything the
@@ -704,7 +771,10 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
         .filter((l) => !/(total|subtotal|إجمالي|المجموع)\s*[:=]/i.test(l))
         .join("\n")
         .trim();
-      reply = `${reply}\n\n${renderBill({
+      // confirm reads like the paper receipt FIRST, then one clear ask under it
+      const billFirst = outcome.kind === "confirm_order";
+      const askLine = reply;
+      reply = `${billFirst ? "" : `${reply}\n\n`}${renderBill({
         items: outcome.items || [],
         bill: outcome.bill,
         currency,
@@ -717,7 +787,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
         eta: outcome.eta_minutes || null,
         restaurant: config.name,
         when: new Date().toLocaleString("en-GB", { timeZone: config.basic_info?.timezone || "Africa/Cairo", hour12: true, day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }),
-      })}`;
+      })}${billFirst ? `\n\n${askLine}` : ""}`;
     }
     // the ticket code is the guest's receipt — never let a confirmation go out without it
     if (outcome.kind === "order_placed" && outcome.code && !reply.includes(outcome.code)) {
@@ -1043,9 +1113,58 @@ function distinctTokens(opts) {
 
 // One item, ALL its unanswered questions in one message; the guest answers any
 // or all of them, and only what's still missing gets re-asked.
+// Arabic spellings of the option vocabulary → their Latin menu equivalents.
+// normName() drops Arabic script entirely, so without this a guest saying
+// "ميديام فرنش فرايز وكوكاكولا" (voice notes especially) matches NOTHING and
+// every question gets re-asked. Longest-first so "كوكا كولا دايت" wins over "كولا".
+const AR_OPTION_WORDS = [
+  ["كوكا كولا دايت", "coca cola diet"], ["كوكاكولا دايت", "coca cola diet"],
+  ["كوكا كولا", "coca cola"], ["كوكاكولا", "coca cola"], ["كولا دايت", "coca cola diet"],
+  ["فرنش فرايز", "french fries"], ["بطاطس عادية", "french fries"], ["فرنشايز", "french fries"],
+  ["ديابلو", "diablo"], ["كيرلي", "curly"], ["كيرلى", "curly"],
+  ["ميديام", "medium"], ["ميديم", "medium"], ["متوسط", "medium"], ["وسط", "medium"],
+  ["سمول", "small"], ["صغيرة", "small"], ["صغير", "small"],
+  ["لارج", "large"], ["كبيرة", "large"], ["كبير", "large"],
+  ["سبرايت", "sprite"], ["فانتا", "fanta"], ["مياه", "water"], ["ميه", "water"], ["مية", "water"],
+  ["لتر", "litre"], ["كولا", "cola"], ["دايت", "diet"],
+  ["فل ميل", "full meal"], ["وجبة كاملة", "full meal"], ["كومبو", "full meal"],
+  ["ساندوتش بس", "sandwich only"], ["ساندويتش بس", "sandwich only"], ["ساندوتش لوحده", "sandwich only"],
+  ["ساندوتش", "sandwich"], ["ساندويتش", "sandwich"], ["وجبة", "meal"],
+];
+function arOptionWords(message) {
+  let m = String(message || "");
+  for (const [ar, en] of AR_OPTION_WORDS) m = m.split(ar).join(` ${en} `);
+  return m;
+}
+
 function nextQuestion(items, menu, message, pending, currency = "EGP") {
+  message = arOptionWords(message);
   const out = items.map((it) => ({ ...it, options: { ...(it.options || {}) } }));
   const said = normName(message);
+
+  // Answers can arrive before their gate: "medium fries and a cola" while
+  // sandwich-or-meal is still open. Naming a choice that only exists under ONE
+  // gate value IS choosing that value — code infers it, the guest isn't re-asked.
+  for (const it2 of out) {
+    for (const g of it2.option_defs || []) {
+      if (g.key === "slots" || !g.when) continue;
+      const entries = Object.entries(g.when);
+      if (entries.length !== 1) continue;
+      const [pKey, pWant] = entries[0];
+      const pVal = Array.isArray(pWant) ? (pWant.length === 1 ? pWant[0] : null) : pWant;
+      if (!pVal || it2.options[pKey]) continue;
+      const opts2 = groupChoices(g, menu);
+      if (!opts2.length) continue;
+      const stop2 = distinctTokens(opts2);
+      const hit = opts2.some((o) => {
+        const on = normName(o.name);
+        if (said.includes(on)) return true;
+        const oTok = on.split(" ").filter((t) => !stop2.has(t));
+        return oTok.length && optionMatches(said, oTok.join(" "));
+      });
+      if (hit) it2.options[pKey] = pVal;
+    }
+  }
 
   // ---- a filled bundle template answers its slots ----
   const aw = pending?.awaiting_option;

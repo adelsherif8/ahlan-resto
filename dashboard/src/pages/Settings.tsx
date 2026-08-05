@@ -165,6 +165,40 @@ export default function Settings() {
             <Toggle on={!!ai.orders_enabled} onClick={() => upd("ai", { orders_enabled: !ai.orders_enabled })} />
           </Field>
         </div>
+        <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">Automations (the bot acts on its own — every switch is yours)</h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Abandoned-order recovery (nudge a forgotten draft)">
+            <div className="flex items-center gap-2">
+              <Toggle on={ai.automations?.recovery?.enabled !== false} onClick={() => upd("ai", { automations: { ...ai.automations, recovery: { ...ai.automations?.recovery, enabled: ai.automations?.recovery?.enabled === false } } })} />
+              <Input type="number" className="w-20" title="Minutes of silence before the nudge" value={ai.automations?.recovery?.delay_min ?? 45}
+                onChange={(e) => upd("ai", { automations: { ...ai.automations, recovery: { ...ai.automations?.recovery, delay_min: Number(e.target.value) || 45 } } })} />
+              <span className="text-xs text-zinc-500">min</span>
+            </div>
+          </Field>
+          <Field label="Post-order upsell ping (one drink/side offer)">
+            <div className="flex items-center gap-2">
+              <Toggle on={ai.automations?.upsell?.enabled !== false} onClick={() => upd("ai", { automations: { ...ai.automations, upsell: { ...ai.automations?.upsell, enabled: ai.automations?.upsell?.enabled === false } } })} />
+              <Input type="number" className="w-20" title="Minutes after the order lands" value={ai.automations?.upsell?.delay_min ?? 5}
+                onChange={(e) => upd("ai", { automations: { ...ai.automations, upsell: { ...ai.automations?.upsell, delay_min: Number(e.target.value) || 5 } } })} />
+              <span className="text-xs text-zinc-500">min</span>
+            </div>
+          </Field>
+          <Field label="Google-review ask (~1h after arrival; unhappy guests skipped)">
+            <Toggle on={ai.automations?.review_ask?.enabled !== false} onClick={() => upd("ai", { automations: { ...ai.automations, review_ask: { ...ai.automations?.review_ask, enabled: ai.automations?.review_ask?.enabled === false } } })} />
+          </Field>
+          <Field label="Google reviews link (required for the ask)">
+            <Input value={ai.google_reviews_url || ""} placeholder="https://g.page/r/…/review"
+              onChange={(e) => upd("ai", { google_reviews_url: e.target.value })} />
+          </Field>
+          <Field label="Reorder reminders (silent regulars) — awaiting Meta template approval">
+            <div className="flex items-center gap-2">
+              <Toggle on={!!ai.automations?.reorder?.enabled} onClick={() => upd("ai", { automations: { ...ai.automations, reorder: { ...ai.automations?.reorder, enabled: !ai.automations?.reorder?.enabled } } })} />
+              <Input type="number" className="w-20" title="Days of silence" value={ai.automations?.reorder?.days ?? 10}
+                onChange={(e) => upd("ai", { automations: { ...ai.automations, reorder: { ...ai.automations?.reorder, days: Number(e.target.value) || 10 } } })} />
+              <span className="text-xs text-zinc-500">days · sends start once the template is approved</span>
+            </div>
+          </Field>
+        </div>
       </Card>}
 
       {tab === "branding" && <Card className="p-5">
