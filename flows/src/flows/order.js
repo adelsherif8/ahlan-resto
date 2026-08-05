@@ -426,7 +426,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // from the lists; code validates every returned string. Zero invention.
       let step = nextQuestion(items, loaded.menu, input.message, loaded.pending, currency);
       const guestSaidSomething = String(input.message || "").replace(/^\[voice\]\s*/i, "").trim().length >= 3;
-      if (step.ask && guestSaidSomething && loaded.pending?.awaiting_option) {
+      if (step.ask && guestSaidSomething) {
         const askedItem = step.items[step.ask.index];
         const openGroups = (askedItem?.option_defs || []).filter((g) =>
           g.key !== "slots" && step.ask.keys?.includes(g.key) && groupApplies(g, askedItem.options) && !askedItem.options[g.key]);
