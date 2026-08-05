@@ -61,7 +61,7 @@ defineFlow({
     }, { input: { sessionId: ctx.sessionId } });
 
     const ex = await f.node("extract", async () => {
-      const menuNames = loaded.menu.map((m) => m.name).join(" | ");
+      const menuNames = loaded.menu.map((m) => `${m.name} (${m.category})`).join(" | ");
       const sys = `Extract a food order from one WhatsApp message to a fast-casual restaurant. MENU (only these exist): ${menuNames}
 Recent conversation may add context: ${JSON.stringify((input.history || []).slice(-4).map((h) => h.message?.slice(0, 80)))}
 Return JSON only:
@@ -75,7 +75,7 @@ Return JSON only:
  "branch": "<exact branch NAME from this list if the guest names one, else null>",
  "edits": [{"op": "add"|"remove"|"set_qty", "item": "<closest MENU name>", "qty": number|null}]|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU (closest match); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/garbled word (voice notes!) with no confident menu match is SKIPPED, never guessed; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
+Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/garbled word (voice notes!) with no confident menu match is SKIPPED, never guessed; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -146,6 +146,11 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); a MEAL's sides/drin
           const hit = loaded.menu.find((m) => normName(m.name) === n) ||
                       loaded.menu.find((m) => normName(m.name).includes(n) || n.includes(normName(m.name)));
           if (!hit) { unknown.push(w.name); continue; }
+          // a CHICKEN request may never silently land on a beef item — better to
+          // ask than to serve the wrong animal
+          const saidChicken = /chicken|تشيكن|فراخ|فرايد/i.test(`${w.name} ${w.notes || ""}`);
+          const isChickenItem = /chicken|wrap|تشيكن|فراخ/i.test(`${hit.name} ${hit.category || ""}`);
+          if (saidChicken && !isChickenItem) { unknown.push(String(w.name)); continue; }
           const qty = Math.min(Math.max(Math.round(Number(w.qty) || 1), 1), 20);
           // "no onion", "extra sauce" ride WITH the item so the kitchen sees them on the line
           items.push({ id: hit.id, name: hit.name, qty, price: Number(hit.price), notes: (w.notes || "").trim() || null, options: {}, option_defs: hit.options || [] });
@@ -1092,13 +1097,28 @@ function missingSlots(slots, g) {
 // so "Coke" hits "Coca - Cola", "curly with cheese" hits "Curly fries", and
 // "Meal" hits "American Truck Meal" — guests answer with the distinguishing
 // word, never the exact label we printed.
+// one-edit distance for ≥5-char tokens — voice transcripts drop letters
+// ("diblo" must still hit "diablo"); never fuzzier than a single edit
+function lev1(a, b) {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
 function optionMatches(said, optName) {
   const o = normName(optName);
   if (o === said || said.includes(o)) return true;
   const saidTok = said.split(" ").filter((t) => t.length >= 3);
   const optTok = o.split(" ").filter((t) => t.length >= 3);
   return optTok.some((ot) => saidTok.some((st) =>
-    st === ot || (st.length >= 4 && ot.startsWith(st.slice(0, 4))) || (ot.length >= 4 && st.startsWith(ot.slice(0, 4)))
+    st === ot || (st.length >= 4 && ot.startsWith(st.slice(0, 4))) || (ot.length >= 4 && st.startsWith(ot.slice(0, 4))) ||
+    (st.length >= 5 && ot.length >= 5 && lev1(st, ot))
   ));
 }
 
@@ -1121,7 +1141,12 @@ const AR_OPTION_WORDS = [
   ["كوكا كولا دايت", "coca cola diet"], ["كوكاكولا دايت", "coca cola diet"],
   ["كوكا كولا", "coca cola"], ["كوكاكولا", "coca cola"], ["كولا دايت", "coca cola diet"],
   ["فرنش فرايز", "french fries"], ["بطاطس عادية", "french fries"], ["فرنشايز", "french fries"],
-  ["ديابلو", "diablo"], ["كيرلي", "curly"], ["كيرلى", "curly"],
+  ["ديابلو", "diablo"], ["ديبلو", "diablo"], ["دابلو", "diablo"], ["ديابولو", "diablo"],
+  ["كيرلي", "curly"], ["كيرلى", "curly"], ["كورلي", "curly"],
+  ["برتقال", "orange"], ["اورنج", "orange"], ["أورنج", "orange"],
+  ["فانتا", "fanta"], ["فانتة", "fanta"], ["فنتا", "fanta"],
+  ["فرايد تشيكن", "fried chicken"], ["تشيكن", "chicken"], ["فراخ", "chicken"], ["فرايد", "fried"],
+  ["كوكا", "coca"], ["فرايز", "fries"],
   ["ميديام", "medium"], ["ميديم", "medium"], ["متوسط", "medium"], ["وسط", "medium"],
   ["سمول", "small"], ["صغيرة", "small"], ["صغير", "small"],
   ["لارج", "large"], ["كبيرة", "large"], ["كبير", "large"],
