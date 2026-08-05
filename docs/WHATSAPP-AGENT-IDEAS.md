@@ -89,6 +89,47 @@ CRM + driver page in one box, no commission.
     sec 🙏" + retry, then dead-letter to staff with a notification (partially
     exists via routing_failures; make the guest-side fallback graceful).
 
+## Triage (2026-08-05) — what needs what
+
+The rule that decides everything: WhatsApp allows FREE-FORM messages only within 24h of
+the guest's last message. Outside that window, ONLY Meta-approved template messages.
+
+### A. Build now — no template, no external anything (8)
+- **1 Abandoned-order recovery** — the draft is <24h old by definition; janitor sweep + one push.
+- **2 Post-order upsell ping** — 5 min after confirm = deep inside the window.
+- **4 Smart cross-sell** — nightly attach-rate compute + one suggestion line.
+- **7 Order-tracking timeline** — guest asked = window open.
+- **8 Pre-orders** — pickup_time + pre-order lane already exist; polish the ask-flow.
+- **10 Voice-note orders** — Whisper transcription on our existing OpenAI account
+  (~$0.006/min, no new vendor) → same extraction pipeline.
+- **11 Saved-address chips** — CRM addresses as quick replies.
+- **12 Loyalty in chat** — pos.loyalty rule, code-checked.
+- **16 Rider-status copy unify** + **20 SLA guard** — internal hardening.
+
+### B. Needs Meta TEMPLATE approval first (founder approves wording, I submit via API)
+- **3 Reorder reminders** (guest silent 10 days = window closed)
+- **13 Win-back campaigns** (30-day silent; also needs a dashboard broadcast screen w/ audience + opt-out)
+- **15 Birthday/occasion pings**
+- **14 Review ask** — usually in-window (1h after delivery) so it works WITHOUT a
+  template; the template is only the fallback for late arrivals. Can ship in A-mode.
+
+### C. Needs DASHBOARD work (ours to build, part of the feature)
+- Settings toggles + timing for 1/2/3 (recovery delay, upsell on/off)
+- Broadcast screen for 13 (audience, preview, send log, opt-outs)
+- google_reviews_url field for 14 · birthday field on Diners for 15
+- Group-order page for **9** (token page like the driver link) + contributors shown on the order
+- Near-miss/attach-rate views already exist for 4
+
+### D. Blocked on EXTERNAL parties (not our tech — founder must obtain)
+- **5 Payment links** → Paymob/Fawry merchant account + API keys
+- **6 Catalog carousels** + **19 catalog sync** → Meta Commerce Manager catalog
+  connected to the WABA (founder grants asset access; then our code syncs menu_items)
+- **17 Multi-number routing** → extra phone numbers bought + verified on the WABA
+- **18 Talabat/Mrsool ingestion** → their partner API credentials (application process)
+
+Nothing on the list is technically impossible for us — D items are credentials/approvals,
+not capability gaps.
+
 Sources: orderonwhats.app · olaclick.com · foodics.com · simpletouch-sw.com · deonde.co ·
 unite.ai/best-ai-whatsapp-tools · aisensy.com/blog/whatsapp-for-food-delivery ·
 helo.ai WhatsApp cart-recovery · gallabox.com abandoned-cart guide · ordersetu.app
