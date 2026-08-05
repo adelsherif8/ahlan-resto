@@ -62,7 +62,13 @@ router.post("/", async (req, res, next) => {
     // SAME alphabet as flows/order.js CODE_ALPHABET — no I/L/O/U confusables
     const AB = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
     const code = "O-" + Array.from({ length: 4 }, () => AB[Math.floor(Math.random() * AB.length)]).join("");
-    const row = await req.repo.insert("orders", {
+    const posExtras = {
+      ...(disc > 0 ? { discount: disc, discount_reason: discount_reason || null } : {}),
+      ...(Number(tip) > 0 ? { tip: round(Number(tip)) } : {}),
+      ...(cashier ? { cashier: String(cashier).slice(0, 60) } : {}),
+      ...(pays && pays.length > 1 ? { payments: pays } : {}),
+    };
+    const baseRow = {
       code,
       phone_number: phone_number || `walkin:${Date.now()}`,
       diner_name: diner_name || null,
@@ -74,15 +80,21 @@ router.post("/", async (req, res, next) => {
         ...(i.notes ? { notes: i.notes } : {}),
       })),
       subtotal, service_charge, tax, total, delivery_fee,
-      ...(disc > 0 ? { discount: disc, discount_reason: discount_reason || null } : {}),
-      ...(Number(tip) > 0 ? { tip: round(Number(tip)) } : {}),
-      ...(cashier ? { cashier: String(cashier).slice(0, 60) } : {}),
-      ...(pays && pays.length > 1 ? { payments: pays } : {}),
       payment_method: pays && pays.length > 1 ? "split" : (payment_method || null),
       status: "pending", payment_status: "unpaid",
       address: order_type === "delivery" ? address || null : null,
       notes: notes || null,
-    });
+    };
+    // pre-migration-018 tolerance: never let a missing column kill an order —
+    // retry the bare row so the kitchen always gets its ticket
+    let row;
+    try {
+      row = await req.repo.insert("orders", { ...baseRow, ...posExtras });
+    } catch (err) {
+      if (!Object.keys(posExtras).length) throw err;
+      log("orders insert w/ POS extras failed (migration 018 pending?):", err.message);
+      row = await req.repo.insert("orders", baseRow);
+    }
     // a POS order for a known guest moves their CRM numbers, same as a bot order
     if (phone_number) {
       try {
