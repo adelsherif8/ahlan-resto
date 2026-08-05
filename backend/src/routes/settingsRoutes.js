@@ -9,7 +9,7 @@ router.use(requireAuth, restaurantContext);
 
 const EDITABLE_SECTIONS = [
   "basic_info", "hours", "sections", "reservation_policy",
-  "payments", "ai", "faqs", "menu_config",
+  "payments", "ai", "faqs", "menu_config", "pos",
 ];
 
 router.get("/", (req, res) => {

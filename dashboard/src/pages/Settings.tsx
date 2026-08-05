@@ -50,6 +50,7 @@ export default function Settings() {
     ["menu", "Menu display"],
     ...(((bi.restaurant_type || "fine") !== "casual" ? [["reservations", "Reservations"]] : []) as [string, string][]),
     ["offers", "Offers & specials"],
+    ["pos", "POS"],
     ["faqs", "FAQs"],
   ];
 
@@ -276,6 +277,28 @@ export default function Settings() {
             </div>
           ))}
           <Btn variant="ghost" onClick={() => upd("ai", { specials: [...(ai.specials || []), { text: "" }] })}>+ Add special</Btn>
+        </div>
+      </Card>}
+
+      {tab === "pos" && <Card className="p-5">
+        <SectionTitle title="POS cashiers (PIN switch on the register; ★ manager approves discounts)" saved={saved === "pos"} onSave={() => saveSection("pos", config.pos || {})} />
+        <div className="space-y-2">
+          {((config.pos?.cashiers || []) as any[]).map((c: any, i: number) => (
+            <div key={i} className="flex gap-2">
+              <Input className="flex-1" placeholder="Name" value={c.name || ""} onChange={(e) => {
+                const cashiers = [...(config.pos?.cashiers || [])]; cashiers[i] = { ...c, name: e.target.value }; upd("pos", { cashiers });
+              }} />
+              <Input className="w-24" placeholder="PIN" value={c.pin || ""} onChange={(e) => {
+                const cashiers = [...(config.pos?.cashiers || [])]; cashiers[i] = { ...c, pin: e.target.value.replace(/[^0-9]/g, "").slice(0, 6) }; upd("pos", { cashiers });
+              }} />
+              <button type="button" title="Manager — can approve discounts"
+                onClick={() => { const cashiers = [...(config.pos?.cashiers || [])]; cashiers[i] = { ...c, manager: !c.manager }; upd("pos", { cashiers }); }}
+                className={`rounded-lg border px-2.5 text-sm ${c.manager ? "border-amber-400/60 text-amber-300" : "border-zinc-700 text-zinc-500"}`}>★</button>
+              <Btn variant="danger" className="px-2.5 py-1 text-xs" onClick={() => upd("pos", { cashiers: (config.pos?.cashiers || []).filter((_: any, j: number) => j !== i) })}>✕</Btn>
+            </div>
+          ))}
+          <Btn variant="ghost" onClick={() => upd("pos", { cashiers: [...(config.pos?.cashiers || []), { name: "", pin: "", manager: false }] })}>+ Add cashier</Btn>
+          <p className="text-xs text-zinc-500">Empty list = open register (anyone can type a name). With cashiers configured, switching needs the PIN and discounts need a ★ manager's PIN.</p>
         </div>
       </Card>}
 

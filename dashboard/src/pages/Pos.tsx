@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Plus, Minus, X, Printer, ShoppingCart, User, ParkingSquare,
   Camera, StickyNote, Trash2, Star, Flame, Leaf, Pencil, Eraser, Check,
-  Delete, Expand, CornerDownLeft, Sparkles, ArrowRight,
+  Delete, Expand, CornerDownLeft, Sparkles, ArrowRight, BadgePercent, Receipt, UserCog, SplitSquareHorizontal,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { printTicket as printSharedTicket } from "../lib/ticket";
@@ -100,6 +100,14 @@ export default function Pos() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [touch, setTouch] = useState(localStorage.getItem("pos_touch") === "on");
   const [keypadLine, setKeypadLine] = useState<CartLine | null>(null);
+  const [posCfg, setPosCfg] = useState<any>({});
+  const [cashier, setCashier] = useState<string>(localStorage.getItem("pos_cashier") || session().name || "POS");
+  const [switching, setSwitching] = useState(false);
+  const [discount, setDiscount] = useState<{ amount: number; reason: string } | null>(null);
+  const [discOpen, setDiscOpen] = useState(false);
+  const [tip, setTip] = useState(0);
+  const [split, setSplit] = useState<{ method: string; amount: string }[] | null>(null);
+  const [report, setReport] = useState<any | null>(null);
   const [say, setSay] = useState("");
   const [saying, setSaying] = useState(false);
   const [sayNote, setSayNote] = useState<string | null>(null);
@@ -115,6 +123,7 @@ export default function Pos() {
     api.get("/api/settings").then((r) => {
       setPayments(r.data?.payments || {});
       setBranches(r.data?.basic_info?.branches || []);
+      setPosCfg(r.data?.pos || {});
     }).catch(() => {});
   }, []);
 
@@ -215,10 +224,15 @@ export default function Pos() {
   const round = (n: number) => Math.round(n * 100) / 100;
   const rateOf = (...keys: string[]) => { for (const k of keys) { const v = Number(payments[k]); if (Number.isFinite(v) && v > 0) return v > 1 ? v / 100 : v; } return 0; };
   const subtotal = round(cart.reduce((s, l) => s + l.unit * l.qty, 0));
+  const disc = discount ? Math.min(discount.amount, subtotal) : 0;
   const service = orderType === "dine_in" ? round(subtotal * rateOf("service_charge", "service_charge_pct")) : 0;
   const vat = round(subtotal * rateOf("tax", "tax_pct", "vat_pct"));
   const delivery = orderType === "delivery" ? round(Number(payments.delivery_fee) || 0) : 0;
-  const total = round(subtotal + service + vat + delivery);
+  const total = round(subtotal - disc + service + vat + delivery);
+  const splitSum = split ? round(split.reduce((s2, x) => s2 + (Number(x.amount) || 0), 0)) : 0;
+  const managers = (posCfg.cashiers || []).filter((c2: any) => c2.manager);
+  // a discount needs a manager's PIN — but only when managers are configured
+  const managerOk = (pin: string) => !managers.length || managers.some((c2: any) => String(c2.pin) === pin);
   const itemCount = cart.reduce((s, l) => s + l.qty, 0);
 
   function park() {
@@ -274,6 +288,7 @@ export default function Pos() {
     if (!cart.length || saving) return;
     setSaving(true);
     try {
+      if (split && Math.abs(splitSum - total) > 0.5) { alert("Split payments must add up to the total"); setSaving(false); return; }
       const { data: created } = await api.post("/api/orders", {
         items: cart.map((l) => ({ name: l.item.name, qty: l.qty, price: l.unit, options: l.options, notes: l.notes || null })),
         order_type: orderType, branch: branchKey || null,
@@ -282,10 +297,14 @@ export default function Pos() {
         payment_method: pay,
         diner_name: guest?.name || guest?.wa_profile_name || null,
         phone_number: phone.trim() ? `+${phone.replace(/[^\d]/g, "")}` : null,
+        ...(disc > 0 ? { discount: disc, discount_reason: discount?.reason || null } : {}),
+        ...(tip > 0 ? { tip } : {}),
+        cashier,
+        ...(split && split.length > 1 ? { payments: split.map((x) => ({ method: x.method, amount: Number(x.amount) || 0 })) } : {}),
       });
       setCreatedCode(created?.code || "created");
       if (printOnCreate && created) printTicket(created);
-      setCart([]);
+      setCart([]); setDiscount(null); setTip(0); setSplit(null); setUpsell(null);
       setTimeout(() => setCreatedCode(null), 4000);
     } catch (e: any) {
       alert(e.response?.data?.error || "Failed to create the order");
@@ -303,17 +322,23 @@ export default function Pos() {
         title="POS"
         subtitle="Phone orders & walk-ups — same questions, same prices, same board as the bot"
         actions={
-          parked.length > 0 ? (
-            <div className="flex items-center gap-1.5">
-              <ParkingSquare size={14} className="text-zinc-500" />
-              {parked.map((p) => (
-                <button key={p.id} onClick={() => resume(p)} title={new Date(p.at).toLocaleTimeString()}
-                  className="rounded-full bg-zinc-800 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-700">
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          ) : undefined
+          <div className="flex items-center gap-1.5">
+            {parked.length > 0 && <ParkingSquare size={14} className="text-zinc-500" />}
+            {parked.map((p) => (
+              <button key={p.id} onClick={() => resume(p)} title={new Date(p.at).toLocaleTimeString()}
+                className="rounded-full bg-zinc-800 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-700">
+                {p.label}
+              </button>
+            ))}
+            <button onClick={() => setSwitching(true)} title="Switch cashier"
+              className="flex items-center gap-1.5 rounded-full border border-zinc-700 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800">
+              <UserCog size={12} /> {cashier}
+            </button>
+            <button onClick={async () => { const { data } = await api.get("/api/orders/shift-report", { params: { branch: branchKey || "all" } }).catch(() => ({ data: null })); if (data) setReport(data); }}
+              title="X report — the day so far" className="flex items-center gap-1.5 rounded-full border border-zinc-700 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800">
+              <Receipt size={12} /> Shift
+            </button>
+          </div>
         }
       />
 
@@ -520,11 +545,57 @@ export default function Pos() {
           <div className="border-t border-zinc-800 p-3 text-xs">
             <div className="space-y-0.5 text-zinc-400">
               <div className="flex justify-between"><span>Subtotal · {itemCount} item{itemCount === 1 ? "" : "s"}</span><span className="tabular-nums">{money(subtotal)}</span></div>
+              {disc > 0 && (
+                <div className="flex justify-between text-emerald-400">
+                  <button onClick={() => setDiscount(null)} title="Remove discount" className="flex items-center gap-1">Discount ({discount?.reason || "—"}) <X size={9} /></button>
+                  <span className="tabular-nums">−{money(disc)}</span>
+                </div>
+              )}
               {service > 0 && <div className="flex justify-between"><span>Service</span><span className="tabular-nums">{money(service)}</span></div>}
               {vat > 0 && <div className="flex justify-between"><span>VAT</span><span className="tabular-nums">{money(vat)}</span></div>}
               {delivery > 0 && <div className="flex justify-between"><span>Delivery</span><span className="tabular-nums">{money(delivery)}</span></div>}
               <div className="flex justify-between pt-1 text-sm font-bold text-zinc-100"><span>TOTAL</span><span className="tabular-nums">EGP {money(total)}</span></div>
+              {tip > 0 && <div className="flex justify-between text-amber-300"><button onClick={() => setTip(0)} className="flex items-center gap-1">Tip (not in total) <X size={9} /></button><span className="tabular-nums">{money(tip)}</span></div>}
             </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button onClick={() => setDiscOpen(true)} disabled={!cart.length}
+                className="flex items-center gap-1 rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 disabled:opacity-40">
+                <BadgePercent size={11} /> Discount
+              </button>
+              {[10, 20].map((t2) => (
+                <button key={t2} onClick={() => setTip((x) => x === t2 ? 0 : t2)}
+                  className={`rounded-lg border px-2 py-1 text-[11px] ${tip === t2 ? "border-amber-400/60 text-amber-300" : "border-zinc-700 text-zinc-300"}`}>
+                  Tip {t2}
+                </button>
+              ))}
+              <button onClick={() => setSplit(split ? null : [{ method: pay, amount: String(total) }, { method: pay === "cash" ? "card" : "cash", amount: "" }])}
+                disabled={!cart.length}
+                className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] disabled:opacity-40 ${split ? "border-zinc-400 text-zinc-200" : "border-zinc-700 text-zinc-300"}`}>
+                <SplitSquareHorizontal size={11} /> Split
+              </button>
+            </div>
+            {split && (
+              <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-800 p-2">
+                {split.map((x, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <select value={x.method} onChange={(e) => setSplit((xs) => xs!.map((y, j) => j === i ? { ...y, method: e.target.value } : y))}
+                      className="rounded-lg border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-[11px] text-zinc-100">
+                      <option value="cash">Cash</option><option value="card">Card</option><option value="instapay">InstaPay</option>
+                    </select>
+                    <input type="number" value={x.amount} placeholder="EGP"
+                      onChange={(e) => setSplit((xs) => xs!.map((y, j) => j === i ? { ...y, amount: e.target.value } : y))}
+                      className="w-20 flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-100" />
+                    {split.length > 2 && <button onClick={() => setSplit((xs) => xs!.filter((_, j) => j !== i))} className="text-zinc-600"><X size={11} /></button>}
+                  </div>
+                ))}
+                <div className="flex items-center justify-between text-[10px]">
+                  <button onClick={() => setSplit((xs) => [...xs!, { method: "cash", amount: "" }])} className="text-zinc-500 hover:text-zinc-300">+ payer</button>
+                  <span className={Math.abs(splitSum - total) > 0.5 ? "text-red-400" : "text-emerald-400"}>
+                    {money(splitSum)} / {money(total)}
+                  </span>
+                </div>
+              </div>
+            )}
             <label className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-400">
               <input type="checkbox" checked={printOnCreate}
                 onChange={(e) => { setPrintOnCreate(e.target.checked); localStorage.setItem("pos_print", e.target.checked ? "on" : "off"); }} />
@@ -556,6 +627,17 @@ export default function Pos() {
         </button>
       </div>
 
+      {switching && (
+        <CashierSwitch cashiers={posCfg.cashiers || []} current={cashier}
+          onPick={(n: string) => { setCashier(n); localStorage.setItem("pos_cashier", n); setSwitching(false); }}
+          onCancel={() => setSwitching(false)} />
+      )}
+      {discOpen && (
+        <DiscountModal subtotal={subtotal} needsPin={managers.length > 0} managerOk={managerOk}
+          onApply={(amount: number, reason: string) => { setDiscount({ amount, reason }); setDiscOpen(false); }}
+          onCancel={() => setDiscOpen(false)} />
+      )}
+      {report && <ShiftReport r={report} onClose={() => setReport(null)} />}
       {keypadLine && (
         <Keypad value={keypadLine.qty}
           onDone={(n) => { setCart((c) => c.map((x) => x.uid === keypadLine.uid ? { ...x, qty: n } : x)); setKeypadLine(null); }}
@@ -719,6 +801,149 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
             {missing ? `${missing} choice${missing > 1 ? "s" : ""} left` : line ? `Update · EGP ${money(unit * qty)}` : `Add ${qty} · EGP ${money(unit * qty)}`}
           </Btn>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// PIN-gated cashier switch — attribution drives the Z report's per-cashier lines.
+// With no cashiers configured in Settings, any name switch is open (pilot mode).
+function CashierSwitch({ cashiers, current, onPick, onCancel }: any) {
+  const [pin, setPin] = useState("");
+  const [pick, setPick] = useState<any | null>(null);
+  const [err, setErr] = useState("");
+  const free = !cashiers.length;
+  const [freeName, setFreeName] = useState("");
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
+      <div className="w-72 rounded-2xl border border-zinc-800 bg-zinc-950 p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 text-sm font-semibold">Who's on the register?</div>
+        {free ? (
+          <div className="space-y-2">
+            <input value={freeName} onChange={(e) => setFreeName(e.target.value)} placeholder={current}
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-100" />
+            <p className="text-[11px] text-zinc-600">Add cashiers with PINs in Settings → POS to lock this.</p>
+            <Btn onClick={() => onPick((freeName.trim() || current).slice(0, 40))} className="w-full">Switch</Btn>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              {cashiers.map((c: any) => (
+                <button key={c.name} onClick={() => { setPick(c); setErr(""); }}
+                  className={`rounded-lg border px-2.5 py-1.5 text-xs ${pick?.name === c.name ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300"}`}>
+                  {c.name}{c.manager ? " ★" : ""}
+                </button>
+              ))}
+            </div>
+            {pick && (
+              <>
+                <input type="password" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN"
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-center text-lg tracking-[0.5em] text-zinc-100" autoFocus />
+                {err && <div className="text-[11px] text-red-400">{err}</div>}
+                <Btn className="w-full" onClick={() => {
+                  if (String(pick.pin) === pin) onPick(pick.name);
+                  else setErr("Wrong PIN");
+                }}>Switch to {pick.name}</Btn>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Discount with a reason, manager-PIN-gated when managers exist. The amount is
+// computed here for display; the backend recomputes and clamps — code decides.
+function DiscountModal({ subtotal, needsPin, managerOk, onApply, onCancel }: any) {
+  const [mode, setMode] = useState<"pct" | "egp">("pct");
+  const [val, setVal] = useState("");
+  const [reason, setReason] = useState("");
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
+  const n = Number(val) || 0;
+  const amount = Math.round((mode === "pct" ? subtotal * Math.min(n, 100) / 100 : Math.min(n, subtotal)) * 100) / 100;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
+      <div className="w-72 rounded-2xl border border-zinc-800 bg-zinc-950 p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 text-sm font-semibold">Discount</div>
+        <div className="mb-2 flex gap-1 rounded-full bg-zinc-900 p-1">
+          {(["pct", "egp"] as const).map((m2) => (
+            <button key={m2} onClick={() => setMode(m2)}
+              className={`flex-1 rounded-full px-2 py-1 text-xs ${mode === m2 ? "bg-zinc-700 text-zinc-100" : "text-zinc-500"}`}>
+              {m2 === "pct" ? "%" : "EGP"}
+            </button>
+          ))}
+        </div>
+        <input type="number" value={val} onChange={(e) => setVal(e.target.value)} placeholder={mode === "pct" ? "10" : "50"}
+          className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-100" autoFocus />
+        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason — staff meal, complaint, promo…"
+          className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-xs text-zinc-100" />
+        {needsPin && (
+          <input type="password" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Manager PIN"
+            className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-center text-sm tracking-[0.4em] text-zinc-100" />
+        )}
+        {err && <div className="mb-2 text-[11px] text-red-400">{err}</div>}
+        <Btn className="w-full" onClick={() => {
+          if (!amount) return setErr("Enter an amount");
+          if (!reason.trim()) return setErr("A reason is required — it shows on the Z report");
+          if (needsPin && !managerOk(pin)) return setErr("Manager PIN required");
+          onApply(amount, reason.trim());
+        }}>Apply −EGP {money(amount)}</Btn>
+      </div>
+    </div>
+  );
+}
+
+// X report modal — the day's money so far, printable like a ticket
+function ShiftReport({ r, onClose }: any) {
+  function printIt() {
+    const w = window.open("", "_blank", "width=380,height=600");
+    if (!w) return;
+    const line = (k: string, v: any) => `<div style="display:flex;justify-content:space-between"><span>${k}</span><b>${v}</b></div>`;
+    w.document.write(`<pre style="font-family:monospace;font-size:12px;padding:12px">
+<b>SHIFT REPORT — ${r.date}${r.branch !== "all" ? ` · ${r.branch}` : ""}</b>
+${"-".repeat(32)}
+Orders: ${r.orders}   Revenue: EGP ${money(r.revenue)}
+VAT: ${money(r.vat)}  Service: ${money(r.service_charge)}
+Delivery fees: ${money(r.delivery_fees)}
+Discounts: -${money(r.discounts)}  Tips: ${money(r.tips)}
+${"-".repeat(32)}
+${Object.entries(r.by_method).map(([m2, v]: any) => `${m2.toUpperCase().padEnd(10)} EGP ${money(v)}`).join("\n")}
+CASH EXPECTED IN DRAWER: EGP ${money(r.cash_expected)}
+${"-".repeat(32)}
+${Object.entries(r.by_cashier).map(([c2, v]: any) => `${c2}: ${v.orders} orders · EGP ${money(v.revenue)}${v.discounts ? ` · -${money(v.discounts)} disc` : ""}${v.tips ? ` · ${money(v.tips)} tips` : ""}`).join("\n")}
+${r.cancelled.count ? `${"-".repeat(32)}\nCancelled: ${r.cancelled.count} (EGP ${money(r.cancelled.value)})\n${r.cancelled.reasons.map((x: any) => `  ${x.code}: ${x.reason || "no reason"}`).join("\n")}` : ""}
+</pre>`);
+    w.document.close(); w.print();
+  }
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="w-80 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <span className="font-semibold">Shift — {r.date}{r.branch !== "all" ? ` · ${r.branch}` : ""}</span>
+          <button onClick={onClose}><X size={15} className="text-zinc-500" /></button>
+        </div>
+        <div className="space-y-1 text-xs text-zinc-300">
+          <div className="flex justify-between"><span>Orders</span><b className="tabular-nums">{r.orders}</b></div>
+          <div className="flex justify-between"><span>Revenue</span><b className="tabular-nums">EGP {money(r.revenue)}</b></div>
+          <div className="flex justify-between text-zinc-500"><span>VAT</span><span className="tabular-nums">{money(r.vat)}</span></div>
+          {r.discounts > 0 && <div className="flex justify-between text-emerald-400"><span>Discounts</span><span className="tabular-nums">−{money(r.discounts)}</span></div>}
+          {r.tips > 0 && <div className="flex justify-between text-amber-300"><span>Tips</span><span className="tabular-nums">{money(r.tips)}</span></div>}
+          <div className="my-2 border-t border-zinc-800" />
+          {Object.entries(r.by_method).map(([m2, v]: any) => (
+            <div key={m2} className="flex justify-between"><span className="uppercase">{m2}</span><span className="tabular-nums">EGP {money(v)}</span></div>
+          ))}
+          <div className="flex justify-between font-bold text-zinc-100"><span>Cash in drawer</span><span className="tabular-nums">EGP {money(r.cash_expected)}</span></div>
+          <div className="my-2 border-t border-zinc-800" />
+          {Object.entries(r.by_cashier).map(([c2, v]: any) => (
+            <div key={c2} className="flex justify-between"><span>{c2}</span><span className="tabular-nums">{v.orders} · EGP {money(v.revenue)}</span></div>
+          ))}
+          {r.cancelled.count > 0 && (
+            <div className="flex justify-between text-red-400"><span>Cancelled</span><span className="tabular-nums">{r.cancelled.count} · EGP {money(r.cancelled.value)}</span></div>
+          )}
+        </div>
+        <Btn className="mt-3 w-full" onClick={printIt}>Print</Btn>
       </div>
     </div>
   );

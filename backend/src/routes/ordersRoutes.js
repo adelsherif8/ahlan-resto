@@ -39,7 +39,7 @@ router.get("/", async (req, res, next) => {
 // every order, not just WhatsApp ones. Bill rules identical to the bot's.
 router.post("/", async (req, res, next) => {
   try {
-    const { items, order_type, branch, table_number, payment_method, diner_name, phone_number, notes, address } = req.body || {};
+    const { items, order_type, branch, table_number, payment_method, diner_name, phone_number, notes, address, discount, discount_reason, tip, cashier, payments } = req.body || {};
     if (!Array.isArray(items) || !items.length || !order_type)
       return res.status(400).json({ error: "items and order_type required" });
     const p = req.restaurant?.payments || {};
@@ -49,7 +49,16 @@ router.post("/", async (req, res, next) => {
     const service_charge = order_type === "dine_in" ? round(subtotal * rateOf("service_charge", "service_charge_pct")) : 0;
     const tax = round(subtotal * rateOf("tax", "tax_pct", "vat_pct"));
     const delivery_fee = order_type === "delivery" ? round(Number(p.delivery_fee) || 0) : 0;
-    const total = round(subtotal + service_charge + tax + delivery_fee);
+    // discount applies to the subtotal before charges, clamped so the bill can
+    // never go negative; the tip rides separately and never changes the total
+    const disc = Math.min(Math.max(round(Number(discount) || 0), 0), subtotal);
+    const total = round(subtotal - disc + service_charge + tax + delivery_fee);
+    // split payments must add up to the bill — reject silent mismatches
+    const pays = Array.isArray(payments)
+      ? payments.map((x) => ({ method: String(x.method || "cash"), amount: round(Number(x.amount) || 0) })).filter((x) => x.amount > 0)
+      : null;
+    if (pays && pays.length && Math.abs(pays.reduce((s2, x) => s2 + x.amount, 0) - total) > 0.5)
+      return res.status(400).json({ error: "split payments must add up to the total" });
     // SAME alphabet as flows/order.js CODE_ALPHABET — no I/L/O/U confusables
     const AB = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
     const code = "O-" + Array.from({ length: 4 }, () => AB[Math.floor(Math.random() * AB.length)]).join("");
@@ -65,7 +74,11 @@ router.post("/", async (req, res, next) => {
         ...(i.notes ? { notes: i.notes } : {}),
       })),
       subtotal, service_charge, tax, total, delivery_fee,
-      payment_method: payment_method || null,
+      ...(disc > 0 ? { discount: disc, discount_reason: discount_reason || null } : {}),
+      ...(Number(tip) > 0 ? { tip: round(Number(tip)) } : {}),
+      ...(cashier ? { cashier: String(cashier).slice(0, 60) } : {}),
+      ...(pays && pays.length > 1 ? { payments: pays } : {}),
+      payment_method: pays && pays.length > 1 ? "split" : (payment_method || null),
       status: "pending", payment_status: "unpaid",
       address: order_type === "delivery" ? address || null : null,
       notes: notes || null,
@@ -82,6 +95,53 @@ router.post("/", async (req, res, next) => {
       } catch { /* CRM bump is best-effort */ }
     }
     res.status(201).json(row);
+  } catch (e) { next(e); }
+});
+
+// X (mid-shift) / Z (end-of-day) report — one honest aggregation of the day's
+// money: payment methods, discounts, tips, voids, VAT, per-cashier breakdown
+router.get("/shift-report", async (req, res, next) => {
+  try {
+    const date = String(req.query.date || new Date().toLocaleDateString("en-CA"));
+    const branch = req.user?.branch || (req.query.branch && req.query.branch !== "all" ? req.query.branch : null);
+    const where = {};
+    if (branch) where.branch = branch;
+    const rows = (await req.repo.list("orders", { where, order: "created_at" }))
+      .filter((o) => String(o.created_at).slice(0, 10) === date)
+      .filter((o) => !/^web:(regress|convo|test)-/i.test(String(o.phone_number || "")));
+    const live = rows.filter((o) => o.status !== "cancelled");
+    const cancelled = rows.filter((o) => o.status === "cancelled");
+    const round = (n) => Math.round(n * 100) / 100;
+    const sum = (xs, f) => round(xs.reduce((s2, o) => s2 + (Number(f(o)) || 0), 0));
+    const byMethod = {};
+    for (const o of live) {
+      const parts = Array.isArray(o.payments) && o.payments.length ? o.payments : [{ method: o.payment_method || "unset", amount: Number(o.total) || 0 }];
+      for (const x of parts) byMethod[x.method] = round((byMethod[x.method] || 0) + (Number(x.amount) || 0));
+    }
+    const byCashier = {};
+    for (const o of live) {
+      const k = o.cashier || "AI / WhatsApp";
+      byCashier[k] = byCashier[k] || { orders: 0, revenue: 0, discounts: 0, tips: 0 };
+      byCashier[k].orders += 1;
+      byCashier[k].revenue = round(byCashier[k].revenue + (Number(o.total) || 0));
+      byCashier[k].discounts = round(byCashier[k].discounts + (Number(o.discount) || 0));
+      byCashier[k].tips = round(byCashier[k].tips + (Number(o.tip) || 0));
+    }
+    res.json({
+      date, branch: branch || "all",
+      orders: live.length,
+      revenue: sum(live, (o) => o.total),
+      subtotal: sum(live, (o) => o.subtotal),
+      vat: sum(live, (o) => o.tax),
+      service_charge: sum(live, (o) => o.service_charge),
+      delivery_fees: sum(live, (o) => o.delivery_fee),
+      discounts: sum(live, (o) => o.discount),
+      tips: sum(live, (o) => o.tip),
+      by_method: byMethod,
+      by_cashier: byCashier,
+      cancelled: { count: cancelled.length, value: sum(cancelled, (o) => o.total), reasons: cancelled.map((o) => ({ code: o.code, reason: o.cancel_reason || null })) },
+      cash_expected: byMethod.cash || 0,
+    });
   } catch (e) { next(e); }
 });
 
