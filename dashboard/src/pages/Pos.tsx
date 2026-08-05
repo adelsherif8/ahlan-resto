@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Plus, Minus, X, Printer, ShoppingCart, User, ParkingSquare,
   Camera, StickyNote, Trash2, Star, Flame, Leaf, Pencil, Eraser, Check,
-  Delete, Expand, CornerDownLeft,
+  Delete, Expand, CornerDownLeft, Sparkles, ArrowRight,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { printTicket as printSharedTicket } from "../lib/ticket";
@@ -100,6 +100,10 @@ export default function Pos() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [touch, setTouch] = useState(localStorage.getItem("pos_touch") === "on");
   const [keypadLine, setKeypadLine] = useState<CartLine | null>(null);
+  const [say, setSay] = useState("");
+  const [saying, setSaying] = useState(false);
+  const [sayNote, setSayNote] = useState<string | null>(null);
+  const [upsell, setUpsell] = useState<{ source: string; items: any[] } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -189,6 +193,14 @@ export default function Pos() {
     else addLine(item, {}, "", 1);
   }
   function addLine(item: any, options: Record<string, any>, notes: string, qty: number, editingUid?: string) {
+    // cross-sell: the menu's own pairs_with becomes one-tap add chips
+    if (!editingUid && item.pairs_with) {
+      const names = String(item.pairs_with).split(/[,·+&]| and /i).map((x: string) => x.trim()).filter(Boolean);
+      const hits = names
+        .map((n2: string) => menu.find((m) => m.name.toLowerCase() === n2.toLowerCase() || m.name.toLowerCase().includes(n2.toLowerCase())))
+        .filter(Boolean).filter((m: any) => m.id !== item.id).slice(0, 3);
+      setUpsell(hits.length ? { source: item.name, items: hits } : null);
+    }
     setCart((c) => {
       const fresh: CartLine = { uid: Math.random().toString(36).slice(2), item, qty, options, notes, unit: priceOf(item, options, menu) };
       if (editingUid) return c.map((x) => (x.uid === editingUid ? { ...fresh, uid: editingUid } : x));
@@ -229,7 +241,33 @@ export default function Pos() {
     localStorage.setItem("pos_parked", JSON.stringify(next));
   }
   function clearAll() {
-    setCart([]); setTable(""); setAddress(""); setPhone(""); setGuest(null); setCreatedCode(null);
+    setCart([]); setTable(""); setAddress(""); setPhone(""); setGuest(null); setCreatedCode(null); setUpsell(null);
+  }
+
+  // the cashier types the order as it's spoken — the bot's extraction brain
+  // parses it (Arabic/Franco included); CODE matches names and prices
+  async function speakOrder() {
+    const text = say.trim();
+    if (!text || saying) return;
+    setSaying(true);
+    setSayNote(null);
+    try {
+      const { data } = await api.post("/api/orders/pos-extract", { text });
+      let added = 0;
+      for (const l of data?.lines || []) {
+        const item = menu.find((m) => m.id === l.id);
+        if (!item) continue;
+        addLine(item, {}, l.notes || "", l.qty);
+        added++;
+      }
+      const unknown = data?.unknown || [];
+      if (!added && !unknown.length) setSayNote("Nothing matched the menu");
+      else if (unknown.length) setSayNote(`Couldn't find: ${unknown.join(", ")}`);
+      if (added) setSay("");
+    } catch (e: any) {
+      setSayNote(e.response?.data?.error || "Extraction failed — try again");
+    }
+    setSaying(false);
   }
 
   async function create() {
@@ -310,6 +348,21 @@ export default function Pos() {
               );
             })}
           </div>
+          <div className="mb-2 flex items-center gap-1.5">
+            <div className="relative flex-1">
+              <Sparkles size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input value={say} onChange={(e) => setSay(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") speakOrder(); }}
+                placeholder={'Type the order as spoken — "2 iconic meals no pickles and a sprite" (Arabic works)'}
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 py-2 pl-8 pr-2 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
+            </div>
+            <button onClick={speakOrder} disabled={!say.trim() || saying}
+              className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-40"
+              style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
+              {saying ? "…" : <><ArrowRight size={13} /> Add</>}
+            </button>
+          </div>
+          {sayNote && <div className="mb-2 text-[11px] text-amber-300">{sayNote}</div>}
           <div className={`grid min-h-0 flex-1 auto-rows-min gap-2 overflow-y-auto pr-1 pb-16 lg:pb-0 ${touch ? "grid-cols-2 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"}`}>
             {shown.map((m) => {
               const fromPrice = (m.options || []).some((g: any) => (g.choices || []).some((c: any) => c.price != null));
@@ -407,6 +460,20 @@ export default function Pos() {
           </div>
 
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
+            {upsell && cart.length > 0 && (
+              <div className="rounded-lg border border-dashed border-zinc-700 px-2.5 py-2">
+                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-zinc-500">Goes well with {upsell.source}</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {upsell.items.map((m: any) => (
+                    <button key={m.id} onClick={() => { tapItem(m); setUpsell(null); }}
+                      className="flex items-center gap-1 rounded-full border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800">
+                      <Plus size={10} /> {m.name} · {money(m.price)}
+                    </button>
+                  ))}
+                  <button onClick={() => setUpsell(null)} className="px-1 text-zinc-600 hover:text-zinc-400"><X size={11} /></button>
+                </div>
+              </div>
+            )}
             {cart.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-zinc-600">
                 <ShoppingCart size={22} />

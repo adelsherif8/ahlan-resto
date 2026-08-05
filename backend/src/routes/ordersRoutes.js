@@ -6,6 +6,21 @@ import { FLOWS_URL, FLOWS_OPS_TOKEN, log } from "../config/env.js";
 const router = Router();
 router.use(requireAuth, restaurantContext);
 
+// POS conversational entry — proxied to flows so the POS shares the bot's brain
+router.post("/pos-extract", async (req, res) => {
+  try {
+    if (!FLOWS_URL) return res.status(503).json({ error: "flows not configured" });
+    const r = await fetch(`${FLOWS_URL}/api/ops/pos-extract`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-ops-token": FLOWS_OPS_TOKEN },
+      body: JSON.stringify({ text: String(req.body?.text || "") }),
+    });
+    res.status(r.status).json(await r.json());
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
 router.get("/", async (req, res, next) => {
   try {
     const where = {};

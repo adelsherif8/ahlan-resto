@@ -177,6 +177,39 @@ app.post("/api/ops/draft-reply", (req, res, next) => opsAuth(req, res, next), as
 
 // Menu copy cleanup — LLM PROPOSES fixes (typos, truncations, consistency);
 // a human approves each one in the dashboard before anything is written.
+// POS conversational entry: the cashier types the order as spoken ("2 iconic
+// meals no pickles and a sprite", Arabic/Franco welcome) — the SAME extraction
+// brain as the WhatsApp bot, so both fronts understand identical language.
+// LLM extracts; CODE matches names to the menu and prices nothing here.
+app.post("/api/ops/pos-extract", (req, res, next) => opsAuth(req, res, next), async (req, res) => {
+  try {
+    const text = String(req.body?.text || "").slice(0, 400);
+    if (!text.trim()) return res.status(400).json({ error: "text required" });
+    const tenant = await resolveRestaurant();
+    const { chatJSON } = await import("./services/llm.js");
+    const { MODEL_FAST } = await import("./config.js");
+    const { getMenu } = await import("./services/menucache.js");
+    const menu = (await getMenu(tenant.db)).filter((m) => m.available);
+    const sys = `Extract a food order typed by a CASHIER at a fast-casual restaurant. MENU (only these exist): ${menu.map((m) => m.name).join(" | ")}
+Return JSON only: {"items":[{"name":"<closest MENU name>","qty":number,"notes":"<modifiers for THIS item like 'no onion'>"|null}]}
+Rules: qty defaults 1; ONLY names from MENU (closest match); Arabic/Franco input is normal; anything that matches nothing gets skipped.`;
+    const r = await chatJSON(MODEL_FAST, sys, text, { temperature: 0, maxTokens: 220 });
+    const normName = (x) => String(x || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+    const lines = [];
+    const unknown = [];
+    for (const w of (r.value?.items || []).slice(0, 12)) {
+      const n = normName(w.name);
+      const hit = menu.find((m) => normName(m.name) === n) ||
+                  menu.find((m) => normName(m.name).includes(n) || n.includes(normName(m.name)));
+      if (!hit) { if (w.name) unknown.push(String(w.name)); continue; }
+      lines.push({ id: hit.id, name: hit.name, qty: Math.min(Math.max(Math.round(Number(w.qty) || 1), 1), 20), notes: (w.notes || "").trim() || null });
+    }
+    res.json({ lines, unknown });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post("/api/ops/tidy-menu", (req, res, next) => opsAuth(req, res, next), async (req, res) => {
   try {
     const tenant = await resolveRestaurant();
