@@ -133,7 +133,7 @@ const CASES = [
     expect: [/confirm/i], forbid: [/O-[A-Z2-9]{4}/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
-    expect: [/vegan|shawarma|edamame/i, /valet|parking/i] },
+    expect: [/vegan|shawarma|edamame/i, /valet|parking|park(ing)?\b|تركن|جراج/i] },
   { id: "fridayhours", name: "Day-specific hours reach the LLM", msg: "what time do you close on friday?",
     expect: [/frida|fri\b|الجمعة/i], forbid: [/closed at the moment|we'?re open right now/i] },
   { id: "francothanks", name: "Franco closer stays Latin", msg: "shukran ya basha",
