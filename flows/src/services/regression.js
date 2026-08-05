@@ -177,18 +177,26 @@ export function regressionStatus() {
   return state;
 }
 
+// Grade EVERYTHING the guest received for their last message, not just the final
+// bubble: a long reply is split into several WhatsApp messages (question first,
+// bill second), so asserting on the tail alone silently misses the actual answer.
 async function lastAiReply(db, sid) {
   const { data } = await db
     .from("chat_messages")
     .select("message,sender,created_at")
     .eq("session_id", sid)
-    .eq("sender", "ai")
     .order("created_at", { ascending: false })
-    .limit(5);
-  // skip attachment-style lines (location pins / photo captions) — grade the text reply
+    .limit(14);
+  const rows = data || [];
+  const lastGuest = rows.findIndex((m) => m.sender === "guest");
+  const turn = (lastGuest === -1 ? rows : rows.slice(0, lastGuest)).filter((m) => m.sender === "ai");
+  // skip attachment-style lines (location pins / photo captions) — grade the text
   const CAPTION = /^.{2,45} — \d+(\.\d+)? ?(EGP|LE|جنيه)/;
-  const text = (data || []).find((m) => m.message && !/^(📍|📄|🗺)/.test(m.message) && !CAPTION.test(m.message));
-  return text?.message || data?.[0]?.message || null;
+  const texts = turn
+    .filter((m) => m.message && !/^(📍|📄|🗺)/.test(m.message) && !CAPTION.test(m.message))
+    .map((m) => m.message)
+    .reverse();
+  return texts.join("\n\n") || turn[0]?.message || null;
 }
 
 async function aiCount(db, sid) {
