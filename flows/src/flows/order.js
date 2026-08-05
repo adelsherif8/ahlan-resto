@@ -44,7 +44,7 @@ defineFlow({
       const menu = (menuRows || []).filter((m) => m.available && !soldOutToday.has(m.name));
       const { data: open } = await db.from("orders").select("*")
         .eq("phone_number", ctx.sessionId)
-        .in("status", ["pending", "accepted", "preparing", "ready"])
+        .in("status", ["pending", "accepted", "preparing", "ready", "out_for_delivery"])
         .order("created_at", { ascending: false }).limit(1);
       const { data: tables } = await db.from("restaurant_tables").select("table_number");
       // an order in progress across turns (guest answered "Maadi" to our branch question)
@@ -521,9 +521,30 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
             .map((m) => `${m.name} (${m.price} ${currency})`);
           if (!upsell.length) upsell = null;
         }
+        // fallback: the ITEM'S OWN pairs_with from the menu — a real cross-sell
+        // ("Iconic pairs with Loaded Fries") instead of the same global list for
+        // every order. Code picks and prices it; the model only phrases it.
+        if (!upsell && config.menu_config?.cross_sell !== false && !loaded.pending?.upsell_offered) {
+          const have = new Set(items.map((it) => normName(it.name)));
+          for (const it of items) {
+            const mi = loaded.menu.find((m) => m.id === it.id);
+            if (!mi?.pairs_with) continue;
+            const wants = String(mi.pairs_with).split(/[,·+&]| and /i).map((x) => normName(x)).filter(Boolean);
+            const pick = loaded.menu.find((m) => wants.some((w) => w && (normName(m.name) === w || normName(m.name).includes(w))) && !have.has(normName(m.name)));
+            if (pick) { upsell = [`${pick.name} (${pick.price} ${currency})`]; break; }
+          }
+        }
         await savePending({ address, map_link: mapLinkRaw, upsell_offered: true });
         return { kind: "ask_payment", items, bill, currency, methods: payMethods, upsell, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, order_type: orderType, address, table_number: tableNumber };
       }
+
+      // Loyalty is CODE: the rule lives in Settings (pos.loyalty_every / reward),
+      // the count comes from the CRM. The bot announces what was EARNED, never
+      // invents a perk and never promises one that isn't due.
+      const loyEvery = Number(config.pos?.loyalty_every) || 0;
+      const loyalty = loyEvery > 0 && ((Number(diner?.visit_count) || 0) + 1) % loyEvery === 0
+        ? { visit: (Number(diner?.visit_count) || 0) + 1, reward: String(config.pos?.loyalty_reward || "a little something on us") }
+        : null;
 
       // 7) CONFIRM — the guest sees the full bill and says yes before anything is written.
       // Only a yes to a bill WE actually showed counts: the extractor reads "cash" as
@@ -670,7 +691,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         `🍔 New ${orderType.replace("_", "-")} order ${code}${branchInfo ? ` — ${branchInfo.name}` : ""}`,
         `${name || ctx.sessionId}${tableNumber ? ` · table ${tableNumber}` : ""}${address ? ` · 📍 ${address}` : ""} — ${items.map((i) => `${i.qty}× ${i.name}${i.notes ? ` (${i.notes})` : ""}${modifiers(i).length ? ` [${modifiers(i).join(" · ")}]` : ""}`).join(", ")} · ${fmtAmount(bill.total)} ${currency}`,
         ctx.sessionId, branch);
-      return { kind: "order_placed", code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
+      return { kind: "order_placed", loyalty, code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
     }, { input: { intent: e.intent, items: (e.items || []).length, order_type: e.order_type, table: e.table_number } });
 
     const value = await f.node("phrase", async () => {
@@ -679,7 +700,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
 MONEY RULE (absolute): NEVER write a price, a total, a currency symbol or any number of money. NEVER offer add-ons, extras or upsells unless "upsell" exists in OUTCOME.
 LIST RULE (absolute): whenever you present 3+ choices of ANYTHING (options, branches, payment methods, sandwiches), format them as a bullet list — one per line, "• Name" — never a comma run. The itemised bill is attached below your reply automatically. Refer to it as "below" — do not restate it, do not invent a currency.
 OUTCOMES:
-- order_placed: confirm the ticket 🎫 with the CODE, the honest ETA ("about <eta_minutes> min"), and what happens next BY TYPE — dine_in: "the kitchen's on it, coming to table X" · pickup: "we'll message you the moment it's ready at <branch>" · delivery: "we'll message you when it's on its way to <address>". Say the receipt is attached if receipt_url exists. If unknown[] has entries, add "couldn't find <names> on the menu".
+- order_placed: if "loyalty" is present, open with ONE celebratory line naming EXACTLY the reward given ("visit 6 — your <reward> is on us 🎁") — never invent or promise a perk that isn't in that field. Then confirm the ticket 🎫 with the CODE, the honest ETA ("about <eta_minutes> min"), and what happens next BY TYPE — dine_in: "the kitchen's on it, coming to table X" · pickup: "we'll message you the moment it's ready at <branch>" · delivery: "we'll message you when it's on its way to <address>". Say the receipt is attached if receipt_url exists. If unknown[] has entries, add "couldn't find <names> on the menu".
 - ask_fulfillment: ONE short lead-in line (e.g. "Almost done — just the last details 👇"). The questions themselves are appended automatically — NEVER write or answer them yourself.
 - ask_choice: write ONE short lead-in line for configuring <item> (e.g. "Quick choices for your Soo Classic Meal — you can answer in one go 👇"). The questions themselves are appended below your line automatically. NEVER list options yourself, NEVER mention any OTHER item in the order — its turn comes next. NEVER claim any choice was recorded and NEVER ask to confirm — nothing is chosen until the guest answers the printed questions; quick_replies must be null here.
 - ask_payment: ask how they'd like to pay, then the methods given as a bullet list, one per line. If "upsell" is present, add ONE casual offer of it in the same breath ("want to add loaded fries for 99?") — never push twice. The bill is below. quick_replies: the methods (e.g. ["Cash","Card","InstaPay"]).
@@ -689,7 +710,7 @@ OUTCOMES:
 - bad_table: the number they gave isn't one of ours. Say so plainly, list the real ones from "tables", and ask which they're at. NEVER claim the order is placed.
 - nothing_matched: none of that matched the menu (list unknown) — suggest tapping the menu.
 - sold_out_today: OUTCOME.sold ran out today — apologize warmly, say it's back soon, offer the rest of the menu. NEVER pretend it doesn't exist.
-- order_status: restate their order (code, status, items) honestly by status: pending/accepted="in the queue", preparing="on the grill now", ready="READY — come grab it!".
+- order_status: ONE short warm line only ("on it — here's where your order is 👇"). A progress ladder with real timestamps is appended by code below your line — never restate steps, times or the code yourself.
 - order_cancelled: cancelled ✅, no charge, door's open.
 - draft_cleared: they removed everything from the order being built — confirm it's wiped, offer to start fresh.
 - too_late_to_cancel: it's already READY — can't cancel now; the team can help at the counter.
@@ -733,6 +754,11 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
         log(`order: blocked a false "placed" claim on outcome ${outcome.kind}`);
         reply = fallback[outcome.kind] || fallback.ask_items;
       }
+    }
+
+    // Where's my order → the model writes one warm line, CODE draws the ladder
+    if (outcome.kind === "order_status" && outcome.order) {
+      reply = `${reply.split("\n")[0]}\n\n${statusTimeline(outcome.order, config.basic_info?.timezone || "Africa/Cairo")}`;
     }
 
     // Fulfillment questions are STRUCTURE too — model writes one lead-in line
@@ -847,6 +873,8 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       outcome.kind === "ask_choice" && outcome.questions?.length === 1 ? (outcome.questions[0].names || [])
       : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_type ? ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])]
       : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_branch ? (outcome.branches || [])
+      : outcome.kind === "ask_fulfillment" && outcome.need_address && (outcome.saved || []).length
+        ? [...outcome.saved.slice(0, 2).map((a, i) => (i === 0 ? `🏠 ${String(a).slice(0, 16)}` : `📍 ${String(a).slice(0, 16)}`)), "Somewhere new"]
       : outcome.kind === "confirm_order" ? ["Confirm ✅", "Change something"]
       : outcome.kind === "ask_payment" ? (outcome.methods || []).map((m) => m.split(" ")[0].replace(/^\w/, (c) => c.toUpperCase()))
       : null;
@@ -913,7 +941,32 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
 });
 
 function publicOrder(o) {
-  return { code: o.code, status: o.status, order_type: o.order_type, table_number: o.table_number, items: o.items, total: o.total };
+  return {
+    code: o.code, status: o.status, order_type: o.order_type, table_number: o.table_number,
+    items: o.items, total: o.total,
+    created_at: o.created_at, started_at: o.started_at, ready_at: o.ready_at, out_at: o.out_at,
+    courier_name: o.courier_name || null, branch: o.branch || null,
+  };
+}
+
+// A code-drawn progress ladder — the guest sees exactly where their food is and
+// how long each step took. Timestamps come from the board's own stamps, so the
+// bot can never invent progress that didn't happen.
+function statusTimeline(o, tz = "Africa/Cairo") {
+  const t = (v) => v ? new Date(v).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" }) : null;
+  const delivery = o.order_type === "delivery";
+  const steps = [
+    { key: "placed", label: "Order received", at: o.created_at, done: true },
+    { key: "preparing", label: "Kitchen started", at: o.started_at, done: !!o.started_at || ["preparing", "ready", "out_for_delivery", "served", "delivered"].includes(o.status) },
+    { key: "ready", label: delivery ? "Packed & ready" : (o.order_type === "dine_in" ? "Coming to your table" : "Ready for pickup"), at: o.ready_at, done: ["ready", "out_for_delivery", "served", "delivered"].includes(o.status) },
+  ];
+  if (delivery) steps.push({
+    key: "out", label: o.courier_name ? `On the way with ${String(o.courier_name).split(" ")[0]}` : "On the way",
+    at: o.out_at, done: ["out_for_delivery", "delivered"].includes(o.status),
+  });
+  const mins = o.created_at ? Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000) : null;
+  const body = steps.map((st) => `${st.done ? "✅" : "⬜"} ${st.label}${st.done && t(st.at) ? ` · ${t(st.at)}` : ""}`).join("\n");
+  return `🎫 *${o.code}*${mins != null ? ` · ${mins} min ago` : ""}\n${body}`;
 }
 
 // Delivery addresses the guest has actually used before, newest first.
@@ -926,7 +979,8 @@ function savedAddresses(diner) {
 // WhatsApp truncates button titles, so an answer that is a PREFIX of a saved
 // address still means that address.
 function matchSaved(message, saved) {
-  const m = normName(message);
+  // chips render as "🏠 Zahraa El Maadi, s" — drop the emoji/marker before matching
+  const m = normName(String(message).replace(/^[\s🏠📍]+/u, ""));
   if (m.length < 4) return null;
   return saved.find((a) => {
     const t = normName(a.text);

@@ -9,6 +9,7 @@ import { metrics } from "./services/metrics.js";
 import { runRegression, regressionStatus } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
 import { getSession, logMessage } from "./services/chatlog.js";
+import { riderCopy } from "./services/ridercopy.js";
 
 // register flows
 import "./flows/friendly.js";
@@ -258,11 +259,11 @@ app.post("/api/order/status", (req, res, next) => opsAuth(req, res, next), async
         : type === "pickup"
         ? `✅ Order ${order.code} is READY to pick up${brName ? ` from ${brName}` : ""}!${maps ? `\n📍 ${maps}` : ""}`
         : `✅ Order ${order.code} is ready — your rider is picking it up now!`,
-      out_for_delivery: `🛵 Order ${order.code} is ON ITS WAY${order.courier_name ? ` with ${order.courier_name}` : ""}${order.address ? ` to ${order.address}` : ""}!`,
+      out_for_delivery: riderCopy.out(order),
       served: type === "delivery"
         ? `🛵 Order ${order.code} is ON ITS WAY${brName ? ` from ${brName}` : ""}${order.address ? ` to ${order.address}` : ""}.${maps ? `\n📍 Coming from: ${maps}` : ""}`
         : null,
-      delivered: `🎉 Order ${order.code} delivered — enjoy! Tell us how it was 🙌`,
+      delivered: riderCopy.delivered(order),
       cancelled: `Order ${order.code} was cancelled. If that's a surprise, message us and we'll sort it 🙏`,
     };
     const text = MESSAGES[status];
@@ -393,23 +394,23 @@ app.post("/api/driver/:token/action", async (req, res) => {
     if (action === "out") {
       await db.from("orders").update({ status: "out_for_delivery", out_at: new Date().toISOString(), notified_status: "out_for_delivery" }).eq("id", order.id)
         .then((r2) => r2.error ? db.from("orders").update({ status: "out_for_delivery" }).eq("id", order.id) : r2);
-      await pushGuest(tenant, order, `🛵 Order ${order.code} is ON ITS WAY${order.address ? ` to ${order.address}` : ""}!`);
+      await pushGuest(tenant, order, riderCopy.out(order));
       return res.json({ ok: true, note: "Guest told it's on the way ✓" });
     }
     if (action === "near") {
-      await pushGuest(tenant, order, `📍 Your rider is 2 minutes away with order ${order.code} — see you in a moment!`);
+      await pushGuest(tenant, order, riderCopy.near(order));
       return res.json({ ok: true, note: "Guest told you're near ✓" });
     }
     if (action === "arrived") {
       // the RESTAURANT's number tells the guest — the rider never messages from his own
       await db.from("orders").update({ courier_arrived_at: new Date().toISOString() }).eq("id", order.id).then(() => {}, () => {});
-      await pushGuest(tenant, order, `🚪 Your rider has ARRIVED with order ${order.code} — he's at your door now!${order.payment_method === "cash" ? ` Cash to have ready: EGP ${Number(order.total).toLocaleString()}.` : ""}`);
+      await pushGuest(tenant, order, riderCopy.arrived(order));
       return res.json({ ok: true, note: "Guest told you've arrived ✓" });
     }
     if (action === "delay") {
       const extra = (Number(order.eta_extra_min) || 0) + 10;
       await db.from("orders").update({ eta_extra_min: extra }).eq("id", order.id).then(() => {}, () => {});
-      await pushGuest(tenant, order, `⏳ Quick heads-up — order ${order.code} is running about 10 minutes behind. Sorry, and thanks for the patience 🙏`);
+      await pushGuest(tenant, order, riderCopy.delay(order, 10));
       return res.json({ ok: true, note: "Guest told about the delay ✓" });
     }
     if (action === "delivered") {
@@ -417,7 +418,7 @@ app.post("/api/driver/:token/action", async (req, res) => {
       if (order.payment_method === "cash") patch.payment_status = "paid"; // COD collected at the door
       await db.from("orders").update(patch).eq("id", order.id)
         .then((r2) => r2.error ? db.from("orders").update({ status: "delivered", ...(order.payment_method === "cash" ? { payment_status: "paid" } : {}) }).eq("id", order.id) : r2);
-      await pushGuest(tenant, order, `🎉 Order ${order.code} delivered — enjoy! How was everything? A quick rating from 1–5 helps us a lot 🙌`);
+      await pushGuest(tenant, order, riderCopy.delivered(order));
       return res.json({ ok: true, note: "Delivered — guest thanked ✓" });
     }
     res.status(400).json({ error: "unknown action" });
