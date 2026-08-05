@@ -39,7 +39,7 @@ router.get("/", async (req, res, next) => {
 // every order, not just WhatsApp ones. Bill rules identical to the bot's.
 router.post("/", async (req, res, next) => {
   try {
-    const { items, order_type, branch, table_number, payment_method, diner_name, phone_number, notes, address, discount, discount_reason, tip, cashier, payments } = req.body || {};
+    const { items, order_type, branch, table_number, payment_method, diner_name, phone_number, notes, address, discount, discount_reason, tip, cashier, payments, email } = req.body || {};
     if (!Array.isArray(items) || !items.length || !order_type)
       return res.status(400).json({ error: "items and order_type required" });
     const p = req.restaurant?.payments || {};
@@ -61,7 +61,18 @@ router.post("/", async (req, res, next) => {
       return res.status(400).json({ error: "split payments must add up to the total" });
     // SAME alphabet as flows/order.js CODE_ALPHABET — no I/L/O/U confusables
     const AB = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
-    const code = "O-" + Array.from({ length: 4 }, () => AB[Math.floor(Math.random() * AB.length)]).join("");
+    let code = "O-" + Array.from({ length: 4 }, () => AB[Math.floor(Math.random() * AB.length)]).join("");
+    // Settings → POS can brand the code with a daily-resetting sequence (JS-041)
+    const oc = req.restaurant?.pos?.order_code || {};
+    if (oc.mode === "daily") {
+      try {
+        const todayStr = new Date().toLocaleDateString("en-CA");
+        const all = await req.repo.list("orders", { order: "created_at" });
+        const n = all.filter((o) => String(o.created_at).slice(0, 10) === todayStr).length + 1;
+        const prefix = String(oc.prefix || "O").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) || "O";
+        code = `${prefix}-${String(n).padStart(3, "0")}`;
+      } catch { /* random code still works */ }
+    }
     const posExtras = {
       ...(disc > 0 ? { discount: disc, discount_reason: discount_reason || null } : {}),
       ...(Number(tip) > 0 ? { tip: round(Number(tip)) } : {}),
@@ -95,6 +106,20 @@ router.post("/", async (req, res, next) => {
       log("orders insert w/ POS extras failed (migration 018 pending?):", err.message);
       row = await req.repo.insert("orders", baseRow);
     }
+    // delivery orders leave with a rider decided and a driver link minted
+    if (order_type === "delivery") {
+      try { await assignAndLink(req.repo, row); } catch { /* assignment never blocks the ticket */ }
+    }
+
+    // the bell + any open board hears about manual orders too, same as bot ones
+    try {
+      await req.repo.insert("notifications", {
+        type: "order", title: `New ${order_type.replace("_", "-")} order ${code}`,
+        body: `${items.length} item${items.length > 1 ? "s" : ""} · EGP ${total}${cashier ? ` · by ${cashier}` : " · POS"}`,
+        ref_id: code, ...(branch ? { branch } : {}),
+      });
+    } catch { /* notifications are never worth failing an order over */ }
+
     // inventory countdown: tracked items burn stock; at zero the item 86es
     // itself everywhere (POS grid, bot menu, Menu page) — one source of truth
     try {
@@ -115,7 +140,13 @@ router.post("/", async (req, res, next) => {
           total_spend: Math.round(((Number(d.total_spend) || 0) + total) * 100) / 100,
           visit_count: (Number(d.visit_count) || 0) + 1,
           last_visit_at: new Date().toISOString(),
+          ...(email ? { preferences: { ...(d.preferences || {}), email: String(email).slice(0, 120) } } : {}),
         });
+        else if (email || diner_name) await req.repo.insert("diners", {
+          phone_number, name: diner_name || null,
+          preferences: email ? { email: String(email).slice(0, 120) } : {},
+          visit_count: 1, total_spend: total, last_visit_at: new Date().toISOString(),
+        }).catch(() => {});
       } catch { /* CRM bump is best-effort */ }
     }
     res.status(201).json(row);
@@ -169,6 +200,73 @@ router.get("/shift-report", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ---- courier smart assignment ----
+// Free riders first; a new drop within ~2.5 km of a rider's current open drop
+// batches onto the SAME rider (one trip, two doors). Ties go to whoever has
+// carried the least today. Pure code — no guessing.
+const kmBetween = (a, b, c, d) => {
+  const R = 6371, toR = (x) => (x * Math.PI) / 180;
+  const dLat = toR(c - a), dLng = toR(d - b);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a)) * Math.cos(toR(c)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+};
+async function smartAssign(repo, order) {
+  const couriers = (await repo.list("couriers", {})).filter(
+    (c) => c.active !== false && (!c.branch || !order.branch || c.branch === order.branch)
+  );
+  if (!couriers.length) return null;
+  const all = await repo.list("orders", { order: "created_at" });
+  const open = all.filter((o) => o.order_type === "delivery" && o.courier_id &&
+    !["delivered", "cancelled", "served", "paid"].includes(o.status) && o.id !== order.id);
+  // batch nearby drops onto the rider already going that way
+  if (order.lat && order.lng) {
+    for (const o of open) {
+      if (o.lat && o.lng && kmBetween(Number(order.lat), Number(order.lng), Number(o.lat), Number(o.lng)) <= 2.5) {
+        const c = couriers.find((x) => x.id === o.courier_id);
+        if (c) return c;
+      }
+    }
+  }
+  const busy = new Set(open.map((o) => o.courier_id));
+  const today = new Date().toLocaleDateString("en-CA");
+  const carriedToday = (cid) => all.filter((o) => o.courier_id === cid && String(o.created_at).slice(0, 10) === today).length;
+  const pool = couriers.filter((c) => !busy.has(c.id));
+  const pick = (pool.length ? pool : couriers).sort((a, b) => carriedToday(a.id) - carriedToday(b.id))[0];
+  return pick || null;
+}
+const TOKEN_AB = "abcdefghijkmnpqrstuvwxyz23456789";
+const courierToken = () => Array.from({ length: 22 }, () => TOKEN_AB[Math.floor(Math.random() * 32)]).join("");
+async function assignAndLink(repo, row) {
+  const patch = {};
+  if (!row.courier_token) patch.courier_token = courierToken();
+  const c = await smartAssign(repo, row);
+  if (c) { patch.courier_id = c.id; patch.courier_name = c.name; patch.courier_phone = c.phone_number || null; }
+  if (Object.keys(patch).length) {
+    try { await repo.update("orders", row.id, patch); } catch { /* pre-migration schema */ }
+  }
+  return c;
+}
+
+// manual (re)assign — {courier_id} to pin a rider, empty body to re-run auto
+router.post("/:id/assign", async (req, res, next) => {
+  try {
+    const [row] = await req.repo.list("orders", { where: { id: req.params.id }, limit: 1 });
+    if (!row) return res.status(404).json({ error: "order not found" });
+    if (req.body?.courier_id) {
+      const [c] = await req.repo.list("couriers", { where: { id: req.body.courier_id }, limit: 1 });
+      if (!c) return res.status(404).json({ error: "courier not found" });
+      const updated = await req.repo.update("orders", row.id, {
+        courier_id: c.id, courier_name: c.name, courier_phone: c.phone_number || null,
+        ...(row.courier_token ? {} : { courier_token: courierToken() }),
+      });
+      return res.json(updated);
+    }
+    const c = await assignAndLink(req.repo, row);
+    const [fresh] = await req.repo.list("orders", { where: { id: row.id }, limit: 1 });
+    res.json({ ...fresh, auto_assigned: c ? c.name : null });
+  } catch (e) { next(e); }
+});
+
 // tell the guest their order moved (fire-and-forget; never blocks the kitchen)
 async function pushStatus(code, status) {
   if (!FLOWS_URL || !code) return;
@@ -188,7 +286,7 @@ const STAMP = { preparing: "started_at", ready: "ready_at", served: "served_at",
 router.patch("/:id", async (req, res, next) => {
   try {
     const patch = {};
-    for (const k of ["status", "payment_status", "notes", "table_number", "courier_name", "courier_phone"])
+    for (const k of ["status", "payment_status", "notes", "table_number", "courier_name", "courier_phone", "courier_id", "items"])
       if (k in req.body) patch[k] = req.body[k];
     if (patch.status && STAMP[patch.status]) patch[STAMP[patch.status]] = new Date().toISOString();
     if (patch.status === "cancelled" && req.body.cancel_reason) patch.cancel_reason = String(req.body.cancel_reason).slice(0, 120);

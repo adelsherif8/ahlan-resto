@@ -3,7 +3,7 @@ import {
   Search, Plus, Minus, X, Printer, ShoppingCart, User, ParkingSquare,
   Camera, StickyNote, Trash2, Star, Flame, Leaf, Pencil, Eraser, Check,
   Delete, Expand, CornerDownLeft, Sparkles, ArrowRight, BadgePercent, Receipt, UserCog, SplitSquareHorizontal,
-  History, Gift, MonitorSmartphone, PauseCircle, Grid3X3, Ticket as TicketIcon, Languages, CloudOff,
+  History, Gift, MonitorSmartphone, PauseCircle, Grid3X3, Ticket as TicketIcon, Languages, CloudOff, Maximize, Store,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { printTicket as printSharedTicket } from "../lib/ticket";
@@ -89,11 +89,26 @@ export default function Pos() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [configuring, setConfiguring] = useState<{ item: any; line?: CartLine } | null>(null);
   const [orderType, setOrderType] = useState("pickup");
-  const [branchKey, setBranchKey] = useState(staffBranch || "");
+  const [branchKey, setBranchKey] = useState(staffBranch || localStorage.getItem("pos_branch") || "");
+  const [branchAsk, setBranchAsk] = useState<string | null>(null);
+  // switching the register's branch is PIN-locked: pos.branch_pin, or any
+  // manager PIN. No PIN configured yet = open (pilot mode).
+  const applyBranch = (k: string) => { setBranchKey(k); if (!staffBranch) localStorage.setItem("pos_branch", k); };
+  const pickBranch = (k: string) => {
+    if (k === branchKey) return;
+    const locked = posCfg.branch_pin || (posCfg.cashiers || []).some((c2: any) => c2.manager);
+    if (locked) setBranchAsk(k);
+    else applyBranch(k);
+  };
+  const branchPinOk = (pin: string) =>
+    (posCfg.branch_pin && String(posCfg.branch_pin) === pin) ||
+    (posCfg.cashiers || []).some((c2: any) => c2.manager && String(c2.pin) === pin);
+  const [fs, setFs] = useState(false);
   const [table, setTable] = useState("");
   const [address, setAddress] = useState("");
   const [pay, setPay] = useState("cash");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [guest, setGuest] = useState<any | null>(null);
   const [printOnCreate, setPrintOnCreate] = useState(localStorage.getItem("pos_print") !== "off");
   const [parked, setParked] = useState<any[]>(() => { try { return JSON.parse(localStorage.getItem("pos_parked") || "[]"); } catch { return []; } });
@@ -141,6 +156,7 @@ export default function Pos() {
     const t = setInterval(sync, 30000);
     return () => clearInterval(t);
   }, []);
+  const dn = (m: any) => (rtl && m?.name_ar ? m.name_ar : m?.name);
   // the few words a cashier reads constantly, in their language
   const L = (en: string) => rtl ? ({
     "Create": "إنشاء الطلب", "Park": "تعليق", "Discount": "خصم", "Split": "تقسيم",
@@ -157,7 +173,7 @@ export default function Pos() {
     api.get("/api/menu").then((r) => {
       const av = (r.data || []).filter((m: any) => m.available);
       setMenu(av);
-      setCat(av[0]?.category || "");
+      setCat(""); // "" = All — every category as its own section
     }).catch(() => {});
     api.get("/api/settings").then((r) => {
       setPayments(r.data?.payments || {});
@@ -180,6 +196,12 @@ export default function Pos() {
   }, []);
   useEffect(() => {
     api.get("/api/tables").then((r) => setTables(r.data || [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const f = () => setFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", f);
+    return () => document.removeEventListener("fullscreenchange", f);
   }, []);
 
   // "/" jumps to search from anywhere — cashiers live on the keyboard
@@ -223,7 +245,7 @@ export default function Pos() {
     const term = (m2 ? m2[2] : t).trim();
     if (!term) return null;
     const scored = menu.map((m) => {
-      const name = m.name.toLowerCase();
+      const name = `${m.name} ${m.name_ar || ""}`.toLowerCase().trim();
       const words = name.split(/\s+/);
       let score = 0;
       if (name.startsWith(term)) score = 3;
@@ -238,11 +260,18 @@ export default function Pos() {
     let list = menu;
     if (q.trim()) {
       const t = q.trim().toLowerCase().replace(/^\d{1,2}\s+/, "");
-      list = list.filter((m) => m.name.toLowerCase().includes(t) || String(m.description || "").toLowerCase().includes(t));
+      list = list.filter((m) => `${m.name} ${m.name_ar || ""}`.toLowerCase().includes(t) || String(m.description || "").toLowerCase().includes(t));
       if (plu && !list.some((m) => m.id === plu.item.id)) list = [plu.item, ...list];
-    } else list = list.filter((m) => m.category === cat);
+    } else if (cat) list = list.filter((m) => m.category === cat);
     return list;
   }, [menu, cat, q, plu]);
+  // All view: sections stacked in menu order; single-category view: one section
+  const sections = useMemo(() => {
+    if (q.trim() || cat) return [{ title: null as string | null, items: shown }];
+    return cats.map((c2) => ({ title: c2, items: shown.filter((m) => m.category === c2) })).filter((x) => x.items.length);
+  }, [shown, cat, q, cats]);
+  // tile density follows how much is on screen — 4 items shouldn't look lost
+  const gridCols = (n: number) => (touch || n <= 4) ? "grid-cols-2 xl:grid-cols-3" : n <= 9 ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-3" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4";
   function pluAdd() {
     if (!plu) return;
     const hasQuestions = (plu.item.options || []).some((g: any) => g.key === "slots" || groupChoices(g, menu).length);
@@ -285,7 +314,34 @@ export default function Pos() {
   const round = (n: number) => Math.round(n * 100) / 100;
   const rateOf = (...keys: string[]) => { for (const k of keys) { const v = Number(payments[k]); if (Number.isFinite(v) && v > 0) return v > 1 ? v / 100 : v; } return 0; };
   const subtotal = round(cart.reduce((s, l) => s + l.unit * l.qty, 0));
-  const disc = discount ? Math.min(discount.amount, subtotal) : 0;
+  // promotions are CODE: buy-N-get-M free, % off item, % off big orders —
+  // matched against the cart every render, named on the discount line
+  const promo = useMemo(() => {
+    let amount = 0;
+    const names: string[] = [];
+    const qtyOf = (name: string) => cart.filter((l) => l.item.name.toLowerCase() === String(name || "").toLowerCase()).reduce((s2, l) => s2 + l.qty, 0);
+    const cheapestUnit = (name: string) => Math.min(...cart.filter((l) => l.item.name.toLowerCase() === String(name || "").toLowerCase()).map((l) => l.unit));
+    for (const p of (posCfg.promos || [])) {
+      if (p.active === false) continue;
+      if ((p.type || "bogo") === "bogo" && p.buy_item && p.get_item) {
+        const times = Math.floor(qtyOf(p.buy_item) / Math.max(1, Number(p.buy_qty) || 2));
+        const freeable = Math.min(times * (Number(p.get_qty) || 1), qtyOf(p.get_item));
+        if (freeable > 0 && Number.isFinite(cheapestUnit(p.get_item))) {
+          amount += freeable * cheapestUnit(p.get_item);
+          names.push(`${p.buy_qty || 2}+${p.get_qty || 1} ${p.get_item}`);
+        }
+      } else if (p.type === "item_pct" && p.item && p.pct > 0) {
+        const hit = cart.filter((l) => l.item.name.toLowerCase() === String(p.item).toLowerCase());
+        const v = hit.reduce((s2, l) => s2 + l.unit * l.qty, 0) * Math.min(p.pct, 100) / 100;
+        if (v > 0) { amount += v; names.push(`${p.pct}% ${p.item}`); }
+      } else if (p.type === "order_pct" && p.pct > 0 && subtotal >= (Number(p.min_total) || 0) && subtotal > 0) {
+        amount += subtotal * Math.min(p.pct, 100) / 100;
+        names.push(`${p.pct}% over ${p.min_total}`);
+      }
+    }
+    return { amount: round(amount), names };
+  }, [cart, posCfg.promos, subtotal]);
+  const disc = round(Math.min((discount ? discount.amount : 0) + promo.amount, subtotal));
   const service = orderType === "dine_in" ? round(subtotal * rateOf("service_charge", "service_charge_pct")) : 0;
   const vat = round(subtotal * rateOf("tax", "tax_pct", "vat_pct"));
   const delivery = orderType === "delivery" ? round(Number(payments.delivery_fee) || 0) : 0;
@@ -316,7 +372,7 @@ export default function Pos() {
     localStorage.setItem("pos_parked", JSON.stringify(next));
   }
   function clearAll() {
-    setCart([]); setTable(""); setAddress(""); setPhone(""); setGuest(null); setCreatedCode(null); setUpsell(null);
+    setCart([]); setTable(""); setAddress(""); setPhone(""); setEmail(""); setGuest(null); setCreatedCode(null); setUpsell(null);
     setLastOrder(null); setDiscount(null); setTip(0); setSplit(null);
   }
   // "same as last time" — one tap rebuilds their previous order at CURRENT menu
@@ -378,9 +434,10 @@ export default function Pos() {
         payment_method: pay,
         diner_name: guest?.name || guest?.wa_profile_name || null,
         phone_number: phone.trim() ? `+${phone.replace(/[^\d]/g, "")}` : null,
-        ...(disc > 0 ? { discount: disc, discount_reason: discount?.reason || null } : {}),
+        ...(disc > 0 ? { discount: disc, discount_reason: [promo.names.length ? `promo: ${promo.names.join(", ")}` : null, discount?.reason || null].filter(Boolean).join(" + ") || null } : {}),
         ...(tip > 0 ? { tip } : {}),
         cashier,
+        ...(email.trim() ? { email: email.trim() } : {}),
         ...(split && split.length > 1 ? { payments: split.map((x) => ({ method: x.method, amount: Number(x.amount) || 0 })) } : {}),
       });
       setCreatedCode(created?.code || "created");
@@ -409,7 +466,7 @@ export default function Pos() {
   }
 
   function printTicket(o: any) {
-    printSharedTicket(o, { branchName: branches.find((b: any) => b.key === o.branch)?.name });
+    printSharedTicket(o, { branchName: branches.find((b: any) => b.key === o.branch)?.name, waNumber: posCfg.wa_number });
   }
 
   return (
@@ -426,6 +483,17 @@ export default function Pos() {
                 {p.label}
               </button>
             ))}
+            {branches.length > 1 && (
+              <span className="flex items-center gap-1 rounded-full border border-zinc-700 px-1 py-0.5">
+                <Store size={11} className="ml-1.5 text-zinc-500" />
+                {branches.map((b: any) => (
+                  <button key={b.key} onClick={() => pickBranch(b.key)} disabled={!!staffBranch}
+                    className={`rounded-full px-2 py-0.5 text-[11px] ${branchKey === b.key ? "bg-zinc-200 font-semibold text-zinc-900" : "text-zinc-400 hover:text-zinc-200"}`}>
+                    {b.name}
+                  </button>
+                ))}
+              </span>
+            )}
             <button onClick={() => setSwitching(true)} title="Switch cashier"
               className="flex items-center gap-1.5 rounded-full border border-zinc-700 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800">
               <UserCog size={12} /> {cashier}
@@ -441,38 +509,51 @@ export default function Pos() {
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-3">
         {/* ---------- menu picker ---------- */}
         <div className="flex min-h-0 flex-col lg:col-span-2">
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            <div className="relative">
+          <div className="mb-2 flex items-center gap-2">
+            <div className="relative shrink-0">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="2 ic ⏎  ·  ( / )"
                 onKeyDown={(e) => { if (e.key === "Enter") pluAdd(); }}
-                className="w-40 rounded-lg border border-zinc-800 bg-zinc-900 py-1.5 pl-8 pr-2 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
+                className="w-36 rounded-lg border border-zinc-800 bg-zinc-900 py-1.5 pl-8 pr-2 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
             </div>
             {plu && (
-              <button onClick={pluAdd} className="flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-300">
-                <CornerDownLeft size={10} /> {plu.qty}× {plu.item.name}
+              <button onClick={pluAdd} className="flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-300">
+                <CornerDownLeft size={10} /> {plu.qty}× {dn(plu.item)}
               </button>
             )}
-            <button onClick={() => { const n = !rtl; setRtl(n); localStorage.setItem("pos_rtl", n ? "on" : "off"); }}
-              title="Arabic cashier mode"
-              className={`ml-auto rounded-lg border p-1.5 ${rtl ? "border-zinc-400 text-zinc-200" : "border-zinc-800 text-zinc-600 hover:text-zinc-400"}`}>
-              <Languages size={13} />
-            </button>
-            <button onClick={() => { const n = !touch; setTouch(n); localStorage.setItem("pos_touch", n ? "on" : "off"); }}
-              title="Touch mode — bigger targets for tablets"
-              className={`rounded-lg border p-1.5 ${touch ? "border-zinc-400 text-zinc-200" : "border-zinc-800 text-zinc-600 hover:text-zinc-400"}`}>
-              <Expand size={13} />
-            </button>
-            {cats.map((c) => {
-              const count = menu.filter((m) => m.category === c).length;
-              return (
-                <button key={c} onClick={() => { setCat(c); setQ(""); }}
-                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${touch ? "text-xs" : "text-[11px]"} ${cat === c && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: catColor(cats, c) }} />
-                  {c} <span className="text-zinc-600">{count}</span>
-                </button>
-              );
-            })}
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+              <button onClick={() => { setCat(""); setQ(""); }}
+                className={`shrink-0 rounded-full px-2.5 py-1 ${touch ? "text-xs" : "text-[11px]"} ${!cat && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
+                All
+              </button>
+              {cats.map((c) => {
+                const count = menu.filter((m) => m.category === c).length;
+                return (
+                  <button key={c} onClick={() => { setCat(c); setQ(""); }}
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 ${touch ? "text-xs" : "text-[11px]"} ${cat === c && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: catColor(cats, c) }} />
+                    {c} <span className="text-zinc-600">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <button onClick={() => { const n = !rtl; setRtl(n); localStorage.setItem("pos_rtl", n ? "on" : "off"); }}
+                title="Arabic cashier mode"
+                className={`rounded-lg border p-1.5 ${rtl ? "border-zinc-400 text-zinc-200" : "border-zinc-800 text-zinc-600 hover:text-zinc-400"}`}>
+                <Languages size={13} />
+              </button>
+              <button onClick={() => { const n = !touch; setTouch(n); localStorage.setItem("pos_touch", n ? "on" : "off"); }}
+                title="Touch mode — bigger targets for tablets"
+                className={`rounded-lg border p-1.5 ${touch ? "border-zinc-400 text-zinc-200" : "border-zinc-800 text-zinc-600 hover:text-zinc-400"}`}>
+                <Expand size={13} />
+              </button>
+              <button onClick={() => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); }}
+                title="Full screen"
+                className={`rounded-lg border p-1.5 ${fs ? "border-zinc-400 text-zinc-200" : "border-zinc-800 text-zinc-600 hover:text-zinc-400"}`}>
+                <Maximize size={13} />
+              </button>
+            </div>
           </div>
           <div className="mb-2 flex items-center gap-1.5">
             <div className="relative flex-1">
@@ -489,8 +570,19 @@ export default function Pos() {
             </button>
           </div>
           {sayNote && <div className="mb-2 text-[11px] text-amber-300">{sayNote}</div>}
-          <div className={`grid min-h-0 flex-1 auto-rows-min gap-2 overflow-y-auto pr-1 pb-16 lg:pb-0 ${touch ? "grid-cols-2 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"}`}>
-            {shown.map((m) => {
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1 pb-16 lg:pb-0">
+            {sections.map((sec, si) => (
+              <div key={sec.title || si}>
+                {sec.title && (
+                  <div className="mb-1.5 mt-3 flex items-center gap-2 first:mt-0">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: catColor(cats, sec.title) }} />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{sec.title}</span>
+                    <span className="text-[10px] text-zinc-600">{sec.items.length}</span>
+                    <span className="h-px flex-1 bg-zinc-800/80" />
+                  </div>
+                )}
+                <div className={`grid auto-rows-min gap-2 ${gridCols(sec.items.length)}`}>
+            {sec.items.map((m) => {
               const fromPrice = (m.options || []).some((g: any) => (g.choices || []).some((c: any) => c.price != null));
               const inCart = inCartQty[m.id];
               return (
@@ -514,7 +606,7 @@ export default function Pos() {
                   )}
                   <div className="flex flex-1 flex-col p-2">
                     <div className="flex items-center gap-1">
-                      <span className={`truncate font-medium text-zinc-200 ${touch ? "text-sm" : "text-xs"}`}>{m.name}</span>
+                      <span className={`truncate font-medium text-zinc-200 ${touch ? "text-sm" : "text-xs"}`}>{dn(m)}</span>
                       {m.bestseller ? <Star size={10} className="shrink-0 fill-amber-400 text-amber-400" /> : null}
                     </div>
                     {m.description ? (
@@ -533,8 +625,11 @@ export default function Pos() {
                 </button>
               );
             })}
+                </div>
+              </div>
+            ))}
             {shown.length === 0 && (
-              <div className="col-span-full py-10 text-center text-xs text-zinc-600">Nothing matches "{q}"</div>
+              <div className="py-10 text-center text-xs text-zinc-600">Nothing matches "{q}"</div>
             )}
           </div>
         </div>
@@ -559,10 +654,14 @@ export default function Pos() {
                 ))}
               </div>
             )}
-            <div className="relative mb-2">
-              <User size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Guest phone (CRM lookup)…"
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 py-1.5 pl-8 pr-2 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
+            <div className="mb-2 flex gap-1.5">
+              <div className="relative flex-1">
+                <User size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="WhatsApp number (CRM + tracking)…"
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-900 py-1.5 pl-8 pr-2 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
+              </div>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" type="email"
+                className="w-32 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
             </div>
             {guest && (
               <div className="mb-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] text-zinc-200">
@@ -652,7 +751,7 @@ export default function Pos() {
                 <button onClick={() => setConfiguring({ item: l.item, line: l })} className="block w-full text-left">
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-1.5 font-medium text-zinc-200">
-                      {l.item.name}
+                      {dn(l.item)}
                       <Pencil size={9} className="text-zinc-600" />
                     </span>
                     <span className="tabular-nums text-zinc-300">{money(l.unit * l.qty)}</span>
@@ -696,10 +795,16 @@ export default function Pos() {
           <div className="border-t border-zinc-800 p-3 text-xs">
             <div className="space-y-0.5 text-zinc-400">
               <div className="flex justify-between"><span>{L("Subtotal")} · {itemCount}</span><span className="tabular-nums">{money(subtotal)}</span></div>
-              {disc > 0 && (
+              {promo.amount > 0 && (
+                <div className="flex justify-between text-emerald-400">
+                  <span>Promo: {promo.names.join(" · ")}</span>
+                  <span className="tabular-nums">−{money(Math.min(promo.amount, subtotal))}</span>
+                </div>
+              )}
+              {discount && (
                 <div className="flex justify-between text-emerald-400">
                   <button onClick={() => setDiscount(null)} title="Remove discount" className="flex items-center gap-1">Discount ({discount?.reason || "—"}) <X size={9} /></button>
-                  <span className="tabular-nums">−{money(disc)}</span>
+                  <span className="tabular-nums">−{money(discount.amount)}</span>
                 </div>
               )}
               {service > 0 && <div className="flex justify-between"><span>Service</span><span className="tabular-nums">{money(service)}</span></div>}
@@ -783,7 +888,7 @@ export default function Pos() {
       </div>
 
       {switching && (
-        <CashierSwitch cashiers={posCfg.cashiers || []} current={cashier}
+        <CashierSwitch cashiers={posCfg.cashiers || []} current={cashier} rtl={rtl}
           onPick={(n: string) => { setCashier(n); localStorage.setItem("pos_cashier", n); setSwitching(false); }}
           onCancel={() => setSwitching(false)} />
       )}
@@ -793,6 +898,13 @@ export default function Pos() {
           onCancel={() => setDiscOpen(false)} />
       )}
       {report && <ShiftReport r={report} onClose={() => setReport(null)} />}
+      {branchAsk && (
+        <PinGate rtl={rtl}
+          title={rtl ? `تحويل الكاشير لفرع ${branches.find((b: any) => b.key === branchAsk)?.name || ""}` : `Switch register to ${branches.find((b: any) => b.key === branchAsk)?.name || "branch"}`}
+          check={branchPinOk}
+          onOk={() => { applyBranch(branchAsk); setBranchAsk(null); }}
+          onCancel={() => setBranchAsk(null)} />
+      )}
       {tablePick && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setTablePick(false)}>
           <div className="max-h-[70vh] w-80 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-4" onClick={(e) => e.stopPropagation()}>
@@ -856,7 +968,9 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
   const groups = (item.options || []).filter((g: any) => g.key !== "slots" && groupApplies(g, picked) && groupChoices(g, menu).length);
   const unit = priceOf(item, picked, menu);
 
-  const answered = groups.filter((g: any) => picked[g.key]).length;
+  const slotsDone = slotsGroup ? slots.filter((sl) => (slotsGroup.slot_groups || []).filter((sg: any) => !sg.free).every((sg: any) => sl[sg.key])).length : 0;
+  const answered = groups.filter((g: any) => picked[g.key]).length + slotsDone;
+  const totalQs = groups.length + (slotsGroup ? slots.length : 0);
   const missing = groups.filter((g: any) => g.required && !picked[g.key]).length +
     (slotsGroup ? slots.filter((sl) => !(slotsGroup.slot_groups || []).filter((sg: any) => !sg.free).every((sg: any) => sl[sg.key])).length : 0);
   const nextGroup = groups.find((g: any) => g.required && !picked[g.key]);
@@ -897,12 +1011,12 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
             </div>
             <button onClick={onCancel}><X size={16} className="text-zinc-500 hover:text-zinc-200" /></button>
           </div>
-          {groups.length > 0 && (
+          {totalQs > 0 && (
             <div className="flex items-center gap-2 px-5 pb-2.5">
               <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-800">
-                <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${groups.length ? (answered / groups.length) * 100 : 0}%` }} />
+                <div className="h-full rounded-full transition-all" style={{ width: `${(answered / totalQs) * 100}%`, backgroundColor: "var(--accent)" }} />
               </div>
-              <span className="text-[10px] tabular-nums text-zinc-500">{answered}/{groups.length}</span>
+              <span className="text-[10px] tabular-nums text-zinc-500">{answered}/{totalQs}</span>
             </div>
           )}
         </div>
@@ -919,7 +1033,8 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
               <div className="flex flex-wrap gap-1.5">
                 {groupChoices(g, menu).map((c: any) => (
                   <button key={c.name} onClick={() => pick(g, c.name)}
-                    className={`rounded-lg border transition active:scale-95 ${touch ? "px-3.5 py-2.5 text-sm" : "px-2.5 py-1.5 text-xs"} ${norm(picked[g.key]) === norm(c.name) ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
+                    style={norm(picked[g.key]) === norm(c.name) ? { backgroundColor: "var(--accent)", borderColor: "var(--accent)", color: "var(--accent-contrast)" } : undefined}
+                    className={`rounded-xl border transition active:scale-95 ${touch ? "px-3.5 py-2.5 text-sm" : "px-3 py-2 text-xs"} ${norm(picked[g.key]) === norm(c.name) ? "font-semibold shadow-sm" : "border-zinc-700 bg-zinc-900/60 text-zinc-300 hover:border-zinc-500"}`}>
                     {c.name}{c.price != null ? ` · ${money(c.price)}` : c.delta ? ` +${money(c.delta)}` : ""}
                   </button>
                 ))}
@@ -927,26 +1042,41 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
             </div>
           ))}
 
-          {slotsGroup && slots.map((sl, si) => (
-            <div key={si} className="mb-3 rounded-xl border border-zinc-800 p-3">
-              <div className="mb-1.5 text-xs font-semibold text-zinc-300">Sandwich {si + 1}</div>
+          {slotsGroup && slots.map((sl, si) => {
+            const slotDone = (slotsGroup.slot_groups || []).filter((sg: any) => !sg.free).every((sg: any) => sl[sg.key]);
+            return (
+            <div key={si} className={`mb-3 rounded-2xl border p-3.5 transition ${slotDone ? "border-emerald-500/40 bg-emerald-500/[0.04]" : "border-zinc-800 bg-zinc-900/40"}`}>
+              <div className="mb-2 flex items-center gap-2">
+                <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${slotDone ? "bg-emerald-500 text-zinc-950" : "bg-zinc-800 text-zinc-400"}`}>
+                  {slotDone ? <Check size={13} /> : si + 1}
+                </span>
+                <span className="text-sm font-semibold text-zinc-200">Sandwich {si + 1}</span>
+                {sl[(slotsGroup.slot_groups || []).find((sg: any) => !sg.free)?.key] && (
+                  <span className="truncate text-[11px] text-zinc-500">{sl[(slotsGroup.slot_groups || []).find((sg: any) => !sg.free)?.key]}</span>
+                )}
+              </div>
               {(slotsGroup.slot_groups || []).map((sg: any) => sg.free ? (
-                <input key={sg.key} value={sl[sg.key] || ""} placeholder={`${sg.label || sg.key} (optional)`}
-                  onChange={(e) => setSlots((xs) => xs.map((x, i) => (i === si ? { ...x, [sg.key]: e.target.value } : x)))}
-                  className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100" />
+                <div key={sg.key} className="mt-2 flex items-center gap-1.5">
+                  <StickyNote size={11} className="shrink-0 text-zinc-600" />
+                  <input value={sl[sg.key] || ""} placeholder={`${sg.label || sg.key} — no onion, extra sauce…`}
+                    onChange={(e) => setSlots((xs) => xs.map((x, i) => (i === si ? { ...x, [sg.key]: e.target.value } : x)))}
+                    className="w-full rounded-lg border border-transparent bg-zinc-900/70 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-zinc-700" />
+                </div>
               ) : (
-                <div key={sg.key} className="flex flex-wrap gap-1.5">
+                <div key={sg.key} className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                   {(sg.choices || []).map((c: any) => (
                     <button key={c.name}
                       onClick={() => setSlots((xs) => xs.map((x, i) => (i === si ? { ...x, [sg.key]: c.name } : x)))}
-                      className={`rounded-lg border px-2 py-1 text-[11px] transition active:scale-95 ${norm(sl[sg.key]) === norm(c.name) ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
+                      style={norm(sl[sg.key]) === norm(c.name) ? { backgroundColor: "var(--accent)", borderColor: "var(--accent)", color: "var(--accent-contrast)" } : undefined}
+                      className={`truncate rounded-xl border px-2 py-2 text-[11px] transition active:scale-95 ${norm(sl[sg.key]) === norm(c.name) ? "font-semibold shadow-sm" : "border-zinc-700 bg-zinc-900/60 text-zinc-300 hover:border-zinc-500"}`}>
                       {c.name}
                     </button>
                   ))}
                 </div>
               ))}
             </div>
-          ))}
+            );
+          })}
 
           <div className="mb-1.5 flex flex-wrap gap-1.5">
             {QUICK_NOTES.map((n) => {
@@ -985,22 +1115,37 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
 
 // PIN-gated cashier switch — attribution drives the Z report's per-cashier lines.
 // With no cashiers configured in Settings, any name switch is open (pilot mode).
-function CashierSwitch({ cashiers, current, onPick, onCancel }: any) {
+function CashierSwitch({ cashiers, current, onPick, onCancel, rtl }: any) {
   const [pin, setPin] = useState("");
   const [pick, setPick] = useState<any | null>(null);
   const [err, setErr] = useState("");
   const free = !cashiers.length;
   const [freeName, setFreeName] = useState("");
+  const [staff, setStaff] = useState<any[]>([]);
+  useEffect(() => {
+    if (free) api.get("/api/users").then((r) => setStaff(r.data || [])).catch(() => {});
+  }, [free]);
+  const T = (en: string, ar: string) => (rtl ? ar : en);
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
+    <div dir={rtl ? "rtl" : "ltr"} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
       <div className="w-72 rounded-2xl border border-zinc-800 bg-zinc-950 p-4" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-3 text-sm font-semibold">Who's on the register?</div>
+        <div className="mb-3 text-sm font-semibold">{T("Who's on the register?", "مين على الكاشير؟")}</div>
         {free ? (
           <div className="space-y-2">
+            {staff.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {staff.map((u: any) => (
+                  <button key={u.id || u.name} onClick={() => setFreeName(u.name)}
+                    className={`rounded-lg border px-2.5 py-1.5 text-xs ${freeName === u.name ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300"}`}>
+                    {u.name}
+                  </button>
+                ))}
+              </div>
+            )}
             <input value={freeName} onChange={(e) => setFreeName(e.target.value)} placeholder={current}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-100" />
-            <p className="text-[11px] text-zinc-600">Add cashiers with PINs in Settings → POS to lock this.</p>
-            <Btn onClick={() => onPick((freeName.trim() || current).slice(0, 40))} className="w-full">Switch</Btn>
+            <p className="text-[11px] text-zinc-600">{T("Add cashiers with PINs in Settings → POS to lock this.", "ضيف كاشيرات برقم سري من الإعدادات → POS للقفل.")}</p>
+            <Btn onClick={() => onPick((freeName.trim() || current).slice(0, 40))} className="w-full">{T("Switch", "تبديل")}</Btn>
           </div>
         ) : (
           <div className="space-y-2">
@@ -1019,8 +1164,8 @@ function CashierSwitch({ cashiers, current, onPick, onCancel }: any) {
                 {err && <div className="text-[11px] text-red-400">{err}</div>}
                 <Btn className="w-full" onClick={() => {
                   if (String(pick.pin) === pin) onPick(pick.name);
-                  else setErr("Wrong PIN");
-                }}>Switch to {pick.name}</Btn>
+                  else setErr(rtl ? "الرقم غلط" : "Wrong PIN");
+                }}>{rtl ? `تبديل إلى ${pick.name}` : `Switch to ${pick.name}`}</Btn>
               </>
             )}
           </div>
@@ -1148,6 +1293,26 @@ function GuestScreen({ order, waNumber, onClose }: any) {
         </div>
       )}
       <div className="text-xs text-zinc-600">tap anywhere to go back</div>
+    </div>
+  );
+}
+
+// One PIN prompt for guarded register actions (branch switch, …)
+function PinGate({ title, check, onOk, onCancel, rtl }: any) {
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
+  return (
+    <div dir={rtl ? "rtl" : "ltr"} className="fixed inset-0 z-[65] flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
+      <div className="w-64 rounded-2xl border border-zinc-800 bg-zinc-950 p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-2 text-sm font-semibold">{title}</div>
+        <input type="password" inputMode="numeric" autoFocus value={pin}
+          onChange={(e) => { setPin(e.target.value); setErr(""); }}
+          onKeyDown={(e) => { if (e.key === "Enter") (check(pin) ? onOk() : setErr(rtl ? "الرقم غلط" : "Wrong PIN")); }}
+          placeholder="PIN"
+          className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-center text-lg tracking-[0.5em] text-zinc-100" />
+        {err && <div className="mb-2 text-[11px] text-red-400">{err}</div>}
+        <Btn className="w-full" onClick={() => (check(pin) ? onOk() : setErr(rtl ? "الرقم غلط" : "Wrong PIN"))}>{rtl ? "تأكيد" : "Confirm"}</Btn>
+      </div>
     </div>
   );
 }

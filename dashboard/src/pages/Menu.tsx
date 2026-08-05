@@ -381,6 +381,7 @@ function TidyModal({ fixes, onClose, onApplied }: { fixes: any[]; onClose: () =>
 function DetailsEditor({ item, onSaved }: { item: any; onSaved: () => void }) {
   const [f, setF] = useState({
     name: item.name || "",
+    name_ar: item.name_ar || "",
     category: item.category || "",
     price: String(item.price ?? ""),
     ingredients: item.ingredients || "",
@@ -396,6 +397,7 @@ function DetailsEditor({ item, onSaved }: { item: any; onSaved: () => void }) {
     <div className="mt-3 border-t border-zinc-800 pt-3">
       <div className="grid gap-2 md:grid-cols-3">
         <Input placeholder="Name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <Input placeholder="الاسم بالعربي (POS Arabic mode)" dir="rtl" value={f.name_ar} onChange={(e) => setF({ ...f, name_ar: e.target.value })} />
         <Input placeholder="Category" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} />
         <Input type="number" step="any" placeholder="Price" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
         <Input className="md:col-span-3" placeholder="Description — what's in it, how it's made" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
@@ -441,6 +443,7 @@ function DetailsEditor({ item, onSaved }: { item: any; onSaved: () => void }) {
             onClick={async () => {
               await api.patch(`/api/menu/${item.id}`, {
                 name: f.name.trim() || item.name,
+                name_ar: f.name_ar.trim() || null,
                 category: f.category.trim() || item.category,
                 price: f.price === "" ? item.price : Number(f.price),
                 description: f.description.trim() || null,

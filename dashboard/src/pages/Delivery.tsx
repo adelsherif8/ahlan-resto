@@ -29,6 +29,8 @@ export default function Delivery() {
   const [branches, setBranches] = useState<any[]>([]);
   const [addName, setAddName] = useState("");
   const [addPhone, setAddPhone] = useState("");
+  const [addVehicle, setAddVehicle] = useState("");
+  const [editCourier, setEditCourier] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const load = () => {
@@ -63,8 +65,13 @@ export default function Delivery() {
 
   async function assign(o: any, courierId: string) {
     const c = couriers.find((x) => x.id === courierId);
-    setOrders((xs) => xs.map((x) => (x.id === o.id ? { ...x, courier_name: c?.name || null, courier_phone: c?.phone_number || null } : x)));
-    await api.patch(`/api/orders/${o.id}`, { courier_name: c?.name || null, courier_phone: c?.phone_number || null }).catch(load);
+    setOrders((xs) => xs.map((x) => (x.id === o.id ? { ...x, courier_id: courierId || null, courier_name: c?.name || null, courier_phone: c?.phone_number || null } : x)));
+    await api.post(`/api/orders/${o.id}/assign`, courierId ? { courier_id: courierId } : {}).catch(load);
+  }
+  // re-run the smart assigner: free riders first, nearby drops batch together
+  async function autoAssign(o: any) {
+    const { data } = await api.post(`/api/orders/${o.id}/assign`, {}).catch(() => ({ data: null }));
+    if (data) load();
   }
 
   function driverLink(o: any) { return o.courier_token ? `${DRIVER_BASE}/${o.courier_token}` : null; }
@@ -88,9 +95,9 @@ export default function Delivery() {
 
   async function addCourier() {
     if (!addName.trim()) return;
-    await api.post("/api/couriers", { name: addName.trim(), phone_number: addPhone.trim() || null }).catch((e: any) =>
+    await api.post("/api/couriers", { name: addName.trim(), phone_number: addPhone.trim() || null, vehicle: addVehicle.trim() || null }).catch((e: any) =>
       alert(e.response?.data?.error === undefined ? "Run migration 013 first (couriers table)" : e.response?.data?.error));
-    setAddName(""); setAddPhone("");
+    setAddName(""); setAddPhone(""); setAddVehicle("");
     load();
   }
 
@@ -159,7 +166,7 @@ export default function Delivery() {
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
                         <Bike size={13} className="text-zinc-500" />
-                        <select value={couriers.find((c) => c.name === o.courier_name)?.id || ""} disabled={done}
+                        <select value={o.courier_id || couriers.find((c) => c.name === o.courier_name)?.id || ""} disabled={done}
                           onChange={(e) => assign(o, e.target.value)}
                           className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 disabled:opacity-60">
                           <option value="">{o.courier_name ? o.courier_name : "Assign courier…"}</option>
@@ -167,6 +174,10 @@ export default function Delivery() {
                             <option key={c.id} value={c.id}>{c.name}{c.phone_number ? ` · ${c.phone_number}` : ""}</option>
                           ))}
                         </select>
+                        {!done && !o.courier_name && couriers.some((c) => c.active !== false) && (
+                          <button onClick={() => autoAssign(o)} title="Smart assign — free rider first, nearby drops batch"
+                            className="rounded-lg border border-sky-600/50 bg-sky-500/10 px-2 py-1 text-xs text-sky-300 hover:bg-sky-500/20">Auto</button>
+                        )}
                       </div>
                       {driverLink(o) && !done && (
                         <div className="flex gap-2">
@@ -208,11 +219,12 @@ export default function Delivery() {
               {couriers.length === 0 ? (
                 <div className="text-xs text-zinc-500">No couriers yet — add your riders once, assign them forever.</div>
               ) : couriers.map((c) => (
-                <div key={c.id} className={`flex items-center justify-between rounded-lg bg-zinc-900 px-2.5 py-1.5 text-xs ${c.active === false ? "opacity-50" : ""}`}>
-                  <div>
-                    <div className="font-medium text-zinc-200">{c.name}</div>
+                <div key={c.id} className={`rounded-lg bg-zinc-900 px-2.5 py-1.5 text-xs ${c.active === false ? "opacity-50" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <button onClick={() => setEditCourier(editCourier?.id === c.id ? null : { ...c })} className="text-left">
+                    <div className="font-medium text-zinc-200">{c.name}{c.vehicle ? ` · ${c.vehicle}` : ""}</div>
                     {c.phone_number && <div className="text-zinc-500">{c.phone_number}</div>}
-                  </div>
+                  </button>
                   <div className="flex items-center gap-1.5">
                     <button title={c.active === false ? "Reactivate" : "Deactivate"}
                       onClick={async () => { await api.patch(`/api/couriers/${c.id}`, { active: c.active === false }).catch(() => {}); load(); }}
@@ -223,11 +235,27 @@ export default function Delivery() {
                       className="text-zinc-600 hover:text-red-400"><X size={13} /></button>
                   </div>
                 </div>
+                {editCourier?.id === c.id && (
+                  <div className="mt-2 space-y-1.5 border-t border-zinc-800 pt-2">
+                    <Input placeholder="Name" value={editCourier.name || ""} onChange={(e: any) => setEditCourier({ ...editCourier, name: e.target.value })} />
+                    <Input placeholder="Phone" value={editCourier.phone_number || ""} onChange={(e: any) => setEditCourier({ ...editCourier, phone_number: e.target.value })} />
+                    <Input placeholder="Vehicle — scooter, plate no…" value={editCourier.vehicle || ""} onChange={(e: any) => setEditCourier({ ...editCourier, vehicle: e.target.value })} />
+                    <Input placeholder="National ID" value={editCourier.national_id || ""} onChange={(e: any) => setEditCourier({ ...editCourier, national_id: e.target.value })} />
+                    <Input placeholder="Notes" value={editCourier.notes || ""} onChange={(e: any) => setEditCourier({ ...editCourier, notes: e.target.value })} />
+                    <Btn className="w-full px-3 py-1.5 text-xs" onClick={async () => {
+                      const { id, name, phone_number, vehicle, national_id, notes } = editCourier;
+                      await api.patch(`/api/couriers/${id}`, { name, phone_number, vehicle, national_id, notes }).catch(() => {});
+                      setEditCourier(null); load();
+                    }}>Save</Btn>
+                  </div>
+                )}
+                </div>
               ))}
             </div>
             <div className="space-y-1.5">
               <Input placeholder="Rider name" value={addName} onChange={(e: any) => setAddName(e.target.value)} />
               <Input placeholder="Phone (for WhatsApp send)" value={addPhone} onChange={(e: any) => setAddPhone(e.target.value)} />
+              <Input placeholder="Vehicle (optional)" value={addVehicle} onChange={(e: any) => setAddVehicle(e.target.value)} />
               <Btn className="w-full px-3 py-1.5 text-xs" onClick={addCourier}><span className="flex items-center justify-center gap-1"><Plus size={12} /> Add courier</span></Btn>
             </div>
           </Card>

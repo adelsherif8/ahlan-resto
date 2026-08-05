@@ -74,6 +74,7 @@ export default function Orders() {
   const [cancelTarget, setCancelTarget] = useState<any | null>(null);
   const nav = useNavigate();
   const [findCode, setFindCode] = useState("");
+  const [viewOrder, setViewOrder] = useState<any | null>(null);
   const [syncedAt, setSyncedAt] = useState<number>(Date.now());
   const knownIds = useRef<Set<string> | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -178,11 +179,18 @@ export default function Orders() {
       String(a.created_at).localeCompare(String(b.created_at)));
 
   const matchCode = (o: any) => findCode.trim() && String(o.code || "").toLowerCase().includes(findCode.trim().toLowerCase());
+  // search covers EVERYTHING loaded — done, cancelled, other days — not just
+  // the live board; results drop down under the box, click = full ticket
+  const found = findCode.trim()
+    ? rows.filter(matchCode).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 8)
+    : [];
   useEffect(() => {
     if (!findCode.trim()) return;
     const hit = dayRows.find(matchCode);
     if (hit) document.getElementById(`tk-${hit.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [findCode]);
+  const filtersDirty = findCode.trim() || station || !isToday || branch !== "all";
+  function resetFilters() { setFindCode(""); setStation(""); setDate(today); setBranch("all"); }
 
   const boardEmpty = visible.length === 0;
 
@@ -197,8 +205,26 @@ export default function Orders() {
               <div className="relative">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
                 <input value={findCode} onChange={(e) => setFindCode(e.target.value)} placeholder="O-CODE"
-                  className="w-24 rounded-xl border border-zinc-700 bg-zinc-900 py-2 pl-8 pr-2 text-xs uppercase text-zinc-100 outline-none focus:border-zinc-500" />
+                  className="w-28 rounded-xl border border-zinc-700 bg-zinc-900 py-2 pl-8 pr-2 text-xs uppercase text-zinc-100 outline-none focus:border-zinc-500" />
+                {found.length > 0 && (
+                  <div className="absolute left-0 top-full z-30 mt-1 w-72 rounded-xl border border-zinc-700 bg-zinc-950 p-1 shadow-xl">
+                    {found.map((o) => (
+                      <button key={o.id} onClick={() => { setViewOrder(o); setFindCode(""); }}
+                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs hover:bg-zinc-900">
+                        <span className="font-mono font-bold text-zinc-200">{o.code}</span>
+                        <span className="text-zinc-500">{String(o.created_at).slice(5, 10)} · {o.status}</span>
+                        <span className="tabular-nums text-zinc-400">EGP {money(o.total)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+              {filtersDirty && (
+                <button onClick={resetFilters} title="Back to today, all branches, all stations"
+                  className="flex items-center gap-1 rounded-xl border border-zinc-700 px-2.5 py-2 text-xs text-zinc-400 hover:text-zinc-200">
+                  <X size={12} /> Reset
+                </button>
+              )}
               {stationNames.length > 0 && (
                 <div className="flex items-center gap-1">
                   <button onClick={() => setStation("")}
@@ -303,7 +329,7 @@ export default function Orders() {
                   </div>
                   <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                     {col.key === "done" ? (
-                      <DoneDigest list={list} avgPrep={avgPrep} lateCount={lateCount} doneCount={done.length} />
+                      <DoneDigest list={list} avgPrep={avgPrep} lateCount={lateCount} doneCount={done.length} onOpen={setViewOrder} />
                     ) : list.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-zinc-800 p-6 text-center text-xs text-zinc-600">—</div>
                     ) : (
@@ -339,6 +365,7 @@ export default function Orders() {
         )}
       </div>
 
+      {viewOrder && <TicketModal o={viewOrder} branches={branches} onClose={() => setViewOrder(null)} onPrint={printTicket} />}
       {cancelTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setCancelTarget(null)}>
           <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-5" onClick={(e) => e.stopPropagation()}>
@@ -360,7 +387,7 @@ export default function Orders() {
   );
 }
 
-function DoneDigest({ list, avgPrep, lateCount, doneCount }: any) {
+function DoneDigest({ list, avgPrep, lateCount, doneCount, onOpen }: any) {
   return (
     <>
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 text-sm">
@@ -374,7 +401,8 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount }: any) {
       {list.slice(-6).reverse().map((o: any) => {
         const t = typeOf(o.order_type);
         return (
-          <div key={o.id} className="rounded-lg border border-zinc-800/70 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-400">
+          <button key={o.id} onClick={() => onOpen && onOpen(o)}
+            className="block w-full rounded-lg border border-zinc-800/70 bg-zinc-900/40 px-3 py-2 text-left text-xs text-zinc-400 transition hover:border-zinc-600">
             <div className="flex items-center justify-between">
               <span className="font-mono font-bold text-zinc-300">{o.code}</span>
               <span>{new Date(o.served_at || o.updated_at || o.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
@@ -383,7 +411,7 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount }: any) {
               <span className="flex items-center gap-1"><t.Icon size={11} /> {t.label.toLowerCase()} · {(o.items || []).reduce((s: number, i: any) => s + (Number(i.qty) || 1), 0)} items</span>
               <span className="tabular-nums text-zinc-300">EGP {money(o.total)}</span>
             </div>
-          </div>
+          </button>
         );
       })}
     </>
@@ -507,3 +535,56 @@ function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, on
   );
 }
 
+
+// Full ticket view for any order — search hits and handed-over tickets open
+// here: everything the kitchen ticket shows, plus courier + driver link.
+function TicketModal({ o, branches, onClose, onPrint }: any) {
+  const t = typeOf(o.order_type);
+  const branchName = branches.find((b: any) => b.key === o.branch)?.name || o.branch;
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="max-h-[85vh] w-96 overflow-y-auto rounded-2xl border border-zinc-700 bg-zinc-950 p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-1 flex items-center justify-between">
+          <span className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${t.chip}`}><t.Icon size={11} /> {t.label}</span>
+          <button onClick={onClose}><X size={16} className="text-zinc-500 hover:text-zinc-200" /></button>
+        </div>
+        <div className="text-center text-3xl font-extrabold tracking-[0.2em]">{o.code}</div>
+        <div className="mb-3 text-center text-xs text-zinc-500">
+          {(o.diner_name || o.phone_number || "guest").replace(/^walkin:.*/, "walk-in")}
+          {branchName ? ` · ${branchName}` : ""}{o.table_number ? ` · T${o.table_number}` : ""}
+          {o.cashier ? ` · by ${o.cashier}` : ""}
+        </div>
+        <div className="divide-y divide-dashed divide-zinc-800 border-y border-dashed border-zinc-700 text-sm">
+          {(o.items || []).map((i: any, idx: number) => (
+            <div key={idx} className="py-1.5">
+              <div className="flex justify-between"><span className="font-bold">{i.qty}x {i.name}</span>
+                <span className="tabular-nums text-zinc-400">{money(Number(i.unit_price ?? i.price) * Number(i.qty))}</span></div>
+              {modLines(i).map((m2, mi) => <div key={mi} className="pl-3 text-xs text-zinc-500">» {m2}</div>)}
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 space-y-0.5 text-xs text-zinc-400">
+          {o.discount > 0 && <div className="flex justify-between text-emerald-400"><span>Discount{o.discount_reason ? ` (${o.discount_reason})` : ""}</span><span>−{money(o.discount)}</span></div>}
+          <div className="flex justify-between text-sm font-bold text-zinc-100"><span>TOTAL</span><span className="tabular-nums">EGP {money(o.total)}</span></div>
+          {o.tip > 0 && <div className="flex justify-between text-amber-300"><span>Tip</span><span>{money(o.tip)}</span></div>}
+          <div className="flex justify-between"><span>Payment</span><span className="uppercase">{o.payment_method || "—"} · {o.payment_status || "unpaid"}</span></div>
+          <div className="flex justify-between"><span>Status</span><span className="uppercase">{String(o.status).replace(/_/g, " ")}</span></div>
+          <div className="flex justify-between"><span>Placed</span><span>{new Date(o.created_at).toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span></div>
+          {o.address && <div className="flex justify-between gap-3"><span className="shrink-0">Deliver to</span><span className="text-right">{o.address}</span></div>}
+          {o.courier_name && <div className="flex justify-between"><span>Courier</span><span>{o.courier_name}</span></div>}
+          {o.cancel_reason && <div className="flex justify-between text-red-400"><span>Cancelled</span><span>{o.cancel_reason}</span></div>}
+          {o.notes && <div className="text-amber-300">!! {o.notes}</div>}
+        </div>
+        <div className="mt-3 flex gap-2">
+          {o.courier_token && (
+            <a href={`https://ahlan-resto.vercel.app/driver/${o.courier_token}`} target="_blank" rel="noreferrer"
+              className="flex-1 rounded-xl border border-zinc-700 py-2 text-center text-xs text-zinc-300 hover:bg-zinc-800">Driver page</a>
+          )}
+          <button onClick={() => onPrint(o)} className="flex-1 rounded-xl py-2 text-xs font-bold" style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
+            Reprint
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

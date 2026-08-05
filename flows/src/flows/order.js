@@ -459,7 +459,20 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         90
       );
 
-      const code = orderCode();
+      // order-code style is the restaurant's call (Settings → POS): a branded
+      // prefix with a DAILY-RESETTING sequence ("JS-041"), or the random default.
+      // Sequence = today's order count + 1; a collision (two tickets same second)
+      // falls back to random so the ticket never fails.
+      let code = orderCode();
+      const oc = config.pos?.order_code || {};
+      if (oc.mode === "daily") {
+        try {
+          const today = new Date().toLocaleDateString("en-CA");
+          const { count } = await db.from("orders").select("id", { count: "exact", head: true }).gte("created_at", `${today}T00:00:00`);
+          const prefix = String(oc.prefix || "O").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) || "O";
+          code = `${prefix}-${String((Number(count) || 0) + 1).padStart(3, "0")}`;
+        } catch { /* count failed — random code still works */ }
+      }
       const row = {
         code, phone_number: ctx.sessionId, diner_name: name,
         order_type: orderType, table_number: tableNumber, branch,
@@ -505,6 +518,35 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         await db.from("orders").update({ courier_token: courierToken }).eq("code", code).then(() => {}, () => {});
         // itemized receipts need the fee as data, not a re-derivation (migration 014)
         if (bill.delivery_fee > 0) await db.from("orders").update({ delivery_fee: bill.delivery_fee }).eq("code", code).then(() => {}, () => {});
+        // smart courier assignment, same rules as the POS: free riders first,
+        // a drop within ~2.5 km of a rider's open drop batches onto that rider.
+        // Error-tolerant end to end — assignment never blocks a ticket.
+        try {
+          const { data: cs } = await db.from("couriers").select("*");
+          const couriers = (cs || []).filter((c) => c.active !== false && (!c.branch || !branch || c.branch === branch));
+          if (couriers.length) {
+            const { data: openOrders } = await db.from("orders").select("id,courier_id,lat,lng,status,order_type,created_at")
+              .eq("order_type", "delivery").not("courier_id", "is", null)
+              .not("status", "in", "(delivered,cancelled,served,paid)");
+            const open = openOrders || [];
+            const km = (a, b, c2, d) => { const R = 6371, t = (x) => (x * Math.PI) / 180; const h = Math.sin(t(c2 - a) / 2) ** 2 + Math.cos(t(a)) * Math.cos(t(c2)) * Math.sin(t(d - b) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+            let pick = null;
+            const lat = row.lat ?? null, lng = row.lng ?? null;
+            if (lat && lng) {
+              const near = open.find((o) => o.lat && o.lng && km(Number(lat), Number(lng), Number(o.lat), Number(o.lng)) <= 2.5);
+              if (near) pick = couriers.find((c) => c.id === near.courier_id) || null;
+            }
+            if (!pick) {
+              const busy = new Set(open.map((o) => o.courier_id));
+              const free = couriers.filter((c) => !busy.has(c.id));
+              const today = new Date().toLocaleDateString("en-CA");
+              const { data: todays } = await db.from("orders").select("courier_id,created_at").eq("order_type", "delivery").gte("created_at", `${today}T00:00:00`);
+              const carried = (cid) => (todays || []).filter((o) => o.courier_id === cid).length;
+              pick = (free.length ? free : couriers).sort((a, b) => carried(a.id) - carried(b.id))[0] || null;
+            }
+            if (pick) await db.from("orders").update({ courier_id: pick.id, courier_name: pick.name, courier_phone: pick.phone_number || null }).eq("code", code).then(() => {}, () => {});
+          }
+        } catch { /* no couriers table / pre-migration — fine */ }
       }
       if (diner?.id) { // order placed → the in-progress draft is done
         const { pending_order: _p, ...rest } = diner.preferences || {};

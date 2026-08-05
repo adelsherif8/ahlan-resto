@@ -16,7 +16,15 @@ router.post("/", async (req, res, next) => {
   try {
     const { name, phone_number, branch } = req.body || {};
     if (!name) return res.status(400).json({ error: "name required" });
-    const row = await req.repo.insert("couriers", { name: String(name).trim(), phone_number: phone_number || null, branch: branch || null, active: true });
+    const extras = {};
+    for (const k of ["vehicle", "national_id", "notes"]) if (k in req.body) extras[k] = req.body[k];
+    let row;
+    try {
+      row = await req.repo.insert("couriers", { name: String(name).trim(), phone_number: phone_number || null, branch: branch || null, active: true, ...extras });
+    } catch {
+      // pre-020 schema — the roster entry still lands
+      row = await req.repo.insert("couriers", { name: String(name).trim(), phone_number: phone_number || null, branch: branch || null, active: true });
+    }
     res.status(201).json(row);
   } catch (e) { next(e); }
 });
@@ -24,7 +32,7 @@ router.post("/", async (req, res, next) => {
 router.patch("/:id", async (req, res, next) => {
   try {
     const patch = {};
-    for (const k of ["name", "phone_number", "branch", "active"]) if (k in req.body) patch[k] = req.body[k];
+    for (const k of ["name", "phone_number", "branch", "active", "vehicle", "national_id", "notes"]) if (k in req.body) patch[k] = req.body[k];
     const row = await req.repo.update("couriers", req.params.id, patch);
     res.json(row || { ok: true });
   } catch (e) { next(e); }

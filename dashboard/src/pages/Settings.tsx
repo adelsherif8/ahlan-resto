@@ -51,6 +51,7 @@ export default function Settings() {
     ...(((bi.restaurant_type || "fine") !== "casual" ? [["reservations", "Reservations"]] : []) as [string, string][]),
     ["offers", "Offers & specials"],
     ["pos", "POS"],
+    ["promos", "Promotions"],
     ["faqs", "FAQs"],
   ];
 
@@ -324,12 +325,81 @@ export default function Settings() {
               <Input value={config.pos?.loyalty_reward || ""} placeholder="Free drink"
                 onChange={(e) => upd("pos", { loyalty_reward: e.target.value })} />
             </Field>
+            <Field label="Order-number style">
+              <div className="flex gap-1 rounded-full bg-zinc-900 p-1">
+                {([["random", "Random (O-7KQ2)"], ["daily", "Daily sequence (JS-041)"]] as const).map(([k, label]) => (
+                  <button key={k} type="button"
+                    onClick={() => upd("pos", { order_code: { ...(config.pos?.order_code || {}), mode: k } })}
+                    className={`rounded-full px-3 py-1 text-xs transition ${((config.pos?.order_code || {}).mode || "random") === k ? "bg-zinc-700 text-zinc-100" : "text-zinc-500"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            {(config.pos?.order_code || {}).mode === "daily" && (
+              <Field label="Code prefix (your brand, resets nightly)">
+                <Input value={(config.pos?.order_code || {}).prefix || ""} placeholder="JS"
+                  onChange={(e) => upd("pos", { order_code: { ...(config.pos?.order_code || {}), prefix: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) } })} />
+              </Field>
+            )}
+            <Field label="Branch-switch PIN (register lock)">
+              <Input value={config.pos?.branch_pin || ""} placeholder="e.g. 4321"
+                onChange={(e) => upd("pos", { branch_pin: e.target.value.replace(/[^0-9]/g, "").slice(0, 6) })} />
+            </Field>
             <Field label="WhatsApp number (guest-screen QR)">
               <Input value={config.pos?.wa_number || ""} placeholder="201515066123"
                 onChange={(e) => upd("pos", { wa_number: e.target.value })} />
             </Field>
           </div>
           <p className="text-xs text-zinc-500">Empty list = open register (anyone can type a name). With cashiers configured, switching needs the PIN and discounts need a ★ manager's PIN.</p>
+        </div>
+      </Card>}
+
+      {tab === "promos" && <Card className="p-5">
+        <SectionTitle title="Promotions (the POS applies these automatically at checkout)" saved={saved === "pos_promos"} onSave={() => saveSection("pos", config.pos || {})} />
+        <div className="space-y-3">
+          {((config.pos?.promos || []) as any[]).map((p: any, i: number) => {
+            const set = (patch: any) => { const promos = [...(config.pos?.promos || [])]; promos[i] = { ...p, ...patch }; upd("pos", { promos }); };
+            return (
+              <div key={i} className="rounded-xl border border-zinc-800 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <select value={p.type || "bogo"} onChange={(e) => set({ type: e.target.value })}
+                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100">
+                    <option value="bogo">Buy N get M free</option>
+                    <option value="item_pct">% off an item</option>
+                    <option value="order_pct">% off orders over X</option>
+                  </select>
+                  <button type="button" onClick={() => set({ active: p.active === false })}
+                    className={`rounded-full px-2.5 py-1 text-[11px] ${p.active !== false ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800 text-zinc-500"}`}>
+                    {p.active !== false ? "active" : "paused"}
+                  </button>
+                  <Btn variant="danger" className="ml-auto px-2.5 py-1 text-xs" onClick={() => upd("pos", { promos: (config.pos?.promos || []).filter((_: any, j: number) => j !== i) })}>✕</Btn>
+                </div>
+                {(p.type || "bogo") === "bogo" && (
+                  <div className="grid gap-2 md:grid-cols-4">
+                    <Field label="Buy item (exact name)"><Input value={p.buy_item || ""} placeholder="Iconic Meal" onChange={(e) => set({ buy_item: e.target.value })} /></Field>
+                    <Field label="Buy qty"><Input type="number" value={p.buy_qty ?? 2} onChange={(e) => set({ buy_qty: Number(e.target.value) || 2 })} /></Field>
+                    <Field label="Get item free (exact name)"><Input value={p.get_item || ""} placeholder="Loaded Fries" onChange={(e) => set({ get_item: e.target.value })} /></Field>
+                    <Field label="Free qty"><Input type="number" value={p.get_qty ?? 1} onChange={(e) => set({ get_qty: Number(e.target.value) || 1 })} /></Field>
+                  </div>
+                )}
+                {p.type === "item_pct" && (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <Field label="Item (exact name)"><Input value={p.item || ""} onChange={(e) => set({ item: e.target.value })} /></Field>
+                    <Field label="% off"><Input type="number" value={p.pct ?? 10} onChange={(e) => set({ pct: Number(e.target.value) || 0 })} /></Field>
+                  </div>
+                )}
+                {p.type === "order_pct" && (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <Field label="Order minimum (EGP)"><Input type="number" value={p.min_total ?? 500} onChange={(e) => set({ min_total: Number(e.target.value) || 0 })} /></Field>
+                    <Field label="% off"><Input type="number" value={p.pct ?? 10} onChange={(e) => set({ pct: Number(e.target.value) || 0 })} /></Field>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <Btn variant="ghost" onClick={() => upd("pos", { promos: [...(config.pos?.promos || []), { type: "bogo", buy_qty: 2, get_qty: 1, active: true }] })}>+ Add promotion</Btn>
+          <p className="text-xs text-zinc-500">Applied by CODE at the register — the discount line carries the promo name so the Z report shows exactly what was given away.</p>
         </div>
       </Card>}
 
