@@ -464,7 +464,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); a MEAL's sides/drin
         : orderType === "pickup" ? ["cash at the counter", "card", "instapay"]
         : ["cash on delivery", "card", "instapay"];
       const PAY_WORD = { cash: "cash", كاش: "cash", card: "card", visa: "card", كارت: "card", فيزا: "card", instapay: "instapay", انستاباي: "instapay" };
-      const bare = input.message.trim().toLowerCase().replace(/[^\p{L}]/gu, "");
+      const bare = input.message.replace(/^\[voice\]\s*/i, "").trim().toLowerCase().replace(/[^\p{L}]/gu, "");
       const payment = ["cash", "card", "instapay"].includes(String(e.payment_method || "").toLowerCase())
         ? String(e.payment_method).toLowerCase()
         : (input.message.trim().length <= 14 && PAY_WORD[bare]) || loaded.pending?.payment_method || null;
@@ -1138,7 +1138,7 @@ function arOptionWords(message) {
 }
 
 function nextQuestion(items, menu, message, pending, currency = "EGP") {
-  message = arOptionWords(message);
+  message = arOptionWords(String(message).replace(/^\[voice\]\s*/i, ""));
   const out = items.map((it) => ({ ...it, options: { ...(it.options || {}) } }));
   const said = normName(message);
 
@@ -1163,6 +1163,21 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
         return oTok.length && optionMatches(said, oTok.join(" "));
       });
       if (hit) it2.options[pKey] = pVal;
+    }
+  }
+  const padded = ` ${said} `;
+  for (const it2 of out) {
+    for (const g of it2.option_defs || []) {
+      if (g.key === "slots") continue;
+      if (!groupApplies(g, it2.options)) continue;
+      const need2 = Number(g.count) || 1;
+      const have2 = it2.options[g.key];
+      if ((Array.isArray(have2) ? have2.length : have2 ? 1 : 0) >= need2) continue;
+      const strict = groupChoices(g, menu).filter((o) => {
+        const cn = normName(o.name);
+        return cn && padded.includes(` ${cn} `);
+      });
+      if (strict.length === 1 && need2 === 1) it2.options[g.key] = strict[0].name;
     }
   }
 
