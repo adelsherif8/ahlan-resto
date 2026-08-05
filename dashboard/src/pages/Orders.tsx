@@ -344,6 +344,7 @@ export default function Orders() {
                           onCancel={() => setCancelTarget(o)}
                           onPrint={printTicket}
                           onFire={fireLine}
+                          onOpen={setViewOrder}
                         />
                       ))
                     )}
@@ -418,7 +419,8 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount, onOpen }: any) {
   );
 }
 
-function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint, onFire }: any) {
+const BACK: Record<string, string> = { preparing: "pending", ready: "preparing", out_for_delivery: "ready", served: "ready", delivered: "out_for_delivery" };
+function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint, onFire, onOpen }: any) {
   const step = nextFor(o, col);
   const [copied, setCopied] = useState(false);
   const road = col.key === "road";
@@ -432,7 +434,7 @@ function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, on
   return (
     <div id={`tk-${o.id}`} className={`drop-shadow-md ${flash ? "animate-pulse" : ""}`}>
       <div
-        onClick={() => !readOnly && step && onAdvance(o, step.next)}
+        onClick={() => onOpen && onOpen(o)}
         className={`overflow-hidden rounded-t-sm bg-[#fbfaf4] font-mono text-neutral-900 ${!readOnly && step ? "cursor-pointer" : ""} ${
           late ? "ring-2 ring-red-500 animate-[pulse_1.6s_ease-in-out_infinite]" : flash ? "ring-2 ring-emerald-400" : ""
         }`}
@@ -522,6 +524,11 @@ function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, on
             {!readOnly && col.key === "new" && (
               <button title="Cancel order" onClick={onCancel}
                 className="rounded-sm border border-red-300 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50"><X size={13} /></button>
+            )}
+            {!readOnly && BACK[o.status] && (
+              <button title={`Back to ${BACK[o.status].replace(/_/g, " ")}`}
+                onClick={() => onAdvance(o, BACK[o.status])}
+                className="rounded-sm border border-neutral-400 px-2 py-1 text-xs font-bold text-neutral-600 hover:bg-neutral-200">←</button>
             )}
             {!readOnly && step && (
               <button onClick={() => onAdvance(o, step.next)}
