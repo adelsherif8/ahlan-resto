@@ -13,11 +13,13 @@ export default function Overview() {
   const [rtype, setRtype] = useState<string>("fine");
   const [sampleCount, setSampleCount] = useState(0);
   const [orders, setOrders] = useState<any[]>([]);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
 
   useEffect(() => {
     api.get("/api/diners").then((r) => setGuests(r.data || [])).catch(() => {});
     api.get("/api/settings").then((r) => setRtype(r.data?.basic_info?.restaurant_type || "fine")).catch(() => {});
     api.get("/api/menu").then((r) => {
+      setMenuItems(r.data || []);
       setSampleCount((r.data || []).filter((m: any) =>
         (m.options || []).some((g: any) => g.sample || (g.choices || []).some((c: any) => c.sample))).length);
     }).catch(() => {});
@@ -44,6 +46,28 @@ export default function Overview() {
   if (O.late_now > 0) needs.push({ text: `${O.late_now} order${O.late_now > 1 ? "s" : ""} running late on the board`, to: "/orders", hot: true });
   if (kpis.needs_attention > 0) needs.push({ text: `${kpis.needs_attention} conversation${kpis.needs_attention > 1 ? "s" : ""} need${kpis.needs_attention > 1 ? "" : "s"} a human`, to: "/chats" });
   if (sampleCount > 0) needs.push({ text: `${sampleCount} menu item${sampleCount > 1 ? "s" : ""} still ha${sampleCount > 1 ? "ve" : "s"} unverified prices`, to: "/menu" });
+  // stock pace: tracked items projected to run out before close, at today's rate
+  const today = new Date().toLocaleDateString("en-CA");
+  const todaysOrders = orders.filter((o) => String(o.created_at).slice(0, 10) === today && o.status !== "cancelled");
+  const soldToday: Record<string, number> = {};
+  for (const o of todaysOrders) for (const i of o.items || []) soldToday[i.name] = (soldToday[i.name] || 0) + Number(i.qty || 1);
+  const firstAt = todaysOrders.length ? new Date(todaysOrders[0].created_at).getTime() : 0;
+  const hoursSoFar = firstAt ? Math.max(0.5, (Date.now() - firstAt) / 3600000) : 0;
+  for (const m of menuItems) {
+    if (m.stock_count == null || m.stock_count <= 0 || !hoursSoFar) continue;
+    const rate = (soldToday[m.name] || 0) / hoursSoFar;
+    if (rate <= 0) continue;
+    const runout = new Date(Date.now() + (m.stock_count / rate) * 3600000);
+    if (runout.getDate() === new Date().getDate()) {
+      needs.push({ text: `${m.name}: ${m.stock_count} left — runs out ~${runout.getHours()}:${String(runout.getMinutes()).padStart(2, "0")} at this pace`, to: "/menu" });
+    }
+  }
+  // margin leaks: heavy discounting or a cancellation spike reads as money walking out
+  const discToday = todaysOrders.reduce((s2, o) => s2 + (Number(o.discount) || 0), 0);
+  const revToday = todaysOrders.reduce((s2, o) => s2 + (Number(o.total) || 0), 0);
+  if (revToday > 0 && discToday / revToday > 0.1) needs.push({ text: `Discounts are ${Math.round((discToday / revToday) * 100)}% of today's revenue (EGP ${money(discToday)}) — check the Z report`, to: "/pos" });
+  const cancToday = orders.filter((o) => String(o.created_at).slice(0, 10) === today && o.status === "cancelled");
+  if (cancToday.length >= 3) needs.push({ text: `${cancToday.length} cancellations today (EGP ${money(cancToday.reduce((s2, o) => s2 + (Number(o.total) || 0), 0))}) — look for a pattern`, to: "/orders", hot: true });
 
   return (
     <div>
@@ -205,6 +229,8 @@ function CasualBoard({ O, kpis, orders }: any) {
         </Card>
       </div>
 
+      <ForecastAndCrew orders={orders} />
+
       <Card className="mt-4 border-emerald-500/30 p-5">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-300"><Bot size={15} /> AI order agent — today</h2>
         <p className="text-sm text-zinc-400">
@@ -334,5 +360,66 @@ function GuestsCard({ guests }: { guests: any[] }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+// Tomorrow's expected load (average of the same weekday, last 4 weeks — pure
+// code, zero LLM) + who rang what this week once cashier attribution has data.
+function ForecastAndCrew({ orders }: { orders: any[] }) {
+  const tomorrow = new Date(Date.now() + 86400000);
+  const wd = tomorrow.getDay();
+  const cutoff = Date.now() - 28 * 86400000;
+  const sameDay = orders.filter((o) => {
+    const d = new Date(o.created_at);
+    return d.getDay() === wd && d.getTime() > cutoff && o.status !== "cancelled";
+  });
+  const daysSeen = new Set(sameDay.map((o) => String(o.created_at).slice(0, 10))).size || 1;
+  const byHour: Record<number, number> = {};
+  for (const o of sameDay) byHour[new Date(o.created_at).getHours()] = (byHour[new Date(o.created_at).getHours()] || 0) + 1;
+  const hours = Object.keys(byHour).map(Number).sort((a, b) => a - b);
+  const maxH = Math.max(1, ...hours.map((h) => byHour[h] / daysSeen));
+  const expTotal = Math.round(sameDay.length / daysSeen);
+
+  const week = Date.now() - 7 * 86400000;
+  const crew: Record<string, { orders: number; egp: number }> = {};
+  for (const o of orders) {
+    if (!o.cashier || new Date(o.created_at).getTime() < week || o.status === "cancelled") continue;
+    crew[o.cashier] = crew[o.cashier] || { orders: 0, egp: 0 };
+    crew[o.cashier].orders += 1;
+    crew[o.cashier].egp += Number(o.total) || 0;
+  }
+  const crewNames = Object.keys(crew).sort((a, b) => crew[b].orders - crew[a].orders);
+
+  return (
+    <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <Card className="p-5 lg:col-span-2">
+        <h2 className="mb-1 text-sm font-semibold text-zinc-300">Tomorrow's forecast — {tomorrow.toLocaleDateString("en-GB", { weekday: "long" })}</h2>
+        <p className="mb-3 text-[11px] text-zinc-500">Average of the last {daysSeen} {tomorrow.toLocaleDateString("en-GB", { weekday: "long" })}{daysSeen > 1 ? "s" : ""} — expect ≈{expTotal} orders. Prep and staff for it.</p>
+        {hours.length === 0 ? <Empty text="Not enough history yet — check back after a week of orders" /> : (
+          <div className="flex h-24 items-end gap-1">
+            {hours.map((h) => (
+              <div key={h} className="flex flex-1 flex-col items-center gap-0.5">
+                <div className="text-[10px] text-zinc-500">{Math.round((byHour[h] / daysSeen) * 10) / 10}</div>
+                <div className="w-full rounded-t" style={{ height: `${(byHour[h] / daysSeen / maxH) * 100}%`, backgroundColor: "var(--accent)", opacity: 0.6 }} />
+                <div className="text-[9px] text-zinc-600">{String(h).padStart(2, "0")}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      <Card className="p-5">
+        <h2 className="mb-3 text-sm font-semibold text-zinc-300">Crew — last 7 days</h2>
+        {crewNames.length === 0 ? <Empty text="No cashier-attributed orders yet" /> : (
+          <div className="space-y-1.5">
+            {crewNames.map((c2) => (
+              <div key={c2} className="flex items-center justify-between text-xs">
+                <span className="text-zinc-300">{c2}</span>
+                <span className="tabular-nums text-zinc-500">{crew[c2].orders} orders · EGP {money(Math.round(crew[c2].egp))}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }

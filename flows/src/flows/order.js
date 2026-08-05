@@ -487,6 +487,17 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); an instruction abou
         }));
       }
       if (error) throw new Error(`order insert failed: ${error.message}`);
+      // inventory countdown (migration 019): tracked items burn stock; at zero
+      // the item 86es itself for POS, dashboard AND this bot — one truth.
+      // Error-tolerant: a pre-019 schema never blocks a ticket.
+      for (const it of items) {
+        const mi = loaded.menu.find((m) => m.id === it.id);
+        if (mi && mi.stock_count != null) {
+          const left = Math.max(0, Number(mi.stock_count) - (Number(it.qty) || 1));
+          await db.from("menu_items").update({ stock_count: left, ...(left === 0 ? { available: false } : {}) })
+            .eq("id", mi.id).then(() => {}, () => {});
+        }
+      }
       // delivery gets a driver link: unguessable token IS the courier's login.
       // Separate error-tolerant update so a pre-migration DB never blocks a ticket.
       if (orderType === "delivery") {

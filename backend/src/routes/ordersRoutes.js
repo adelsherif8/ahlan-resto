@@ -95,6 +95,18 @@ router.post("/", async (req, res, next) => {
       log("orders insert w/ POS extras failed (migration 018 pending?):", err.message);
       row = await req.repo.insert("orders", baseRow);
     }
+    // inventory countdown: tracked items burn stock; at zero the item 86es
+    // itself everywhere (POS grid, bot menu, Menu page) — one source of truth
+    try {
+      for (const it of items) {
+        const [mi] = await req.repo.list("menu_items", { where: { name: it.name }, limit: 1 });
+        if (mi && mi.stock_count != null) {
+          const left = Math.max(0, Number(mi.stock_count) - (Number(it.qty) || 1));
+          await req.repo.update("menu_items", mi.id, { stock_count: left, ...(left === 0 ? { available: false } : {}) });
+        }
+      }
+    } catch { /* pre-019 schema or lookup miss — never blocks the ticket */ }
+
     // a POS order for a known guest moves their CRM numbers, same as a bot order
     if (phone_number) {
       try {

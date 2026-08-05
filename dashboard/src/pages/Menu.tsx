@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus, Star, Camera, Settings2, Pencil, Search, FileText, Sparkles,
-  AlertTriangle, Clock, Flame, GripVertical, TrendingUp, X, Leaf, WheatOff, Copy,
+  AlertTriangle, Clock, Flame, GripVertical, TrendingUp, X, Leaf, WheatOff, Copy, BarChart3,
 } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
@@ -22,6 +22,7 @@ export default function Menu() {
   const [items, setItems] = useState<any[]>([]);
   const [perf, setPerf] = useState<Record<string, { units: number; egp: number }>>({});
   const [showNew, setShowNew] = useState(false);
+  const [eng, setEng] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [optId, setOptId] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -123,6 +124,10 @@ export default function Menu() {
         subtitle={`${items.length} items${off ? ` · ${off} off the menu` : ""}${sampleCount ? ` · ${sampleCount} with unverified prices` : ""}`}
         actions={
           <div className="flex items-center gap-2">
+            <button onClick={() => setEng((x) => !x)} title="Menu engineering — profitability × popularity quadrants"
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs ${eng ? "border-zinc-400 text-zinc-200" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
+              <BarChart3 size={13} /> Engineering
+            </button>
             <a href={PDF_URL} target="_blank" rel="noreferrer" title="Preview the menu PDF guests receive — it regenerates automatically after edits"
               className="flex items-center gap-1.5 rounded-xl border border-zinc-700 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800">
               <FileText size={13} /> PDF
@@ -167,7 +172,9 @@ export default function Menu() {
           const allOn = list.every((i) => i.available);
           return (
             <div key={cat} id={`cat-${cat}`} className="mb-8 scroll-mt-16">
-              <div className="mb-3 flex items-center gap-3">
+              {eng && <EngineeringPanel items={items} perf={perf} />}
+
+      <div className="mb-3 flex items-center gap-3">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-400">{cat}</h2>
                 <button
                   onClick={() => list.forEach((i) => i.available === allOn && patch(i, { available: !allOn }))}
@@ -381,6 +388,8 @@ function DetailsEditor({ item, onSaved }: { item: any; onSaved: () => void }) {
     pairs_with: item.pairs_with || "",
     description: item.description || "",
     dietary_tags: (item.dietary_tags || []) as string[],
+    stock_count: item.stock_count == null ? "" : String(item.stock_count),
+    cost: item.cost == null ? "" : String(item.cost),
   });
   const TAGS = ["vegetarian", "vegan", "gf", "spicy"];
   return (
@@ -392,6 +401,9 @@ function DetailsEditor({ item, onSaved }: { item: any; onSaved: () => void }) {
         <Input className="md:col-span-3" placeholder="Description — what's in it, how it's made" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
         <Input className="md:col-span-2" placeholder="Ingredients (comma-sep — the bot answers from these)" value={f.ingredients} onChange={(e) => setF({ ...f, ingredients: e.target.value })} />
         <Input placeholder="Pairs well with…" value={f.pairs_with} onChange={(e) => setF({ ...f, pairs_with: e.target.value })} />
+        <Input type="number" placeholder="Stock today (empty = untracked; 0 = sold out)" title="Counts down with every sale; at 0 the item 86es itself for the POS and the bot"
+          value={f.stock_count} onChange={(e) => setF({ ...f, stock_count: e.target.value })} />
+        <Input type="number" step="any" placeholder="Cost to make (EGP — for margin reports)" value={f.cost} onChange={(e) => setF({ ...f, cost: e.target.value })} />
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <select
@@ -436,6 +448,8 @@ function DetailsEditor({ item, onSaved }: { item: any; onSaved: () => void }) {
                 spice_level: f.spice_level === "" ? null : Number(f.spice_level),
                 pairs_with: f.pairs_with.trim() || null,
                 dietary_tags: f.dietary_tags,
+                stock_count: f.stock_count === "" ? null : Math.max(0, Number(f.stock_count)),
+                cost: f.cost === "" ? null : Number(f.cost),
               });
               onSaved();
             }}
@@ -676,3 +690,55 @@ function NewItemModal({ items, onClose, onCreated }: { items: any[]; onClose: ()
   );
 }
 
+
+// Menu engineering: popularity (units sold) × margin (price − cost) quadrants.
+// Stars = keep and push · Plow-horses = popular but thin, re-price or re-cost ·
+// Puzzles = profitable but unknown, promote · Dogs = neither, candidates to cut.
+function EngineeringPanel({ items, perf }: any) {
+  const rows = items
+    .map((m: any) => ({
+      name: m.name,
+      units: perf[m.name]?.units || 0,
+      margin: m.cost != null ? Number(m.price) - Number(m.cost) : null,
+    }));
+  const withCost = rows.filter((r: any) => r.margin != null);
+  const med = (xs: number[]) => { const a = [...xs].sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : 0; };
+  const mUnits = med(rows.map((r: any) => r.units));
+  const mMargin = med(withCost.map((r: any) => r.margin));
+  const Q = (hot: boolean, rich: boolean) => withCost.filter((r: any) => (r.units >= mUnits) === hot && (r.margin >= mMargin) === rich)
+    .sort((a: any, b: any) => b.units - a.units);
+  const quads = [
+    { label: "Stars — keep & push", tone: "text-emerald-300", list: Q(true, true) },
+    { label: "Plow-horses — popular, thin margin", tone: "text-amber-300", list: Q(true, false) },
+    { label: "Puzzles — profitable, unknown", tone: "text-sky-300", list: Q(false, true) },
+    { label: "Dogs — consider cutting", tone: "text-red-400", list: Q(false, false) },
+  ];
+  return (
+    <Card className="mb-4 p-5">
+      <div className="mb-1 text-sm font-semibold text-zinc-200">Menu engineering — units sold × margin</div>
+      {withCost.length === 0 ? (
+        <p className="text-xs text-zinc-500">Add a "cost to make" on your items (edit an item → Cost field) and this fills in — margins need real costs, never guesses.</p>
+      ) : (
+        <>
+          {rows.length > withCost.length && (
+            <p className="mb-2 text-[11px] text-zinc-500">{rows.length - withCost.length} item{rows.length - withCost.length > 1 ? "s" : ""} missing a cost — excluded.</p>
+          )}
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            {quads.map((q) => (
+              <div key={q.label} className="rounded-xl border border-zinc-800 p-3">
+                <div className={`mb-1.5 text-[11px] font-semibold ${q.tone}`}>{q.label} · {q.list.length}</div>
+                {q.list.slice(0, 5).map((r: any) => (
+                  <div key={r.name} className="flex justify-between text-[11px] text-zinc-400">
+                    <span className="truncate pr-1">{r.name}</span>
+                    <span className="shrink-0 tabular-nums">{r.units}u · {Math.round(r.margin)} EGP</span>
+                  </div>
+                ))}
+                {q.list.length === 0 && <div className="text-[11px] text-zinc-700">—</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}

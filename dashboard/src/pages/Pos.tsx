@@ -3,7 +3,7 @@ import {
   Search, Plus, Minus, X, Printer, ShoppingCart, User, ParkingSquare,
   Camera, StickyNote, Trash2, Star, Flame, Leaf, Pencil, Eraser, Check,
   Delete, Expand, CornerDownLeft, Sparkles, ArrowRight, BadgePercent, Receipt, UserCog, SplitSquareHorizontal,
-  History, Gift, MonitorSmartphone, PauseCircle, Grid3X3, Ticket as TicketIcon,
+  History, Gift, MonitorSmartphone, PauseCircle, Grid3X3, Ticket as TicketIcon, Languages, CloudOff,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { printTicket as printSharedTicket } from "../lib/ticket";
@@ -115,6 +115,38 @@ export default function Pos() {
   const [openTickets, setOpenTickets] = useState<any[]>([]);
   const [tablePick, setTablePick] = useState(false);
   const [tables, setTables] = useState<any[]>([]);
+  const [rtl, setRtl] = useState(localStorage.getItem("pos_rtl") === "on");
+  const [queued, setQueued] = useState<any[]>(() => { try { return JSON.parse(localStorage.getItem("pos_offline") || "[]"); } catch { return []; } });
+  // Egypt-internet reality: a dropped connection must never lose an order.
+  // Queued tickets retry every 30s and on reload until the kitchen has them.
+  useEffect(() => {
+    const sync = async () => {
+      const q2: any[] = (() => { try { return JSON.parse(localStorage.getItem("pos_offline") || "[]"); } catch { return []; } })();
+      if (!q2.length) return;
+      const still: any[] = [];
+      for (const entry of q2) {
+        try {
+          const { data } = await api.post("/api/orders", entry.payload);
+          setCreatedCode(data?.code || "synced");
+          setTimeout(() => setCreatedCode(null), 4000);
+        } catch (e: any) {
+          if (e?.response) continue; // server rejected it — drop, don't loop forever
+          still.push(entry); // pure network failure — keep for the next round
+        }
+      }
+      localStorage.setItem("pos_offline", JSON.stringify(still));
+      setQueued(still);
+    };
+    sync();
+    const t = setInterval(sync, 30000);
+    return () => clearInterval(t);
+  }, []);
+  // the few words a cashier reads constantly, in their language
+  const L = (en: string) => rtl ? ({
+    "Create": "إنشاء الطلب", "Park": "تعليق", "Discount": "خصم", "Split": "تقسيم",
+    "Dine-in": "صالة", "Pickup": "استلام", "Delivery": "توصيل",
+    "Subtotal": "المجموع", "TOTAL": "الإجمالي", "Service": "خدمة", "VAT": "ضريبة",
+  } as Record<string, string>)[en] || en : en;
   const [say, setSay] = useState("");
   const [saying, setSaying] = useState(false);
   const [sayNote, setSayNote] = useState<string | null>(null);
@@ -357,7 +389,21 @@ export default function Pos() {
       setCart([]); setDiscount(null); setTip(0); setSplit(null); setUpsell(null);
       setTimeout(() => setCreatedCode(null), 4000);
     } catch (e: any) {
-      alert(e.response?.data?.error || "Failed to create the order");
+      if (!e?.response) {
+        // no response at all = the network died — queue it, never lose the ticket
+        const payload = {
+          items: cart.map((l) => ({ name: l.item.name, qty: l.qty, price: l.unit, options: l.options, notes: l.notes || null })),
+          order_type: orderType, branch: branchKey || null, table_number: table.trim() || null,
+          address: address.trim() || null, payment_method: pay, cashier,
+          phone_number: phone.trim() ? `+${phone.replace(/[^\d]/g, "")}` : null,
+        };
+        const next = [...queued, { payload, at: new Date().toISOString() }];
+        localStorage.setItem("pos_offline", JSON.stringify(next));
+        setQueued(next);
+        setCart([]); setDiscount(null); setTip(0); setSplit(null); setUpsell(null);
+      } else {
+        alert(e.response?.data?.error || "Failed to create the order");
+      }
     }
     setSaving(false);
   }
@@ -367,7 +413,7 @@ export default function Pos() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" dir={rtl ? "rtl" : "ltr"}>
       <PageHeader
         title="POS"
         subtitle="Phone orders & walk-ups — same questions, same prices, same board as the bot"
@@ -407,9 +453,14 @@ export default function Pos() {
                 <CornerDownLeft size={10} /> {plu.qty}× {plu.item.name}
               </button>
             )}
+            <button onClick={() => { const n = !rtl; setRtl(n); localStorage.setItem("pos_rtl", n ? "on" : "off"); }}
+              title="Arabic cashier mode"
+              className={`ml-auto rounded-lg border p-1.5 ${rtl ? "border-zinc-400 text-zinc-200" : "border-zinc-800 text-zinc-600 hover:text-zinc-400"}`}>
+              <Languages size={13} />
+            </button>
             <button onClick={() => { const n = !touch; setTouch(n); localStorage.setItem("pos_touch", n ? "on" : "off"); }}
               title="Touch mode — bigger targets for tablets"
-              className={`ml-auto rounded-lg border p-1.5 ${touch ? "border-zinc-400 text-zinc-200" : "border-zinc-800 text-zinc-600 hover:text-zinc-400"}`}>
+              className={`rounded-lg border p-1.5 ${touch ? "border-zinc-400 text-zinc-200" : "border-zinc-800 text-zinc-600 hover:text-zinc-400"}`}>
               <Expand size={13} />
             </button>
             {cats.map((c) => {
@@ -451,6 +502,11 @@ export default function Pos() {
                       {inCart}
                     </span>
                   ) : null}
+                  {m.stock_count != null && m.stock_count <= 5 && (
+                    <span className="absolute left-1.5 top-1.5 z-10 rounded bg-red-500/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                      {m.stock_count} left
+                    </span>
+                  )}
                   {m.photo_url ? (
                     <img src={m.photo_url} alt="" className={`${touch ? "h-32" : "h-24"} w-full object-cover transition group-hover:scale-[1.03]`} />
                   ) : (
@@ -486,6 +542,11 @@ export default function Pos() {
         {/* ---------- cart ---------- */}
         <div className="flex min-h-0 flex-col rounded-2xl border border-zinc-800 bg-zinc-900/40">
           <div className="border-b border-zinc-800 p-3">
+            {queued.length > 0 && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-300">
+                <CloudOff size={12} /> {queued.length} order{queued.length > 1 ? "s" : ""} queued offline — retrying automatically
+              </div>
+            )}
             {openTickets.length > 0 && (
               <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1">
                 {openTickets.slice(0, 10).map((o) => (
@@ -531,7 +592,7 @@ export default function Pos() {
               {[["dine_in", "Dine-in"], ["pickup", "Pickup"], ["delivery", "Delivery"]].map(([k, l]) => (
                 <button key={k} onClick={() => setOrderType(k)}
                   className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] ${orderType === k ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>
-                  {l}
+                  {L(l)}
                 </button>
               ))}
             </div>
@@ -634,7 +695,7 @@ export default function Pos() {
 
           <div className="border-t border-zinc-800 p-3 text-xs">
             <div className="space-y-0.5 text-zinc-400">
-              <div className="flex justify-between"><span>Subtotal · {itemCount} item{itemCount === 1 ? "" : "s"}</span><span className="tabular-nums">{money(subtotal)}</span></div>
+              <div className="flex justify-between"><span>{L("Subtotal")} · {itemCount}</span><span className="tabular-nums">{money(subtotal)}</span></div>
               {disc > 0 && (
                 <div className="flex justify-between text-emerald-400">
                   <button onClick={() => setDiscount(null)} title="Remove discount" className="flex items-center gap-1">Discount ({discount?.reason || "—"}) <X size={9} /></button>
@@ -644,13 +705,13 @@ export default function Pos() {
               {service > 0 && <div className="flex justify-between"><span>Service</span><span className="tabular-nums">{money(service)}</span></div>}
               {vat > 0 && <div className="flex justify-between"><span>VAT</span><span className="tabular-nums">{money(vat)}</span></div>}
               {delivery > 0 && <div className="flex justify-between"><span>Delivery</span><span className="tabular-nums">{money(delivery)}</span></div>}
-              <div className="flex justify-between pt-1 text-sm font-bold text-zinc-100"><span>TOTAL</span><span className="tabular-nums">EGP {money(total)}</span></div>
+              <div className="flex justify-between pt-1 text-sm font-bold text-zinc-100"><span>{L("TOTAL")}</span><span className="tabular-nums">EGP {money(total)}</span></div>
               {tip > 0 && <div className="flex justify-between text-amber-300"><button onClick={() => setTip(0)} className="flex items-center gap-1">Tip (not in total) <X size={9} /></button><span className="tabular-nums">{money(tip)}</span></div>}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <button onClick={() => setDiscOpen(true)} disabled={!cart.length}
                 className="flex items-center gap-1 rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 disabled:opacity-40">
-                <BadgePercent size={11} /> Discount
+                <BadgePercent size={11} /> {L("Discount")}
               </button>
               {[10, 20].map((t2) => (
                 <button key={t2} onClick={() => setTip((x) => x === t2 ? 0 : t2)}
@@ -694,10 +755,10 @@ export default function Pos() {
             <div className="mt-2 flex gap-2">
               <button onClick={park} disabled={!cart.length}
                 className="flex items-center gap-1 rounded-xl border border-zinc-700 px-3 py-2 text-xs text-zinc-300 disabled:opacity-40">
-                <ParkingSquare size={13} /> Park
+                <ParkingSquare size={13} /> {L("Park")}
               </button>
               <Btn onClick={create} className={`flex-1 ${cart.length ? "" : "pointer-events-none opacity-50"}`}>
-                {saving ? "Creating…" : createdCode ? `${createdCode} on the board` : `Create · EGP ${money(total)}`}
+                {saving ? "…" : createdCode ? `${createdCode} ✓` : `${L("Create")} · EGP ${money(total)}`}
               </Btn>
               {createdOrder && (
                 <button onClick={() => setGuestScreen(true)} title="Flip the screen to the guest"
