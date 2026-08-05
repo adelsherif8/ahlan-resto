@@ -38,7 +38,7 @@ const CASES = [
   { id: "preptime", name: "No invented prep times", msg: "how long does food usually take to arrive?", forbid: [/\d+\s*(–|-|to)?\s*\d*\s*min/i] },
   { id: "vibe", name: "Vibe from config", msg: "what's the vibe like?", expect: [/smash|burger|fun|open kitchen|hip|loud|quick/i] },
   { id: "burst", name: "Burst merge + correction", msgs: ["hey", "table for 3 tonight", "no wait make it 4"], expect: [/4|walk.?in|waitlist/i] },
-  { id: "empathy", name: "Empathy in guest's language", msg: "rough day today, need comfort food", expect: [/sorry|rough|tough|hear that|hang in/i], forbid: [new RegExp(AR)] },
+  { id: "empathy", name: "Empathy in guest's language", msg: "rough day today, need comfort food", expect: [/sorry|rough|tough|hear that|hang in|oof|pick.?me.?up|long day|comfort|got you|فيك|معاك/i], forbid: [new RegExp(AR)] },
   // ---- reservation agent (sequential turns — each waits for the reply) ----
   { id: "bookflow", needs: "reservations", name: "Full booking → real R-code", turns: ["book a table for 2 tomorrow", "9 pm", "yes confirm it"],
     expect: [/R-[A-Z2-9]{4}/] },

@@ -3,7 +3,7 @@
 // v1: no payments in chat — pay at counter/courier (per FACTS). Kitchen board fed live.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
-import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, log } from "../config.js";
+import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, log } from "../config.js";
 import { notifyDashboard } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
 import { getMenu } from "../services/menucache.js";
@@ -24,6 +24,7 @@ defineFlow({
     { id: "load", label: "Menu + Open Order", icon: "database" },
     { id: "extract", label: "Extract Order (LLM)", icon: "sparkles" },
     { id: "act", label: "Match + Price (code)", icon: "zap" },
+    { id: "resolve_options", label: "Resolve Choices (LLM, list-locked)", icon: "sparkles" },
     { id: "phrase", label: "Phrase Reply (LLM)", icon: "sparkles" },
   ],
 
@@ -417,8 +418,42 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
       }
 
-      // 2) OPTIONS — finish configuring every item
-      const step = nextQuestion(items, loaded.menu, input.message, loaded.pending, currency);
+      // 2) OPTIONS — finish configuring every item.
+      // CODE matches first (free): exact names, transliterations, 1-edit fuzz.
+      // Whatever stays open goes to the MODEL with the EXACT choice lists —
+      // accents/spellings/dialects are language understanding, and hardcoded
+      // word lists can't be dynamic per restaurant. The model may only PICK
+      // from the lists; code validates every returned string. Zero invention.
+      let step = nextQuestion(items, loaded.menu, input.message, loaded.pending, currency);
+      const guestSaidSomething = String(input.message || "").replace(/^\[voice\]\s*/i, "").trim().length >= 3;
+      if (step.ask && guestSaidSomething && loaded.pending?.awaiting_option) {
+        const askedItem = step.items[step.ask.index];
+        const openGroups = (askedItem?.option_defs || []).filter((g) =>
+          g.key !== "slots" && step.ask.keys?.includes(g.key) && groupApplies(g, askedItem.options) && !askedItem.options[g.key]);
+        if (openGroups.length) {
+          const lists = openGroups.map((g, i) =>
+            `${i + 1}. "${g.label || g.key}": [${groupChoices(g, loaded.menu).map((c) => `"${c.name}"`).join(", ")}]`).join("\n");
+          const rsys = `A restaurant guest is answering menu questions. Their message may be Arabic, Franco-Arabic, misspelled, or a garbled voice transcript — understand accents and translations ("ديابلو"→"Diablo fries", "في كولا"→"V Cola", "برتقان"→the orange drink).
+QUESTIONS:\n${lists}
+Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}}.
+RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); never guess.`;
+          const rr = await f.node("resolve_options", async () =>
+            chatJSON(MODEL_NANO, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
+            { input: { open_groups: openGroups.map((g) => g.label || g.key), message: input.message } });
+          const answers = rr.value?.answers || {};
+          let appliedAny = false;
+          openGroups.forEach((g, i) => {
+            const a = answers[String(i + 1)];
+            if (!a || typeof a !== "string") return;
+            const valid = groupChoices(g, loaded.menu).find((c) => c.name === a.trim());
+            if (valid && !askedItem.options[g.key]) { askedItem.options[g.key] = valid.name; appliedAny = true; }
+          });
+          if (appliedAny) {
+            items = step.items;
+            step = nextQuestion(items, loaded.menu, "", loaded.pending, currency);
+          }
+        }
+      }
       if (removedNames?.length) {
         step.items = step.items || items;
         outcomeNotices.push(`Removed: ${removedNames.join(", ")} ✂️`);
@@ -487,7 +522,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           if (!upsell.length) upsell = null;
         }
         await savePending({ address, map_link: mapLinkRaw, upsell_offered: true });
-        return { kind: "ask_payment", items, bill, currency, methods: payMethods, upsell, branch: branchInfo?.name || null, order_type: orderType, address, table_number: tableNumber };
+        return { kind: "ask_payment", items, bill, currency, methods: payMethods, upsell, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, order_type: orderType, address, table_number: tableNumber };
       }
 
       // 7) CONFIRM — the guest sees the full bill and says yes before anything is written.
@@ -501,6 +536,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         await savePending({ address, map_link: mapLinkRaw, payment_method: payment, awaiting_confirm: true });
         return {
           kind: "confirm_order", items, bill, currency, payment,
+          branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null,
           branch: branchInfo?.name || null, order_type: orderType, table_number: tableNumber, address,
         };
       }
@@ -634,7 +670,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         `🍔 New ${orderType.replace("_", "-")} order ${code}${branchInfo ? ` — ${branchInfo.name}` : ""}`,
         `${name || ctx.sessionId}${tableNumber ? ` · table ${tableNumber}` : ""}${address ? ` · 📍 ${address}` : ""} — ${items.map((i) => `${i.qty}× ${i.name}${i.notes ? ` (${i.notes})` : ""}${modifiers(i).length ? ` [${modifiers(i).join(" · ")}]` : ""}`).join(", ")} · ${fmtAmount(bill.total)} ${currency}`,
         ctx.sessionId, branch);
-      return { kind: "order_placed", code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
+      return { kind: "order_placed", code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
     }, { input: { intent: e.intent, items: (e.items || []).length, order_type: e.order_type, table: e.table_number } });
 
     const value = await f.node("phrase", async () => {
@@ -780,6 +816,7 @@ Return JSON: {"reply": string, "quick_replies": string[]|null}`;
       const billFirst = outcome.kind === "confirm_order";
       const askLine = reply;
       reply = `${billFirst ? "" : `${reply}\n\n`}${renderBill({
+        branchPin: outcome.branch_pin || null,
         items: outcome.items || [],
         bill: outcome.bill,
         currency,
@@ -1403,7 +1440,7 @@ function priceOrder(items, config, orderType) {
 // or a currency symbol — it phrases around this block, it doesn't compose it.
 const fmtAmount = fmtMoney;
 
-function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, restaurant, when }) {
+function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, restaurant, when, branchPin }) {
   const money = (n) => `${fmtAmount(n)} ${currency}`;
   const lines = items.map((it) => {
     const mods = modifiers(it);
@@ -1415,7 +1452,7 @@ function renderBill({ items, bill, currency, orderType, tableNumber, branchName,
   totals.push(`*TOTAL: ${money(bill.total)}*`);
 
   const where = orderType === "dine_in" ? `Dine-in${tableNumber ? ` · table ${tableNumber}` : ""}${!tableNumber && branchName ? ` · ${branchName}` : ""}`
-    : orderType === "pickup" ? `Pickup${branchName ? ` · ${branchName}` : ""}`
+    : orderType === "pickup" ? `Pickup${branchName ? ` · ${branchName}` : ""}${branchPin?.address ? `\n📍 ${branchPin.address}` : ""}${branchPin?.lat && branchPin?.lng ? `\n🗺 maps.google.com/?q=${branchPin.lat},${branchPin.lng}` : ""}`
     : `Delivery${branchName ? ` · from ${branchName}` : ""}`;
 
   const RULE = "―".repeat(24);

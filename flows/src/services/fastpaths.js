@@ -62,6 +62,9 @@ export async function matchMenuCategory(db, message, currency = "EGP") {
 }
 
 export function matchFaq(message, config, sticky) {
+  // a guest SHARING a location pin ("[shared location] (lat,lng)") is giving us
+  // their address, not asking for ours — the word "location" must not trip this
+  if (/\[shared location\]|\[location\]/i.test(message)) return null;
   // only fire on short, single-topic questions — anything nuanced goes to the LLM
   if (message.length > 90 || message.split("\n").length > 2) return null;
   if (DAY_PAT.test(message) || COMPOUND_PAT.test(message)) return null;
