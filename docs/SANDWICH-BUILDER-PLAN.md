@@ -17,6 +17,11 @@ cheese, lettuce; ~13MB total), a demo login screen, `__MACOSX` junk to strip.
 4. New `menu_config.build_your_own` config: each layer = {name, price, max_qty}. CODE
    computes the running total in the page; prices come from Settings, never hardcoded.
    Any layer without a configured price = not offered (never invent a number).
+   **Pricing mode (founder decision 2026-08-05: BOTH, per restaurant):**
+   - `pricing: "fixed"` — one set price for the custom sandwich (layer limits from
+     config keep it fair, e.g. max 2 patties included, extras charge deltas)
+   - `pricing: "per_layer"` — the total is the sum of chosen layers
+   The restaurant flips between them in Settings → Builder.
 
 ## Phase 3 — Orders (½ day)
 5. "Send to kitchen" → POST backend `/api/orders` with source `builder`, the layer list
@@ -33,6 +38,31 @@ cheese, lettuce; ~13MB total), a demo login screen, `__MACOSX` junk to strip.
 ## Phase 5 — Polish (as needed)
 9. Mobile QA (the page is desktop-oriented today), brand colors from Settings,
    Arabic/Franco labels, camera controls tuning.
+
+## Idea pool (founder round, 2026-08-05 — each is an ON/OFF toggle in Settings → Builder)
+
+- **Make-it-a-meal step**: after the sandwich is built → "add fries & a drink?" with the
+  real sides/beverages from the menu. Toggle: `builder.upsell_meal`. Off = sandwich only.
+- **Beverages & fries modules**: each menu category can be enabled as a builder step
+  (drinks picker, fries picker) — the restaurant decides which appear.
+- **Saved builds + reorder**: the guest's creation is saved under their WhatsApp number
+  ("Adel's Double Smash"); next time the bot offers "your usual custom build?" — one tap
+  reorders it. Same for the builder page: "build again".
+- **Name your burger**: guest names the creation; the name prints on the KDS ticket and
+  receipt ("1x ADEL'S INFERNO — double patty, jalapeño…"). Fun + shareable.
+- **Share the build**: a link/image of the build a friend can open and order as-is.
+- **Chef's presets**: 3–4 starter builds (from config) the guest customizes from,
+  instead of an empty bun.
+- **Layer rules from config**: max patties, max cheese, required layers — CODE enforces.
+- **Live price ticker**: total updates with every layer (code-priced from config).
+- **Calories per layer** (optional, only if data entered — never invented).
+- **Same pipeline as everything**: submitted build → same orders table, same KDS board,
+  same station routing (grill), same receipt PDF, same WhatsApp confirmation from the
+  restaurant number, same CRM bump. The builder is just another order source.
+- **Group build**: one order, several people each build their own (slots-style, like the 4X4).
+- **Counter kiosk mode**: same page fullscreen on a tablet in-store.
+- **Trending builds**: weekly "most built" — the bot can pitch it ("this week everyone's
+  making double-cheese + mushroom — want to try it?").
 
 Total: ~2 days of focused work. Decision needed from founder before starting:
 - (a) phone-entry or bot-link-only access?
