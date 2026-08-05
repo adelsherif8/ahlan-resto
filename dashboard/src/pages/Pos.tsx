@@ -3,6 +3,7 @@ import {
   Search, Plus, Minus, X, Printer, ShoppingCart, User, ParkingSquare,
   Camera, StickyNote, Trash2, Star, Flame, Leaf, Pencil, Eraser, Check,
   Delete, Expand, CornerDownLeft, Sparkles, ArrowRight, BadgePercent, Receipt, UserCog, SplitSquareHorizontal,
+  History, Gift, MonitorSmartphone,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { printTicket as printSharedTicket } from "../lib/ticket";
@@ -108,6 +109,9 @@ export default function Pos() {
   const [tip, setTip] = useState(0);
   const [split, setSplit] = useState<{ method: string; amount: string }[] | null>(null);
   const [report, setReport] = useState<any | null>(null);
+  const [lastOrder, setLastOrder] = useState<any | null>(null);
+  const [createdOrder, setCreatedOrder] = useState<any | null>(null);
+  const [guestScreen, setGuestScreen] = useState(false);
   const [say, setSay] = useState("");
   const [saying, setSaying] = useState(false);
   const [sayNote, setSayNote] = useState<string | null>(null);
@@ -147,6 +151,12 @@ export default function Pos() {
       api.get("/api/diners", { params: { q: p } }).then((r) => {
         const hit = (r.data || []).find((d: any) => String(d.phone_number || "").replace(/[^\d]/g, "").endsWith(p.replace(/[^\d]/g, "")));
         setGuest(hit || null);
+        if (hit?.phone_number) {
+          api.get("/api/orders").then((r2) => {
+            const theirs = (r2.data || []).filter((o: any) => o.phone_number === hit.phone_number && o.status !== "cancelled");
+            setLastOrder(theirs.length ? theirs[theirs.length - 1] : null);
+          }).catch(() => setLastOrder(null));
+        } else setLastOrder(null);
       }).catch(() => setGuest(null));
     }, 300);
     return () => clearTimeout(t);
@@ -256,6 +266,17 @@ export default function Pos() {
   }
   function clearAll() {
     setCart([]); setTable(""); setAddress(""); setPhone(""); setGuest(null); setCreatedCode(null); setUpsell(null);
+    setLastOrder(null); setDiscount(null); setTip(0); setSplit(null);
+  }
+  // "same as last time" — one tap rebuilds their previous order at CURRENT menu
+  // prices (stored options ride along for the kitchen; cashier can still edit)
+  function reorderLast() {
+    if (!lastOrder) return;
+    for (const it of lastOrder.items || []) {
+      const item = menu.find((m) => m.name.toLowerCase() === String(it.name || "").toLowerCase());
+      if (!item) continue;
+      addLine(item, it.options || {}, it.notes || "", Number(it.qty) || 1);
+    }
   }
 
   // the cashier types the order as it's spoken — the bot's extraction brain
@@ -303,6 +324,7 @@ export default function Pos() {
         ...(split && split.length > 1 ? { payments: split.map((x) => ({ method: x.method, amount: Number(x.amount) || 0 })) } : {}),
       });
       setCreatedCode(created?.code || "created");
+      setCreatedOrder(created || null);
       if (printOnCreate && created) printTicket(created);
       setCart([]); setDiscount(null); setTip(0); setSplit(null); setUpsell(null);
       setTimeout(() => setCreatedCode(null), 4000);
@@ -449,6 +471,20 @@ export default function Pos() {
                     use saved address
                   </button>
                 )}
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {lastOrder && (
+                    <button onClick={reorderLast}
+                      className="flex items-center gap-1 rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800">
+                      <History size={9} /> Same as last: {(lastOrder.items || []).map((i2: any) => `${i2.qty}× ${i2.name}`).join(", ").slice(0, 46)}
+                    </button>
+                  )}
+                  {Number(posCfg.loyalty_every) > 0 && (Number(guest.visit_count) + 1) % Number(posCfg.loyalty_every) === 0 && (
+                    <button onClick={() => setDiscOpen(true)}
+                      className="flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
+                      <Gift size={9} /> Visit {Number(guest.visit_count) + 1} — {posCfg.loyalty_reward || "reward"} earned
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             <div className="flex gap-1">
@@ -609,6 +645,10 @@ export default function Pos() {
               <Btn onClick={create} className={`flex-1 ${cart.length ? "" : "pointer-events-none opacity-50"}`}>
                 {saving ? "Creating…" : createdCode ? `${createdCode} on the board` : `Create · EGP ${money(total)}`}
               </Btn>
+              {createdOrder && (
+                <button onClick={() => setGuestScreen(true)} title="Flip the screen to the guest"
+                  className="rounded-xl border border-zinc-700 px-3 py-2 text-zinc-300"><MonitorSmartphone size={15} /></button>
+              )}
             </div>
           </div>
         </div>
@@ -638,6 +678,9 @@ export default function Pos() {
           onCancel={() => setDiscOpen(false)} />
       )}
       {report && <ShiftReport r={report} onClose={() => setReport(null)} />}
+      {guestScreen && createdOrder && (
+        <GuestScreen order={createdOrder} waNumber={posCfg.wa_number || ""} onClose={() => setGuestScreen(false)} />
+      )}
       {keypadLine && (
         <Keypad value={keypadLine.qty}
           onDone={(n) => { setCart((c) => c.map((x) => x.uid === keypadLine.uid ? { ...x, qty: n } : x)); setKeypadLine(null); }}
@@ -945,6 +988,32 @@ ${r.cancelled.count ? `${"-".repeat(32)}\nCancelled: ${r.cancelled.count} (EGP $
         </div>
         <Btn className="mt-3 w-full" onClick={printIt}>Print</Btn>
       </div>
+    </div>
+  );
+}
+
+// Flip the tablet to the guest after Create: their code huge, their total, and a
+// QR straight into the restaurant's WhatsApp — every counter guest becomes a
+// bot subscriber the moment they scan.
+function GuestScreen({ order, waNumber, onClose }: any) {
+  const wa = String(waNumber || "").replace(/[^\d]/g, "");
+  const waLink = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(`Hi! Tracking my order ${order.code}`)}` : null;
+  return (
+    <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-zinc-950 p-8" onClick={onClose}>
+      <div className="text-sm uppercase tracking-widest text-zinc-500">Your order</div>
+      <div className="text-6xl font-extrabold tracking-[0.2em]" style={{ color: "var(--accent)" }}>{order.code}</div>
+      <div className="text-2xl font-bold tabular-nums text-zinc-100">EGP {money(order.total)}</div>
+      <div className="text-sm text-zinc-400">
+        {(order.items || []).map((i2: any) => `${i2.qty}× ${i2.name}`).join(" · ")}
+      </div>
+      {waLink && (
+        <div className="flex flex-col items-center gap-2 rounded-2xl bg-white p-4">
+          <img alt="WhatsApp QR" width={160} height={160}
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(waLink)}`} />
+          <div className="text-xs font-semibold text-zinc-900">Scan — track your order on WhatsApp</div>
+        </div>
+      )}
+      <div className="text-xs text-zinc-600">tap anywhere to go back</div>
     </div>
   );
 }

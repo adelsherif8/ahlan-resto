@@ -298,6 +298,21 @@ export default function Settings() {
             </div>
           ))}
           <Btn variant="ghost" onClick={() => upd("pos", { cashiers: [...(config.pos?.cashiers || []), { name: "", pin: "", manager: false }] })}>+ Add cashier</Btn>
+          <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">Loyalty & guest screen</h3>
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field label="Reward every N orders (0 = off)">
+              <Input type="number" value={config.pos?.loyalty_every ?? ""} placeholder="6"
+                onChange={(e) => upd("pos", { loyalty_every: e.target.value === "" ? 0 : Number(e.target.value) })} />
+            </Field>
+            <Field label="The reward">
+              <Input value={config.pos?.loyalty_reward || ""} placeholder="Free drink"
+                onChange={(e) => upd("pos", { loyalty_reward: e.target.value })} />
+            </Field>
+            <Field label="WhatsApp number (guest-screen QR)">
+              <Input value={config.pos?.wa_number || ""} placeholder="201515066123"
+                onChange={(e) => upd("pos", { wa_number: e.target.value })} />
+            </Field>
+          </div>
           <p className="text-xs text-zinc-500">Empty list = open register (anyone can type a name). With cashiers configured, switching needs the PIN and discounts need a ★ manager's PIN.</p>
         </div>
       </Card>}
