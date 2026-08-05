@@ -87,6 +87,11 @@ const CASES = [
   { id: "perunit", needs: "casual", name: "2 meals can mix drinks — line splits per unit",
     turns: ["2 iconic meals for pickup from Maadi", "Full Meal", "Small", "French fries", "one coca cola and one sprite", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /coca/i, /sprite/i] },
+  // pairs_with cross-sell — the suggestion must be the item's OWN pairing and
+  // must never be something already in the order
+  { id: "crosssell", needs: "casual", name: "Cross-sell offers the item's own pairing, once, priced by code",
+    turns: ["an iconic meal for pickup from Maadi, full meal, medium, french fries, coca cola"],
+    expect: [/loaded fries/i, /99/], forbid: [/O-[A-Z2-9]{4}/] },
   // ---- status timeline + the FAQ guard that used to hijack it ----
   { id: "statustimeline", needs: "casual", name: "Where's my order → code-drawn progress ladder, never the branch address",
     turns: ["1 loaded fries for pickup from Maadi", "cash", "yes confirm", "where's my order?"],
