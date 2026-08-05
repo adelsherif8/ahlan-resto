@@ -1296,11 +1296,17 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
       // full option name written out beats any fuzzy overlap — "coca cola" must
       // pick Coca - Cola, never also Coca - Cola Diet
       if (!hits.length) hits = opts.filter((o) => said.includes(normName(o.name)));
-      if (!hits.length) hits = opts.filter((o) => {
-        // ignore tokens every option shares — "fries" alone picks nothing
-        const oTok = normName(o.name).split(" ").filter((t) => !stop.has(t));
-        return optionMatches(said, oTok.join(" ") || o.name);
-      });
+      if (!hits.length) {
+        // score by how many of the option's own tokens the guest actually said —
+        // "diet coca" must pick Coca-Cola DIET (2 tokens), never plain Coca-Cola (1)
+        const scored = opts.map((o) => {
+          const oTok = normName(o.name).split(" ").filter((t) => !stop.has(t));
+          const matched = oTok.filter((ot) => optionMatches(said, ot)).length;
+          return { o, matched, ok: matched > 0 && optionMatches(said, oTok.join(" ") || o.name) };
+        }).filter((x) => x.ok);
+        const best = Math.max(0, ...scored.map((x) => x.matched));
+        hits = scored.filter((x) => x.matched === best).map((x) => x.o);
+      }
       // a bare number picks off the printed list — only when this is the sole question
       if (!hits.length && awKeys.length === 1) {
         const n = Number(said.replace(/[^0-9]/g, ""));
