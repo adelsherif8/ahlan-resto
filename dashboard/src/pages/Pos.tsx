@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Plus, Minus, X, Printer, ShoppingCart, User, ParkingSquare,
   Camera, StickyNote, Trash2, Star, Flame, Leaf, Pencil, Eraser, Check,
+  Delete, Expand, CornerDownLeft,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { printTicket as printSharedTicket } from "../lib/ticket";
@@ -47,6 +48,33 @@ function priceOf(item: any, picked: Record<string, any>, menu: any[]) {
 
 type CartLine = { uid: string; item: any; qty: number; options: Record<string, any>; notes: string; unit: number };
 
+// every category gets a stable hue (golden angle) — the eye finds color before text
+const catHue = (cats: string[], c: string) => (Math.max(0, cats.indexOf(c)) * 137.5) % 360;
+const catColor = (cats: string[], c: string) => `hsl(${catHue(cats, c)} 60% 55%)`;
+
+// big-button numeric keypad — cashiers type "12" faster than they tap + eleven times
+function Keypad({ value, onDone, onCancel }: { value: number; onDone: (n: number) => void; onCancel: () => void }) {
+  const [v, setV] = useState("");
+  const shown = v === "" ? String(value) : v;
+  const commit = () => { const n = parseInt(v || String(value), 10); onDone(Math.min(99, Math.max(1, Number.isFinite(n) ? n : value))); };
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
+      <div className="w-56 rounded-2xl border border-zinc-800 bg-zinc-950 p-3" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-2 rounded-xl bg-zinc-900 px-3 py-2 text-right text-2xl font-bold tabular-nums text-zinc-100">{shown}</div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {["1","2","3","4","5","6","7","8","9"].map((d) => (
+            <button key={d} onClick={() => setV((x) => (x + d).slice(0, 2))}
+              className="rounded-xl border border-zinc-800 py-3 text-lg font-semibold text-zinc-200 active:scale-95 active:bg-zinc-800">{d}</button>
+          ))}
+          <button onClick={() => setV((x) => x.slice(0, -1))} className="flex items-center justify-center rounded-xl border border-zinc-800 py-3 text-zinc-400 active:scale-95"><Delete size={18} /></button>
+          <button onClick={() => setV((x) => (x + "0").slice(0, 2))} className="rounded-xl border border-zinc-800 py-3 text-lg font-semibold text-zinc-200 active:scale-95 active:bg-zinc-800">0</button>
+          <button onClick={commit} className="flex items-center justify-center rounded-xl py-3 font-bold active:scale-95" style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}><Check size={18} /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const lineKey = (l: { item: any; options: any; notes: string }) =>
   `${l.item.id}|${JSON.stringify(l.options)}|${l.notes}`;
 
@@ -70,6 +98,8 @@ export default function Pos() {
   const [parked, setParked] = useState<any[]>(() => { try { return JSON.parse(localStorage.getItem("pos_parked") || "[]"); } catch { return []; } });
   const [saving, setSaving] = useState(false);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [touch, setTouch] = useState(localStorage.getItem("pos_touch") === "on");
+  const [keypadLine, setKeypadLine] = useState<CartLine | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -110,14 +140,42 @@ export default function Pos() {
   }, [phone]);
 
   const cats = [...new Set(menu.map((m) => m.category))];
+  // PLU entry: "2 ic ⏎" = 2× Iconic. Leading number is qty; the rest matches by
+  // name prefix, then by word initials ("lf" → Loaded Fries).
+  const plu = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    const m2 = t.match(/^(\d{1,2})\s+(.+)$/);
+    const qty = m2 ? parseInt(m2[1], 10) : 1;
+    const term = (m2 ? m2[2] : t).trim();
+    if (!term) return null;
+    const scored = menu.map((m) => {
+      const name = m.name.toLowerCase();
+      const words = name.split(/\s+/);
+      let score = 0;
+      if (name.startsWith(term)) score = 3;
+      else if (words.some((w: string) => w.startsWith(term))) score = 2;
+      else if (term.length >= 2 && words.map((w: string) => w[0]).join("").startsWith(term)) score = 1;
+      else if (name.includes(term)) score = 0.5;
+      return { m, score };
+    }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score || a.m.name.length - b.m.name.length);
+    return scored.length ? { item: scored[0].m, qty } : null;
+  }, [menu, q]);
   const shown = useMemo(() => {
     let list = menu;
     if (q.trim()) {
-      const n = q.trim().toLowerCase();
-      list = list.filter((m) => m.name.toLowerCase().includes(n) || String(m.description || "").toLowerCase().includes(n));
+      const t = q.trim().toLowerCase().replace(/^\d{1,2}\s+/, "");
+      list = list.filter((m) => m.name.toLowerCase().includes(t) || String(m.description || "").toLowerCase().includes(t));
+      if (plu && !list.some((m) => m.id === plu.item.id)) list = [plu.item, ...list];
     } else list = list.filter((m) => m.category === cat);
     return list;
-  }, [menu, cat, q]);
+  }, [menu, cat, q, plu]);
+  function pluAdd() {
+    if (!plu) return;
+    const hasQuestions = (plu.item.options || []).some((g: any) => g.key === "slots" || groupChoices(g, menu).length);
+    if (hasQuestions) setConfiguring({ item: plu.item, presetQty: plu.qty } as any);
+    else addLine(plu.item, {}, "", plu.qty);
+    setQ("");
+  }
 
   const inCartQty = useMemo(() => {
     const map: Record<string, number> = {};
@@ -227,25 +285,38 @@ export default function Pos() {
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-              <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…  ( / )"
+              <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="2 ic ⏎  ·  ( / )"
+                onKeyDown={(e) => { if (e.key === "Enter") pluAdd(); }}
                 className="w-40 rounded-lg border border-zinc-800 bg-zinc-900 py-1.5 pl-8 pr-2 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
             </div>
+            {plu && (
+              <button onClick={pluAdd} className="flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-300">
+                <CornerDownLeft size={10} /> {plu.qty}× {plu.item.name}
+              </button>
+            )}
+            <button onClick={() => { const n = !touch; setTouch(n); localStorage.setItem("pos_touch", n ? "on" : "off"); }}
+              title="Touch mode — bigger targets for tablets"
+              className={`ml-auto rounded-lg border p-1.5 ${touch ? "border-zinc-400 text-zinc-200" : "border-zinc-800 text-zinc-600 hover:text-zinc-400"}`}>
+              <Expand size={13} />
+            </button>
             {cats.map((c) => {
               const count = menu.filter((m) => m.category === c).length;
               return (
                 <button key={c} onClick={() => { setCat(c); setQ(""); }}
-                  className={`rounded-full px-2.5 py-1 text-[11px] ${cat === c && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
-                  {c} <span className={cat === c && !q ? "text-zinc-600" : "text-zinc-600"}>{count}</span>
+                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${touch ? "text-xs" : "text-[11px]"} ${cat === c && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: catColor(cats, c) }} />
+                  {c} <span className="text-zinc-600">{count}</span>
                 </button>
               );
             })}
           </div>
-          <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-4">
+          <div className={`grid min-h-0 flex-1 auto-rows-min gap-2 overflow-y-auto pr-1 pb-16 lg:pb-0 ${touch ? "grid-cols-2 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"}`}>
             {shown.map((m) => {
               const fromPrice = (m.options || []).some((g: any) => (g.choices || []).some((c: any) => c.price != null));
               const inCart = inCartQty[m.id];
               return (
                 <button key={m.id} onClick={() => tapItem(m)}
+                  style={{ borderTopColor: catColor(cats, m.category), borderTopWidth: 3 }}
                   className="group relative flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 text-left transition hover:border-zinc-500 active:scale-[0.98]">
                   {inCart ? (
                     <span className="absolute right-1.5 top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1 text-[11px] font-bold text-zinc-950">
@@ -253,13 +324,13 @@ export default function Pos() {
                     </span>
                   ) : null}
                   {m.photo_url ? (
-                    <img src={m.photo_url} alt="" className="h-24 w-full object-cover transition group-hover:scale-[1.03]" />
+                    <img src={m.photo_url} alt="" className={`${touch ? "h-32" : "h-24"} w-full object-cover transition group-hover:scale-[1.03]`} />
                   ) : (
-                    <div className="flex h-24 w-full items-center justify-center bg-zinc-900 text-zinc-700"><Camera size={18} /></div>
+                    <div className={`flex ${touch ? "h-32" : "h-24"} w-full items-center justify-center bg-zinc-900 text-zinc-700`}><Camera size={18} /></div>
                   )}
                   <div className="flex flex-1 flex-col p-2">
                     <div className="flex items-center gap-1">
-                      <span className="truncate text-xs font-medium text-zinc-200">{m.name}</span>
+                      <span className={`truncate font-medium text-zinc-200 ${touch ? "text-sm" : "text-xs"}`}>{m.name}</span>
                       {m.bestseller ? <Star size={10} className="shrink-0 fill-amber-400 text-amber-400" /> : null}
                     </div>
                     {m.description ? (
@@ -362,10 +433,11 @@ export default function Pos() {
                 <div className="mt-1 flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => setCart((c) => c.map((x) => x.uid === l.uid ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}
-                      className="rounded border border-zinc-700 p-0.5 text-zinc-400"><Minus size={10} /></button>
-                    <span className="w-4 text-center font-bold tabular-nums">{l.qty}</span>
+                      className={`rounded border border-zinc-700 text-zinc-400 ${touch ? "p-2" : "p-0.5"}`}><Minus size={touch ? 14 : 10} /></button>
+                    <button onClick={() => setKeypadLine(l)} title="Type the quantity"
+                      className={`min-w-6 rounded text-center font-bold tabular-nums hover:bg-zinc-800 ${touch ? "px-2 py-1 text-base" : "px-1"}`}>{l.qty}</button>
                     <button onClick={() => setCart((c) => c.map((x) => x.uid === l.uid ? { ...x, qty: x.qty + 1 } : x))}
-                      className="rounded border border-zinc-700 p-0.5 text-zinc-400"><Plus size={10} /></button>
+                      className={`rounded border border-zinc-700 text-zinc-400 ${touch ? "p-2" : "p-0.5"}`}><Plus size={touch ? 14 : 10} /></button>
                   </div>
                   <button onClick={() => setCart((c) => c.filter((x) => x.uid !== l.uid))} className="text-zinc-600 hover:text-red-400"><Trash2 size={12} /></button>
                 </div>
@@ -404,10 +476,29 @@ export default function Pos() {
         </div>
       </div>
 
+      {/* tablet/phone: total + create pinned within thumb reach */}
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-zinc-800 bg-zinc-950/95 px-4 py-2.5 backdrop-blur lg:hidden">
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] text-zinc-500">{itemCount} item{itemCount === 1 ? "" : "s"}</div>
+          <div className="truncate text-sm font-bold tabular-nums">EGP {money(total)}</div>
+        </div>
+        <button onClick={park} disabled={!cart.length} className="rounded-xl border border-zinc-700 p-2.5 text-zinc-300 disabled:opacity-40"><ParkingSquare size={16} /></button>
+        <button onClick={create} disabled={!cart.length || saving}
+          className="rounded-xl px-5 py-2.5 text-sm font-bold disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
+          {saving ? "Creating…" : createdCode ? `${createdCode} ✓` : "Create"}
+        </button>
+      </div>
+
+      {keypadLine && (
+        <Keypad value={keypadLine.qty}
+          onDone={(n) => { setCart((c) => c.map((x) => x.uid === keypadLine.uid ? { ...x, qty: n } : x)); setKeypadLine(null); }}
+          onCancel={() => setKeypadLine(null)} />
+      )}
+
       {configuring && (
         <OptionWalker
-          item={configuring.item} line={configuring.line} menu={menu}
-          onCancel={() => setConfiguring(null)} onDone={addLine}
+          item={configuring.item} line={configuring.line} presetQty={(configuring as any).presetQty} menu={menu}
+          onCancel={() => setConfiguring(null)} onDone={addLine} touch={touch}
         />
       )}
     </div>
@@ -421,7 +512,8 @@ const QUICK_NOTES = ["No onion", "No pickles", "Extra sauce", "Well done", "Cut 
 // own story (photo, description, ingredients) leads so staff can answer
 // "what's in it?" without leaving the screen. Tapping a cart line re-opens
 // this prefilled to edit in place.
-function OptionWalker({ item, line, menu, onCancel, onDone }: any) {
+function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: any) {
+  const [pad, setPad] = useState(false);
   const [picked, setPicked] = useState<Record<string, any>>(() => {
     if (!line) return {};
     const { slots: _s, ...rest } = line.options || {};
@@ -432,7 +524,7 @@ function OptionWalker({ item, line, menu, onCancel, onDone }: any) {
     const sg = (item.options || []).find((g: any) => g.key === "slots");
     return sg ? Array.from({ length: Number(sg.count) || 2 }, () => ({})) : [];
   });
-  const [qty, setQty] = useState(line?.qty || 1);
+  const [qty, setQty] = useState(line?.qty || presetQty || 1);
   const [notes, setNotes] = useState(line?.notes || "");
   const slotsGroup = (item.options || []).find((g: any) => g.key === "slots");
   const groups = (item.options || []).filter((g: any) => g.key !== "slots" && groupApplies(g, picked) && groupChoices(g, menu).length);
@@ -501,7 +593,7 @@ function OptionWalker({ item, line, menu, onCancel, onDone }: any) {
               <div className="flex flex-wrap gap-1.5">
                 {groupChoices(g, menu).map((c: any) => (
                   <button key={c.name} onClick={() => pick(g, c.name)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-xs transition active:scale-95 ${norm(picked[g.key]) === norm(c.name) ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
+                    className={`rounded-lg border transition active:scale-95 ${touch ? "px-3.5 py-2.5 text-sm" : "px-2.5 py-1.5 text-xs"} ${norm(picked[g.key]) === norm(c.name) ? "border-zinc-300 bg-zinc-200 font-semibold text-zinc-900" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
                     {c.name}{c.price != null ? ` · ${money(c.price)}` : c.delta ? ` +${money(c.delta)}` : ""}
                   </button>
                 ))}
@@ -547,10 +639,12 @@ function OptionWalker({ item, line, menu, onCancel, onDone }: any) {
 
         <div className="flex items-center justify-between border-t border-zinc-800 px-5 py-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => setQty((n: number) => Math.max(1, n - 1))} className="rounded border border-zinc-700 p-1 text-zinc-300"><Minus size={12} /></button>
-            <span className="w-5 text-center text-sm font-bold tabular-nums">{qty}</span>
-            <button onClick={() => setQty((n: number) => n + 1)} className="rounded border border-zinc-700 p-1 text-zinc-300"><Plus size={12} /></button>
+            <button onClick={() => setQty((n: number) => Math.max(1, n - 1))} className={`rounded border border-zinc-700 text-zinc-300 ${touch ? "p-2.5" : "p-1"}`}><Minus size={touch ? 15 : 12} /></button>
+            <button onClick={() => setPad(true)} title="Type the quantity"
+              className={`min-w-7 rounded text-center font-bold tabular-nums hover:bg-zinc-800 ${touch ? "px-2 py-1.5 text-lg" : "px-1 text-sm"}`}>{qty}</button>
+            <button onClick={() => setQty((n: number) => n + 1)} className={`rounded border border-zinc-700 text-zinc-300 ${touch ? "p-2.5" : "p-1"}`}><Plus size={touch ? 15 : 12} /></button>
           </div>
+          {pad && <Keypad value={qty} onDone={(n) => { setQty(n); setPad(false); }} onCancel={() => setPad(false)} />}
           <Btn
             onClick={() => onDone(item, slotsGroup ? { ...picked, slots } : picked, notes.trim(), qty, line?.uid)}
             className={missing ? "pointer-events-none opacity-50" : ""}
