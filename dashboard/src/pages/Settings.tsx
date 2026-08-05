@@ -298,6 +298,22 @@ export default function Settings() {
             </div>
           ))}
           <Btn variant="ghost" onClick={() => upd("pos", { cashiers: [...(config.pos?.cashiers || []), { name: "", pin: "", manager: false }] })}>+ Add cashier</Btn>
+          <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">Kitchen stations (route ticket lines by category)</h3>
+          <div className="space-y-2">
+            {((config.pos?.stations || []) as any[]).map((st: any, i: number) => (
+              <div key={i} className="flex gap-2">
+                <Input className="w-32" placeholder="Grill" value={st.name || ""} onChange={(e) => {
+                  const stations = [...(config.pos?.stations || [])]; stations[i] = { ...st, name: e.target.value }; upd("pos", { stations });
+                }} />
+                <Input className="flex-1" placeholder="Categories, comma-separated — Burgers, Wraps" value={st.cats || ""} onChange={(e) => {
+                  const stations = [...(config.pos?.stations || [])]; stations[i] = { ...st, cats: e.target.value }; upd("pos", { stations });
+                }} />
+                <Btn variant="danger" className="px-2.5 py-1 text-xs" onClick={() => upd("pos", { stations: (config.pos?.stations || []).filter((_: any, j: number) => j !== i) })}>✕</Btn>
+              </div>
+            ))}
+            <Btn variant="ghost" onClick={() => upd("pos", { stations: [...(config.pos?.stations || []), { name: "", cats: "" }] })}>+ Add station</Btn>
+            <p className="text-xs text-zinc-500">POS orders stamp each line with its station; the Orders board gets per-station filter chips (a screen by the fryer picks "Fryer" and sees only its lines).</p>
+          </div>
           <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-400">Loyalty & guest screen</h3>
           <div className="grid gap-3 md:grid-cols-3">
             <Field label="Reward every N orders (0 = off)">

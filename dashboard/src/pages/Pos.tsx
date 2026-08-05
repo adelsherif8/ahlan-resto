@@ -3,7 +3,7 @@ import {
   Search, Plus, Minus, X, Printer, ShoppingCart, User, ParkingSquare,
   Camera, StickyNote, Trash2, Star, Flame, Leaf, Pencil, Eraser, Check,
   Delete, Expand, CornerDownLeft, Sparkles, ArrowRight, BadgePercent, Receipt, UserCog, SplitSquareHorizontal,
-  History, Gift, MonitorSmartphone,
+  History, Gift, MonitorSmartphone, PauseCircle, Grid3X3, Ticket as TicketIcon,
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { printTicket as printSharedTicket } from "../lib/ticket";
@@ -112,6 +112,9 @@ export default function Pos() {
   const [lastOrder, setLastOrder] = useState<any | null>(null);
   const [createdOrder, setCreatedOrder] = useState<any | null>(null);
   const [guestScreen, setGuestScreen] = useState(false);
+  const [openTickets, setOpenTickets] = useState<any[]>([]);
+  const [tablePick, setTablePick] = useState(false);
+  const [tables, setTables] = useState<any[]>([]);
   const [say, setSay] = useState("");
   const [saying, setSaying] = useState(false);
   const [sayNote, setSayNote] = useState<string | null>(null);
@@ -129,6 +132,22 @@ export default function Pos() {
       setBranches(r.data?.basic_info?.branches || []);
       setPosCfg(r.data?.pos || {});
     }).catch(() => {});
+  }, []);
+
+  // open-tickets rail: today's live orders at a glance, straight from the board
+  useEffect(() => {
+    const load = () => api.get("/api/orders").then((r) => {
+      const today2 = new Date().toLocaleDateString("en-CA");
+      setOpenTickets((r.data || []).filter((o: any) =>
+        String(o.created_at).slice(0, 10) === today2 &&
+        !["served", "delivered", "paid", "cancelled"].includes(o.status)));
+    }).catch(() => {});
+    load();
+    const t = setInterval(load, 20000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    api.get("/api/tables").then((r) => setTables(r.data || [])).catch(() => {});
   }, []);
 
   // "/" jumps to search from anywhere — cashiers live on the keyboard
@@ -311,7 +330,16 @@ export default function Pos() {
     try {
       if (split && Math.abs(splitSum - total) > 0.5) { alert("Split payments must add up to the total"); setSaving(false); return; }
       const { data: created } = await api.post("/api/orders", {
-        items: cart.map((l) => ({ name: l.item.name, qty: l.qty, price: l.unit, options: l.options, notes: l.notes || null })),
+        items: cart.map((l) => {
+          const st = (posCfg.stations || []).find((s2: any) =>
+            String(s2.cats || "").split(",").map((x: string) => x.trim().toLowerCase()).filter(Boolean)
+              .includes(String(l.item.category || "").toLowerCase()));
+          return {
+            name: l.item.name, qty: l.qty, price: l.unit, options: l.options, notes: l.notes || null,
+            ...(st ? { station: st.name } : {}),
+            ...((l as any).hold ? { hold: true } : {}),
+          };
+        }),
         order_type: orderType, branch: branchKey || null,
         table_number: table.trim() || null,
         address: address.trim() || (guest?.preferences?.addresses?.[0]?.text ?? null),
@@ -458,6 +486,18 @@ export default function Pos() {
         {/* ---------- cart ---------- */}
         <div className="flex min-h-0 flex-col rounded-2xl border border-zinc-800 bg-zinc-900/40">
           <div className="border-b border-zinc-800 p-3">
+            {openTickets.length > 0 && (
+              <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1">
+                {openTickets.slice(0, 10).map((o) => (
+                  <button key={o.id} onClick={() => printTicket(o)} title="Tap to reprint"
+                    className="flex shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-200">
+                    <TicketIcon size={9} />
+                    <span className="font-mono font-bold">{o.code}</span>
+                    <span className={o.status === "ready" ? "text-emerald-400" : o.status === "preparing" ? "text-amber-300" : ""}>{o.status}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="relative mb-2">
               <User size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Guest phone (CRM lookup)…"
@@ -504,8 +544,14 @@ export default function Pos() {
                 </select>
               )}
               {orderType === "dine_in" && (
-                <input value={table} onChange={(e) => setTable(e.target.value)} placeholder="Table"
-                  className="w-16 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-[11px] text-zinc-100" />
+                <span className="flex gap-1">
+                  <input value={table} onChange={(e) => setTable(e.target.value)} placeholder="Table"
+                    className="w-14 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-[11px] text-zinc-100" />
+                  {tables.length > 0 && (
+                    <button onClick={() => setTablePick(true)} title="Pick from the floor"
+                      className="rounded-lg border border-zinc-800 px-1.5 text-zinc-400 hover:text-zinc-200"><Grid3X3 size={13} /></button>
+                  )}
+                </span>
               )}
               <select value={pay} onChange={(e) => setPay(e.target.value)}
                 className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-[11px] text-zinc-100">
@@ -557,6 +603,7 @@ export default function Pos() {
                     <div key={si} className="text-[11px] text-zinc-500">{si + 1}) {Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ")}{sl?.notes ? ` — ${sl.notes}` : ""}</div>
                   ))}
                   {l.notes && <div className="flex items-center gap-1 text-[11px] text-amber-300"><StickyNote size={10} /> {l.notes}</div>}
+                  {(l as any).hold && <div className="text-[10px] font-bold uppercase text-amber-400">on hold — fire from the board</div>}
                 </button>
                 <div className="mt-1 flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -567,7 +614,14 @@ export default function Pos() {
                     <button onClick={() => setCart((c) => c.map((x) => x.uid === l.uid ? { ...x, qty: x.qty + 1 } : x))}
                       className={`rounded border border-zinc-700 text-zinc-400 ${touch ? "p-2" : "p-0.5"}`}><Plus size={touch ? 14 : 10} /></button>
                   </div>
-                  <button onClick={() => setCart((c) => c.filter((x) => x.uid !== l.uid))} className="text-zinc-600 hover:text-red-400"><Trash2 size={12} /></button>
+                  <span className="flex items-center gap-2">
+                    <button onClick={() => setCart((c) => c.map((x) => x.uid === l.uid ? { ...x, hold: !(x as any).hold } as any : x))}
+                      title="Hold — the kitchen waits until you fire it from the board"
+                      className={(l as any).hold ? "text-amber-300" : "text-zinc-600 hover:text-amber-300"}>
+                      <PauseCircle size={12} />
+                    </button>
+                    <button onClick={() => setCart((c) => c.filter((x) => x.uid !== l.uid))} className="text-zinc-600 hover:text-red-400"><Trash2 size={12} /></button>
+                  </span>
                 </div>
               </div>
             ))}
@@ -678,6 +732,25 @@ export default function Pos() {
           onCancel={() => setDiscOpen(false)} />
       )}
       {report && <ShiftReport r={report} onClose={() => setReport(null)} />}
+      {tablePick && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setTablePick(false)}>
+          <div className="max-h-[70vh] w-80 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 text-sm font-semibold">Pick the table</div>
+            <div className="grid grid-cols-4 gap-2">
+              {tables.map((t2: any) => {
+                const busy = t2.status && t2.status !== "available";
+                return (
+                  <button key={t2.id} onClick={() => { setTable(t2.table_number || t2.name || String(t2.id)); setTablePick(false); }}
+                    className={`rounded-xl border py-3 text-sm font-bold ${busy ? "border-amber-500/40 text-amber-300" : "border-zinc-700 text-zinc-200 hover:bg-zinc-800"}`}>
+                    {t2.table_number || t2.name}
+                    {busy && <div className="text-[8px] font-normal uppercase">{t2.status}</div>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       {guestScreen && createdOrder && (
         <GuestScreen order={createdOrder} waNumber={posCfg.wa_number || ""} onClose={() => setGuestScreen(false)} />
       )}

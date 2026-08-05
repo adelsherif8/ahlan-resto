@@ -79,6 +79,10 @@ export default function Orders() {
   const boardRef = useRef<HTMLDivElement>(null);
   const undoTimer = useRef<any>(null);
 
+  // station screens: items arrive stamped with their station (POS does the
+  // stamping from Settings → POS); a kitchen screen picks its station and sees
+  // only tickets that involve it
+  const [station, setStation] = useState("");
   const today = new Date().toLocaleDateString("en-CA");
   const isToday = date === today;
 
@@ -115,7 +119,9 @@ export default function Orders() {
     () => (isToday ? rows.filter((o) => String(o.created_at).slice(0, 10) < today && !DONE.includes(o.status) && o.status !== "cancelled") : []),
     [rows, isToday, today]
   );
-  const visible = [...carried, ...dayRows.filter((o) => o.status !== "cancelled")];
+  const visibleAll = [...carried, ...dayRows.filter((o) => o.status !== "cancelled")];
+  const stationNames = [...new Set(visibleAll.flatMap((o) => (o.items || []).map((i: any) => i.station).filter(Boolean)))] as string[];
+  const visible = station ? visibleAll.filter((o) => (o.items || []).some((i: any) => i.station === station)) : visibleAll;
   const cancelled = dayRows.filter((o) => o.status === "cancelled");
   const carriedIds = useMemo(() => new Set(carried.map((o) => String(o.id))), [carried]);
   const active = isToday ? visible.filter((o) => !DONE.includes(o.status)) : [];
@@ -137,6 +143,13 @@ export default function Orders() {
     document.title = `${fresh.length ? `(${fresh.length}) ` : ""}Orders`;
     return () => { document.title = "Orders"; };
   }, [rows.map((o) => o.id).join(","), sound, isToday]);
+
+  // fire a held line: the kitchen starts it NOW — hold flag drops off the ticket
+  async function fireLine(o: any, idx: number) {
+    const items = (o.items || []).map((i: any, j: number) => (j === idx ? { ...i, hold: false } : i));
+    setRows((xs) => xs.map((x) => (x.id === o.id ? { ...x, items } : x)));
+    await api.patch(`/api/orders/${o.id}`, { items }).catch(load);
+  }
 
   async function advance(o: any, status: string, withUndo = true, reason?: string) {
     if (withUndo) {
@@ -186,6 +199,16 @@ export default function Orders() {
                 <input value={findCode} onChange={(e) => setFindCode(e.target.value)} placeholder="O-CODE"
                   className="w-24 rounded-xl border border-zinc-700 bg-zinc-900 py-2 pl-8 pr-2 text-xs uppercase text-zinc-100 outline-none focus:border-zinc-500" />
               </div>
+              {stationNames.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setStation("")}
+                    className={`rounded-full px-2 py-1 text-[11px] ${!station ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>All stations</button>
+                  {stationNames.map((st) => (
+                    <button key={st} onClick={() => setStation(station === st ? "" : st)}
+                      className={`rounded-full px-2 py-1 text-[11px] ${station === st ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>{st}</button>
+                  ))}
+                </div>
+              )}
               <input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value || today)}
                 className="rounded-xl border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200" />
               <button title={sound ? "Sound on" : "Sound off"}
@@ -294,6 +317,7 @@ export default function Orders() {
                           onAdvance={advance}
                           onCancel={() => setCancelTarget(o)}
                           onPrint={printTicket}
+                          onFire={fireLine}
                         />
                       ))
                     )}
@@ -366,7 +390,7 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount }: any) {
   );
 }
 
-function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint }: any) {
+function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint, onFire }: any) {
   const step = nextFor(o, col);
   const [copied, setCopied] = useState(false);
   const road = col.key === "road";
@@ -413,10 +437,19 @@ function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, on
 
         <div className="divide-y divide-dashed divide-neutral-300 border-y border-dashed border-neutral-400">
           {(o.items || []).map((i: any, idx: number) => (
-            <div key={idx} className="px-3 py-1.5 text-[13px] leading-snug">
+            <div key={idx} className={`px-3 py-1.5 text-[13px] leading-snug ${i.hold ? "opacity-60" : ""}`}>
               <div className="flex justify-between gap-2">
-                <span className="font-bold">{i.qty}x {i.name}</span>
-                <span className="tabular-nums text-neutral-500">{money(Number(i.unit_price ?? i.price) * Number(i.qty))}</span>
+                <span className="font-bold">
+                  {i.qty}x {i.name}
+                  {i.station ? <span className="ml-1 rounded bg-neutral-200 px-1 text-[9px] font-semibold uppercase text-neutral-600">{i.station}</span> : null}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  {i.hold ? (
+                    <button onClick={(e) => { e.stopPropagation(); onFire && onFire(o, idx); }}
+                      className="rounded bg-amber-400 px-1.5 text-[10px] font-extrabold uppercase text-neutral-900">HOLD — fire</button>
+                  ) : null}
+                  <span className="tabular-nums text-neutral-500">{money(Number(i.unit_price ?? i.price) * Number(i.qty))}</span>
+                </span>
               </div>
               {modLines(i).map((m, mi) => (
                 <div key={mi} className="pl-3 text-xs font-semibold text-neutral-700">» {m}</div>
