@@ -10,6 +10,10 @@ const CONVERSATION_MAX_AGE_H = 24; // delete message_full rows idle > 24h (read-
 const BUFFER_MAX_AGE_MIN = 10;     // stray buffer rows older than 10 min = orphans
 const QUEUE_MAX_AGE_H = 24;        // undeliverable queue items older than 24h are harmful to send
 const ABANDONED_BOOKING_MIN = 90;  // mid-booking silence → tell staff (a warm lead going cold)
+const TRACE_MAX_AGE_D = 14;        // flow_executions is debug data — nobody reads a 3-week-old trace
+const TRACE_ERROR_MAX_AGE_D = 30;  // failures are the ones you DO come back to — keep them twice as long
+const TRACE_BATCH = 500;           // PostgREST deletes in chunks; a 30k backlog drains over a few hourly runs
+const TRACE_MAX_BATCHES = 20;      // ≤10k rows per run — never let cleanup starve the request the bot is serving
 
 defineFlow({
   name: "janitor",
@@ -21,6 +25,7 @@ defineFlow({
     { id: "purge_buffers", label: "Purge Stray Buffers", icon: "filter" },
     { id: "purge_queue", label: "Purge Stale Queue", icon: "filter" },
     { id: "sweep_abandoned_bookings", label: "Abandoned Bookings → Staff", icon: "user" },
+    { id: "purge_traces", label: "Purge Old Traces", icon: "filter" },
   ],
 
   async run(f, ctx) {
@@ -103,6 +108,41 @@ defineFlow({
       }
       return { swept: stale?.length || 0, bot_recovery_pings: recovered, staff_notified: notified, after_minutes: ABANDONED_BOOKING_MIN };
     }, { input: { silence_min: ABANDONED_BOOKING_MIN } });
+
+    // flow_executions grows forever otherwise — every guest turn writes a trace with full node IO.
+    // Oldest-first in bounded batches so a big backlog drains over several runs instead of
+    // one statement holding the table while a guest is mid-order.
+    await f.node("purge_traces", async () => {
+      let deleted = 0, batches = 0;
+      const cutoff = (days) => new Date(Date.now() - days * 86_400_000).toISOString();
+
+      for (const [label, days, onlyOk] of [["ok", TRACE_MAX_AGE_D, true], ["error", TRACE_ERROR_MAX_AGE_D, false]]) {
+        for (let i = 0; i < TRACE_MAX_BATCHES; i++) {
+          let q = db.from("flow_executions").select("id").lt("started_at", cutoff(days))
+            .order("started_at", { ascending: true }).limit(TRACE_BATCH);
+          if (onlyOk) q = q.neq("status", "error");
+          const { data, error } = await q;
+          if (error) throw new Error(error.message);
+          if (!data?.length) break;
+
+          const { error: delErr } = await db.from("flow_executions").delete().in("id", data.map((r) => r.id));
+          if (delErr) throw new Error(delErr.message);
+          deleted += data.length;
+          batches++;
+          if (data.length < TRACE_BATCH) break;
+        }
+        if (batches >= TRACE_MAX_BATCHES) break;
+      }
+
+      const { count } = await db.from("flow_executions").select("id", { count: "exact", head: true });
+      return {
+        deleted,
+        batches,
+        rows_left: count ?? null,
+        more_next_run: batches >= TRACE_MAX_BATCHES,   // hit the per-run cap → the next hourly run continues
+        kept: `success ${TRACE_MAX_AGE_D}d · errors ${TRACE_ERROR_MAX_AGE_D}d`,
+      };
+    }, { input: { ok_days: TRACE_MAX_AGE_D, error_days: TRACE_ERROR_MAX_AGE_D, cap: TRACE_BATCH * TRACE_MAX_BATCHES } });
 
     return { done: true };
   },

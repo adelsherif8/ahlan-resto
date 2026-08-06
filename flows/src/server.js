@@ -496,21 +496,35 @@ app.post("/api/ops/run-regression", opsAuth, (req, res) => {
 });
 app.get("/api/ops/regression", opsAuth, (_req, res) => res.json(regressionStatus()));
 
-app.post("/api/ops/run-reminders", opsAuth, async (_req, res) => {
+// Manual triggers mirror the schedulers: no restaurant named = run for EVERY tenant,
+// so a hand-run never silently skips a restaurant the way the old single-slug version did.
+async function runForTenants(flowName, slug) {
+  const tenants = slug ? [await resolveRestaurantBySlug(slug)] : await resolveAllRestaurants();
+  const runs = [];
+  for (const tenant of tenants) {
+    try {
+      const { exec } = await runFlow(flowName, { sessionId: flowName, tenant, trigger: "manual" }, {});
+      runs.push({ restaurant: tenant.record.slug, ok: exec.status === "ok", executionId: exec.id });
+    } catch (e) {
+      runs.push({ restaurant: tenant.record.slug, ok: false, error: e.message });
+    }
+  }
+  return runs;
+}
+
+app.post("/api/ops/run-reminders", opsAuth, async (req, res) => {
   try {
-    const tenant = await resolveRestaurant();
-    const { exec } = await runFlow("reminders", { sessionId: "reminders", tenant, trigger: "manual" }, {});
-    res.json({ ok: exec.status === "ok", executionId: exec.id });
+    const runs = await runForTenants("reminders", req.body?.restaurant);
+    res.json({ ok: runs.every((r) => r.ok), runs, executionId: runs[0]?.executionId });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-app.post("/api/ops/run-janitor", opsAuth, async (_req, res) => {
+app.post("/api/ops/run-janitor", opsAuth, async (req, res) => {
   try {
-    const tenant = await resolveRestaurant();
-    const { exec } = await runFlow("janitor", { sessionId: "janitor", tenant, trigger: "manual" }, {});
-    res.json({ ok: exec.status === "ok", executionId: exec.id });
+    const runs = await runForTenants("janitor", req.body?.restaurant);
+    res.json({ ok: runs.every((r) => r.ok), runs, executionId: runs[0]?.executionId });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
