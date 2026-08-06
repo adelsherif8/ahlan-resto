@@ -354,6 +354,7 @@ app.get("/build/:token", async (req, res) => {
     const { data: menu } = await tenant.db.from("menu_items").select("name,price,available").limit(120);
     res.type("html").send(renderBuilderPage(tenant, req.params.token, {
       preview: claim.preview,
+      lite: req.query?.lite === "1",
       menu: (menu || []).filter((m) => m.available !== false),
     }));
   } catch (e) {

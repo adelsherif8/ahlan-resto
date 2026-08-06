@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PUBLIC_BASE, log } from "../config.js";
 import { featuresScript, DEFAULT_ALLERGENS } from "./builder-features.js";
+import { renderLitePage } from "./builder-lite.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "..", "..", "assets", "builder.html");
@@ -171,7 +172,7 @@ function notConfiguredPage(config, brand, bc) {
 // The stock page is a standalone demo: localStorage login, placeholder webhook,
 // demo prices, relative model paths. Serving it means replacing exactly those
 // seams — everything else about the 3D scene is left alone.
-export function renderBuilderPage(tenant, token, { preview = false, menu = [] } = {}) {
+export function renderBuilderPage(tenant, token, { preview = false, menu = [], lite = false } = {}) {
   const config = tenant.config;
   const bc = builderConfig(config, { preview });
   const brand = config.basic_info?.brand || {};
@@ -212,6 +213,16 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [] } 
   const breads = catalog.filter((c) => c.category === "bread");
   if (breads.length) (breads.find((b) => b.id === "bun_plain") || breads[0]).default = true;
   else return notConfiguredPage(config, brand, bc);
+
+  // A phone that cannot run WebGL gets the same menu, prices and submit path without
+  // the 3D — losing the order is much worse than losing the spinning burger.
+  if (lite) {
+    return renderLitePage({
+      config, brand, catalog, currency: bc.currency, basePrice: bc.base_price,
+      maxPerLayer: bc.max_per_layer,
+      submitUrl: `${PUBLIC_BASE}/api/build/${encodeURIComponent(token)}/submit`, token,
+    });
+  }
 
   const boot = {
     token,
@@ -293,6 +304,16 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [] } 
   });
   // Patch NOW, not on window.load — the page's own script starts fetching models the
   // moment it parses, which is before load fires, so a later patch would miss them.
+  // No WebGL (old phone, blocked GPU, software renderer) → switch to the lite builder
+  // BEFORE the 3D code runs and throws, so the customer can still order.
+  try {
+    var probe = document.createElement('canvas');
+    var gl = probe.getContext('webgl') || probe.getContext('experimental-webgl');
+    if (!gl && location.search.indexOf('lite=1') === -1) {
+      location.replace(location.pathname + (location.search ? location.search + '&' : '?') + 'lite=1');
+      return;
+    }
+  } catch (e) { /* probe failed — carry on and let the banner report anything real */ }
   if (typeof THREE === 'undefined') { document.addEventListener('DOMContentLoaded', function(){ banner('three.js did not load — check the network/CDN.'); }); return; }
   if (!THREE.GLTFLoader) { document.addEventListener('DOMContentLoaded', function(){ banner('GLTFLoader did not load — 3D cannot start.'); }); return; }
   var origLoad = THREE.GLTFLoader.prototype.load;
@@ -476,11 +497,31 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [] } 
     const payload = { table: tableId, items, total_price: totals.price, extras, timestamp: new Date().toISOString() };`,
   );
 
+  // the stack "settles" once the order is actually accepted
+  html = html.replace(
+    "      statusEl.textContent = 'Order sent to the kitchen';",
+    `      statusEl.textContent = 'Order sent to the kitchen';
+      if (typeof window.__BX_CONFIRM__ === 'function') window.__BX_CONFIRM__();`,
+  );
+
+  const byoCfg = config.menu_config?.build_your_own || {};
+  // "Make it a meal" offers the restaurant's REAL sides and drinks at their real
+  // prices — never a made-up combo.
+  const sideCats = /^(sides?|extras?|appetizers?|drinks?|beverages?)$/i;
+  const sides = (menu || [])
+    .filter((m) => m && sideCats.test(String(m.category || "")) && Number(m.price) > 0 && m.available !== false)
+    .slice(0, 8)
+    .map((m) => ({ name: m.name, price: Number(m.price) }));
+
   html = html.replace("</body>", `${featuresScript({
     menu: menuForCompare,
     currency: bc.currency,
     allergens: allergenMap,
-    protein: config.menu_config?.build_your_own?.protein || {},
+    protein: byoCfg.protein || {},
+    presets: Array.isArray(byoCfg.presets) ? byoCfg.presets.slice(0, 4) : [],
+    sides,
+    limited: byoCfg.limited || {},
+    restaurant: config.name,
   })}\n</body>`);
 
   // No calorie data exists for these ingredients and inventing some would be worse

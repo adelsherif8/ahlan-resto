@@ -4,8 +4,8 @@
 // build ≈" comparison uses the restaurant's own menu prices, and the protein counter
 // only appears when protein data has actually been configured.
 
-export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, allergens = {}, protein = {} }) {
-  const data = { menu, currency, allergens, protein, kidsMode };
+export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, allergens = {}, protein = {}, presets = [], sides = [], limited = {}, restaurant = "" }) {
+  const data = { menu, currency, allergens, protein, kidsMode, presets, sides, limited, restaurant };
   return `
 <style>
   #bx-bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 2px}
@@ -32,13 +32,24 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
   body.bx-kids .chip,body.bx-kids .bread-chip{padding:16px 14px;font-size:15px}
   body.bx-kids .stepper button{width:42px;height:42px;font-size:19px}
   body.bx-kids #panel h2{font-size:22px}
+  #bx-presets,#bx-meal{padding:6px 14px 0;display:flex;flex-wrap:wrap;gap:5px}
+  #bx-presets .stack-title,#bx-meal .stack-title{flex:0 0 100%}
+  .bx-preset{border:1px solid rgba(var(--brand-red-rgb),.3);background:transparent;color:var(--text-main);
+    border-radius:9px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .bx-preset.on{background:var(--brand-red);border-color:var(--brand-red);color:var(--text-on-accent)}
+  .bx-lt{display:inline-block;margin-left:6px;background:var(--brand-red);color:var(--text-on-accent);
+    border-radius:20px;padding:1px 7px;font-size:10px;font-weight:800;vertical-align:middle}
+  @keyframes bx-sizzle{0%{transform:translateY(-14px) scale(.97);opacity:.25}
+    60%{transform:translateY(2px) scale(1.015);opacity:1}100%{transform:none}}
+  body.bx-confirm #scene-container{animation:bx-sizzle .55s cubic-bezier(.2,.9,.25,1)}
+  @media (prefers-reduced-motion:reduce){body.bx-confirm #scene-container{animation:none}}
   @media (max-width:820px){#bx-bar button{min-width:74px;padding:11px 6px}}
 </style>
 <script>
 (function(){
   var D = ${JSON.stringify(data)};
   var B = null;
-  var state = { doneness: 1, sauce: 1, name: '', avoid: {}, kids: ${kidsMode ? "true" : "false"} };
+  var state = { doneness: 1, sauce: 1, name: '', avoid: {}, meal: {}, kids: ${kidsMode ? "true" : "false"} };
 
   function ready(fn){ if (window.__BUILD__) return fn(); setTimeout(function(){ ready(fn); }, 60); }
 
@@ -118,6 +129,37 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
     var mo = new MutationObserver(function(){ apply(); });
     mo.observe(scroll, { childList: true });
 
+    // ---- chef's presets: start from something, not an empty bun ----
+    if (D.presets && D.presets.length) {
+      var pw = el('div', { id: 'bx-presets' });
+      panel.insertBefore(pw, scroll);
+      pw.innerHTML = '<div class="stack-title">Start from</div>';
+      D.presets.forEach(function(p){
+        var b = el('button', { text: p.name, type: 'button', class: 'bx-preset' }, pw);
+        b.onclick = function(){
+          Object.keys(B.qty).forEach(function(k){ B.qty[k] = 0; });
+          Object.keys(p.layers || {}).forEach(function(k){ if (B.qty[k] !== undefined) B.qty[k] = p.layers[k]; });
+          state.name = p.name;
+          var ni = document.getElementById('bx-name'); if (ni) ni.value = p.name;
+          B.rerender();
+        };
+      });
+    }
+
+    // ---- make it a meal: the restaurant's REAL sides and drinks, at their prices ----
+    if (D.sides && D.sides.length) {
+      var mw = el('div', { id: 'bx-meal' });
+      panel.insertBefore(mw, scroll);
+      mw.innerHTML = '<div class="stack-title">Make it a meal</div>';
+      D.sides.forEach(function(sd){
+        var b = el('button', { type: 'button', class: 'bx-preset', text: sd.name + ' \u00b7 ' + D.currency + ' ' + sd.price }, mw);
+        b.onclick = function(){
+          state.meal[sd.name] = !state.meal[sd.name];
+          b.classList.toggle('on', !!state.meal[sd.name]);
+        };
+      });
+    }
+
     // preloaded build from a receipt QR: ?b=patty:2,cheese_cheddar:1
     var pre = new URLSearchParams(location.search).get('b');
     if (pre) {
@@ -148,6 +190,24 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
       var id = node.getAttribute('data-id');
       var chip = node.closest ? (node.closest('.chip') || node.closest('.bread-chip')) : null;
       if (chip) chip.classList.toggle('bx-block', blocked(id));
+    });
+
+    // limited-time layers: a countdown badge, and gone once it expires
+    var now = Date.now();
+    Object.keys(D.limited || {}).forEach(function(id){
+      var until = Date.parse(D.limited[id]);
+      if (!until) return;
+      document.querySelectorAll('#panel-scroll [data-id="' + id + '"]').forEach(function(node){
+        var chip = node.closest ? (node.closest('.chip') || node.closest('.bread-chip')) : null;
+        if (!chip) return;
+        if (until <= now) { chip.classList.add('bx-block'); return; }
+        if (chip.querySelector('.bx-lt')) return;
+        var days = Math.max(1, Math.ceil((until - now) / 86400000));
+        var tag = document.createElement('span');
+        tag.className = 'bx-lt';
+        tag.textContent = days + 'd left';
+        chip.appendChild(tag);
+      });
     });
 
     // "your build ≈ <closest menu item>" — the restaurant's own prices, pure arithmetic
@@ -228,6 +288,13 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
     try { a.href = c.toDataURL('image/png'); a.click(); } catch (e) { /* export blocked */ }
   }
 
+  // the build "settles" when it is sent — one short cue, and skipped entirely for
+  // anyone who has asked for reduced motion
+  window.__BX_CONFIRM__ = function(){
+    document.body.classList.add('bx-confirm');
+    setTimeout(function(){ document.body.classList.remove('bx-confirm'); }, 600);
+  };
+
   // hand the extras to the order when it is sent
   window.__BX_EXTRAS__ = function(){
     var DN = ['well done', 'medium', 'juicy'], SA = ['light sauce', 'regular sauce', 'extra sauce'];
@@ -236,6 +303,7 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
       doneness: DN[state.doneness],
       sauce: SA[state.sauce],
       avoid: Object.keys(state.avoid).filter(function(k){ return state.avoid[k]; }),
+      meal: Object.keys(state.meal).filter(function(k){ return state.meal[k]; }),
       kids: state.kids,
     };
   };
