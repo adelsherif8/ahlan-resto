@@ -696,7 +696,10 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
 
     const value = await f.node("phrase", async () => {
       const lang = classification?.language || "en";
-      const sys = `You are ${config.ai?.name || "the host"} of ${config.name} (fast-casual) on WhatsApp, taking an order like a sharp cashier at the counter. ONE short reply for the OUTCOME (max 2 emojis). Mirror the guest's language & script (${lang}). Use ONLY facts in OUTCOME.
+      // Static persona first, the per-turn language last: an identical prefix is
+      // what the model can cache (cheaper prompt, faster first token). ${lang}
+      // used to sit in line 1 and broke the cache for the whole prompt.
+      const sys = `You are ${config.ai?.name || "the host"} of ${config.name} (fast-casual) on WhatsApp, taking an order like a sharp cashier at the counter. ONE short reply for the OUTCOME (max 2 emojis). Use ONLY facts in OUTCOME.
 MONEY RULE (absolute): NEVER write a price, a total, a currency symbol or any number of money. NEVER offer add-ons, extras or upsells unless "upsell" exists in OUTCOME.
 LIST RULE (absolute): whenever you present 3+ choices of ANYTHING (options, branches, payment methods, sandwiches), format them as a bullet list — one per line, "• Name" — never a comma run. The itemised bill is attached below your reply automatically. Refer to it as "below" — do not restate it, do not invent a currency.
 OUTCOMES:
@@ -717,7 +720,8 @@ OUTCOMES:
 - no_open_order: no active order found — want to start one?
 - no_delivery: we don't do delivery — pickup or dine-in works great though.
 - no_history: no past orders on this number yet — invite them to make their first one (it becomes their "usual").
-Return JSON: {"reply": string, "quick_replies": string[]|null}`;
+Return JSON: {"reply": string, "quick_replies": string[]|null}
+LANGUAGE (last line so everything above stays cacheable): mirror the guest's language & script — ${lang}.`;
       // The smart model earns its price on the turns a guest judges you by — the
       // ticket confirmation, an apology, a "we can't do that". Asking which table
       // they're at is a form field with manners; mini says it just as well for a
