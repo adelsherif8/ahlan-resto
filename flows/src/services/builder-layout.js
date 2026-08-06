@@ -156,7 +156,7 @@ export function layoutScript() {
     // ---- ingredient cards ----
     var CAT = { bread: 'Buns & wraps', protein: 'Protein', cheese: 'Cheese', veggie: 'Veggies', sauce: 'Sauces' };
     var ORDER = ['bread', 'protein', 'cheese', 'veggie', 'sauce'];
-    var MAX = (window.__AHLAN__ && window.__AHLAN__.maxPerLayer) || 3;
+    function maxQ(){ return window.__BX_MAXQ__ ? window.__BX_MAXQ__() : ((window.__AHLAN__ && window.__AHLAN__.maxPerLayer) || 3); }
     var CUR = (window.__AHLAN__ && window.__AHLAN__.currency) || 'EGP';
 
     var filter = 'all';
@@ -211,6 +211,8 @@ export function layoutScript() {
     }
 
     function match(d){
+      // kids mode narrows the list itself, not just the label on the button
+      if (window.__BX_HIDDEN__ && window.__BX_HIDDEN__(d.id)) return false;
       if (query && d.name.toLowerCase().indexOf(query) === -1) return false;
       if (filter === 'popular') return POPULAR.indexOf(d.id) !== -1;
       return true;
@@ -261,7 +263,7 @@ export function layoutScript() {
             var n = document.createElement('span'); n.className = 'n'; n.textContent = q;
             var pl = document.createElement('button'); pl.type = 'button'; pl.textContent = '+';
             m.onclick = function(){ B.qty[d.id] = Math.max(0, (B.qty[d.id] || 0) - 1); B.rerender(); draw(); };
-            pl.onclick = function(){ B.qty[d.id] = Math.min(MAX, (B.qty[d.id] || 0) + 1); B.rerender(); draw(); };
+            pl.onclick = function(){ B.qty[d.id] = Math.min(maxQ(), (B.qty[d.id] || 0) + 1); B.rerender(); draw(); };
             ctl.appendChild(m); ctl.appendChild(n); ctl.appendChild(pl);
             c.appendChild(ctl);
           }
@@ -312,6 +314,8 @@ export function layoutScript() {
       };
       im.src = url;
     }
+
+    window.__BX_REDRAW__ = draw;
 
     draw();
 

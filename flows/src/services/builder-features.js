@@ -4,8 +4,8 @@
 // build ≈" comparison uses the restaurant's own menu prices, and the protein counter
 // only appears when protein data has actually been configured.
 
-export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, allergens = {}, protein = {}, presets = [], sides = [], limited = {}, restaurant = "", compare = false, doneness = false }) {
-  const data = { menu, currency, allergens, protein, kidsMode, presets, sides, limited, restaurant, compare, doneness };
+export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, allergens = {}, protein = {}, presets = [], sides = [], limited = {}, restaurant = "", compare = false, doneness = false, kidsHide = [] }) {
+  const data = { menu, currency, allergens, protein, kidsMode, presets, sides, limited, restaurant, compare, doneness, kidsHide };
   return `
 <style>
   #bx-bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 2px}
@@ -93,9 +93,9 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
       state.kids = !state.kids;
       document.body.classList.toggle('bx-kids', state.kids);
       kids.classList.toggle('on', state.kids);
-      apply();
+      applyKids();
     };
-    if (state.kids) { document.body.classList.add('bx-kids'); kids.classList.add('on'); }
+    if (state.kids) { document.body.classList.add('bx-kids'); kids.classList.add('on'); applyKids(); }
 
     var card = el('button', { text: 'Photo card', type: 'button' }, bar);
     card.onclick = photoCard;
@@ -190,6 +190,26 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
       B.rerender();
     }
   }
+
+  // Kids mode: a smaller sandwich, a shorter list, and one of anything. Whatever is
+  // already on the build and is not for kids comes straight back off.
+  function applyKids(){
+    if (B && B.setKids) B.setKids(state.kids);
+    if (state.kids) {
+      var changed = false;
+      (D.kidsHide || []).forEach(function(id){ if (B.qty[id] > 0) { B.qty[id] = 0; changed = true; } });
+      Object.keys(B.qty).forEach(function(id){ if (B.qty[id] > 1) { B.qty[id] = 1; changed = true; } });
+      if (changed) B.rerender();
+    }
+    if (window.__BX_REDRAW__) window.__BX_REDRAW__();
+    apply();
+  }
+
+  // the layout layer asks this before drawing a card
+  window.__BX_HIDDEN__ = function(id){
+    return state.kids && (D.kidsHide || []).indexOf(id) !== -1;
+  };
+  window.__BX_MAXQ__ = function(){ return state.kids ? 1 : (window.__AHLAN__ && window.__AHLAN__.maxPerLayer) || 3; };
 
   function blocked(id){
     var list = D.allergens[id] || [];

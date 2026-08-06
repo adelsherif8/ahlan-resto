@@ -71,6 +71,13 @@ const CATALOG = JSON.parse(
 
 // Tint used only where a model's own texture doesn't carry the look (procedural
 // fallback in the page). Grouped by category rather than invented per ingredient.
+// Hidden in kids mode by default: chilli heat and the sharper adult flavours.
+export const DEFAULT_KIDS_HIDE = [
+  "jalapenos", "sauce_sriracha", "sauce_bbq", "sauce_mustard",
+  "cheese_blue", "onions", "onions_caramel", "mushrooms", "peppers", "rocket",
+  "coleslaw", "guacamole", "patty_pub", "bacon",
+];
+
 const CAT_TINT = { bread: 0xd9a55c, protein: 0x6b3a25, cheese: 0xe0a13a, veggie: 0x4c8a3a, sauce: 0xc2402c };
 
 export const LAYERS = CATALOG.map((c) => ({
@@ -441,6 +448,8 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     .stack-row button{border:0;background:rgba(var(--brand-red-rgb),.16);color:var(--text-main);
       width:28px;height:28px;border-radius:8px;font-size:12px;cursor:pointer;line-height:1;font-family:inherit}
     .stack-row button:disabled{opacity:.22;cursor:default}
+    .stack-row button.rm{background:transparent;color:var(--text-dim)}
+    .stack-row button.rm:hover{background:rgba(var(--brand-red-rgb),.14);color:var(--brand-red)}
     .stack-empty{font-size:12.5px;color:var(--text-dim);padding:4px 2px 2px}
     #stack-list{max-height:22vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
     @media (max-width: 820px){
@@ -521,7 +530,15 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
         const dn = document.createElement('button'); dn.textContent = '\u25BC'; dn.title = 'Move down';
         dn.disabled = i <= 0;
         dn.onclick = () => moveLayer(movable, i, -1);
-        row.appendChild(up); row.appendChild(dn);
+        // taking a layer off from the list itself, rather than hunting the card for a minus
+        const rm = document.createElement('button');
+        rm.className = 'rm'; rm.title = 'Remove ' + ((def && def.name) || 'layer');
+        rm.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>';
+        rm.onclick = () => {
+          qty[ud.ingredientId] = Math.max(0, (qty[ud.ingredientId] || 0) - 1);
+          renderPanel(); syncStackWithState();
+        };
+        row.appendChild(up); row.appendChild(dn); row.appendChild(rm);
       }
       el.appendChild(row);
     });
@@ -563,6 +580,13 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     render: function(){ try { renderer.render(scene, camera); } catch (e) {} },
     // 0 = light, 1 = regular, 2 = extra. Heights change with it so the layers above
     // sit correctly instead of floating over a thinner smear or sinking into a thicker one.
+    // A kids portion is a smaller sandwich — saying "kids mode" while rendering the
+    // same full-size burger is just a label.
+    setKids: function(on){
+      const target = on ? 0.72 : 1;
+      group.userData.kidsScale = target;
+      group.scale.setScalar(target);
+    },
     setSauce: function(level){
       const mult = [0.45, 1, 1.75][level] != null ? [0.45, 1, 1.75][level] : 1;
       for (const g of allGroups) {
@@ -699,6 +723,10 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     compare: byoCfg.compare === true,   // off until layer-set diffing replaces price matching
     // doneness is a table-service question — a fast-casual kitchen never sees it
     doneness: byoCfg.doneness === true || config.basic_info?.restaurant_type === "fine",
+    // Kids mode hides what a child's meal would not carry. Spiciness is a property of
+    // the ingredient, not a judgement about this restaurant — and any of it can be
+    // overridden per restaurant.
+    kidsHide: Array.isArray(byoCfg.kids_hide) ? byoCfg.kids_hide : DEFAULT_KIDS_HIDE,
     restaurant: config.name,
   })}\n${layoutScript()}\n${checkoutScript()}\n</body>`);
 
