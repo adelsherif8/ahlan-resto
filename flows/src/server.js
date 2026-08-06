@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { PORT, log, llmReady } from "./config.js";
+import { PORT, log, llmReady, PUBLIC_BASE } from "./config.js";
 import { resolveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, resolveRestaurantBySlug, resolveAllRestaurants } from "./services/tenant.js";
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb } from "./engine/flow.js";
@@ -10,7 +10,7 @@ import { runRegression, regressionStatus } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
 import { getSession, logMessage } from "./services/chatlog.js";
 import { riderCopy } from "./services/ridercopy.js";
-import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, MODEL_BASE } from "./services/builder.js";
+import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, builderConfig, signBuildToken, MODEL_BASE } from "./services/builder.js";
 import { nextOrderCode } from "./services/ordercode.js";
 
 // register flows
@@ -421,6 +421,22 @@ app.post("/api/build/:token/submit", async (req, res) => {
     res.json({ ok: true, code, total: priced.total, currency: priced.currency, summary: name });
   } catch (e) {
     log("build submit:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Staff preview: the dashboard mints a short-lived link to try the builder without
+// waiting for a customer to ask. Session is marked web:test- so it is filtered from
+// stats and swept by the janitor like any other test traffic.
+app.post("/api/ops/build-link", opsAuth, async (req, res) => {
+  try {
+    const slug = String(req.body?.restaurant || "").trim().toLowerCase();
+    if (!slug) return res.status(400).json({ error: "restaurant required" });
+    const tenant = await resolveRestaurantBySlug(slug);
+    const bc = builderConfig(tenant.config);
+    const token = signBuildToken({ sessionId: `web:test-preview-${Date.now()}`, slug, ttlMs: 3600_000 });
+    res.json({ url: `${PUBLIC_BASE}/build/${token}`, enabled: bc.enabled, reason: bc.reason, layers: bc.layers.length });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });

@@ -7,6 +7,7 @@ import { MODEL_FAST, MODEL_NANO } from "../config.js";
 import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath } from "../services/fastpaths.js";
 import { wantsBuilder } from "../services/fastpaths.js";
 import { signBuildToken, builderConfig } from "../services/builder.js";
+import { label, isLabel } from "../services/labels.js";
 import { PUBLIC_BASE } from "../config.js";
 import { bump } from "../services/metrics.js";
 
@@ -64,7 +65,7 @@ defineFlow({
       // "build my own" hands over a signed one-guest link instead of an answer.
       // Offered only when the restaurant has actually priced its layers — an
       // unpriced builder would quote numbers nobody set.
-      if (wantsBuilder(message) && builderConfig(ctx.tenant.config).enabled) {
+      if ((wantsBuilder(message) || isLabel(message, label(ctx.tenant.config, "build_your_own"))) && builderConfig(ctx.tenant.config).enabled) {
         bump("builder_hits");
         const token = signBuildToken({ sessionId: ctx.sessionId, slug: ctx.tenant.config.slug });
         return {

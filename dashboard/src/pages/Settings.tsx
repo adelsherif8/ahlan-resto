@@ -48,6 +48,7 @@ export default function Settings() {
     ["ai", "AI host"],
     ["branding", "Branding"],
     ["menu", "Menu display"],
+    ["builder", "Build your own"],
     ...(((bi.restaurant_type || "fine") !== "casual" ? [["reservations", "Reservations"]] : []) as [string, string][]),
     ["offers", "Offers & specials"],
     ["pos", "POS"],
@@ -262,6 +263,92 @@ export default function Settings() {
           )}
         </div>
         <p className="mt-2 text-xs text-zinc-500">List: categories the guest taps. One message: the whole menu as text. PDF: your designed menu file, sent as a document.</p>
+      </Card>}
+
+      {tab === "builder" && <Card className="p-5">
+        <SectionTitle title="Build your own (3D sandwich builder)" saved={saved === "menu_config"} onSave={() => saveSection("menu_config", config.menu_config || {})} />
+        {(() => {
+          const byo = (config.menu_config || {}).build_your_own || {};
+          const layers = byo.layers || {};
+          const setByo = (patch: any) => upd("menu_config", { build_your_own: { ...byo, ...patch } });
+          const setLayer = (key: string, v: string) => {
+            const next = { ...layers };
+            if (v === "") delete next[key];               // no price = not offered
+            else next[key] = Number(v);
+            setByo({ layers: next });
+          };
+          const priced = Object.values(layers).filter((v) => Number.isFinite(Number(v))).length;
+          const hasProtein = Number.isFinite(Number(layers.patty));
+          return (
+            <>
+              <div className="grid gap-3 md:grid-cols-3">
+                <Field label="Builder switched on">
+                  <Toggle on={byo.enabled === true} onClick={() => setByo({ enabled: !(byo.enabled === true) })} />
+                </Field>
+                <Field label="Base price (charged before any layer)">
+                  <Input type="number" value={byo.base_price ?? 0} onChange={(e) => setByo({ base_price: Number(e.target.value) })} />
+                </Field>
+                <Field label="Max of any one layer">
+                  <Input type="number" value={byo.max_per_layer ?? 3} onChange={(e) => setByo({ max_per_layer: Number(e.target.value) })} />
+                </Field>
+              </div>
+
+              <p className="mt-4 mb-2 text-xs text-zinc-500">
+                What customers can stack, and what each one costs. Leave a price blank to keep that ingredient
+                out of the builder entirely. Prices are what the kitchen charges — the total is always worked
+                out here on the server, never in the customer's browser.
+              </p>
+              <div className="grid gap-3 md:grid-cols-3">
+                {([["bun", "Sesame bun"], ["patty", "Beef patty"], ["cheese", "Cheese slice"],
+                   ["melted", "Melted cheese"], ["lettuce", "Lettuce"], ["tomato", "Tomato"]] as const).map(([k, name]) => (
+                  <Field key={k} label={name}>
+                    <Input type="number" placeholder="not offered"
+                      value={layers[k] ?? ""} onChange={(e) => setLayer(k, e.target.value)} />
+                  </Field>
+                ))}
+              </div>
+
+              {byo.enabled === true && !hasProtein && (
+                <p className="mt-3 text-xs text-amber-400">
+                  The builder stays off until the beef patty has a price — a burger builder with no protein
+                  priced would quote numbers nobody set.
+                </p>
+              )}
+              <div className="mt-3 flex items-center gap-3">
+                <button type="button"
+                  onClick={async () => {
+                    try {
+                      const r = await api.post("/api/settings/builder-preview", {});
+                      if (r.data?.url) window.open(r.data.url, "_blank");
+                    } catch { /* the button simply does nothing rather than throwing at staff */ }
+                  }}
+                  className="rounded-xl px-4 py-2 text-xs font-bold"
+                  style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
+                  Open the builder
+                </button>
+                <span className="text-xs text-zinc-500">{priced} ingredient{priced === 1 ? "" : "s"} priced and on offer.</span>
+              </div>
+            </>
+          );
+        })()}
+
+        <div className="mt-6 border-t border-zinc-800 pt-5">
+          <SectionTitle title="Button wording" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai || {})} />
+          <p className="mb-2 text-xs text-zinc-500">
+            The tappable buttons the bot sends. Change the words to your own voice — the bot still
+            recognises a tap either way. Leave blank for the default.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {([["build_your_own", "Build a burger 🍔"], ["same_as_last", "Same as last time 🔁"],
+               ["browse_menu", "Browse Menu"], ["order_now", "Order now"]] as const).map(([k, dflt]) => (
+              <Field key={k} label={dflt}>
+                <Input placeholder={dflt} maxLength={24}
+                  value={((config.ai || {}).labels || {})[k] || ""}
+                  onChange={(e) => upd("ai", { labels: { ...((config.ai || {}).labels || {}), [k]: e.target.value } })} />
+              </Field>
+            ))}
+          </div>
+        </div>
       </Card>}
 
       {tab === "reservations" && <Card className="p-5">

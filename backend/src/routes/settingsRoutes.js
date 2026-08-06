@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth, allowRoles } from "../middleware/auth.js";
 import { restaurantContext } from "../middleware/restaurantContext.js";
-import { DEMO_MODE } from "../config/env.js";
+import { DEMO_MODE, FLOWS_URL, FLOWS_OPS_TOKEN } from "../config/env.js";
 import { supabaseAhlan } from "../config/connections.js";
 
 const router = Router();
@@ -45,6 +45,21 @@ router.put("/:section", allowRoles("manager"), async (req, res, next) => {
 });
 
 // ---- Bot-suggested FAQs (the agent proposes; staff approve/dismiss here) ----
+// A staff preview of the 3D builder — flows signs a short-lived link for this
+// restaurant so managers can try it without waiting for a customer to ask.
+router.post("/builder-preview", allowRoles("manager"), async (req, res, next) => {
+  try {
+    if (!FLOWS_URL) return res.status(503).json({ error: "flows not configured" });
+    const r = await fetch(`${FLOWS_URL}/api/ops/build-link`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(FLOWS_OPS_TOKEN ? { "x-ops-token": FLOWS_OPS_TOKEN } : {}) },
+      body: JSON.stringify({ restaurant: req.restaurant.slug }),
+    });
+    if (!r.ok) return res.status(502).json({ error: `flows ${r.status}` });
+    res.json(await r.json());
+  } catch (e) { next(e); }
+});
+
 router.get("/suggested-faqs", async (req, res, next) => {
   try {
     const rows = await req.repo.list("suggested_faqs", { where: { status: "pending" }, order: "created_at" });

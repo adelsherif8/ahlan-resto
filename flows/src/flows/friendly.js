@@ -9,6 +9,8 @@ import { setSessionFlags, notifyDashboard, getSession } from "../services/chatlo
 import { todayISO } from "../services/availability.js";
 import { branchList, nearestBranches, matchBranchByText, freshLocation } from "../services/branches.js";
 import { menuPdfUrl } from "../services/menupdf.js";
+import { label } from "../services/labels.js";
+import { builderConfig } from "../services/builder.js";
 
 // rolling-summary cooldown: refresh at most once per 10 min per session
 // (history is capped at 20 turns, so a turn-count gate alone would stall at the cap)
@@ -478,10 +480,16 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       config.basic_info?.restaurant_type === "casual" &&
       (context.usualFromOrders || context.lastOrder)
     ) {
-      const chip = "Same as last time 🔁";
+      const chip = label(config, "same_as_last");
       if (!quickReplies.some((q) => /same as last|usual/i.test(q))) {
         quickReplies = [chip, ...quickReplies].slice(0, 3);
       }
+    }
+    // "Build a burger" is an entry point, not something a guest should have to know
+    // to ask for — offered on a new chat whenever the restaurant has priced its layers.
+    if (context.isNewConversation && builderConfig(config).enabled) {
+      const bchip = label(config, "build_your_own");
+      if (!quickReplies.some((q) => q === bchip)) quickReplies = [...quickReplies, bchip].slice(0, 3);
     }
     // menu display mode is per-restaurant: PDF document + link (default) | full text | tappable list
     const mc = config.menu_config || {};
