@@ -139,9 +139,25 @@ export function renderBuilderPage(tenant, token) {
     maxPerLayer: bc.max_per_layer,
   };
 
+  // The prototype is hard-committed to a dark red-black "studio" look. That is one
+  // restaurant's identity, not every restaurant's — so the page's own custom
+  // properties get redefined from the brand: accent from brand.primary, and a light
+  // ground when brand.mode is light (Luci'z is white-on-red, nothing black in it).
+  const hex = /^#[0-9a-f]{6}$/i.test(brand.primary || "") ? brand.primary : "#e81b23";
+  const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ");
+  const darken = (h, f = 0.72) =>
+    "#" + [1, 3, 5].map((i) => Math.round(parseInt(h.slice(i, i + 2), 16) * f).toString(16).padStart(2, "0")).join("");
+  const light = brand.mode === "light";
+  const theme = `<style id="ahlan-brand">:root{
+    --brand-red:${hex}; --brand-red-rgb:${rgb}; --brand-red-dark:${darken(hex)};
+    ${light ? `
+    --bg-mid:#f2efec; --bg-deep:#faf8f6; --bg-black:#ffffff;
+    --panel-grad-1:#ffffff; --panel-grad-2:#f5f2ef;
+    --text-main:#16130f; --text-on-accent:#ffffff; --text-muted:#6f6862; --text-dim:#a49c95;
+    --status-ok:#0f7a4d; --status-error:#c2410c;` : ""}
+  }</style>`;
+
   const replacements = [
-    // brand: the accent is a CSS variable, so one swap retints the whole page
-    [/--brand-red:\s*#[0-9a-f]{6};/i, `--brand-red: ${brand.primary || "#e81b23"};`],
     [/<img id="brand-logo" src="[^"]*"/, `<img id="brand-logo" src="${brand.logo_url || ""}"`],
     // the guest arrived through a signed link — there is nobody to log in
     [
@@ -159,15 +175,52 @@ export function renderBuilderPage(tenant, token) {
     [/'Burger1\//g, "window.__AHLAN__.modelBase + '/"],
   ];
 
+  html = html.replace("</head>", `${theme}\n</head>`);
+
   for (const [find, put] of replacements) {
     if (typeof find === "string" && !html.includes(find)) log(`builder: seam not found: ${find.slice(0, 40)}`);
     html = html.replace(find, put);
   }
 
   // prices + which layers are on offer are decided here, never in the page
+  // A blank screen is the worst possible failure: it tells the restaurant nothing and
+  // tells us nothing. Any script error or model that fails to load now says so on the
+  // page instead of leaving an empty canvas.
+  const guard = `<script>
+(function(){
+  function banner(msg){
+    var b = document.getElementById('ahlan-err');
+    if (!b) {
+      b = document.createElement('div'); b.id = 'ahlan-err';
+      b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7f1d1d;color:#fff;'
+        + 'font:13px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 14px;max-height:42vh;overflow:auto';
+      document.body.appendChild(b);
+    }
+    b.textContent = (b.textContent ? b.textContent + '\\n' : '') + msg;
+  }
+  window.addEventListener('error', function(e){
+    banner('Error: ' + (e.message || 'script failed') + (e.filename ? '  [' + String(e.filename).split('/').pop() + ']' : ''));
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    banner('Error: ' + ((e.reason && e.reason.message) || e.reason || 'promise rejected'));
+  });
+  // Patch NOW, not on window.load — the page's own script starts fetching models the
+  // moment it parses, which is before load fires, so a later patch would miss them.
+  if (typeof THREE === 'undefined') { document.addEventListener('DOMContentLoaded', function(){ banner('three.js did not load — check the network/CDN.'); }); return; }
+  if (!THREE.GLTFLoader) { document.addEventListener('DOMContentLoaded', function(){ banner('GLTFLoader did not load — 3D cannot start.'); }); return; }
+  var origLoad = THREE.GLTFLoader.prototype.load;
+  THREE.GLTFLoader.prototype.load = function(url, onLoad, onProg, onErr){
+    return origLoad.call(this, url, onLoad, onProg, function(err){
+      banner('Model failed: ' + String(url).split('/').pop() + ' — ' + ((err && err.message) || 'load error'));
+      if (onErr) onErr(err);
+    });
+  };
+})();
+</script>`;
+
   html = html.replace(
     "<script>\n(function () {",
-    `<script>window.__AHLAN__ = ${jsonScript(boot)};</script>\n<script>\n(function () {`,
+    `<script>window.__AHLAN__ = ${jsonScript(boot)};</script>\n${guard}\n<script>\n(function () {`,
   );
   // the demo's own prices must not survive into a page that takes money
   html = html.replace(
