@@ -143,6 +143,30 @@ function pageSource() {
 
 const jsonScript = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
 
+// Better than a blank screen or a thrown error: say what is missing, in the
+// restaurant's own colours, in words a manager can act on.
+function notConfiguredPage(config, brand, bc) {
+  const accent = /^#[0-9a-f]{6}$/i.test(brand.primary || "") ? brand.primary : "#e81b23";
+  const esc = (t) => String(t ?? "").replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(config.name)} — build your own</title><style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#faf8f6;color:#16130f;
+       margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border:1px solid #e7e2dc;border-radius:16px;padding:26px;max-width:420px;text-align:center}
+  .dot{width:44px;height:44px;border-radius:12px;background:${accent};margin:0 auto 14px}
+  h1{font-size:19px;margin:0 0 8px}
+  p{color:#6f6862;font-size:14px;line-height:1.6;margin:0 0 6px}
+  code{background:#f2efec;border-radius:5px;padding:1px 6px;font-size:12.5px}
+</style></head><body><div class="card">
+  <div class="dot"></div>
+  <h1>Build your own isn't set up yet</h1>
+  <p>${esc(config.name)} hasn't priced any buns for the builder, so there's nothing to build on.</p>
+  <p>Set prices under <code>Settings → Build your own</code> — an ingredient with no price simply isn't offered.</p>
+  <p style="margin-top:12px;font-size:12.5px">${bc.layers.length} ingredient${bc.layers.length === 1 ? "" : "s"} priced so far.</p>
+</div></body></html>`;
+}
+
 // The stock page is a standalone demo: localStorage login, placeholder webhook,
 // demo prices, relative model paths. Serving it means replacing exactly those
 // seams — everything else about the 3D scene is left alone.
@@ -164,13 +188,21 @@ export function renderBuilderPage(tenant, token, { preview = false } = {}) {
       e.topModelUrl = l.topFile ? `${MODEL_BASE}/${l.topFile}` : `${MODEL_BASE}/${l.file}`;
       e.bottomHeight = l.bottomHeight || l.height;
       e.topHeight = l.topHeight || l.height;
-      e.default = l.key === "bun_plain";
+      e.default = false;   // exactly one is marked below — never zero
     } else {
       e.modelUrl = `${MODEL_BASE}/${l.file}`;
       e.height = l.height;
     }
     return e;
   });
+
+  // The page picks a starting bun with `CATALOG.find(d => d.default)` and then reads
+  // its id. With no bread priced that find returns undefined and the whole builder
+  // dies on an unreadable property — so guarantee exactly one default, and refuse to
+  // render at all when there is no bread to build on.
+  const breads = catalog.filter((c) => c.category === "bread");
+  if (breads.length) (breads.find((b) => b.id === "bun_plain") || breads[0]).default = true;
+  else return notConfiguredPage(config, brand, bc);
 
   const boot = {
     token,
