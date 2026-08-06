@@ -10,6 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PUBLIC_BASE, log } from "../config.js";
+import { featuresScript, DEFAULT_ALLERGENS } from "./builder-features.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "..", "..", "assets", "builder.html");
@@ -170,7 +171,7 @@ function notConfiguredPage(config, brand, bc) {
 // The stock page is a standalone demo: localStorage login, placeholder webhook,
 // demo prices, relative model paths. Serving it means replacing exactly those
 // seams — everything else about the 3D scene is left alone.
-export function renderBuilderPage(tenant, token, { preview = false } = {}) {
+export function renderBuilderPage(tenant, token, { preview = false, menu = [] } = {}) {
   const config = tenant.config;
   const bc = builderConfig(config, { preview });
   const brand = config.basic_info?.brand || {};
@@ -200,6 +201,14 @@ export function renderBuilderPage(tenant, token, { preview = false } = {}) {
   // its id. With no bread priced that find returns undefined and the whole builder
   // dies on an unreadable property — so guarantee exactly one default, and refuse to
   // render at all when there is no bread to build on.
+  // "your build ≈" compares against the restaurant's OWN menu prices — a real
+  // comparison, not a guess about what a custom burger is worth.
+  const menuForCompare = (menu || [])
+    .filter((m) => m && m.name && Number(m.price) > 0)
+    .slice(0, 60)
+    .map((m) => ({ name: m.name, price: Number(m.price) }));
+  const allergenMap = { ...DEFAULT_ALLERGENS, ...(config.menu_config?.build_your_own?.allergens || {}) };
+
   const breads = catalog.filter((c) => c.category === "bread");
   if (breads.length) (breads.find((b) => b.id === "bun_plain") || breads[0]).default = true;
   else return notConfiguredPage(config, brand, bc);
@@ -443,6 +452,36 @@ export function renderBuilderPage(tenant, token, { preview = false } = {}) {
     order.forEach(g => {
       const h = g.userData.height;`,
   );
+
+  // The prototype keeps everything inside one IIFE, so the feature layer has no way
+  // in. Publish exactly the handful of things it needs — the selection, the catalog,
+  // a redraw, and the totals — rather than making the whole scope global.
+  html = html.replace(
+    "  initAuth();",
+    `  window.__BUILD__ = {
+    qty: qty,
+    catalog: CATALOG,
+    totals: calcTotals,
+    rerender: function(){ renderPanel(); syncStackWithState(); },
+  };
+
+  initAuth();`,
+  );
+
+  // doneness, sauce, allergy avoidances and the customer's name for the build ride
+  // along with the order so the kitchen sees them on the ticket
+  html = html.replace(
+    "    const payload = { table: tableId, items, total_price: totals.price, total_calories: totals.calories, timestamp: new Date().toISOString() };",
+    `    const extras = (typeof window.__BX_EXTRAS__ === 'function') ? window.__BX_EXTRAS__() : {};
+    const payload = { table: tableId, items, total_price: totals.price, extras, timestamp: new Date().toISOString() };`,
+  );
+
+  html = html.replace("</body>", `${featuresScript({
+    menu: menuForCompare,
+    currency: bc.currency,
+    allergens: allergenMap,
+    protein: config.menu_config?.build_your_own?.protein || {},
+  })}\n</body>`);
 
   // No calorie data exists for these ingredients and inventing some would be worse
   // than showing none, so the counter is hidden.

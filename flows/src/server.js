@@ -351,7 +351,11 @@ app.get("/build/:token", async (req, res) => {
     const claim = verifyBuildToken(req.params.token);
     if (!claim) return res.status(404).send("<h3 style=\"font-family:sans-serif\">This build link has expired.</h3>");
     const tenant = await resolveRestaurantBySlug(claim.slug);
-    res.type("html").send(renderBuilderPage(tenant, req.params.token, { preview: claim.preview }));
+    const { data: menu } = await tenant.db.from("menu_items").select("name,price,available").limit(120);
+    res.type("html").send(renderBuilderPage(tenant, req.params.token, {
+      preview: claim.preview,
+      menu: (menu || []).filter((m) => m.available !== false),
+    }));
   } catch (e) {
     log("build page:", e.message);
     res.status(500).send("builder unavailable");
@@ -378,12 +382,23 @@ app.post("/api/build/:token/submit", async (req, res) => {
 
     const code = await nextOrderCode(db, config);
     const name = describeBuild(priced.lines);
+    // doneness/sauce/allergies and the customer's own name for the build belong on the
+    // ticket — the kitchen needs them as much as the layer list
+    const x = req.body?.extras || {};
+    const notes = [
+      name,
+      x.doneness ? String(x.doneness).slice(0, 20) : null,
+      x.sauce ? String(x.sauce).slice(0, 20) : null,
+      Array.isArray(x.avoid) && x.avoid.length ? `NO ${x.avoid.slice(0, 5).join(", ").toUpperCase()}` : null,
+      x.kids ? "kids portion" : null,
+    ].filter(Boolean).join(" · ");
+
     const item = {
-      name: "Build Your Own",
+      name: x.name ? String(x.name).slice(0, 32) : "Build Your Own",
       qty: 1,
       unit_price: priced.total,
-      notes: name,
-      options: priced.lines.filter((l) => l.id !== "bread-bun").map((l) => `${l.qty}× ${l.name}`).join(" · "),
+      notes,
+      options: priced.lines.map((l) => `${l.qty}× ${l.name}`).join(" · "),
     };
 
     const row = {
