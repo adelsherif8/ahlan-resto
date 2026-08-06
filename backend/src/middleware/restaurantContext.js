@@ -52,7 +52,8 @@ export async function restaurantContext(req, res, next) {
     const key = decryptField(creds.key);
     if (!url || !key) return res.status(500).json({ error: "Restaurant DB not configured" });
 
-    const client = tenantClient(url, key);
+    const schema = creds.schema ? decryptField(creds.schema) : null;
+    const client = tenantClient(url, key, schema);
     const repo = supabaseRepo(client);
     configCache.set(restaurantId, { record: data, repo, client, at: Date.now() });
     req.repo = repo;

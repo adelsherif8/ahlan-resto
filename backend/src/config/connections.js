@@ -29,8 +29,13 @@ export function decryptField(value) {
 }
 
 const tenantClients = new Map();
-export function tenantClient(url, key) {
-  const cacheKey = url;
-  if (!tenantClients.has(cacheKey)) tenantClients.set(cacheKey, createClient(url, key));
+// Several restaurants share one Supabase project, each in its own schema, so the
+// cache key must include the schema — keying by URL alone handed every tenant
+// the first one's client and served the wrong restaurant's data.
+export function tenantClient(url, key, schema = null) {
+  const cacheKey = `${url}::${schema || "public"}`;
+  if (!tenantClients.has(cacheKey)) {
+    tenantClients.set(cacheKey, createClient(url, key, schema ? { db: { schema } } : undefined));
+  }
   return tenantClients.get(cacheKey);
 }
