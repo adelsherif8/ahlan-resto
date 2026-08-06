@@ -2,6 +2,7 @@
 // dashed rules, and the order number BIG enough to read across a counter.
 // Generated in code, uploaded to tenant storage, sent on WhatsApp.
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 import { log } from "../config.js";
 
 const BUCKET = "receipts";
@@ -37,13 +38,15 @@ function modLines(it) {
   return out;
 }
 
-function buildPdf({ restaurant, order, branch, currency }) {
+async function buildPdf({ restaurant, order, branch, currency }) {
+  // rendered once, up front — pdfkit draws synchronously and can't await mid-stream
+  const qrPng = order.track_url ? await QRCode.toBuffer(order.track_url, { margin: 0, width: 240 }).catch(() => null) : null;
   return new Promise((resolve, reject) => {
     const items = order.items || [];
     const modCount = items.reduce((s, it) => s + modLines(it).length, 0);
     const billRows = 2 + (order.bill?.extras?.length || 0);
     const height = 235 + items.length * 15 + modCount * 11 + billRows * 14
-      + (order.address ? 26 : 0) + (order.notes ? 13 : 0);
+      + (order.address ? 26 : 0) + (order.notes ? 13 : 0) + (qrPng ? 90 : 0);
     const doc = new PDFDocument({ size: [W, Math.max(height, 330)], margin: M });
     const chunks = [];
     doc.on("data", (c) => chunks.push(c));
@@ -107,6 +110,17 @@ function buildPdf({ restaurant, order, branch, currency }) {
     if (order.address) doc.text(`DELIVER TO: ${order.address}`, M, doc.y, { width: INNER });
     if (order.notes) doc.text(`NOTES: ${order.notes}`, M, doc.y, { width: INNER });
     doc.moveDown(0.8);
+    // scan-to-track — only exists for a delivery order, since that is the only
+    // case where there is anything to watch move
+    if (qrPng) {
+      doc.moveDown(0.15);
+      const qs = 72;
+      doc.image(qrPng, (W - qs) / 2, doc.y, { width: qs, height: qs });
+      doc.y += qs + 4;
+      doc.font("Courier").fontSize(7).fillColor("#555");
+      center("SCAN TO TRACK YOUR ORDER");
+      doc.moveDown(0.3);
+    }
     doc.fontSize(8).fillColor("#444");
     center("THANK YOU — COME AGAIN!");
     doc.end();
@@ -122,7 +136,7 @@ function paymentLabel(m) {
 
 export async function makeReceipt(db, { restaurant, order, branch, currency }) {
   try {
-    const buffer = await buildPdf({ restaurant, order, branch, currency });
+    const buffer = await buildPdf({ restaurant, order, branch, currency });   // buildPdf is now async
     return await uploadPublicPdf(db, BUCKET, `${order.code}.pdf`, buffer);
   } catch (e) {
     log("receipt failed:", e.message);

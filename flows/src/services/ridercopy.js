@@ -11,8 +11,9 @@ const first = (name) => String(name || "").trim().split(/\s+/)[0] || "";
 const money = (n) => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 export const riderCopy = {
-  // kitchen → rider handoff
-  out: (o) => `🛵 Order ${o.code} is ON ITS WAY${o.courier_name ? ` with ${first(o.courier_name)}` : ""}${o.address ? ` to ${o.address}` : ""}!`,
+  // kitchen → rider handoff — this is the moment a track link earns its keep: before
+  // dispatch there is no rider position to show, so no earlier push carries one.
+  out: (o, trackUrl) => `🛵 Order ${o.code} is ON ITS WAY${o.courier_name ? ` with ${first(o.courier_name)}` : ""}${o.address ? ` to ${o.address}` : ""}!${trackUrl ? `\n📍 Track live: ${trackUrl}` : ""}`,
 
   near: (o) => `📍 ${o.courier_name ? `${first(o.courier_name)} is` : "Your rider is"} 2 minutes away with order ${o.code} — see you in a moment!`,
 

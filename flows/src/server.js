@@ -10,7 +10,7 @@ import { runRegression, regressionStatus } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
 import { getSession, logMessage } from "./services/chatlog.js";
 import { riderCopy } from "./services/ridercopy.js";
-import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, builderConfig, signBuildToken, LAYERS as BUILDER_LAYERS, MODEL_BASE } from "./services/builder.js";
+import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, builderConfig, signBuildToken, signTrackToken, LAYERS as BUILDER_LAYERS, MODEL_BASE } from "./services/builder.js";
 import { nextOrderCode } from "./services/ordercode.js";
 import { renderDriverPage } from "./services/driverpage.js";
 import { renderTrackPage } from "./services/trackpage.js";
@@ -650,7 +650,8 @@ app.post("/api/driver/:token/action", async (req, res) => {
     if (action === "out") {
       await db.from("orders").update({ status: "out_for_delivery", out_at: new Date().toISOString(), notified_status: "out_for_delivery" }).eq("id", order.id)
         .then((r2) => r2.error ? db.from("orders").update({ status: "out_for_delivery" }).eq("id", order.id) : r2);
-      await pushGuest(tenant, order, riderCopy.out(order));
+      const trackUrl = `${PUBLIC_BASE}/track/${signTrackToken({ code: order.code, slug: tenant.config.slug })}`;
+      await pushGuest(tenant, order, riderCopy.out(order, trackUrl));
       return res.json({ ok: true, note: "Customer told it's on the way" });
     }
     if (action === "near") {

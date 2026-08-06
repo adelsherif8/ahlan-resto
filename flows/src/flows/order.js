@@ -12,6 +12,7 @@ import { makeReceipt } from "../services/receipt.js";
 import { menuPdfUrl } from "../services/menupdf.js";
 import { nextOrderCode } from "../services/ordercode.js";
 import { parseAddress, formatAddress, ADDRESS_TEMPLATE_EN } from "../services/address.js";
+import { signTrackToken } from "../services/builder.js";
 
 
 
@@ -673,9 +674,13 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           last_visit_at: new Date().toISOString(),
         }).eq("id", diner.id);
       }
+      // A delivery order is the one case where "check back later" isn't good enough —
+      // the customer gets a live link alongside the receipt, same as the rider's own page.
+      // Computed BEFORE the receipt PDF so the QR on paper can point straight at it.
+      const trackUrl = orderType === "delivery" ? `${PUBLIC_BASE}/track/${signTrackToken({ code, slug: config.slug })}` : null;
       const receiptUrl = await makeReceipt(db, {
         restaurant: config.name,
-        order: { ...row, bill, created_at: new Date().toISOString() },
+        order: { ...row, bill, created_at: new Date().toISOString(), track_url: trackUrl },
         branch: branchInfo, currency,
       });
       if (receiptUrl) await db.from("orders").update({ receipt_url: receiptUrl }).eq("code", code).then(() => {}, () => {});
@@ -683,7 +688,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         `🍔 New ${orderType.replace("_", "-")} order ${code}${branchInfo ? ` — ${branchInfo.name}` : ""}`,
         `${name || ctx.sessionId}${tableNumber ? ` · table ${tableNumber}` : ""}${address ? ` · 📍 ${address}` : ""} — ${items.map((i) => `${i.qty}× ${i.name}${i.notes ? ` (${i.notes})` : ""}${modifiers(i).length ? ` [${modifiers(i).join(" · ")}]` : ""}`).join(", ")} · ${fmtAmount(bill.total)} ${currency}`,
         ctx.sessionId, branch);
-      return { kind: "order_placed", loyalty, code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
+      return { kind: "order_placed", loyalty, code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, track_url: trackUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
     }, { input: { intent: e.intent, items: (e.items || []).length, order_type: e.order_type, table: e.table_number } });
 
     const value = await f.node("phrase", async () => {
@@ -854,6 +859,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         payment: outcome.payment,
         code: outcome.kind === "order_placed" ? outcome.code : null,
         eta: outcome.eta_minutes || null,
+        trackUrl: outcome.kind === "order_placed" ? outcome.track_url : null,
         restaurant: config.name,
         slug: config.slug,
         when: new Date().toLocaleString("en-GB", { timeZone: config.basic_info?.timezone || "Africa/Cairo", hour12: true, day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }),
@@ -1518,7 +1524,7 @@ function priceOrder(items, config, orderType) {
 // or a currency symbol — it phrases around this block, it doesn't compose it.
 const fmtAmount = fmtMoney;
 
-function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, restaurant, slug, when, branchPin }) {
+function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, trackUrl, restaurant, slug, when, branchPin }) {
   const money = (n) => `${fmtAmount(n)} ${currency}`;
   const lines = items.map((it) => {
     const mods = modifiers(it);
@@ -1544,6 +1550,7 @@ function renderBill({ items, bill, currency, orderType, tableNumber, branchName,
     orderType === "delivery" && address ? `📍 ${address}` : null,
     code && eta ? `⏱ about ${eta} min` : null,
     code ? `📄 ${publicLink(`/receipt/${code}`, slug)}` : null,
+    trackUrl ? `📍 Track live: ${trackUrl}` : null,
   ].filter(Boolean);
   return [
     ...header.filter(Boolean),
