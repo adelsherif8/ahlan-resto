@@ -579,8 +579,23 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
 
   // floating 3D labels competed with the ingredient cards for attention and ran over
   // the panel — keep them small and out of the way
-  html = html.replace("    label.position.set(def.radius + 1.15, 0, 0);", "    label.position.set(def.radius + 2.2, 0, 0);");
-  html = html.replace("    label.position.set(breadDef.radius + 1.15, 0, 0);", "    label.position.set(breadDef.radius + 2.2, 0, 0);");
+  html = html.replace("    label.position.set(def.radius + 1.15, 0, 0);", "    label.position.set(def.radius + 1.4, 0, 0);");
+  html = html.replace("    label.position.set(breadDef.radius + 1.15, 0, 0);", "    label.position.set(breadDef.radius + 1.4, 0, 0);");
+
+  // Camera: rotate and zoom only. Dragging vertically tipped the stack up to ±0.6 rad,
+  // which lets you look down onto the bun from above — that is a modelling view, not a
+  // way to look at a sandwich. Y spin stays free; X is pinned flat.
+  html = html.replace(
+    "    group.rotation.x = Math.max(-0.6, Math.min(0.6, group.rotation.x + dy * 0.006));",
+    "    // vertical drag deliberately ignored — the sandwich only spins, never tips",
+  );
+
+  // zoom range tightened around the new camera distance so the stack cannot be pushed
+  // off into the distance or pulled inside the bun
+  html = html.replace(/camera\.position\.z = Math\.max\(6, Math\.min\(15, pinchStartZ \* \(pinchStartDist \/ dist\)\)\);/,
+    "camera.position.z = Math.max(9, Math.min(20, pinchStartZ * (pinchStartDist / dist)));");
+  html = html.replace(/camera\.position\.z = Math\.max\(6, Math\.min\(15, camera\.position\.z \+ e\.deltaY \* 0\.006\)\);/,
+    "camera.position.z = Math.max(9, Math.min(20, camera.position.z + e.deltaY * 0.006));");
 
   // the header belonged to the prototype, not to this restaurant
   html = html.replace("<h1>Build Your Sandwich</h1>", `<h1>${config.name} — build your own</h1>`);
