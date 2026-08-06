@@ -11,6 +11,7 @@ import { fmtMoney } from "../services/format.js";
 import { makeReceipt } from "../services/receipt.js";
 import { menuPdfUrl } from "../services/menupdf.js";
 import { nextOrderCode } from "../services/ordercode.js";
+import { parseAddress, formatAddress, ADDRESS_TEMPLATE_EN } from "../services/address.js";
 
 
 
@@ -355,7 +356,9 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           /^(cash|card|visa|instapay|كاش|فيزا|بطاقة|انستاباي)(?![\p{L}\p{N}])/iu.test(t) ||
           /^(yes|ok|okay|sure|confirm|tamam|تمام|ماشي|اه|ايوه)(?![\p{L}\p{N}])[\s!.]*$/iu.test(t) ||
           /[?؟]\s*$/.test(t);
-        if (!isCommand && t.length >= 3 && t.length <= 200) address = t;
+        // structure it here, once, so the ticket and the driver page both read a
+        // proper address instead of each re-deriving one from a blob
+        if (!isCommand && t.length >= 3 && t.length <= 300) address = formatAddress(parseAddress(t)) || t;
       }
       const sharedPin = freshLocation(diner, 1);
 
@@ -769,8 +772,13 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
       if (outcome.need_address) qs.push((outcome.saved || []).length
         ? `Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`
-        : `What's the delivery address? Type it out or paste a Google Maps link 🔗`);
-      reply = `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}`;
+        : ADDRESS_TEMPLATE_EN);
+      // The lead-in ("Almost done — just the last details") belongs on the FIRST
+      // fulfilment question only. Repeated verbatim every turn it stops reading as
+      // progress and starts reading as a stuck loop: being told "almost done" three
+      // times while still being asked things is worse than no lead-in at all.
+      // need_type is only ever true before anything has been chosen, so it IS "first".
+      reply = outcome.need_type ? `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : qs.join("\n\n");
     }
 
     // Option questions are STRUCTURE, and structure is code's job — the model
