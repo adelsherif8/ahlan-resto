@@ -248,6 +248,14 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
   const darken = (h, f = 0.72) =>
     "#" + [1, 3, 5].map((i) => Math.round(parseInt(h.slice(i, i + 2), 16) * f).toString(16).padStart(2, "0")).join("");
   const light = brand.mode === "light";
+  // The scene sits behind a grey studio vignette baked for the dark original. On a
+  // light brand that reads as a dirty grey box next to white panels.
+  const sceneLight = light ? `<style>
+    #scene-container{background:radial-gradient(ellipse at 50% 42%,#ffffff 0%,#f4f1ee 55%,#e9e5e1 100%)}
+    .vignette{opacity:.18}
+    #scene-container header h1{color:#16130f}
+  </style>` : "";
+
   const theme = `<style id="ahlan-brand">:root{
     --brand-red:${hex}; --brand-red-rgb:${rgb}; --brand-red-dark:${darken(hex)};
     ${light ? `
@@ -275,7 +283,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     [/'Burger1\//g, "window.__AHLAN__.modelBase + '/"],
   ];
 
-  html = html.replace("</head>", `${theme}\n</head>`);
+  html = html.replace("</head>", `${theme}${sceneLight}\n</head>`);
 
   for (const [find, put] of replacements) {
     if (typeof find === "string" && !html.includes(find)) log(`builder: seam not found: ${find.slice(0, 40)}`);
@@ -508,10 +516,11 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
           var rr = new THREE.WebGLRenderer({ canvas: rc, antialias: true, alpha: true, preserveDrawingBuffer: true });
           rr.setPixelRatio(1);
           var sc = new THREE.Scene();
-          sc.add(new THREE.AmbientLight(0xffffff, 1.05));
+          sc.add(new THREE.AmbientLight(0xffffff, 1.35));
           var dl = new THREE.DirectionalLight(0xffffff, 1.0); dl.position.set(3, 6, 4); sc.add(dl);
           // a single key light left every thumbnail dark on its camera-facing side
-          var fill = new THREE.DirectionalLight(0xffffff, 0.55); fill.position.set(-3, 2, 3); sc.add(fill);
+          var fill = new THREE.DirectionalLight(0xffffff, 0.8); fill.position.set(-3, 2, 3); sc.add(fill);
+          var back = new THREE.DirectionalLight(0xffffff, 0.5); back.position.set(0, -2, -3); sc.add(back);
           var cam = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
           window.__thumbRig = { rc: rc, rr: rr, sc: sc, cam: cam };
         }
@@ -572,6 +581,9 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
   // the panel — keep them small and out of the way
   html = html.replace("    label.position.set(def.radius + 1.15, 0, 0);", "    label.position.set(def.radius + 2.2, 0, 0);");
   html = html.replace("    label.position.set(breadDef.radius + 1.15, 0, 0);", "    label.position.set(breadDef.radius + 2.2, 0, 0);");
+
+  // the header belonged to the prototype, not to this restaurant
+  html = html.replace("<h1>Build Your Sandwich</h1>", `<h1>${config.name} — build your own</h1>`);
 
   // the stack "settles" once the order is actually accepted
   html = html.replace(

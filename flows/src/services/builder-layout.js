@@ -27,7 +27,10 @@ export function layoutScript() {
     #scene-container{flex:1;height:100%}
     #panel{width:370px;height:100%;display:flex;flex-direction:column;overflow:hidden}
   }
-  #bx-left{display:none}
+  /* Hide the rail ONLY below the three-column breakpoint. An unconditional
+     display:none after the media query wins on source order and hid every control
+     on desktop while still reserving the column for them. */
+  @media (max-width:1099px){ #bx-left{display:none} }
 
   /* ---------- tabs (phone) ---------- */
   #bx-tabs{display:flex;gap:4px;padding:8px 12px 4px;position:sticky;top:0;z-index:3;
@@ -218,7 +221,7 @@ export function layoutScript() {
     draw();
 
     // never leave a dead column: if there is nothing in the rail, collapse it
-    if (!left.children.length) {
+    if (!left.textContent.trim() && !left.querySelector('button,input')) {
       left.style.display = 'none';
       document.getElementById('app').style.gridTemplateColumns = '1fr 340px';
     }
