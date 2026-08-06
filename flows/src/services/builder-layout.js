@@ -12,7 +12,7 @@ export function layoutScript() {
   /* THREE columns only when there is genuinely room for three. At 821px a
      288 + 320 pair leaves the burger about 200px, which is worse than two columns. */
   @media (min-width:1100px){
-    #app{display:grid;grid-template-columns:284px 1fr 318px;grid-template-rows:minmax(0,1fr) auto;height:100%;overflow:hidden}
+    #app{display:grid;grid-template-columns:330px 1fr 370px;grid-template-rows:minmax(0,1fr) auto;height:100%;overflow:hidden}
     /* min-height:0 on every one of these. A grid item defaults to min-height:auto,
        which makes it grow to fit its content instead of scrolling — which is why
        neither sidebar would scroll and the 3D column ate the screen. */
@@ -29,7 +29,7 @@ export function layoutScript() {
   @media (min-width:821px) and (max-width:1099px){
     #app{flex-direction:row;overflow:hidden}
     #scene-container{flex:1 1 auto;height:100%;min-width:0}
-    #panel{flex:0 0 370px;width:370px;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+    #panel{flex:0 0 400px;width:400px;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
   }
   /* Hide the rail ONLY below the three-column breakpoint. An unconditional
      display:none after the media query wins on source order and hid every control
@@ -62,7 +62,7 @@ export function layoutScript() {
   /* the stack list gets its own scroll so a long build never pushes the
      sliders and buttons off the bottom of the rail */
   #bx-left #stack-list{max-height:34vh}
-  .bx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px;padding:0 12px 10px}
+  .bx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;padding:0 12px 10px}
   @media (min-width:1200px){.bx-grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}}
   .bx-card{background:rgba(var(--brand-red-rgb),.05);border:1px solid rgba(var(--brand-red-rgb),.16);
     border-radius:11px;padding:6px;display:flex;flex-direction:column;gap:3px;position:relative}
@@ -88,6 +88,13 @@ export function layoutScript() {
     cursor:pointer;font-family:inherit;white-space:nowrap}
   #bx-filters button.on{background:var(--brand-red);border-color:var(--brand-red);color:var(--text-on-accent)}
   #bx-filters button .c{opacity:.65;font-weight:500;margin-left:3px}
+  #bx-search{margin:0 12px 8px;position:relative}
+  #bx-search input{width:100%;padding:10px 32px 10px 12px;border-radius:10px;font-family:inherit;font-size:13px;
+    border:1px solid rgba(var(--brand-red-rgb),.22);background:transparent;color:var(--text-main)}
+  #bx-search input::placeholder{color:var(--text-dim)}
+  #bx-search .x{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;
+    color:var(--text-dim);font-size:16px;cursor:pointer;font-family:inherit;padding:2px 6px}
+  .bx-none{padding:14px;font-size:13px;color:var(--text-dim);text-align:center}
   .bx-card.bx-block{opacity:.32;pointer-events:none}
   /* the demo's own logged-in-user strip has no place on a customer page */
   .user-bar{display:none !important}
@@ -153,18 +160,46 @@ export function layoutScript() {
     var CUR = (window.__AHLAN__ && window.__AHLAN__.currency) || 'EGP';
 
     var filter = 'all';
+    var query = '';
+    var POPULAR = (window.__AHLAN__ && window.__AHLAN__.popular) || [];
+
+    function drawSearch(){
+      var wrap = document.createElement('div');
+      wrap.id = 'bx-search';
+      var inp = document.createElement('input');
+      inp.type = 'search'; inp.placeholder = 'Search ingredients'; inp.value = query;
+      inp.oninput = function(){
+        query = inp.value.trim().toLowerCase();
+        var at = inp.selectionStart;
+        draw();
+        var again = document.querySelector('#bx-search input');
+        if (again) { again.focus(); try { again.setSelectionRange(at, at); } catch (e) {} }
+      };
+      wrap.appendChild(inp);
+      if (query) {
+        var x = document.createElement('button');
+        x.type = 'button'; x.className = 'x'; x.textContent = '\u00d7';
+        x.onclick = function(){ query = ''; draw(); };
+        wrap.appendChild(x);
+      }
+      scroll.appendChild(wrap);
+    }
 
     function drawFilters(){
       var bar = document.createElement('div');
       bar.id = 'bx-filters';
-      var groups = [['all', 'All']].concat(ORDER
+      var groups = [['all', 'All']]
+        .concat(POPULAR.length ? [['popular', 'Most ordered']] : [])
+        .concat(ORDER
         .filter(function(c){ return B.catalog.some(function(d){ return d.category === c; }); })
         .map(function(c){ return [c, CAT[c] || c]; }));
       groups.forEach(function(g){
         var b = document.createElement('button');
         b.type = 'button';
         b.className = filter === g[0] ? 'on' : '';
-        var n = g[0] === 'all' ? B.catalog.length : B.catalog.filter(function(d){ return d.category === g[0]; }).length;
+        var n = g[0] === 'all' ? B.catalog.length
+          : g[0] === 'popular' ? B.catalog.filter(function(d){ return POPULAR.indexOf(d.id) !== -1; }).length
+          : B.catalog.filter(function(d){ return d.category === g[0]; }).length;
         b.innerHTML = '';
         b.appendChild(document.createTextNode(g[1]));
         var c = document.createElement('span'); c.className = 'c'; c.textContent = n;
@@ -175,14 +210,24 @@ export function layoutScript() {
       scroll.appendChild(bar);
     }
 
+    function match(d){
+      if (query && d.name.toLowerCase().indexOf(query) === -1) return false;
+      if (filter === 'popular') return POPULAR.indexOf(d.id) !== -1;
+      return true;
+    }
+
     function draw(){
       scroll.innerHTML = '';
       drawFilters();
+      drawSearch();
+      var shown = 0;
       ORDER.forEach(function(cat){
-        if (filter !== 'all' && cat !== filter) return;
-        var items = B.catalog.filter(function(d){ return d.category === cat; });
+        if (filter !== 'all' && filter !== 'popular' && cat !== filter) return;
+        var items = B.catalog.filter(function(d){ return d.category === cat && match(d); });
+        if (filter === 'popular') items.sort(function(a, b){ return POPULAR.indexOf(a.id) - POPULAR.indexOf(b.id); });
+        shown += items.length;
         if (!items.length) return;
-        if (filter === 'all') {
+        if (filter === 'all' || filter === 'popular') {
           var h = document.createElement('div'); h.className = 'bx-cat'; h.textContent = CAT[cat] || cat;
           scroll.appendChild(h);
         }
@@ -223,6 +268,12 @@ export function layoutScript() {
           g.appendChild(c);
         });
       });
+      if (!shown) {
+        var none = document.createElement('div');
+        none.className = 'bx-none';
+        none.textContent = query ? 'Nothing matches "' + query + '"' : 'Nothing here yet';
+        scroll.appendChild(none);
+      }
       thumbs();
       if (window.__BX_APPLY__) window.__BX_APPLY__();
     }

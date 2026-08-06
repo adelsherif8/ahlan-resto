@@ -353,7 +353,25 @@ app.get("/build/:token", async (req, res) => {
     if (!claim) return res.status(404).send("<h3 style=\"font-family:sans-serif\">This build link has expired.</h3>");
     const tenant = await resolveRestaurantBySlug(claim.slug);
     const { data: menu } = await tenant.db.from("menu_items").select("name,price,available").limit(120);
+
+    // "Most ordered" from REAL builds. No builder orders yet means no trending list —
+    // the page simply doesn't offer one rather than showing a made-up ranking.
+    let popular = [];
+    try {
+      const { data: past } = await tenant.db.from("orders")
+        .select("items").order("created_at", { ascending: false }).limit(300);
+      const tally = new Map();
+      for (const o of past || []) {
+        for (const it of o.items || []) {
+          if (!it?.build) continue;
+          for (const [id, q] of Object.entries(it.build)) tally.set(id, (tally.get(id) || 0) + (Number(q) || 0));
+        }
+      }
+      popular = [...tally.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id]) => id);
+    } catch { /* trending is a nicety — never break the builder over it */ }
+
     res.type("html").send(renderBuilderPage(tenant, req.params.token, {
+      popular,
       preview: claim.preview,
       lite: req.query?.lite === "1",
       menu: (menu || []).filter((m) => m.available !== false),
@@ -401,6 +419,9 @@ app.post("/api/build/:token/submit", async (req, res) => {
       unit_price: priced.total,
       notes,
       options: priced.lines.map((l) => `${l.qty}× ${l.name}`).join(" · "),
+      // the exact ingredient ids, so "most ordered" is counted from what people
+      // actually built rather than parsed back out of a display string
+      build: Object.fromEntries(priced.lines.map((l) => [l.id, l.qty])),
     };
 
     const row = {

@@ -173,7 +173,7 @@ function notConfiguredPage(config, brand, bc) {
 // The stock page is a standalone demo: localStorage login, placeholder webhook,
 // demo prices, relative model paths. Serving it means replacing exactly those
 // seams — everything else about the 3D scene is left alone.
-export function renderBuilderPage(tenant, token, { preview = false, menu = [], lite = false } = {}) {
+export function renderBuilderPage(tenant, token, { preview = false, menu = [], lite = false, popular = [] } = {}) {
   const config = tenant.config;
   const bc = builderConfig(config, { preview });
   const brand = config.basic_info?.brand || {};
@@ -234,6 +234,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     catalog,
     maxPerLayer: bc.max_per_layer,
     basePrice: bc.base_price,   // the page must total what the SERVER will charge
+    popular,                    // ids ranked by real past builds; empty means no data yet
     // labels are drawn onto a canvas texture, so they need a real colour value —
     // the cream the prototype used disappears completely on a light brand
     labelColor: brand.mode === "light" ? "#16130f" : "rgba(242, 230, 200, 0.95)",
@@ -404,14 +405,27 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
   );
 
   html = html.replace("</head>", `<style>
-    #stack-panel{padding:10px 14px 4px}
-    .stack-title{font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
-    .stack-title em{font-style:normal;opacity:.65;letter-spacing:.4px;text-transform:none}
-    .stack-row{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:8px;font-size:12.5px;color:var(--text-main);background:rgba(var(--brand-red-rgb),.05);margin-bottom:3px}
-    .stack-row.pinned{opacity:.55;background:transparent}
+    /* The stack was a few faint grey lines nobody could see. It is the thing the
+       customer is actually building, so it reads as a proper card: a spine down the
+       left, the layer count, and the bun halves marked as the fixed ends. */
+    #stack-panel{margin:10px 12px 6px;padding:11px 12px 9px;border-radius:13px;
+      background:rgba(var(--brand-red-rgb),.06);border:1px solid rgba(var(--brand-red-rgb),.18)}
+    .stack-title{display:flex;align-items:baseline;gap:6px;font-size:10.5px;letter-spacing:1.3px;
+      text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;font-weight:800}
+    .stack-title em{font-style:normal;opacity:.6;letter-spacing:.3px;text-transform:none;font-weight:500}
+    .stack-title .n{margin-left:auto;background:var(--brand-red);color:var(--text-on-accent);
+      border-radius:20px;padding:1px 8px;font-size:10.5px;letter-spacing:0}
+    .stack-row{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:9px;font-size:13px;
+      font-weight:600;color:var(--text-main);background:var(--panel-grad-1);margin-bottom:4px;
+      border-left:3px solid var(--brand-red);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+    .stack-row.pinned{opacity:.72;font-weight:500;border-left-color:rgba(var(--brand-red-rgb),.3);background:transparent;box-shadow:none}
     .stack-row span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .stack-row button{border:0;background:rgba(var(--brand-red-rgb),.14);color:var(--text-main);width:22px;height:22px;border-radius:6px;font-size:12px;cursor:pointer;line-height:1;font-family:inherit}
-    .stack-row button:disabled{opacity:.25;cursor:default}
+    .stack-row .tag{flex:0 0 auto;font-size:9.5px;letter-spacing:.8px;text-transform:uppercase;
+      color:var(--text-dim);font-weight:700}
+    .stack-row button{border:0;background:rgba(var(--brand-red-rgb),.16);color:var(--text-main);
+      width:28px;height:28px;border-radius:8px;font-size:12px;cursor:pointer;line-height:1;font-family:inherit}
+    .stack-row button:disabled{opacity:.22;cursor:default}
+    .stack-empty{font-size:12.5px;color:var(--text-dim);padding:4px 2px 2px}
     #stack-list{max-height:22vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
     @media (max-width: 820px){
       /* the panel now carries a stack list AND 37 ingredients — give it room, and
@@ -453,6 +467,19 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     if (!el) return;
     const movable = order.filter((g) => g.userData.category !== 'bread-top' && g.userData.category !== 'bread-bottom');
     el.innerHTML = '';
+    // a visible count, and an honest empty state instead of a blank box
+    const head = document.querySelector('#stack-panel .stack-title');
+    if (head) {
+      let n = head.querySelector('.n');
+      if (!n) { n = document.createElement('span'); n.className = 'n'; head.appendChild(n); }
+      n.textContent = movable.length ? movable.length + ' layer' + (movable.length === 1 ? '' : 's') : 'empty';
+    }
+    if (!movable.length) {
+      const e0 = document.createElement('div');
+      e0.className = 'stack-empty';
+      e0.textContent = 'Pick a bun and start stacking.';
+      el.appendChild(e0);
+    }
     order.slice().reverse().forEach((g) => {
       const ud = g.userData;
       const bread = ud.category === 'bread-top' || ud.category === 'bread-bottom';
@@ -464,6 +491,12 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
       const name = document.createElement('span');
       name.textContent = (def && def.name) || ud.ingredientId || 'layer';
       row.appendChild(name);
+      if (bread) {
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = 'bun';
+        row.appendChild(tag);
+      }
       if (!bread) {
         const i = movable.indexOf(g);
         const up = document.createElement('button'); up.textContent = '\u25B2'; up.title = 'Move up';
