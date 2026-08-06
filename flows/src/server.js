@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { PORT, log, llmReady } from "./config.js";
-import { resolveRestaurant } from "./services/tenant.js";
+import { resolveRestaurant, resolveRestaurantByWpid, resolveRestaurantById } from "./services/tenant.js";
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
@@ -86,7 +86,16 @@ app.post("/api/wa/webhook", async (req, res) => {
     const { events, statuses } = parseEnvelope(req.body);
     if (statuses.length) log(`WA statuses: ${statuses.map((s) => s.status).join(",")}`);
     for (const event of events) {
-      const tenant = await resolveRestaurant(); // v1 single-tenant; per-wpid routing when multi-restaurant
+      // WHOSE restaurant is this? The number the guest wrote to decides it.
+      // An unknown number is dropped rather than answered by the default
+      // restaurant — a cross-tenant reply is worse than no reply.
+      let tenant;
+      try {
+        tenant = await resolveRestaurantByWpid(event.phoneNumberId);
+      } catch (e) {
+        log(`WA webhook: no restaurant for phone_number_id ${event.phoneNumberId} — dropped (${e.message})`);
+        continue;
+      }
       const ctx = { sessionId: `+${event.from}`, tenant, channel: "whatsapp", trigger: "whatsapp" };
       await runFlow("ingest", ctx, { event });
     }
@@ -100,7 +109,8 @@ app.post("/api/web/send", async (req, res) => {
   try {
     const { sessionId, message } = req.body || {};
     if (!sessionId || !message) return res.status(400).json({ error: "sessionId and message required" });
-    const tenant = await resolveRestaurant();
+    // optional ?restaurant=<slug> lets the ops console drive any tenant's bot
+    const tenant = await resolveRestaurant(req.body.wpid || null);
     const ctx = { sessionId, tenant, channel: "web", trigger: "web" };
     const { exec } = await runFlow("ingest", ctx, { message, messageId: req.body.messageId || null });
     res.json({ accepted: true, executionId: exec.id });
@@ -603,9 +613,15 @@ app.get("/api/executions/:id", opsAuth, async (req, res) => {
 });
 
 // ================= workers =================
-async function flushHandler(sessionId, channel = "web") {
-  const tenant = await resolveRestaurant();
-  const ctx = { sessionId, tenant, channel, trigger: "buffer-flush" };
+// Buffer keys are "<restaurantId>|<sessionId>" so two restaurants can never
+// share a burst — the same guest phone may talk to both, and their messages
+// must stay in separate conversations.
+async function flushHandler(bufferKey, channel = "web") {
+  const sep = String(bufferKey).indexOf("|");
+  const restaurantId = sep > 0 ? bufferKey.slice(0, sep) : null;
+  const sessionId = sep > 0 ? bufferKey.slice(sep + 1) : bufferKey;
+  const tenant = restaurantId ? await resolveRestaurantById(restaurantId) : await resolveRestaurant();
+  const ctx = { sessionId, bufferKey, tenant, channel, trigger: "buffer-flush" };
   const { error } = await runFlow("respond", ctx, {});
   if (error) await handleFlushFailure(ctx, error);
 }
@@ -635,7 +651,7 @@ setInterval(async () => {
 // boot sweep: flush bursts stranded by a previous restart
 resolveRestaurant()
   .then(async (t) => {
-    bootSweep(t.db, flushHandler);
+    bootSweep(t.db, flushHandler, t.record.id);
     // a deploy can kill a regression mid-run before its cleanup — sweep orphans here
     try {
       for (const pat of ["web:regress-%", "web:convo-%"]) {

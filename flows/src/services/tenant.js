@@ -25,29 +25,62 @@ function decryptField(value) {
   }
 }
 
-let cached = null;
-let cachedAt = 0;
 const CACHE_MS = 60_000;
 
-export async function resolveRestaurant() {
-  if (cached && Date.now() - cachedAt < CACHE_MS) return cached;
+// One entry per restaurant, keyed by how it was looked up (wpid / slug / id).
+// A single shared `cached` was fine for one restaurant and catastrophic for two:
+// the second restaurant's messages would be answered with the first one's menu.
+const tenants = new Map();
+
+function buildTenant(data) {
+  const creds = data.integrations?.supabase || {};
+  if (!creds.url || !creds.key) throw new Error(`Tenant DB not configured for '${data.slug}'`);
+  // schema-per-restaurant: several restaurants share ONE Supabase project, each
+  // with its own schema. No schema set = the original `public` tenant.
+  const schema = creds.schema ? decryptField(creds.schema) : null;
+  const db = createClient(
+    decryptField(creds.url),
+    decryptField(creds.key),
+    schema ? { db: { schema } } : undefined
+  );
+  return { record: data, db, config: shapeConfig(data), schema: schema || "public" };
+}
+
+async function lookup(column, value) {
+  const key = `${column}:${value}`;
+  const hit = tenants.get(key);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.tenant;
   if (!control) throw new Error("SUPABASE_AHLAN_URL not configured");
 
-  const { data, error } = await control
-    .from("restaurants")
-    .select("*")
-    .eq("slug", RESTAURANT_SLUG)
-    .single();
-  if (error || !data) throw new Error(`Restaurant '${RESTAURANT_SLUG}' not found: ${error?.message}`);
+  const { data, error } = await control.from("restaurants").select("*").eq(column, value).maybeSingle();
+  if (error || !data) throw new Error(`Restaurant ${column}='${value}' not found: ${error?.message || "no row"}`);
 
-  const creds = data.integrations?.supabase || {};
-  if (!creds.url || !creds.key) throw new Error("Restaurant tenant DB not configured");
-  const db = createClient(decryptField(creds.url), decryptField(creds.key));
+  const tenant = buildTenant(data);
+  tenants.set(key, { tenant, at: Date.now() });
+  // also index it by the other keys so later lookups reuse the same client
+  tenants.set(`slug:${data.slug}`, { tenant, at: Date.now() });
+  tenants.set(`id:${data.id}`, { tenant, at: Date.now() });
+  if (data.wpid) tenants.set(`wpid:${data.wpid}`, { tenant, at: Date.now() });
+  log(`tenant resolved: ${data.name} (${data.slug}, schema ${tenant.schema})`);
+  return tenant;
+}
 
-  cached = { record: data, db, config: shapeConfig(data) };
-  cachedAt = Date.now();
-  log(`tenant resolved: ${data.name} (${data.slug})`);
-  return cached;
+// The WhatsApp number that RECEIVED the message decides whose restaurant this is.
+// An unknown number is refused, never silently served by the default restaurant —
+// answering Luci'z guests with Just Smash's menu is the one failure we must make
+// impossible.
+export async function resolveRestaurantByWpid(wpid) {
+  if (!wpid) throw new Error("no phone_number_id on the inbound message");
+  return lookup("wpid", String(wpid));
+}
+
+export async function resolveRestaurantById(id) {
+  return lookup("id", id);
+}
+
+export async function resolveRestaurant(wpid = null) {
+  if (wpid) return resolveRestaurantByWpid(wpid);
+  return lookup("slug", RESTAURANT_SLUG);
 }
 
 function shapeConfig(r) {

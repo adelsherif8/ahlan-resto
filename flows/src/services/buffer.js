@@ -22,7 +22,9 @@ function heuristicWindow(message, base) {
   return base;
 }
 
-export async function pushMessage(db, sessionId, message, messageId, { channel = "web", isNewSession = false, windowBase = null } = {}) {
+export async function pushMessage(db, sessionId, message, messageId, { channel = "web", isNewSession = false, windowBase = null, phone = null } = {}) {
+  // sessionId here is the tenant-scoped buffer key; `phone` is what goes in the DB
+  const dbPhone = phone || sessionId;
   // dedup: memory fast-path
   if (messageId && seenIds.has(messageId)) return { accepted: false, reason: "duplicate (memory)" };
   if (messageId) {
@@ -34,8 +36,8 @@ export async function pushMessage(db, sessionId, message, messageId, { channel =
   let persisted = false;
   try {
     const { error } = await db.from("messages_buffer").insert({
-      phone_number: sessionId,
-      wa_message_id: messageId || `${channel}-${sessionId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      phone_number: dbPhone,
+      wa_message_id: messageId || `${channel}-${dbPhone}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       message,
     });
     if (error) {
@@ -76,7 +78,8 @@ export function pendingCount(sessionId) {
 // Atomically claim all buffered rows for a session. Returns merged burst or null.
 // Retry-safe: a transient DB failure keeps the session alive so the next tick retries —
 // bursts are never stranded in messages_buffer.
-export async function claimBurst(db, sessionId) {
+export async function claimBurst(db, sessionId, phone = null) {
+  const dbPhone = phone || sessionId;
   const meta = sessions.get(sessionId);
   let rows = [];
   let dbOk = false;
@@ -84,7 +87,7 @@ export async function claimBurst(db, sessionId) {
     const { data, error } = await db
       .from("messages_buffer")
       .delete()
-      .eq("phone_number", sessionId)
+      .eq("phone_number", dbPhone)
       .select("*");
     if (error) throw new Error(error.message);
     dbOk = true;
@@ -146,11 +149,14 @@ export function flushNow(sessionId, channel = "web") {
 }
 
 // Boot sweep: stray rows left by a previous crash/redeploy → flush them.
-export async function bootSweep(db, onFlush) {
+export async function bootSweep(db, onFlush, restaurantId = null) {
   try {
     const { data } = await db.from("messages_buffer").select("phone_number").limit(200);
     const strays = [...new Set((data || []).map((r) => r.phone_number))];
-    for (const sid of strays) {
+    for (const phone of strays) {
+      // rebuild the tenant-scoped key so the recovered burst is answered by the
+      // restaurant it was actually sent to
+      const sid = restaurantId ? `${restaurantId}|${phone}` : phone;
       sessions.set(sid, { firstAt: 0, lastAt: 0, count: 1, windowMs: 0, typingUntil: 0, channel: "web" });
       await onFlush(sid, "web").catch(() => {});
     }

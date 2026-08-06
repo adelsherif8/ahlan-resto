@@ -15,7 +15,11 @@ import { log } from "../config.js";
 const HISTORY_TTL_MS = 60 * 60 * 1000; // fresh conversation after 1h of silence (removebuffer.json behavior, on read)
 
 // per-session channel memory: how do we reply to this session?
-const sessionRoutes = new Map(); // sessionId -> { channel, phoneNumberId }
+// EVERY in-memory map is keyed per RESTAURANT + session. The same guest phone
+// may message two restaurants we host; without the prefix their bursts would
+// merge into one conversation and one restaurant would answer the other's guest.
+const bufKey = (ctx) => ctx.bufferKey || `${ctx.tenant?.record?.id || "default"}|${ctx.sessionId}`;
+const sessionRoutes = new Map(); // "<restaurantId>|<sessionId>" -> { channel, phoneNumberId }
 // language stickiness
 const sessionLang = new Map(); // sessionId -> "en"|"ar"|"franco"|"mixed"
 export function setSessionLanguage(sessionId, l) {
@@ -60,7 +64,7 @@ defineFlow({
     const event = await f.node("verify_parse", async () => {
       if (ctx.channel === "whatsapp") {
         const e = input.event; // parsed by services/whatsapp.js parseEnvelope — raw included
-        sessionRoutes.set(ctx.sessionId, { channel: "whatsapp", phoneNumberId: e.phoneNumberId });
+        sessionRoutes.set(bufKey(ctx), { channel: "whatsapp", phoneNumberId: e.phoneNumberId });
         // reactions need no reply — log & stop after this node
         if (e.type === "reaction") return { kind: "reaction", text: `[reacted ${e.reaction.emoji}]`, raw: e.raw, no_reply: true, profileName: e.profileName };
         if (e.type === "location") return { kind: "location", text: `[shared location] ${e.location.name || ""} ${e.location.address || ""} (${e.location.lat},${e.location.lng})`, raw: e.raw, profileName: e.profileName };
@@ -69,7 +73,7 @@ defineFlow({
         if (e.media) return { kind: e.media.kind, media: e.media, text: e.text, raw: e.raw, profileName: e.profileName };
         return { kind: "text", text: e.text || `[${e.type}]`, raw: e.raw, profileName: e.profileName };
       }
-      sessionRoutes.set(ctx.sessionId, { channel: "web", phoneNumberId: null });
+      sessionRoutes.set(bufKey(ctx), { channel: "web", phoneNumberId: null });
       return { kind: "text", text: input.message };
     }, { input: ctx.channel === "whatsapp" ? { channel: "whatsapp", raw_event: input.event?.raw, from: input.event?.from, type: input.event?.type } : { channel: "web", message: input.message } });
 
@@ -147,7 +151,7 @@ defineFlow({
       const hist = await getHistory(db, ctx.sessionId);
       const isNewSession = hist.length === 0;
       const base = ctx.fastWindow || config.ai?.buffer_window_ms || (ctx.channel === "whatsapp" ? 8000 : 5000);
-      const r = await pushMessage(db, ctx.sessionId, finalText, messageId, { channel: ctx.channel, isNewSession, windowBase: base });
+      const r = await pushMessage(db, bufKey(ctx), finalText, messageId, { channel: ctx.channel, isNewSession, windowBase: base, phone: ctx.sessionId });
       return { ...r, next: `→ RESPOND flow fires after ${Math.round((r.window_ms || base) / 1000)}s of silence (or 25s cap) and routes to MASTER` };
     }, { input: { channel: ctx.channel, per_channel_default: ctx.channel === "whatsapp" ? "8s" : "5s", max_cap: `${MAX_CAP_MS / 1000}s` } });
 
@@ -179,7 +183,7 @@ defineFlow({
 
     // ---- claim_burst (atomic) ----
     const burst = await f.node("claim_burst", async () => {
-      const b = await claimBurst(db, ctx.sessionId);
+      const b = await claimBurst(db, bufKey(ctx), ctx.sessionId);
       if (!b) return { empty: true };
       bump("bursts"); bump("burst_msgs", b.count); bump("window_sum_ms", b.window_ms || 0);
       return b;
@@ -246,7 +250,7 @@ defineFlow({
     // ---- humanize_delay ----
     await f.node("humanize_delay", async () => {
       // refresh the WhatsApp typing indicator so long thinks never look dead
-      const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
+      const route = sessionRoutes.get(bufKey(ctx)) || { channel: ctx.channel };
       if (route.channel === "whatsapp" && String(burst.last_message_id || "").startsWith("wamid.")) {
         const pnid = route.phoneNumberId || WA_PHONE_NUMBER_ID;
         if (pnid) markReadWithTyping(pnid, burst.last_message_id).catch(() => {});
@@ -261,7 +265,7 @@ defineFlow({
     // ---- deliver (channel-aware, splits long replies, sends photos/buttons/lists) ----
     await f.node("deliver", async () => {
       const parts = splitReply(reply);
-      const isWa = (sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel) === "whatsapp";
+      const isWa = (sessionRoutes.get(bufKey(ctx))?.channel || ctx.channel) === "whatsapp";
       let qrs = routed?.quickReplies || [];
       const list = routed?.menuList || null;
       // pacing: no back-to-back buttons — EXCEPT at order decision points, where a
@@ -271,7 +275,7 @@ defineFlow({
       if (lastHadButtons.size > 2000) lastHadButtons.clear();
       // emoji reaction on the guest's message — lands before the text reply, like a human
       if (routed?.reactEmoji && isWa && String(burst.last_message_id || "").startsWith("wamid.")) {
-        const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
+        const pnid = sessionRoutes.get(bufKey(ctx))?.phoneNumberId || ctx.tenant?.record?.wpid || WA_PHONE_NUMBER_ID;
         if (pnid) await sendReaction(pnid, ctx.sessionId.replace(/^\+/, ""), burst.last_message_id, routed.reactEmoji).catch(() => {});
       }
       // A document with a caption IS the message — sending the text separately turns
@@ -300,7 +304,7 @@ defineFlow({
         const caption = (mergeDoc ? parts[0] : md.caption).slice(0, 1020);
         let sent = false;
         if (isWa) {
-          const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
+          const pnid = sessionRoutes.get(bufKey(ctx))?.phoneNumberId || ctx.tenant?.record?.wpid || WA_PHONE_NUMBER_ID;
           // a silently-dropped document looks identical to "the bot ignored me" — surface it
           if (pnid) {
             sent = await sendDocument(pnid, ctx.sessionId.replace(/^\+/, ""), md.url, caption, md.filename || "menu.pdf")
@@ -315,7 +319,7 @@ defineFlow({
       if (routed?.locationPin) {
         const pin = routed.locationPin;
         if (isWa) {
-          const pnid = sessionRoutes.get(ctx.sessionId)?.phoneNumberId || WA_PHONE_NUMBER_ID;
+          const pnid = sessionRoutes.get(bufKey(ctx))?.phoneNumberId || ctx.tenant?.record?.wpid || WA_PHONE_NUMBER_ID;
           if (pnid) await sendLocation(pnid, ctx.sessionId.replace(/^\+/, ""), pin.lat, pin.lng, pin.name, pin.address).catch(() => {});
         }
         await logMessage(db, ctx.sessionId, "ai", `📍 ${pin.name} — ${pin.address}${!isWa && pin.maps ? `\n${pin.maps}` : ""}`, ctx.channel);
@@ -324,14 +328,14 @@ defineFlow({
       // chat-level last-seen (greetings compute "welcome back / long time no see" gaps
       // from it) — stamped AFTER the reply so FRIENDLY saw the PREVIOUS interaction time
       await db.from("diners").update({ last_seen_at: new Date().toISOString() }).eq("phone_number", ctx.sessionId);
-      return { parts: parts.length, photos: routed?.photos?.length || 0, buttons: qrs.length, menu_list: !!list, via: sessionRoutes.get(ctx.sessionId)?.channel || ctx.channel, reply };
+      return { parts: parts.length, photos: routed?.photos?.length || 0, buttons: qrs.length, menu_list: !!list, via: sessionRoutes.get(bufKey(ctx))?.channel || ctx.channel, reply };
     }, { input: { reply_length: reply.length, fast_path: routed?.fast_path || null, photos: routed?.photos?.length || 0 } });
 
     // ---- post_check: guest kept typing while we were thinking? answer that too ----
     const post = await f.node("post_check", async () => {
-      const pending = pendingCount(ctx.sessionId);
+      const pending = pendingCount(bufKey(ctx));
       if (pending > 0) {
-        setTimeout(() => flushNow(ctx.sessionId, ctx.channel), 1200);
+        setTimeout(() => flushNow(bufKey(ctx), ctx.channel), 1200);
         return { more_pending: pending, action: "chained re-flush scheduled" };
       }
       return { more_pending: 0 };
