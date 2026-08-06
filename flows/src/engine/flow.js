@@ -71,7 +71,7 @@ function newExecution(flowName, sessionId, trigger) {
     tokens_in: 0,
     tokens_out: 0,
     cost_usd: 0,
-    nodes: [], // { name, status, ms, tokens_in, tokens_out, cost_usd, model, error, input, output }
+    nodes: [], // { name, status, ms, tokens_in, tokens_out, tokens_cached, cost_usd, model, error, input, output }
     children: [], // { flow, execution_id } — sub-flow links
     parent_id: null,
   };
@@ -95,7 +95,7 @@ export async function runFlow(name, ctx, input, parentExec = null) {
     node: async (nodeName, fn, opts = {}) => {
       const n = {
         name: nodeName, status: "running", ms: 0,
-        tokens_in: 0, tokens_out: 0, cost_usd: 0, model: null, error: null,
+        tokens_in: 0, tokens_out: 0, tokens_cached: 0, cost_usd: 0, model: null, error: null,
         input: snapshot(opts.input), output: null,
       };
       exec.nodes.push(n);
@@ -108,6 +108,9 @@ export async function runFlow(name, ctx, input, parentExec = null) {
         if (result && result.__usage) {
           n.tokens_in = result.__usage.tokens_in;
           n.tokens_out = result.__usage.tokens_out;
+          // how much of the prompt the model served from its cache — without this
+          // the traces report 0 forever and every cache measurement is a lie
+          n.tokens_cached = result.__usage.tokens_cached || 0;
           n.cost_usd = result.__usage.cost_usd;
           n.model = result.__usage.model;
           exec.tokens_in += n.tokens_in;
