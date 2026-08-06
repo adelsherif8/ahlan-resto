@@ -540,6 +540,32 @@ app.post("/api/ops/build-link", opsAuth, async (req, res) => {
   }
 });
 
+// Share a build. The link must NOT carry the sharer's token — that token is tied to
+// their phone number and their pending order, so a friend opening it would be ordering
+// as them. A fresh, anonymous token is minted instead: whoever opens it is treated as a
+// walk-up and asked for their own name and number.
+app.post("/api/build/:token/share", async (req, res) => {
+  try {
+    const claim = verifyBuildToken(req.params.token);
+    if (!claim) return res.status(401).json({ error: "link expired" });
+    const picked = {};
+    for (const it of Array.isArray(req.body?.items) ? req.body.items : []) {
+      if (it?.id) picked[String(it.id)] = Math.max(0, Math.min(9, Number(it.quantity) || 0));
+    }
+    if (!Object.keys(picked).length) return res.status(400).json({ error: "nothing to share" });
+
+    const token = signBuildToken({
+      sessionId: `web:share-${Math.random().toString(36).slice(2, 10)}`,
+      slug: claim.slug,
+      ttlMs: 7 * 24 * 3600_000,       // a shared build is worth keeping alive for a week
+    });
+    const b = Object.entries(picked).map(([id, q]) => `${id}:${q}`).join(",");
+    res.json({ url: `${PUBLIC_BASE}/build/${token}?b=${encodeURIComponent(b)}` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // the page asks for models on a path relative to itself
 app.get("/build/Burger1/:file", (req, res) => {
   const f = String(req.params.file || "").replace(/[^\w.-]/g, "");

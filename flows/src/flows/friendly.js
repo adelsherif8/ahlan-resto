@@ -488,7 +488,13 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     // "Build a burger" is an entry point, not something a guest should have to know
     // to ask for — offered on a new chat whenever the restaurant has priced its layers.
     if (context.isNewConversation && builderConfig(config).enabled) {
-      const bchip = label(config, "build_your_own");
+      // Someone who has built before gets THEIR build back by name, one tap. A named
+      // creation is a far stronger offer than a generic "build a burger", and the
+      // layers are already saved against their number.
+      const saved = (input.diner?.preferences?.builds || [])[0];
+      const bchip = saved?.name && saved.name !== "Build Your Own"
+        ? `${String(saved.name).slice(0, 18)} 🔁`
+        : label(config, "build_your_own");
       if (!quickReplies.some((q) => q === bchip)) quickReplies = [...quickReplies, bchip].slice(0, 3);
     }
     // menu display mode is per-restaurant: PDF document + link (default) | full text | tappable list

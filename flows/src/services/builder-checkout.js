@@ -89,6 +89,7 @@ export function checkoutScript() {
       // a customer we already know (link came from the chat) skips straight to the meal
       var step = A.fromChat ? 1 : 0;
       var who = { name: x.name || '', phone: '' };
+      var mealAsked = false;
       render();
 
       function render(){
@@ -139,10 +140,24 @@ export function checkoutScript() {
         row.appendChild(back2); row.appendChild(next); box.appendChild(row);
       }
 
+      // Ask the QUESTION first, then show the picker only to someone who said yes.
+      // Leading with a wall of sides makes the answer look like work.
       function stepMeal(box){
         var sides = A.sides || [];
         if (!sides.length) { step = 2; return render(); }
-        h(box, 'Make it a meal?', 'Fries and a drink, from the menu.');
+
+        if (!mealAsked) {
+          h(box, 'Make it a meal?', 'Add fries, a side or a drink from the menu.');
+          var row0 = document.createElement('div'); row0.className = 'co-row';
+          var no = document.createElement('button'); no.className = 'co-ghost'; no.textContent = 'No thanks';
+          no.onclick = function(){ meal = {}; step = 2; render(); };
+          var yes = document.createElement('button'); yes.className = 'co-primary'; yes.textContent = 'Yes please';
+          yes.onclick = function(){ mealAsked = true; render(); };
+          row0.appendChild(no); row0.appendChild(yes); box.appendChild(row0);
+          return;
+        }
+
+        h(box, 'Pick your extras', 'Tap anything you want with it.');
         sides.forEach(function(sd){
           var b = document.createElement('button');
           b.className = 'co-side' + (meal[sd.name] ? ' on' : '');
@@ -153,12 +168,14 @@ export function checkoutScript() {
           b.onclick = function(){ meal[sd.name] = !meal[sd.name]; render(); };
           box.appendChild(b);
         });
+        var picked = Object.keys(meal).filter(function(k){ return meal[k]; }).length;
         var row = document.createElement('div'); row.className = 'co-row';
-        var skip = document.createElement('button'); skip.className = 'co-ghost'; skip.textContent = 'No thanks';
-        skip.onclick = function(){ meal = {}; step = 2; render(); };
-        var next = document.createElement('button'); next.className = 'co-primary'; next.textContent = 'Continue';
+        var back = document.createElement('button'); back.className = 'co-ghost'; back.textContent = 'Back';
+        back.onclick = function(){ mealAsked = false; meal = {}; render(); };
+        var next = document.createElement('button'); next.className = 'co-primary';
+        next.textContent = picked ? 'Add ' + picked + ' and continue' : 'Continue';
         next.onclick = function(){ step = 2; render(); };
-        row.appendChild(skip); row.appendChild(next); box.appendChild(row);
+        row.appendChild(back); row.appendChild(next); box.appendChild(row);
       }
 
       function stepReview(box){
@@ -196,7 +213,7 @@ export function checkoutScript() {
         var err = document.createElement('div'); err.className = 'co-err'; box.appendChild(err);
         var row = document.createElement('div'); row.className = 'co-row';
         var back2 = document.createElement('button'); back2.className = 'co-ghost'; back2.textContent = 'Back';
-        back2.onclick = function(){ step = A.fromChat ? 1 : 0; render(); };
+        back2.onclick = function(){ step = A.fromChat ? 1 : 0; mealAsked = false; render(); };
         var go = document.createElement('button'); go.className = 'co-primary';
         go.textContent = A.fromChat ? 'Send to my chat' : 'Send to kitchen';
         go.onclick = function(){ send(box, go, err); };
@@ -247,6 +264,25 @@ export function checkoutScript() {
           h(box, 'The kitchen has it \\u2713', 'Message us on WhatsApp with this code any time to track it.');
         }
         var row = document.createElement('div'); row.className = 'co-row';
+        var share = document.createElement('button'); share.className = 'co-ghost'; share.textContent = 'Share this build';
+        share.onclick = async function(){
+          var items = [];
+          B.catalog.forEach(function(d){ var q = B.qty[d.id] || 0; if (q > 0) items.push({ id: d.id, quantity: q }); });
+          share.textContent = 'Getting link\u2026';
+          try {
+            var r = await fetch(A.submitUrl.replace('/submit', '/share'), {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ items: items }),
+            });
+            var j = await r.json();
+            if (!j.url) { share.textContent = 'Share this build'; return; }
+            if (navigator.share) { await navigator.share({ title: 'My burger', url: j.url }); share.textContent = 'Share this build'; return; }
+            await navigator.clipboard.writeText(j.url);
+            share.textContent = 'Link copied \u2713';
+          } catch (e) { share.textContent = 'Share this build'; }
+        };
+        box.appendChild(share);
+
         var again = document.createElement('button'); again.className = 'co-ghost'; again.textContent = 'Build another';
         again.onclick = function(){
           Object.keys(B.qty).forEach(function(k){ B.qty[k] = 0; });

@@ -6,7 +6,7 @@ import { chatJSON } from "../services/llm.js";
 import { MODEL_FAST, MODEL_NANO } from "../config.js";
 import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath } from "../services/fastpaths.js";
 import { wantsBuilder } from "../services/fastpaths.js";
-import { signBuildToken, builderConfig } from "../services/builder.js";
+import { signBuildToken, builderConfig, priceBuild, describeBuild } from "../services/builder.js";
 import { label, isLabel } from "../services/labels.js";
 import { PUBLIC_BASE } from "../config.js";
 import { bump } from "../services/metrics.js";
@@ -65,6 +65,38 @@ defineFlow({
       // "build my own" hands over a signed one-guest link instead of an answer.
       // Offered only when the restaurant has actually priced its layers — an
       // unpriced builder would quote numbers nobody set.
+      // "Adel's Double Smash 🔁" — their own saved creation, rebuilt and priced by code
+      // from the layers stored against their number. One tap, no builder round trip.
+      if (builderConfig(ctx.tenant.config).enabled) {
+        const saved = (diner?.preferences?.builds || [])[0];
+        if (saved?.name && saved.layers && isLabel(message, `${String(saved.name).slice(0, 18)} 🔁`)) {
+          const priced = priceBuild(ctx.tenant.config, saved.layers);
+          if (priced.lines.length) {
+            bump("saved_build_hits");
+            const summary = describeBuild(priced.lines);
+            const pending = diner.preferences?.pending_order || {};
+            await db.from("diners").update({
+              preferences: {
+                ...(diner.preferences || {}),
+                pending_order: {
+                  ...pending,
+                  items: [...(pending.items || []), {
+                    name: saved.name, qty: 1, unit_price: priced.total,
+                    notes: summary, options: priced.lines.map((l) => `${l.qty}× ${l.name}`).join(" · "),
+                    build: saved.layers,
+                  }],
+                  at: new Date().toISOString(),
+                },
+              },
+            }).eq("id", diner.id).then(() => {}, () => {});
+            return {
+              kind: "saved_build",
+              reply: `${saved.name} it is 🍔\n${summary}\n${priced.currency} ${priced.total}\n\nHow would you like it — dine-in, pickup or delivery?`,
+            };
+          }
+        }
+      }
+
       if ((wantsBuilder(message) || isLabel(message, label(ctx.tenant.config, "build_your_own"))) && builderConfig(ctx.tenant.config).enabled) {
         bump("builder_hits");
         const token = signBuildToken({ sessionId: ctx.sessionId, slug: ctx.tenant.config.slug });
