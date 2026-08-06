@@ -13,6 +13,7 @@ import { riderCopy } from "./services/ridercopy.js";
 import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, builderConfig, signBuildToken, LAYERS as BUILDER_LAYERS, MODEL_BASE } from "./services/builder.js";
 import { nextOrderCode } from "./services/ordercode.js";
 import { renderDriverPage } from "./services/driverpage.js";
+import { renderTrackPage } from "./services/trackpage.js";
 
 // register flows
 import "./flows/friendly.js";
@@ -472,6 +473,62 @@ app.post("/api/ops/build-link", opsAuth, async (req, res) => {
 app.get("/build/Burger1/:file", (req, res) => {
   const f = String(req.params.file || "").replace(/[^\w.-]/g, "");
   res.redirect(302, `${MODEL_BASE}/${f}`);
+});
+
+// ---- customer order tracking ------------------------------------------
+// Signed like the build link, so there is no new column and a link that leaks later
+// has already expired. The rider had a live page; the person waiting for the food
+// had nothing but text messages.
+async function trackedOrder(token) {
+  const claim = verifyBuildToken(token);
+  if (!claim) return null;
+  const tenant = await resolveRestaurantBySlug(claim.slug);
+  const { data: order } = await tenant.db.from("orders").select("*").eq("code", claim.sessionId).maybeSingle();
+  if (!order) return null;
+  let courier = null;
+  if (order.courier_id) {
+    const { data: c } = await tenant.db.from("couriers").select("name,phone_number,vehicle").eq("id", order.courier_id).maybeSingle();
+    courier = c || null;
+  }
+  if (!courier && order.courier_name) courier = { name: order.courier_name, phone_number: order.courier_phone || null, vehicle: null };
+  return { tenant, order, courier };
+}
+
+app.get("/track/:token", async (req, res) => {
+  try {
+    const hit = await trackedOrder(req.params.token);
+    if (!hit) return res.status(404).send("<h3 style=\"font-family:sans-serif\">This tracking link has expired.</h3>");
+    res.setHeader("content-type", "text/html; charset=utf-8");
+    res.send(renderTrackPage({
+      config: hit.tenant.config,
+      brand: hit.tenant.config.basic_info?.brand || {},
+      order: hit.order, courier: hit.courier,
+      apiBase: FLOWS_PUBLIC, token: req.params.token,
+    }));
+  } catch (e) {
+    log("track page:", e.message);
+    res.status(500).send("error");
+  }
+});
+
+// polled by the page so a waiting customer never has to refresh
+app.get("/api/track/:token/state", async (req, res) => {
+  try {
+    const hit = await trackedOrder(req.params.token);
+    if (!hit) return res.json({ ok: false });
+    const o = hit.order;
+    const fresh = o.courier_seen_at && Date.now() - new Date(o.courier_seen_at).getTime() < 15 * 60_000;
+    res.json({
+      ok: true,
+      status: o.status,
+      delivered: o.status === "delivered",
+      status_changed: req.query.s ? String(req.query.s) !== String(o.status) : false,
+      rider: fresh && Number.isFinite(Number(o.courier_lat))
+        ? { lat: Number(o.courier_lat), lng: Number(o.courier_lng) } : null,
+    });
+  } catch (e) {
+    res.json({ ok: false });
+  }
 });
 
 app.get("/driver/:token", async (req, res) => {

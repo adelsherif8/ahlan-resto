@@ -45,8 +45,13 @@ cheese, lettuce; ~13MB total), a demo login screen, `__MACOSX` junk to strip.
 2. **Allergy filter** — guest marks no dairy/gluten/nuts first → incompatible layers grey
    out, from the menu's dietary data only (never guessed).
 3. **Random burger button** — "surprise me" builds a valid random stack.
-4. **"Your build ≈" comparison** — closest real menu item + price delta ("basically an
-   Iconic +25 EGP"). PURE CODE: layer-set diff against menu items, no AI.
+4. **"Your build ≈" comparison** — ⚠️ BUILT, THEN HIDDEN (2026-08-06). The first cut
+   matched on PRICE alone and produced nonsense: a burger came back "≈ Cheezy Hot Dog
+   — same price". Price similarity says nothing about whether two things are alike.
+   TO FINISH: load each menu item's LAYER LIST (the Blender export already has one per
+   item — `Blender Layers/lucizmenu/<item>/layers.txt`), store it against the menu item,
+   and diff layer-sets instead of prices. Re-enable with
+   `menu_config.build_your_own.compare = true` once that data exists.
 5. **Build photo card** — branded image of the creation (name + layers + logo) for
    receipt/WhatsApp/story. PURE CODE: canvas render, no AI.
 6. **Assembly animation** — layers drop into place with a sizzle on confirm.

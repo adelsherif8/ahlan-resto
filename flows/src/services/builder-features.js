@@ -4,8 +4,8 @@
 // build ≈" comparison uses the restaurant's own menu prices, and the protein counter
 // only appears when protein data has actually been configured.
 
-export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, allergens = {}, protein = {}, presets = [], sides = [], limited = {}, restaurant = "" }) {
-  const data = { menu, currency, allergens, protein, kidsMode, presets, sides, limited, restaurant };
+export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, allergens = {}, protein = {}, presets = [], sides = [], limited = {}, restaurant = "", compare = false }) {
+  const data = { menu, currency, allergens, protein, kidsMode, presets, sides, limited, restaurant, compare };
   return `
 <style>
   #bx-bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 2px}
@@ -210,9 +210,13 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
       });
     });
 
-    // "your build ≈ <closest menu item>" — the restaurant's own prices, pure arithmetic
+    // "Your build ≈" is OFF. Matching on price alone produced nonsense — a burger came
+    // back as "≈ Cheezy Hot Dog — same price", because price similarity says nothing
+    // about whether two things are alike. A real comparison needs each menu item's
+    // LAYER LIST to diff against (the Blender export has one per item in layers.txt);
+    // until that data is loaded this stays hidden rather than shipping a bad answer.
     var near = document.getElementById('bx-near');
-    if (near) {
+    if (near && D.compare) {
       var total = B.totals().price;
       if (!total || !D.menu.length) near.textContent = '';
       else {
@@ -267,10 +271,19 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
     x.font = '26px -apple-system, Segoe UI, Roboto, sans-serif';
     x.fillText(state.name || 'My custom burger', 56, 152);
 
-    // the 3D canvas itself, so the card shows the actual creation
+    // the 3D canvas itself, so the card shows the actual creation. The scene is
+    // redrawn first: without a fresh render the preserved buffer can still be a frame
+    // behind (or empty on the very first capture).
     try {
+      if (window.__BUILD__ && window.__BUILD__.render) window.__BUILD__.render();
       var src = document.getElementById('c');
-      if (src) x.drawImage(src, 56, 250, W - 112, 470);
+      if (src && src.width) {
+        // letterbox rather than stretch — a squashed burger is worse than a smaller one
+        var bw = W - 112, bh = 470;
+        var r = Math.min(bw / src.width, bh / src.height);
+        var dw = src.width * r, dh = src.height * r;
+        x.drawImage(src, 56 + (bw - dw) / 2, 250 + (bh - dh) / 2, dw, dh);
+      }
     } catch (e) { /* tainted or unavailable — the text card still works */ }
 
     x.fillStyle = '#16130f'; x.font = 'bold 30px -apple-system, Segoe UI, Roboto, sans-serif';

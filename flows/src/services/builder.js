@@ -484,6 +484,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     catalog: CATALOG,
     totals: calcTotals,
     rerender: function(){ renderPanel(); syncStackWithState(); },
+    render: function(){ try { renderer.render(scene, camera); } catch (e) {} },
   };
 
   initAuth();`,
@@ -495,6 +496,14 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     "    const payload = { table: tableId, items, total_price: totals.price, total_calories: totals.calories, timestamp: new Date().toISOString() };",
     `    const extras = (typeof window.__BX_EXTRAS__ === 'function') ? window.__BX_EXTRAS__() : {};
     const payload = { table: tableId, items, total_price: totals.price, extras, timestamp: new Date().toISOString() };`,
+  );
+
+  // A WebGL canvas reads back BLANK unless the drawing buffer is preserved — which is
+  // why the photo card came out with no burger in it. The cost is a little memory; the
+  // alternative is a share card of an empty white box.
+  html = html.replace(
+    "const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });",
+    "const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });",
   );
 
   // the stack "settles" once the order is actually accepted
@@ -521,6 +530,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     presets: Array.isArray(byoCfg.presets) ? byoCfg.presets.slice(0, 4) : [],
     sides,
     limited: byoCfg.limited || {},
+    compare: byoCfg.compare === true,   // off until layer-set diffing replaces price matching
     restaurant: config.name,
   })}\n</body>`);
 
