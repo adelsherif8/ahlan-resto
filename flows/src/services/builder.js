@@ -496,13 +496,13 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
         var url = def.modelUrl || def.bottomModelUrl;
         if (!url) return cb(null);
         if (!window.__thumbRig) {
-          var rc = document.createElement('canvas'); rc.width = 320; rc.height = 240;
+          var rc = document.createElement('canvas'); rc.width = 300; rc.height = 300;
           var rr = new THREE.WebGLRenderer({ canvas: rc, antialias: true, alpha: true, preserveDrawingBuffer: true });
           rr.setPixelRatio(1);
           var sc = new THREE.Scene();
           sc.add(new THREE.AmbientLight(0xffffff, 0.85));
           var dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(3, 6, 4); sc.add(dl);
-          var cam = new THREE.PerspectiveCamera(35, 320 / 240, 0.1, 100);
+          var cam = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
           window.__thumbRig = { rc: rc, rr: rr, sc: sc, cam: cam };
         }
         var rig = window.__thumbRig;
@@ -516,7 +516,9 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
           var wrap = new THREE.Group(); wrap.add(obj);
           wrap.scale.setScalar(1 / span);
           rig.sc.add(wrap);
-          rig.cam.position.set(0.9, 0.65, 1.5);
+          // pull back far enough that the model sits INSIDE the frame with margin —
+          // at the old distance a bun filled the card and got clipped
+          rig.cam.position.set(1.25, 0.9, 2.15);
           rig.cam.lookAt(0, 0, 0);
           rig.rr.render(rig.sc, rig.cam);
           var data = null;

@@ -9,19 +9,25 @@
 export function layoutScript() {
   return `
 <style>
-  /* ---------- three-column shell (desktop / tablet) ---------- */
-  @media (min-width: 821px){
-    #app{display:grid;grid-template-columns:288px 1fr 320px;grid-template-rows:1fr auto;height:100%}
+  /* THREE columns only when there is genuinely room for three. At 821px a
+     288 + 320 pair leaves the burger about 200px, which is worse than two columns. */
+  @media (min-width:1100px){
+    #app{display:grid;grid-template-columns:284px 1fr 318px;grid-template-rows:1fr auto;height:100%}
     #scene-container{grid-column:2;grid-row:1;height:100%}
     #panel{grid-column:3;grid-row:1;width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden}
-    #bx-left{grid-column:1;grid-row:1;overflow-y:auto;border-right:1px solid rgba(var(--brand-red-rgb),.18);
-      background:linear-gradient(180deg,var(--panel-grad-1),var(--panel-grad-2));padding-bottom:14px}
+    #bx-left{grid-column:1;grid-row:1;display:block;overflow-y:auto;padding-top:58px;padding-bottom:14px;
+      border-right:1px solid rgba(var(--brand-red-rgb),.18);
+      background:linear-gradient(180deg,var(--panel-grad-1),var(--panel-grad-2))}
     .panel-summary{grid-column:1 / -1;grid-row:2;border-top:1px solid rgba(var(--brand-red-rgb),.18)}
     #bx-tabs{display:none}
   }
-  /* everything the builder controls lives in the left rail on desktop */
+  /* TABLET: burger left, panel right, tabs inside the panel */
+  @media (min-width:821px) and (max-width:1099px){
+    #app{flex-direction:row}
+    #scene-container{flex:1;height:100%}
+    #panel{width:370px;height:100%;display:flex;flex-direction:column;overflow:hidden}
+  }
   #bx-left{display:none}
-  @media (min-width:821px){#bx-left{display:block}}
 
   /* ---------- tabs (phone) ---------- */
   #bx-tabs{display:flex;gap:4px;padding:8px 12px 4px;position:sticky;top:0;z-index:3;
@@ -29,30 +35,39 @@ export function layoutScript() {
   #bx-tabs button{flex:1;border:0;border-radius:9px;padding:11px 6px;font-size:12.5px;font-weight:700;
     font-family:inherit;background:rgba(var(--brand-red-rgb),.10);color:var(--text-muted);cursor:pointer}
   #bx-tabs button.on{background:var(--brand-red);color:var(--text-on-accent)}
-  @media (max-width:820px){
+  /* tab switching applies wherever the tabs are shown — phone AND tablet */
+  @media (max-width:1099px){
     body.bx-tab-build #bx-opts,body.bx-tab-build #bx-extras{display:none}
     body.bx-tab-opts #panel-scroll,body.bx-tab-opts #bx-extras{display:none}
     body.bx-tab-extras #panel-scroll,body.bx-tab-extras #bx-opts{display:none}
   }
 
+  /* The brand logo is position:fixed at the top-left and was landing on top of the
+     left rail's first heading. Give whatever sits under it room, and on a phone the
+     panel is not at the top-left at all, so it only needs clearing in the scene. */
+  #brand-logo{z-index:1200}
+  /* the prototype's "Customize" title duplicates the tabs and eats vertical space */
+  #panel .panel-header h2{display:none}
+  #panel .panel-header{padding:0}
+
   /* ---------- ingredient cards ---------- */
   #panel-scroll{overflow-y:auto;flex:1}
-  .bx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;padding:0 12px 10px}
+  .bx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px;padding:0 12px 10px}
+  @media (min-width:1200px){.bx-grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}}
   .bx-card{background:rgba(var(--brand-red-rgb),.05);border:1px solid rgba(var(--brand-red-rgb),.16);
-    border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:5px;position:relative}
+    border-radius:11px;padding:6px;display:flex;flex-direction:column;gap:3px;position:relative}
   .bx-card.sel{border-color:var(--brand-red);background:rgba(var(--brand-red-rgb),.12)}
-  .bx-thumb{width:100%;aspect-ratio:4/3;border-radius:8px;background:rgba(var(--brand-red-rgb),.06);
-    object-fit:contain;display:block}
-  .bx-card .t{font-size:12.5px;font-weight:700;line-height:1.25;color:var(--text-main)}
-  .bx-card .p{font-size:11.5px;color:var(--text-muted)}
+  .bx-thumb{width:100%;aspect-ratio:1/1;border-radius:8px;background:rgba(var(--brand-red-rgb),.06);display:block}
+  .bx-card .t{font-size:11.5px;font-weight:700;line-height:1.25;color:var(--text-main)}
+  .bx-card .p{font-size:10.5px;color:var(--text-muted)}
   .bx-card .ctl{display:flex;align-items:center;gap:6px;margin-top:auto}
-  .bx-card .ctl button{flex:1;border:0;border-radius:8px;height:34px;font-size:16px;font-weight:800;
+  .bx-card .ctl button{flex:1;border:0;border-radius:7px;height:30px;font-size:15px;font-weight:800;
     background:rgba(var(--brand-red-rgb),.14);color:var(--text-main);cursor:pointer;font-family:inherit}
   .bx-card .ctl .n{min-width:22px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
-  .bx-card .pick{width:100%;border:0;border-radius:8px;height:34px;font-size:12.5px;font-weight:800;
+  .bx-card .pick{width:100%;border:0;border-radius:7px;height:30px;font-size:11.5px;font-weight:800;
     background:rgba(var(--brand-red-rgb),.14);color:var(--text-main);cursor:pointer;font-family:inherit}
   .bx-card.sel .pick{background:var(--brand-red);color:var(--text-on-accent)}
-  .bx-cat{padding:12px 14px 6px;font-size:10.5px;letter-spacing:1.3px;text-transform:uppercase;color:var(--text-dim)}
+  .bx-cat{padding:11px 14px 5px;font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--text-dim)}
   .bx-card.bx-block{opacity:.32;pointer-events:none}
   /* the demo's own logged-in-user strip has no place on a customer page */
   .user-bar{display:none !important}
@@ -95,15 +110,16 @@ export function layoutScript() {
       tabs.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.tab === t); });
     }
 
-    if (window.matchMedia('(min-width: 821px)').matches) {
+    if (window.matchMedia('(min-width: 1100px)').matches) {
       left.appendChild(opts); left.appendChild(extras);
     } else {
+      // tabs sit immediately above the list they switch, never above the header
       panel.insertBefore(tabs, scroll);
       panel.insertBefore(opts, scroll);
       panel.insertBefore(extras, scroll);
       setTab('build');
     }
-    panel.insertBefore(tabs, panel.firstChild.nextSibling || null);
+
 
     // ---- ingredient cards ----
     var CAT = { bread: 'Buns & wraps', protein: 'Protein', cheese: 'Cheese', veggie: 'Veggies', sauce: 'Sauces' };
@@ -126,7 +142,7 @@ export function layoutScript() {
           c.className = 'bx-card' + (q > 0 ? ' sel' : '');
           c.dataset.id = d.id;
           var img = document.createElement('canvas');
-          img.className = 'bx-thumb'; img.width = 160; img.height = 120; img.dataset.thumb = d.id;
+          img.className = 'bx-thumb'; img.width = 150; img.height = 150; img.dataset.thumb = d.id;
           c.appendChild(img);
           var t = document.createElement('div'); t.className = 't'; t.textContent = d.name; c.appendChild(t);
           var p = document.createElement('div'); p.className = 'p';
