@@ -308,6 +308,10 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
     setTimeout(function(){ document.body.classList.remove('bx-confirm'); }, 600);
   };
 
+  // the layout layer redraws the ingredient grid, and calls this to re-apply the
+  // allergy greying and limited-time badges to the new nodes
+  window.__BX_APPLY__ = apply;
+
   // hand the extras to the order when it is sent
   window.__BX_EXTRAS__ = function(){
     var DN = ['well done', 'medium', 'juicy'], SA = ['light sauce', 'regular sauce', 'extra sauce'];

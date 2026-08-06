@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { PUBLIC_BASE, log } from "../config.js";
 import { featuresScript, DEFAULT_ALLERGENS } from "./builder-features.js";
 import { renderLitePage } from "./builder-lite.js";
+import { layoutScript } from "./builder-layout.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "..", "..", "assets", "builder.html");
@@ -485,6 +486,46 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     totals: calcTotals,
     rerender: function(){ renderPanel(); syncStackWithState(); },
     render: function(){ try { renderer.render(scene, camera); } catch (e) {} },
+    // One tiny offscreen renderer, reused for every ingredient card, so a thumbnail
+    // costs a single extra draw of a model the page already knows how to load —
+    // no image assets to ship and nothing rendered until a card is actually seen.
+    thumbnail: function(id, cb){
+      try {
+        var def = CATALOG.find(function(d){ return d.id === id; });
+        if (!def) return cb(null);
+        var url = def.modelUrl || def.bottomModelUrl;
+        if (!url) return cb(null);
+        if (!window.__thumbRig) {
+          var rc = document.createElement('canvas'); rc.width = 320; rc.height = 240;
+          var rr = new THREE.WebGLRenderer({ canvas: rc, antialias: true, alpha: true, preserveDrawingBuffer: true });
+          rr.setPixelRatio(1);
+          var sc = new THREE.Scene();
+          sc.add(new THREE.AmbientLight(0xffffff, 0.85));
+          var dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(3, 6, 4); sc.add(dl);
+          var cam = new THREE.PerspectiveCamera(35, 320 / 240, 0.1, 100);
+          window.__thumbRig = { rc: rc, rr: rr, sc: sc, cam: cam };
+        }
+        var rig = window.__thumbRig;
+        new THREE.GLTFLoader().load(url, function(g){
+          var obj = g.scene;
+          var box = new THREE.Box3().setFromObject(obj);
+          var size = box.getSize(new THREE.Vector3());
+          var ctr = box.getCenter(new THREE.Vector3());
+          obj.position.sub(ctr);
+          var span = Math.max(size.x, size.y, size.z) || 1;
+          var wrap = new THREE.Group(); wrap.add(obj);
+          wrap.scale.setScalar(1 / span);
+          rig.sc.add(wrap);
+          rig.cam.position.set(0.9, 0.65, 1.5);
+          rig.cam.lookAt(0, 0, 0);
+          rig.rr.render(rig.sc, rig.cam);
+          var data = null;
+          try { data = rig.rc.toDataURL('image/png'); } catch (e) {}
+          rig.sc.remove(wrap);
+          cb(data);
+        }, undefined, function(){ cb(null); });
+      } catch (e) { cb(null); }
+    },
   };
 
   initAuth();`,
@@ -532,7 +573,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     limited: byoCfg.limited || {},
     compare: byoCfg.compare === true,   // off until layer-set diffing replaces price matching
     restaurant: config.name,
-  })}\n</body>`);
+  })}\n${layoutScript()}\n</body>`);
 
   // No calorie data exists for these ingredients and inventing some would be worse
   // than showing none, so the counter is hidden.
