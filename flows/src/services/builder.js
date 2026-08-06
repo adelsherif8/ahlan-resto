@@ -221,6 +221,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     return renderLitePage({
       config, brand, catalog, currency: bc.currency, basePrice: bc.base_price,
       maxPerLayer: bc.max_per_layer,
+    basePrice: bc.base_price,
       submitUrl: `${PUBLIC_BASE}/api/build/${encodeURIComponent(token)}/submit`, token,
     });
   }
@@ -345,6 +346,9 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
 
   // The label colour was burned into the canvas texture as cream — invisible on a
   // light brand. Take it from the brand instead.
+  // the sprite was half a scene-unit tall, which reads as enormous next to a bun
+  html = html.replace(/const h = 0\.5;/g, "const h = 0.3;");
+
   html = html.replace("ctx.fillStyle = 'rgba(242, 230, 200, 0.95)';",
     "ctx.fillStyle = (window.__AHLAN__ && window.__AHLAN__.labelColor) || 'rgba(242, 230, 200, 0.95)';");
 
@@ -358,7 +362,11 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
 
     // keep every label on the same side of the screen while the stack rotates
     {
-      const ry = group.rotation.y, cs = Math.cos(-ry), sn = Math.sin(-ry);
+      // A Y-rotation by θ maps a local point to x' = x·cosθ + z·sinθ, z' = −x·sinθ + z·cosθ.
+      // To pin a child at world (R, 0, 0) the LOCAL position must be (R·cosθ, 0, R·sinθ).
+      // Using sin(−θ) here — which is what this did first — negates the z term and makes
+      // the label orbit at DOUBLE speed instead of holding still.
+      const ry = group.rotation.y, cs = Math.cos(ry), sn = Math.sin(ry);
       for (const g of allGroups) {
         const sp = g.userData.labelSprite;
         if (!sp) continue;
@@ -500,8 +508,10 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
           var rr = new THREE.WebGLRenderer({ canvas: rc, antialias: true, alpha: true, preserveDrawingBuffer: true });
           rr.setPixelRatio(1);
           var sc = new THREE.Scene();
-          sc.add(new THREE.AmbientLight(0xffffff, 0.85));
-          var dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(3, 6, 4); sc.add(dl);
+          sc.add(new THREE.AmbientLight(0xffffff, 1.05));
+          var dl = new THREE.DirectionalLight(0xffffff, 1.0); dl.position.set(3, 6, 4); sc.add(dl);
+          // a single key light left every thumbnail dark on its camera-facing side
+          var fill = new THREE.DirectionalLight(0xffffff, 0.55); fill.position.set(-3, 2, 3); sc.add(fill);
           var cam = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
           window.__thumbRig = { rc: rc, rr: rr, sc: sc, cam: cam };
         }
@@ -548,6 +558,20 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     "const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });",
     "const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });",
   );
+
+  // SERIOUS: the page totalled the layers only, while the server also charges
+  // base_price. A customer was shown EGP 0 for a bun the kitchen would bill at 60.
+  // The page must show exactly what the server will charge.
+  html = html.replace("    let price = 0, calories = 0;",
+    "    let price = (window.__AHLAN__ && window.__AHLAN__.basePrice) || 0, calories = 0;");
+
+  // the burger filled the frame; pull the camera back so the whole stack fits
+  html = html.replace("camera.position.set(0, 0.3, 10);", "camera.position.set(0, 0.4, 14);");
+
+  // floating 3D labels competed with the ingredient cards for attention and ran over
+  // the panel — keep them small and out of the way
+  html = html.replace("    label.position.set(def.radius + 1.15, 0, 0);", "    label.position.set(def.radius + 2.2, 0, 0);");
+  html = html.replace("    label.position.set(breadDef.radius + 1.15, 0, 0);", "    label.position.set(breadDef.radius + 2.2, 0, 0);");
 
   // the stack "settles" once the order is actually accepted
   html = html.replace(

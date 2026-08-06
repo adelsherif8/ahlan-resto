@@ -74,7 +74,12 @@ export function layoutScript() {
 </style>
 <script>
 (function(){
-  function ready(fn){ if (window.__BUILD__ && document.getElementById('panel-scroll')) return fn(); setTimeout(function(){ ready(fn); }, 60); }
+  // Wait for the FEATURE layer too. Both scripts poll for __BUILD__, and when this one
+  // won the race the left rail collected nothing and rendered as a big empty column.
+  function ready(fn){
+    if (window.__BUILD__ && document.getElementById('panel-scroll') && document.getElementById('bx-bar')) return fn();
+    setTimeout(function(){ ready(fn); }, 60);
+  }
   ready(function(){
     var B = window.__BUILD__;
     var panel = document.getElementById('panel');
@@ -211,6 +216,12 @@ export function layoutScript() {
     }
 
     draw();
+
+    // never leave a dead column: if there is nothing in the rail, collapse it
+    if (!left.children.length) {
+      left.style.display = 'none';
+      document.getElementById('app').style.gridTemplateColumns = '1fr 340px';
+    }
   });
 })();
 </script>`;
