@@ -43,6 +43,16 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
     60%{transform:translateY(2px) scale(1.015);opacity:1}100%{transform:none}}
   body.bx-confirm #scene-container{animation:bx-sizzle .55s cubic-bezier(.2,.9,.25,1)}
   @media (prefers-reduced-motion:reduce){body.bx-confirm #scene-container{animation:none}}
+  #bx-cardview{position:fixed;inset:0;z-index:9999;background:rgba(12,8,8,.72);display:flex;
+    align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+  .bx-cv-box{background:#fff;border-radius:16px;padding:14px;max-width:min(92vw,420px);
+    max-height:92vh;display:flex;flex-direction:column;gap:11px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  .bx-cv-box img{width:100%;height:auto;max-height:70vh;object-fit:contain;border-radius:10px;display:block}
+  .bx-cv-row{display:flex;gap:7px}
+  .bx-cv-row button{flex:1;border:0;border-radius:10px;padding:12px;font-size:13.5px;font-weight:800;
+    cursor:pointer;font-family:inherit}
+  .bx-cv-primary{background:var(--brand-red);color:var(--text-on-accent)}
+  .bx-cv-ghost{background:#f1eeeb;color:#16130f}
   @media (max-width:820px){#bx-bar button{min-width:74px;padding:11px 6px}}
 </style>
 <script>
@@ -311,9 +321,46 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
     x.fillStyle = '#fff'; x.font = 'bold 34px -apple-system, Segoe UI, Roboto, sans-serif';
     x.fillText(D.currency + ' ' + B.totals().price, 56, H - 36);
 
-    var a = document.createElement('a');
-    a.download = (state.name || 'my-burger').replace(/[^\\w-]+/g, '-').toLowerCase() + '.png';
-    try { a.href = c.toDataURL('image/png'); a.click(); } catch (e) { /* export blocked */ }
+    // Show it before it downloads — a file appearing in Downloads with no idea what
+    // it looks like is not a share feature.
+    var url;
+    try { url = c.toDataURL('image/png'); } catch (e) { return; }
+    var file = (state.name || 'my-burger').replace(/[^\\w-]+/g, '-').toLowerCase() + '.png';
+    showCard(url, file);
+  }
+
+  function showCard(url, file){
+    var back = document.getElementById('bx-cardview');
+    if (back) back.remove();
+    back = el('div', { id: 'bx-cardview' }, document.body);
+    var box = el('div', { class: 'bx-cv-box' }, back);
+    var img = el('img', { src: url, alt: 'Your burger' }, box);
+    var row = el('div', { class: 'bx-cv-row' }, box);
+
+    var dl = el('button', { type: 'button', class: 'bx-cv-primary', text: 'Save image' }, row);
+    dl.onclick = function(){
+      var a = document.createElement('a');
+      a.download = file; a.href = url; a.click();
+    };
+
+    // Web Share carries the actual image on a phone; without it there is nothing
+    // honest to offer, so the button simply is not shown.
+    if (navigator.canShare) {
+      var sh = el('button', { type: 'button', class: 'bx-cv-ghost', text: 'Share' }, row);
+      sh.onclick = function(){
+        fetch(url).then(function(r){ return r.blob(); }).then(function(b){
+          var f = new File([b], file, { type: 'image/png' });
+          if (navigator.canShare({ files: [f] })) return navigator.share({ files: [f] });
+        }).catch(function(){});
+      };
+    }
+
+    var cl = el('button', { type: 'button', class: 'bx-cv-ghost', text: 'Close' }, row);
+    cl.onclick = function(){ back.remove(); };
+    back.onclick = function(e){ if (e.target === back) back.remove(); };
+    document.addEventListener('keydown', function esc(e){
+      if (e.key === 'Escape') { back.remove(); document.removeEventListener('keydown', esc); }
+    });
   }
 
   // the build "settles" when it is sent — one short cue, and skipped entirely for
