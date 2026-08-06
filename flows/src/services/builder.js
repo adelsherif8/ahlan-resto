@@ -369,6 +369,14 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     `    dust.rotation.y += 0.0006;
 
     // keep every label on the same side of the screen while the stack rotates
+    // sauce layers carry their own vertical scale so "extra" is visibly thicker and
+    // "light" is a smear — the spawn animation writes scale every frame, so this has
+    // to be re-applied after it, not once when the slider moves
+    for (const g of allGroups) {
+      const ud = g.userData;
+      if (ud.category === 'sauce' && !ud.spawning && !ud.removing) g.scale.y = ud.sauceScale || 1;
+    }
+
     {
       // A Y-rotation by θ maps a local point to x' = x·cosθ + z·sinθ, z' = −x·sinθ + z·cosθ.
       // To pin a child at world (R, 0, 0) the LOCAL position must be (R·cosθ, 0, R·sinθ).
@@ -504,6 +512,20 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     totals: calcTotals,
     rerender: function(){ renderPanel(); syncStackWithState(); },
     render: function(){ try { renderer.render(scene, camera); } catch (e) {} },
+    // 0 = light, 1 = regular, 2 = extra. Heights change with it so the layers above
+    // sit correctly instead of floating over a thinner smear or sinking into a thicker one.
+    setSauce: function(level){
+      const mult = [0.45, 1, 1.75][level] != null ? [0.45, 1, 1.75][level] : 1;
+      for (const g of allGroups) {
+        const ud = g.userData;
+        if (ud.category !== 'sauce') continue;
+        if (ud.baseHeight == null) ud.baseHeight = ud.height;
+        ud.sauceScale = mult;
+        ud.height = ud.baseHeight * mult;
+        g.scale.y = mult;
+      }
+      layoutStack();
+    },
     // One tiny offscreen renderer, reused for every ingredient card, so a thumbnail
     // costs a single extra draw of a model the page already knows how to load —
     // no image assets to ship and nothing rendered until a card is actually seen.

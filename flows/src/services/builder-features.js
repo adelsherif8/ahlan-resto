@@ -124,7 +124,12 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
     var DN = ['Well done', 'Medium', 'Juicy'], SA = ['Light', 'Regular', 'Extra'];
     var dEl = sl.querySelector('#bx-d');
     if (dEl) dEl.oninput = function(e){ state.doneness = +e.target.value; document.getElementById('bx-dv').textContent = DN[state.doneness]; };
-    sl.querySelector('#bx-s').oninput = function(e){ state.sauce = +e.target.value; document.getElementById('bx-sv').textContent = SA[state.sauce]; };
+    sl.querySelector('#bx-s').oninput = function(e){
+      state.sauce = +e.target.value;
+      document.getElementById('bx-sv').textContent = SA[state.sauce];
+      // the burger shows it, not just the label
+      if (B && B.setSauce) B.setSauce(state.sauce);
+    };
 
     // ---- "your build ≈" + protein ----
     panel.insertBefore(el('div', { id: 'bx-near' }), scroll);
@@ -247,6 +252,11 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
     }
   }
 
+  // re-apply the chosen amount whenever the stack is rebuilt, so a sauce added after
+  // the slider was moved matches the rest of the build
+  var origApply = null;
+  function reapplySauce(){ if (B && B.setSauce && state.sauce !== 1) B.setSauce(state.sauce); }
+
   function randomBuild(){
     var byCat = {};
     B.catalog.forEach(function(d){ if (!blocked(d.id)) (byCat[d.category] = byCat[d.category] || []).push(d); });
@@ -315,7 +325,7 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
 
   // the layout layer redraws the ingredient grid, and calls this to re-apply the
   // allergy greying and limited-time badges to the new nodes
-  window.__BX_APPLY__ = apply;
+  window.__BX_APPLY__ = function(){ apply(); reapplySauce(); };
 
   // hand the extras to the order when it is sent
   window.__BX_EXTRAS__ = function(){
