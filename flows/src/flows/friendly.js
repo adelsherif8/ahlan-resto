@@ -580,7 +580,18 @@ function memoryBlock(context, diner) {
   const lines = [];
   if (p.favorite_items?.length) lines.push(`- Their favorite dishes (they told us): ${p.favorite_items.join(", ")} — use for "the usual?" moments and personal recommendations`);
   if (context.usualFromOrders) lines.push(`- Their USUAL from real order history: ${context.usualFromOrders.name} (ordered ${context.usualFromOrders.times}×) — the strongest "the usual?" signal; if they say "the usual" or "same as always", THIS is what they mean. On a FIRST greeting, offer it IN WORDS as part of your sentence ("the usual ${context.usualFromOrders.name}?") — never as a button; the buttons are reserved for the menu, ordering and the builder`);
-  if (context.lastOrder) lines.push(`- Their last order (${context.lastOrder.when}): ${context.lastOrder.items} — "same as last time" refers to this`);
+  if (context.lastOrder) {
+    // A single past order doesn't clear the "usual" bar (≥2× the same thing), but it
+    // is still the exact reorder signal the removed greeting BUTTON used to carry —
+    // dropping it silently when the button went away would be a real loss, not a
+    // simplification. Offered in words, and skipped when the stronger "usual" signal
+    // above already covers the same moment so it isn't mentioned twice.
+    lines.push(`- Their last order (${context.lastOrder.when}): ${context.lastOrder.items} — "same as last time" refers to this.${
+      !context.usualFromOrders
+        ? ` On a FIRST greeting, offer it IN WORDS as part of your sentence ("same as last time — ${context.lastOrder.items}?") — never as a button.`
+        : ""
+    }`);
+  }
   if (p.seating) lines.push(`- Seating preference: ${p.seating}`);
   if (p.facts?.length) lines.push(`- Known about them: ${p.facts.join(" · ")}`);
   if (p.ai_notes?.length) lines.push(`- Your own recent observations (you noted these for the team): ${p.ai_notes.join(" · ")}`);
