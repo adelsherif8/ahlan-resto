@@ -29,9 +29,21 @@ app.use(express.json({ limit: "4mb", verify: (req, _res, buf) => { req.rawBody =
 // Branded short links — the guest-facing URL is pretty; the storage URL stays
 // hidden behind a redirect. ahlan-resto.vercel.app proxies /menu.pdf and
 // /receipt/:code here via vercel.json rewrites.
-app.get("/pdf/menu", async (_req, res) => {
+// ?r=<slug> says WHICH restaurant's menu. Without it these links resolved the
+// default restaurant, so a guest of any other one was handed a competitor's menu —
+// a cross-tenant leak, not just a wrong answer. The bot always stamps its own slug.
+async function tenantFromQuery(req) {
+  const slug = String(req.query?.r || "").trim().toLowerCase();
+  if (slug) return resolveRestaurantBySlug(slug);
+  const all = await resolveAllRestaurants();
+  if (all.length > 1) return null;      // ambiguous → refuse rather than guess wrong
+  return all[0] || resolveRestaurant();
+}
+
+app.get("/pdf/menu", async (req, res) => {
   try {
-    const t = await resolveRestaurant();
+    const t = await tenantFromQuery(req);
+    if (!t) return res.status(404).send("menu unavailable");
     const { menuPdfUrl } = await import("./services/menupdf.js");
     const { data: rows } = await t.db.from("menu_items").select("*").order("sort_order");
     const menu = (rows || []).filter((m) => m.available);
@@ -50,13 +62,18 @@ app.get("/pdf/menu", async (_req, res) => {
   } catch (e) { res.status(500).send(e.message); }
 });
 
+// Order codes are per-restaurant daily sequences, so the SAME code can exist in two
+// restaurants — ?r=<slug> is what keeps a guest from being shown someone else's receipt.
 app.get("/pdf/receipt/:code", async (req, res) => {
   try {
-    const t = await resolveRestaurant();
     const code = String(req.params.code || "").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 12);
-    const { data } = await t.db.from("orders").select("receipt_url").eq("code", code).maybeSingle();
-    if (!data?.receipt_url) return res.status(404).send("receipt not found");
-    res.redirect(302, data.receipt_url);
+    const slug = String(req.query?.r || "").trim().toLowerCase();
+    const tenants = slug ? [await resolveRestaurantBySlug(slug)] : await resolveAllRestaurants();
+    for (const t of tenants) {
+      const { data } = await t.db.from("orders").select("receipt_url").eq("code", code).maybeSingle();
+      if (data?.receipt_url) return res.redirect(302, data.receipt_url);
+    }
+    res.status(404).send("receipt not found");
   } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -304,12 +321,16 @@ const safeHttpUrl = (u) => {
 };
 const FLOWS_PUBLIC = process.env.FLOWS_PUBLIC_URL || "https://flows-production-e528.up.railway.app";
 
+// The token IS the auth and it carries no restaurant, so the only honest lookup is
+// to ask every tenant. Resolving a single restaurant here silently 404'd the driver
+// page for every order belonging to any other one.
 async function driverOrder(token) {
   if (!token || !/^[a-z2-9]{16,30}$/.test(String(token))) return null;
-  const tenant = await resolveRestaurant();
-  const { data: order } = await tenant.db.from("orders").select("*").eq("courier_token", String(token)).maybeSingle();
-  if (!order || order.status === "cancelled") return null;
-  return { tenant, order };
+  for (const tenant of await resolveAllRestaurants()) {
+    const { data: order } = await tenant.db.from("orders").select("*").eq("courier_token", String(token)).maybeSingle();
+    if (order && order.status !== "cancelled") return { tenant, order };
+  }
+  return null;
 }
 
 async function pushGuest(tenant, order, text) {

@@ -29,3 +29,9 @@ export function log(...args) {
 
 // guest-facing links ride on the branded dashboard domain, not raw storage URLs
 export const PUBLIC_BASE = process.env.PUBLIC_BASE || "https://ahlan-resto.vercel.app";
+
+// ...and they must say WHICH restaurant they belong to. /menu.pdf and /receipt/:code
+// resolve the tenant server-side; without the slug they fall back to the default
+// restaurant, which means handing one restaurant's guest another's menu.
+export const publicLink = (path, slug) =>
+  `${PUBLIC_BASE}${path}${slug ? `?r=${encodeURIComponent(slug)}` : ""}`;

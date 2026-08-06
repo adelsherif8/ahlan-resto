@@ -3,7 +3,7 @@
 // v1: no payments in chat — pay at counter/courier (per FACTS). Kitchen board fed live.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
-import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, log } from "../config.js";
+import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, publicLink, log } from "../config.js";
 import { notifyDashboard } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
 import { getMenu } from "../services/menucache.js";
@@ -858,6 +858,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         code: outcome.kind === "order_placed" ? outcome.code : null,
         eta: outcome.eta_minutes || null,
         restaurant: config.name,
+        slug: config.slug,
         when: new Date().toLocaleString("en-GB", { timeZone: config.basic_info?.timezone || "Africa/Cairo", hour12: true, day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }),
       })}${billFirst ? `\n\n${askLine}` : ""}`;
     }
@@ -926,7 +927,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
           });
       if (pdf) {
         doc = { url: pdf.url, caption: `${config.name} — full menu 📄`, filename: pdf.filename };
-        reply = `${reply}\n\n📄 ${PUBLIC_BASE}/menu.pdf`;
+        reply = `${reply}\n\n📄 ${publicLink("/menu.pdf", config.slug)}`;
       }
     }
 
@@ -1504,7 +1505,7 @@ function priceOrder(items, config, orderType) {
 // or a currency symbol — it phrases around this block, it doesn't compose it.
 const fmtAmount = fmtMoney;
 
-function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, restaurant, when, branchPin }) {
+function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, restaurant, slug, when, branchPin }) {
   const money = (n) => `${fmtAmount(n)} ${currency}`;
   const lines = items.map((it) => {
     const mods = modifiers(it);
@@ -1529,7 +1530,7 @@ function renderBill({ items, bill, currency, orderType, tableNumber, branchName,
     payment ? `💳 ${payment === "cash" ? "Cash" : payment === "card" ? "Card" : "InstaPay"}` : null,
     orderType === "delivery" && address ? `📍 ${address}` : null,
     code && eta ? `⏱ about ${eta} min` : null,
-    code ? `📄 ${PUBLIC_BASE}/receipt/${code}` : null,
+    code ? `📄 ${publicLink(`/receipt/${code}`, slug)}` : null,
   ].filter(Boolean);
   return [
     ...header.filter(Boolean),

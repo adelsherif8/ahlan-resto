@@ -9,7 +9,9 @@ import OptionsEditor from "./OptionsEditor";
 
 const TAG_ICON: Record<string, any> = { vegan: Leaf, vegetarian: Leaf, gf: WheatOff };
 
-const PDF_URL = "https://ahlan-resto.vercel.app/menu.pdf";
+// the PDF endpoint resolves the restaurant from ?r= — without it, a multi-restaurant
+// deployment has no way to know whose menu to render
+const PDF_BASE = "https://ahlan-resto.vercel.app/menu.pdf";
 
 import { money } from "../lib/format";
 
@@ -28,6 +30,7 @@ export default function Menu() {
   const [q, setQ] = useState("");
   const [bySales, setBySales] = useState(false);
   const [tidy, setTidy] = useState<any[] | null>(null);
+  const [slug, setSlug] = useState("");
   const [tidying, setTidying] = useState(false);
   const dragId = useRef<string | null>(null);
 
@@ -35,6 +38,7 @@ export default function Menu() {
   useEffect(() => {
     load();
     api.get("/api/menu/performance").then((r) => setPerf(r.data || {})).catch(() => {});
+    api.get("/api/settings").then((r) => setSlug(r.data?.slug || "")).catch(() => {});
   }, []);
 
   async function uploadPhoto(item: any, file?: File) {
@@ -128,7 +132,7 @@ export default function Menu() {
               className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs ${eng ? "border-zinc-400 text-zinc-200" : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"}`}>
               <BarChart3 size={13} /> Engineering
             </button>
-            <a href={PDF_URL} target="_blank" rel="noreferrer" title="Preview the menu PDF guests receive — it regenerates automatically after edits"
+            <a href={slug ? `${PDF_BASE}?r=${encodeURIComponent(slug)}` : PDF_BASE} target="_blank" rel="noreferrer" title="Preview the menu PDF guests receive — it regenerates automatically after edits"
               className="flex items-center gap-1.5 rounded-xl border border-zinc-700 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800">
               <FileText size={13} /> PDF
             </a>

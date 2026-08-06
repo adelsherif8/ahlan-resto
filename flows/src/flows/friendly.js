@@ -3,7 +3,7 @@
 import { defineFlow } from "../engine/flow.js";
 import { getMenu } from "../services/menucache.js";
 import { chatJSON } from "../services/llm.js";
-import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE } from "../config.js";
+import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, publicLink } from "../config.js";
 import { hoursToday } from "../services/tenant.js";
 import { setSessionFlags, notifyDashboard, getSession } from "../services/chatlog.js";
 import { todayISO } from "../services/availability.js";
@@ -509,7 +509,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
             });
         if (pdf) {
           menuDoc = { url: pdf.url, caption: `${config.name} — full menu 📄`, filename: pdf.filename };
-          reply = `${reply}\n\n📄 Full menu: ${PUBLIC_BASE}/menu.pdf\nJust tell me what you'd like and I'll take it from there.`.slice(0, 3900);
+          reply = `${reply}\n\n📄 Full menu: ${publicLink("/menu.pdf", config.slug)}\nJust tell me what you'd like and I'll take it from there.`.slice(0, 3900);
         } else {
           // menu exists but the PDF couldn't be made — never leave the guest empty-handed
           reply = `${reply}\n\n${fullMenuText(context.menu, currency)}`.slice(0, 3900);
