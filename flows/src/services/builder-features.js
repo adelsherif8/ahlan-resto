@@ -4,8 +4,8 @@
 // build ≈" comparison uses the restaurant's own menu prices, and the protein counter
 // only appears when protein data has actually been configured.
 
-export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, allergens = {}, protein = {}, presets = [], sides = [], limited = {}, restaurant = "", compare = false }) {
-  const data = { menu, currency, allergens, protein, kidsMode, presets, sides, limited, restaurant, compare };
+export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, allergens = {}, protein = {}, presets = [], sides = [], limited = {}, restaurant = "", compare = false, doneness = false }) {
+  const data = { menu, currency, allergens, protein, kidsMode, presets, sides, limited, restaurant, compare, doneness };
   return `
 <style>
   #bx-bar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 2px}
@@ -110,15 +110,20 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
       };
     });
 
-    // ---- doneness + sauce ----
+    // ---- sauce (and doneness, only where it means anything) ----
+    // Nobody orders a smash patty medium-rare. Doneness is a table-service question,
+    // so a fast-casual kitchen never sees it; sauce amount is real everywhere.
     var sl = el('div', { class: 'bx-sl' });
     panel.insertBefore(sl, scroll);
-    sl.innerHTML = '<label>Doneness <b id="bx-dv">Medium</b></label>'
-      + '<input id="bx-d" type="range" min="0" max="2" step="1" value="1">'
-      + '<label style="margin-top:6px">Sauce <b id="bx-sv">Regular</b></label>'
+    sl.innerHTML = (D.doneness
+        ? '<label>Doneness <b id="bx-dv">Medium</b></label>'
+          + '<input id="bx-d" type="range" min="0" max="2" step="1" value="1">'
+          + '<label style="margin-top:6px">Sauce <b id="bx-sv">Regular</b></label>'
+        : '<label>Sauce <b id="bx-sv">Regular</b></label>')
       + '<input id="bx-s" type="range" min="0" max="2" step="1" value="1">';
     var DN = ['Well done', 'Medium', 'Juicy'], SA = ['Light', 'Regular', 'Extra'];
-    sl.querySelector('#bx-d').oninput = function(e){ state.doneness = +e.target.value; document.getElementById('bx-dv').textContent = DN[state.doneness]; };
+    var dEl = sl.querySelector('#bx-d');
+    if (dEl) dEl.oninput = function(e){ state.doneness = +e.target.value; document.getElementById('bx-dv').textContent = DN[state.doneness]; };
     sl.querySelector('#bx-s').oninput = function(e){ state.sauce = +e.target.value; document.getElementById('bx-sv').textContent = SA[state.sauce]; };
 
     // ---- "your build ≈" + protein ----
@@ -317,7 +322,7 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
     var DN = ['well done', 'medium', 'juicy'], SA = ['light sauce', 'regular sauce', 'extra sauce'];
     return {
       name: state.name || null,
-      doneness: DN[state.doneness],
+      doneness: D.doneness ? DN[state.doneness] : null,
       sauce: SA[state.sauce],
       avoid: Object.keys(state.avoid).filter(function(k){ return state.avoid[k]; }),
       meal: Object.keys(state.meal).filter(function(k){ return state.meal[k]; }),

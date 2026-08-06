@@ -627,6 +627,8 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     sides,
     limited: byoCfg.limited || {},
     compare: byoCfg.compare === true,   // off until layer-set diffing replaces price matching
+    // doneness is a table-service question — a fast-casual kitchen never sees it
+    doneness: byoCfg.doneness === true || config.basic_info?.restaurant_type === "fine",
     restaurant: config.name,
   })}\n${layoutScript()}\n</body>`);
 
