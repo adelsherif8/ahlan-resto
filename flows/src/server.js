@@ -10,6 +10,8 @@ import { runRegression, regressionStatus } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
 import { getSession, logMessage } from "./services/chatlog.js";
 import { riderCopy } from "./services/ridercopy.js";
+import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, MODEL_BASE } from "./services/builder.js";
+import { nextOrderCode } from "./services/ordercode.js";
 
 // register flows
 import "./flows/friendly.js";
@@ -339,6 +341,94 @@ async function pushGuest(tenant, order, text) {
   await deliverStaffReply(ctx, text).catch(() => {});
   await logMessage(tenant.db, order.phone_number, "ai", text, ctx.channel).catch(() => {});
 }
+
+// ---- build your own sandwich -------------------------------------------
+// The signed token says who the guest is and which restaurant they're ordering
+// from, so the page never has to be trusted for either.
+app.get("/build/:token", async (req, res) => {
+  try {
+    const claim = verifyBuildToken(req.params.token);
+    if (!claim) return res.status(404).send("<h3 style=\"font-family:sans-serif\">This build link has expired.</h3>");
+    const tenant = await resolveRestaurantBySlug(claim.slug);
+    res.type("html").send(renderBuilderPage(tenant, req.params.token));
+  } catch (e) {
+    log("build page:", e.message);
+    res.status(500).send("builder unavailable");
+  }
+});
+
+app.post("/api/build/:token/submit", async (req, res) => {
+  try {
+    const claim = verifyBuildToken(req.params.token);
+    if (!claim) return res.status(401).json({ error: "link expired" });
+    const tenant = await resolveRestaurantBySlug(claim.slug);
+    const { config, db } = tenant;
+
+    // The page sends WHICH layers, never what they cost. Anything it claims about
+    // price is discarded here and recomputed from the restaurant's own config.
+    const picked = {};
+    for (const it of Array.isArray(req.body?.items) ? req.body.items : []) {
+      if (it?.id) picked[String(it.id)] = Number(it.quantity) || 0;
+    }
+    const priced = priceBuild(config, picked);
+    if (!priced.lines.length) return res.status(400).json({ error: "nothing on the sandwich" });
+
+    const code = await nextOrderCode(db, config);
+    const name = describeBuild(priced.lines);
+    const item = {
+      name: "Build Your Own",
+      qty: 1,
+      unit_price: priced.total,
+      notes: name,
+      options: priced.lines.filter((l) => l.id !== "bread-bun").map((l) => `${l.qty}× ${l.name}`).join(" · "),
+    };
+
+    const row = {
+      code,
+      phone_number: claim.sessionId,
+      order_type: "pickup",          // the guest picks how to get it in chat, where that flow already lives
+      items: [item],
+      subtotal: priced.total,
+      total: priced.total,
+      status: "pending",
+      source: "builder",
+    };
+    let order;
+    try {
+      order = await db.from("orders").insert(row).select().single();
+    } catch (e) {
+      delete row.source;             // pre-migration schemas have no source column
+      order = await db.from("orders").insert(row).select().single();
+    }
+    if (order.error) throw new Error(order.error.message);
+
+    // the board hears about it like any other ticket
+    await db.from("notifications").insert({
+      type: "order",
+      title: `Custom sandwich ${code}`,
+      body: `${name} · ${priced.currency} ${priced.total}`,
+      ref_id: code,
+    }).then(() => {}, () => {});
+
+    // and the guest gets told on the channel they came from
+    await pushGuest(
+      tenant,
+      { phone_number: claim.sessionId },
+      `Your custom sandwich is in — ${code}.\n${name}\nTotal: ${priced.currency} ${priced.total}\n\nHow would you like it — dine-in, pickup or delivery?`,
+    ).catch(() => {});
+
+    res.json({ ok: true, code, total: priced.total, currency: priced.currency, summary: name });
+  } catch (e) {
+    log("build submit:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// the page asks for models on a path relative to itself
+app.get("/build/Burger1/:file", (req, res) => {
+  const f = String(req.params.file || "").replace(/[^\w.-]/g, "");
+  res.redirect(302, `${MODEL_BASE}/${f}`);
+});
 
 app.get("/driver/:token", async (req, res) => {
   try {

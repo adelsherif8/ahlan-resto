@@ -10,9 +10,9 @@ import { getMenu } from "../services/menucache.js";
 import { fmtMoney } from "../services/format.js";
 import { makeReceipt } from "../services/receipt.js";
 import { menuPdfUrl } from "../services/menupdf.js";
+import { nextOrderCode } from "../services/ordercode.js";
 
-const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
-const orderCode = () => "O-" + Array.from({ length: 4 }, () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join("");
+
 
 const normName = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -576,20 +576,9 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         90
       );
 
-      // order-code style is the restaurant's call (Settings → POS): a branded
-      // prefix with a DAILY-RESETTING sequence ("JS-041"), or the random default.
-      // Sequence = today's order count + 1; a collision (two tickets same second)
-      // falls back to random so the ticket never fails.
-      let code = orderCode();
-      const oc = config.pos?.order_code || {};
-      if (oc.mode === "daily") {
-        try {
-          const today = new Date().toLocaleDateString("en-CA");
-          const { count } = await db.from("orders").select("id", { count: "exact", head: true }).gte("created_at", `${today}T00:00:00`);
-          const prefix = String(oc.prefix || "O").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) || "O";
-          code = `${prefix}-${String((Number(count) || 0) + 1).padStart(3, "0")}`;
-        } catch { /* count failed — random code still works */ }
-      }
+      // order-code style is the restaurant's call (Settings → POS) — shared with
+      // every other front that opens a ticket, so all of them agree.
+      const code = await nextOrderCode(db, config);
       const row = {
         code, phone_number: ctx.sessionId, diner_name: name,
         order_type: orderType, table_number: tableNumber, branch,

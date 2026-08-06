@@ -1,8 +1,12 @@
 import { log } from "../config.js";
 
-// Upload a public PDF with the bucket-bootstrap dance in ONE place: try, create
-// the bucket if missing, retry, return the public URL. Null on failure — a
-// missing PDF must never block a reply.
+// Upload any public asset with the bucket-bootstrap dance in ONE place: try, create
+// the bucket if missing, retry, return the public URL. Null on failure — a missing
+// asset must never block a reply.
+export async function uploadPublic(db, bucket, path, buffer, contentType, opts = {}) {
+  return uploadPublicPdf(db, bucket, path, buffer, { contentType, ...opts });
+}
+
 export async function uploadPublicPdf(db, bucket, path, buffer, opts = {}) {
   try {
     const options = { contentType: "application/pdf", upsert: true, ...opts };

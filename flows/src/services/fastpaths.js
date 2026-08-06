@@ -28,6 +28,15 @@ export function detectCloser(message, sticky) {
   return { reply: replies[l] || replies.en, kind: "closer", language: l };
 }
 
+// "build my own" — the guest wants the 3D builder, not a menu item. Kept as a
+// pattern here (with the same Unicode boundaries as every other matcher, because
+// \b never matches beside Arabic script) so master can mint the signed link.
+const BUILD_PAT = /(?<![\p{L}\p{N}])(build (my |your |a )?own|make (my |your )own|build (a |my )?(burger|sandwich)|customi[sz]e (my |a )?(burger|sandwich)|design (my |a )?(burger|sandwich)|3d builder|اعمل (برجر|ساندوتش)|اصمم|بظبط برجر|a3mel burger|a3mel sandwich|asamem)(?![\p{L}\p{N}])/iu;
+
+export function wantsBuilder(message) {
+  return BUILD_PAT.test(String(message || ""));
+}
+
 // ---- FAQ cache ----
 const HOURS_PAT = /(?<![\p{L}\p{N}])(open|close|closing|opening|hours|what time|until when|when do you|فاتحين|بتفتحوا|بتقفلوا|امتى|مواعيد|شغالين|fat7in|bteftahu|bte2felo|emta|maw3id|maw3eed|sha8alin)(?![\p{L}\p{N}])/iu;
 const LOCATION_PAT = /(?<![\p{L}\p{N}])(where|address|location|located|directions|how (do i|to) get|فين|عنوان|مكان|وصل|ازاي اجي|fein|fen|makan|3enwan|ezay agi)(?![\p{L}\p{N}])/iu;

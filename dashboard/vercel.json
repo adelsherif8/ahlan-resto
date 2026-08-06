@@ -7,6 +7,9 @@
     { "source": "/menu.pdf", "destination": "https://flows-production-e528.up.railway.app/pdf/menu" },
     { "source": "/receipt/:code", "destination": "https://flows-production-e528.up.railway.app/pdf/receipt/:code" },
     { "source": "/driver/:token", "destination": "https://flows-production-e528.up.railway.app/driver/:token" },
+    { "source": "/build/:token", "destination": "https://flows-production-e528.up.railway.app/build/:token" },
+    { "source": "/build/Burger1/:file", "destination": "https://flows-production-e528.up.railway.app/build/Burger1/:file" },
+    { "source": "/api/build/:path*", "destination": "https://flows-production-e528.up.railway.app/api/build/:path*" },
     { "source": "/api/driver/:path*", "destination": "https://flows-production-e528.up.railway.app/api/driver/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

@@ -5,6 +5,9 @@ import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_FAST, MODEL_NANO } from "../config.js";
 import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath } from "../services/fastpaths.js";
+import { wantsBuilder } from "../services/fastpaths.js";
+import { signBuildToken, builderConfig } from "../services/builder.js";
+import { PUBLIC_BASE } from "../config.js";
 import { bump } from "../services/metrics.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm)\W*$/i;
@@ -58,6 +61,17 @@ defineFlow({
       const sticky = input.stickyLanguage || null;
       const closer = detectCloser(message, sticky);
       if (closer) { bump("closer_hits"); return closer; }
+      // "build my own" hands over a signed one-guest link instead of an answer.
+      // Offered only when the restaurant has actually priced its layers — an
+      // unpriced builder would quote numbers nobody set.
+      if (wantsBuilder(message) && builderConfig(ctx.tenant.config).enabled) {
+        bump("builder_hits");
+        const token = signBuildToken({ sessionId: ctx.sessionId, slug: ctx.tenant.config.slug });
+        return {
+          kind: "builder_link",
+          reply: `Build it exactly how you want it 👇\n${PUBLIC_BASE}/build/${token}\n\nStack it, see the price as you go, and send it straight to the kitchen.`,
+        };
+      }
       const faq = matchFaq(message, ctx.tenant.config, sticky);
       if (faq) { bump("faq_hits"); return faq; }
       // staff-approved FAQ answers — every approval is a free turn forever
