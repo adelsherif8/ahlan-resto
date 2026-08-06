@@ -1,5 +1,6 @@
 // FRIENDLY (host agent) — the restaurant's voice. Answers ONLY from config + DB.
 // Ported logic: hotel friendly.json context builder + persona prompt, restaurant domain.
+import crypto from "node:crypto";
 import { defineFlow } from "../engine/flow.js";
 import { getMenu } from "../services/menucache.js";
 import { chatJSON } from "../services/llm.js";
@@ -154,6 +155,7 @@ defineFlow({
     }
 
     // ---- reply_llm ----
+    let cacheProbe = null;
     const llmOut = await f.node("reply_llm", async () => {
       const bi = config.basic_info || {};
       const ai = config.ai || {};
@@ -280,6 +282,11 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       }));
       convo.push({ role: "user", content: message });
 
+      // Cache diagnostics: an identical prefix is what the model can cache. These
+      // fingerprints make a broken prefix visible in the trace instead of
+      // guessable — sys_sha is the whole prompt, pre_sha its first 2k chars.
+      const sha = (x) => crypto.createHash("sha1").update(x).digest("hex").slice(0, 10);
+      cacheProbe = { sys_len: system.length, sys_sha: sha(system), pre_sha: sha(system.slice(0, 2000)) };
       let r = await chatJSON(model, system, convo, { temperature: 0.6, maxTokens: 500 });
       // script guarantee (code, not prompt): Latin-script guest message must never get
       // an Arabic-script reply — up to two corrective re-asks (single-token slips happen)
@@ -348,7 +355,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         }
       }
       return r;
-    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket } });
+    }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket, cache: cacheProbe } });
 
     const out = llmOut.value || {};
     let reply = (out.reply || "One second! 🙌").slice(0, 3500);
