@@ -180,6 +180,14 @@ export function regressionStatus() {
 // Grade EVERYTHING the guest received for their last message, not just the final
 // bubble: a long reply is split into several WhatsApp messages (question first,
 // bill second), so asserting on the tail alone silently misses the actual answer.
+// The 15s SLA holding message is not an answer — it is the bot saying "still working".
+// It lands in chat_messages like any other AI line, so an ungraded harness would (a) grade
+// "One sec…" as the reply and (b) treat its arrival as "the turn finished" and fire the next
+// turn early, desyncing the whole conversation. Under the suite's own concurrency that
+// produced 8 red cases that all pass when re-run alone. Never count it as a reply.
+const SLA_INTERIM = /^\s*لحظة واحدة\s*🙏\s*One sec…?\s*$/;
+const isInterim = (m) => !m || SLA_INTERIM.test(m);
+
 async function lastAiReply(db, sid) {
   const { data } = await db
     .from("chat_messages")
@@ -193,15 +201,18 @@ async function lastAiReply(db, sid) {
   // skip attachment-style lines (location pins / photo captions) — grade the text
   const CAPTION = /^.{2,45} — \d+(\.\d+)? ?(EGP|LE|جنيه)/;
   const texts = turn
-    .filter((m) => m.message && !/^(📍|📄|🗺)/.test(m.message) && !CAPTION.test(m.message))
+    .filter((m) => m.message && !isInterim(m.message) && !/^(📍|📄|🗺)/.test(m.message) && !CAPTION.test(m.message))
     .map((m) => m.message)
     .reverse();
-  return texts.join("\n\n") || turn[0]?.message || null;
+  const tail = turn.find((m) => !isInterim(m.message))?.message || null;
+  return texts.join("\n\n") || tail;
 }
 
+// counts only REAL replies — the holding message must never advance the conversation
 async function aiCount(db, sid) {
-  const { count } = await db.from("chat_messages").select("id", { count: "exact", head: true }).eq("session_id", sid).eq("sender", "ai");
-  return count || 0;
+  const { data } = await db.from("chat_messages").select("message")
+    .eq("session_id", sid).eq("sender", "ai");
+  return (data || []).filter((m) => !isInterim(m.message)).length;
 }
 
 async function runCase(tenant, c, runId) {
