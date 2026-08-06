@@ -325,6 +325,24 @@ export function renderBuilderPage(tenant, token, { preview = false } = {}) {
     .stack-row span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .stack-row button{border:0;background:rgba(var(--brand-red-rgb),.14);color:var(--text-main);width:22px;height:22px;border-radius:6px;font-size:12px;cursor:pointer;line-height:1;font-family:inherit}
     .stack-row button:disabled{opacity:.25;cursor:default}
+    #stack-list{max-height:22vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    @media (max-width: 820px){
+      /* the panel now carries a stack list AND 37 ingredients — give it room, and
+         make the reorder controls thumb-sized rather than pointer-sized */
+      #panel{height:56vh}
+      #scene-container{height:44vh}
+      #stack-panel{padding:8px 12px 2px}
+      #stack-list{max-height:16vh}
+      .stack-row{padding:7px 8px;font-size:13.5px}
+      .stack-row button{width:34px;height:34px;font-size:14px}
+      .stack-title{font-size:11px}
+    }
+    @media (max-width: 820px) and (orientation: landscape){
+      /* a phone on its side has no vertical room to split — go back to side by side */
+      #app{flex-direction:row}
+      #panel{width:44%;height:100%;order:2}
+      #scene-container{height:100%;order:1}
+    }
   </style>\n</head>`);
 
   // an explicit order, when the customer has set one, beats the category default
