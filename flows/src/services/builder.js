@@ -579,8 +579,8 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
 
   // floating 3D labels competed with the ingredient cards for attention and ran over
   // the panel — keep them small and out of the way
-  html = html.replace("    label.position.set(def.radius + 1.15, 0, 0);", "    label.position.set(def.radius + 1.4, 0, 0);");
-  html = html.replace("    label.position.set(breadDef.radius + 1.15, 0, 0);", "    label.position.set(breadDef.radius + 1.4, 0, 0);");
+  html = html.replace("    label.position.set(def.radius + 1.15, 0, 0);", "    label.position.set(def.radius + 0.75, 0, 0);");
+  html = html.replace("    label.position.set(breadDef.radius + 1.15, 0, 0);", "    label.position.set(breadDef.radius + 0.75, 0, 0);");
 
   // Camera: rotate and zoom only. Dragging vertically tipped the stack up to ±0.6 rad,
   // which lets you look down onto the bun from above — that is a modelling view, not a
