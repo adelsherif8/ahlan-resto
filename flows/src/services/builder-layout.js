@@ -78,6 +78,16 @@ export function layoutScript() {
     background:rgba(var(--brand-red-rgb),.14);color:var(--text-main);cursor:pointer;font-family:inherit}
   .bx-card.sel .pick{background:var(--brand-red);color:var(--text-on-accent)}
   .bx-cat{padding:11px 14px 5px;font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--text-dim)}
+  /* category filters — 24 ingredients across 5 groups is a long scroll to hunt through */
+  #bx-filters{display:flex;gap:5px;overflow-x:auto;padding:9px 12px 8px;position:sticky;top:0;z-index:4;
+    background:linear-gradient(180deg,var(--panel-grad-1),var(--panel-grad-2));-webkit-overflow-scrolling:touch;
+    scrollbar-width:none}
+  #bx-filters::-webkit-scrollbar{display:none}
+  #bx-filters button{flex:0 0 auto;border:1px solid rgba(var(--brand-red-rgb),.25);background:transparent;
+    color:var(--text-muted);border-radius:20px;padding:7px 13px;font-size:12px;font-weight:600;
+    cursor:pointer;font-family:inherit;white-space:nowrap}
+  #bx-filters button.on{background:var(--brand-red);border-color:var(--brand-red);color:var(--text-on-accent)}
+  #bx-filters button .c{opacity:.65;font-weight:500;margin-left:3px}
   .bx-card.bx-block{opacity:.32;pointer-events:none}
   /* the demo's own logged-in-user strip has no place on a customer page */
   .user-bar{display:none !important}
@@ -142,13 +152,40 @@ export function layoutScript() {
     var MAX = (window.__AHLAN__ && window.__AHLAN__.maxPerLayer) || 3;
     var CUR = (window.__AHLAN__ && window.__AHLAN__.currency) || 'EGP';
 
+    var filter = 'all';
+
+    function drawFilters(){
+      var bar = document.createElement('div');
+      bar.id = 'bx-filters';
+      var groups = [['all', 'All']].concat(ORDER
+        .filter(function(c){ return B.catalog.some(function(d){ return d.category === c; }); })
+        .map(function(c){ return [c, CAT[c] || c]; }));
+      groups.forEach(function(g){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = filter === g[0] ? 'on' : '';
+        var n = g[0] === 'all' ? B.catalog.length : B.catalog.filter(function(d){ return d.category === g[0]; }).length;
+        b.innerHTML = '';
+        b.appendChild(document.createTextNode(g[1]));
+        var c = document.createElement('span'); c.className = 'c'; c.textContent = n;
+        b.appendChild(c);
+        b.onclick = function(){ filter = g[0]; draw(); scroll.scrollTop = 0; };
+        bar.appendChild(b);
+      });
+      scroll.appendChild(bar);
+    }
+
     function draw(){
       scroll.innerHTML = '';
+      drawFilters();
       ORDER.forEach(function(cat){
+        if (filter !== 'all' && cat !== filter) return;
         var items = B.catalog.filter(function(d){ return d.category === cat; });
         if (!items.length) return;
-        var h = document.createElement('div'); h.className = 'bx-cat'; h.textContent = CAT[cat] || cat;
-        scroll.appendChild(h);
+        if (filter === 'all') {
+          var h = document.createElement('div'); h.className = 'bx-cat'; h.textContent = CAT[cat] || cat;
+          scroll.appendChild(h);
+        }
         var g = document.createElement('div'); g.className = 'bx-grid';
         scroll.appendChild(g);
         items.forEach(function(d){
