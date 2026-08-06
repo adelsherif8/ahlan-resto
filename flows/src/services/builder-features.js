@@ -166,19 +166,8 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
       });
     }
 
-    // ---- make it a meal: the restaurant's REAL sides and drinks, at their prices ----
-    if (D.sides && D.sides.length) {
-      var mw = el('div', { id: 'bx-meal' });
-      panel.insertBefore(mw, scroll);
-      mw.innerHTML = '<div class="stack-title">Make it a meal</div>';
-      D.sides.forEach(function(sd){
-        var b = el('button', { type: 'button', class: 'bx-preset', text: sd.name + ' \u00b7 ' + D.currency + ' ' + sd.price }, mw);
-        b.onclick = function(){
-          state.meal[sd.name] = !state.meal[sd.name];
-          b.classList.toggle('on', !!state.meal[sd.name]);
-        };
-      });
-    }
+    // (make it a meal lives in the CHECKOUT, after Review — a second copy in the
+    //  sidebar was the duplicate the founder spotted)
 
     // preloaded build from a receipt QR: ?b=patty:2,cheese_cheddar:1
     var pre = new URLSearchParams(location.search).get('b');

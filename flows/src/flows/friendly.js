@@ -473,29 +473,16 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     }
 
     let quickReplies = (out.quick_replies || []).map(trimLabel).filter(Boolean).slice(0, 3);
-    // A regular opening the chat gets their reorder one tap away — the
-    // highest-converting button we can show, and only shown when the history is real.
-    if (
-      context.isNewConversation &&
-      config.basic_info?.restaurant_type === "casual" &&
-      (context.usualFromOrders || context.lastOrder)
-    ) {
-      const chip = label(config, "same_as_last");
-      if (!quickReplies.some((q) => /same as last|usual/i.test(q))) {
-        quickReplies = [chip, ...quickReplies].slice(0, 3);
-      }
-    }
-    // "Build a burger" is an entry point, not something a guest should have to know
-    // to ask for — offered on a new chat whenever the restaurant has priced its layers.
-    if (context.isNewConversation && builderConfig(config).enabled) {
-      // Someone who has built before gets THEIR build back by name, one tap. A named
-      // creation is a far stronger offer than a generic "build a burger", and the
-      // layers are already saved against their number.
-      const saved = (input.diner?.preferences?.builds || [])[0];
-      const bchip = saved?.name && saved.name !== "Build Your Own"
-        ? `${String(saved.name).slice(0, 18)} 🔁`
-        : label(config, "build_your_own");
-      if (!quickReplies.some((q) => q === bchip)) quickReplies = [...quickReplies, bchip].slice(0, 3);
+
+    // The FIRST buttons of a conversation are the ways IN, not a reorder prompt.
+    // Three buttons is all WhatsApp allows, and spending one of them on "same as last
+    // time" (plus another on a specific item) left no room to say the menu or the
+    // builder even exist. The usual is offered in WORDS instead — the model is told
+    // about it below — and a reorder chip comes back once they say they're ordering.
+    if (context.isNewConversation && config.basic_info?.restaurant_type === "casual") {
+      const entry = [label(config, "browse_menu"), label(config, "order_now")];
+      if (builderConfig(config).enabled) entry.push(label(config, "build_your_own"));
+      quickReplies = entry.slice(0, 3);
     }
     // menu display mode is per-restaurant: PDF document + link (default) | full text | tappable list
     const mc = config.menu_config || {};
@@ -592,7 +579,7 @@ function memoryBlock(context, diner) {
   const p = context.prefs || {};
   const lines = [];
   if (p.favorite_items?.length) lines.push(`- Their favorite dishes (they told us): ${p.favorite_items.join(", ")} — use for "the usual?" moments and personal recommendations`);
-  if (context.usualFromOrders) lines.push(`- Their USUAL from real order history: ${context.usualFromOrders.name} (ordered ${context.usualFromOrders.times}×) — the strongest "the usual?" signal; if they say "the usual" or "same as always", THIS is what they mean`);
+  if (context.usualFromOrders) lines.push(`- Their USUAL from real order history: ${context.usualFromOrders.name} (ordered ${context.usualFromOrders.times}×) — the strongest "the usual?" signal; if they say "the usual" or "same as always", THIS is what they mean. On a FIRST greeting, offer it IN WORDS as part of your sentence ("the usual ${context.usualFromOrders.name}?") — never as a button; the buttons are reserved for the menu, ordering and the builder`);
   if (context.lastOrder) lines.push(`- Their last order (${context.lastOrder.when}): ${context.lastOrder.items} — "same as last time" refers to this`);
   if (p.seating) lines.push(`- Seating preference: ${p.seating}`);
   if (p.facts?.length) lines.push(`- Known about them: ${p.facts.join(" · ")}`);

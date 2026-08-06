@@ -239,11 +239,20 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
 
   // "Make it a meal" offers the restaurant's REAL sides and drinks at their real
   // prices — never a made-up combo. Declared before boot because boot references it.
-  const sideCats = /^(sides?|extras?|appetizers?|drinks?|beverages?)$/i;
+  // A MEAL is a side plus a drink — not the whole extras menu. Milkshakes, nuggets and
+  // tenders are things you order, not what "make it a meal" means.
+  const sideCats = /^(sides?|fries)$/i;
+  const drinkCats = /^(drinks?|beverages?|sodas?)$/i;
+  const asOption = (m) => ({
+    name: m.name, price: Number(m.price), photo: m.photo_url || null,
+    group: drinkCats.test(String(m.category || "")) ? "drink" : "side",
+  });
   const sides = (menu || [])
-    .filter((m) => m && sideCats.test(String(m.category || "")) && Number(m.price) > 0 && m.available !== false)
-    .slice(0, 8)
-    .map((m) => ({ name: m.name, price: Number(m.price) }));
+    .filter((m) => m && Number(m.price) > 0 && m.available !== false &&
+      (sideCats.test(String(m.category || "")) || drinkCats.test(String(m.category || ""))))
+    .map(asOption)
+    .sort((a, b) => (a.group === b.group ? a.price - b.price : a.group === "side" ? -1 : 1))
+    .slice(0, 14);
 
   const boot = {
     token,

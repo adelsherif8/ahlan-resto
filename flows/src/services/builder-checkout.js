@@ -37,6 +37,16 @@ export function checkoutScript() {
     color:var(--text-main);text-align:left;width:100%}
   .co-side.on{border-color:var(--brand-red);background:rgba(var(--brand-red-rgb),.09);font-weight:700}
   .co-side .p{margin-left:auto;color:var(--text-muted);font-size:13px}
+  .co-g{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-muted);
+    font-weight:800;margin:6px 0 -4px}
+  .co-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+  .co-tile{border:1px solid rgba(var(--brand-red-rgb),.2);border-radius:12px;padding:7px;background:transparent;
+    color:var(--text-main);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:3px;text-align:left}
+  .co-tile.on{border-color:var(--brand-red);background:rgba(var(--brand-red-rgb),.09)}
+  .co-im{width:100%;aspect-ratio:4/3;border-radius:8px;overflow:hidden;background:rgba(var(--brand-red-rgb),.07)}
+  .co-im img{width:100%;height:100%;object-fit:cover;display:block}
+  .co-tile .nm{font-size:12px;font-weight:700;line-height:1.25}
+  .co-tile .pr{font-size:11px;color:var(--text-muted)}
   .co-row{display:flex;gap:8px;margin-top:2px}
   .co-row button{flex:1;border:0;border-radius:12px;padding:15px;font-size:15px;font-weight:800;
     cursor:pointer;font-family:inherit}
@@ -87,7 +97,7 @@ export function checkoutScript() {
       if (!l.length) return;
       var x = (typeof window.__BX_EXTRAS__ === 'function') ? window.__BX_EXTRAS__() : {};
       // a customer we already know (link came from the chat) skips straight to the meal
-      var step = A.fromChat ? 1 : 0;
+      var step = 0;   // meal first — it is about the food, so it comes before the paperwork
       var who = { name: x.name || '', phone: '' };
       var mealAsked = false;
       render();
@@ -105,8 +115,9 @@ export function checkoutScript() {
         for (var i = 0; i < 3; i++) { var t = document.createElement('i'); if (i <= step) t.className = 'on'; bar.appendChild(t); }
         box.appendChild(bar);
 
-        if (step === 0) return stepWho(box);
-        if (step === 1) return stepMeal(box);
+        if (step === 0) return stepMeal(box);
+        // a customer the bot already knows has nothing to fill in
+        if (step === 1) return A.fromChat ? (step = 2, stepReview(box)) : stepWho(box);
         if (step === 2) return stepReview(box);
       }
 
@@ -131,11 +142,11 @@ export function checkoutScript() {
         var err = document.createElement('div'); err.className = 'co-err'; box.appendChild(err);
         var row = document.createElement('div'); row.className = 'co-row';
         var back2 = document.createElement('button'); back2.className = 'co-ghost'; back2.textContent = 'Back';
-        back2.onclick = function(){ document.getElementById('co').remove(); };
+        back2.onclick = function(){ step = 0; mealAsked = true; render(); };
         var next = document.createElement('button'); next.className = 'co-primary'; next.textContent = 'Continue';
         next.onclick = function(){
           if (String(who.phone).replace(/\\D/g, '').length < 8) { err.textContent = 'Please enter a valid phone number.'; return; }
-          step = 1; render();
+          step = 2; render();
         };
         row.appendChild(back2); row.appendChild(next); box.appendChild(row);
       }
@@ -144,29 +155,40 @@ export function checkoutScript() {
       // Leading with a wall of sides makes the answer look like work.
       function stepMeal(box){
         var sides = A.sides || [];
-        if (!sides.length) { step = 2; return render(); }
+        if (!sides.length) { step = 1; return render(); }
 
         if (!mealAsked) {
           h(box, 'Make it a meal?', 'Add fries, a side or a drink from the menu.');
           var row0 = document.createElement('div'); row0.className = 'co-row';
           var no = document.createElement('button'); no.className = 'co-ghost'; no.textContent = 'No thanks';
-          no.onclick = function(){ meal = {}; step = 2; render(); };
+          no.onclick = function(){ meal = {}; step = 1; render(); };
           var yes = document.createElement('button'); yes.className = 'co-primary'; yes.textContent = 'Yes please';
           yes.onclick = function(){ mealAsked = true; render(); };
           row0.appendChild(no); row0.appendChild(yes); box.appendChild(row0);
           return;
         }
 
-        h(box, 'Pick your extras', 'Tap anything you want with it.');
-        sides.forEach(function(sd){
-          var b = document.createElement('button');
-          b.className = 'co-side' + (meal[sd.name] ? ' on' : '');
-          b.type = 'button';
-          b.appendChild(document.createTextNode(sd.name));
-          var p = document.createElement('span'); p.className = 'p'; p.textContent = A.currency + ' ' + sd.price;
-          b.appendChild(p);
-          b.onclick = function(){ meal[sd.name] = !meal[sd.name]; render(); };
-          box.appendChild(b);
+        h(box, 'Pick your extras', 'Fries and a drink to go with it.');
+        [['side', 'Fries & sides'], ['drink', 'Drinks']].forEach(function(g){
+          var inGroup = sides.filter(function(sd){ return (sd.group || 'side') === g[0]; });
+          if (!inGroup.length) return;
+          var hd = document.createElement('div'); hd.className = 'co-g'; hd.textContent = g[1];
+          box.appendChild(hd);
+          var grid = document.createElement('div'); grid.className = 'co-grid';
+          inGroup.forEach(function(sd){
+            var b = document.createElement('button');
+            b.className = 'co-tile' + (meal[sd.name] ? ' on' : '');
+            b.type = 'button';
+            // the real product photo from the menu, not a 3D render
+            var im = document.createElement('div'); im.className = 'co-im';
+            if (sd.photo) { var i2 = document.createElement('img'); i2.src = sd.photo; i2.alt = ''; i2.loading = 'lazy'; im.appendChild(i2); }
+            b.appendChild(im);
+            var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = sd.name; b.appendChild(nm);
+            var p = document.createElement('span'); p.className = 'pr'; p.textContent = A.currency + ' ' + sd.price; b.appendChild(p);
+            b.onclick = function(){ meal[sd.name] = !meal[sd.name]; render(); };
+            grid.appendChild(b);
+          });
+          box.appendChild(grid);
         });
         var picked = Object.keys(meal).filter(function(k){ return meal[k]; }).length;
         var row = document.createElement('div'); row.className = 'co-row';
@@ -174,7 +196,7 @@ export function checkoutScript() {
         back.onclick = function(){ mealAsked = false; meal = {}; render(); };
         var next = document.createElement('button'); next.className = 'co-primary';
         next.textContent = picked ? 'Add ' + picked + ' and continue' : 'Continue';
-        next.onclick = function(){ step = 2; render(); };
+        next.onclick = function(){ step = 1; render(); };
         row.appendChild(back); row.appendChild(next); box.appendChild(row);
       }
 
@@ -213,7 +235,7 @@ export function checkoutScript() {
         var err = document.createElement('div'); err.className = 'co-err'; box.appendChild(err);
         var row = document.createElement('div'); row.className = 'co-row';
         var back2 = document.createElement('button'); back2.className = 'co-ghost'; back2.textContent = 'Back';
-        back2.onclick = function(){ step = A.fromChat ? 1 : 0; mealAsked = false; render(); };
+        back2.onclick = function(){ step = A.fromChat ? 0 : 1; render(); };
         var go = document.createElement('button'); go.className = 'co-primary';
         go.textContent = A.fromChat ? 'Send to my chat' : 'Send to kitchen';
         go.onclick = function(){ send(box, go, err); };

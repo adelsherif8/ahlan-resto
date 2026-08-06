@@ -353,7 +353,7 @@ app.get("/build/:token", async (req, res) => {
     if (!claim) return res.status(404).send("<h3 style=\"font-family:sans-serif\">This build link has expired.</h3>");
     const tenant = await resolveRestaurantBySlug(claim.slug);
     // category is needed for "make it a meal" — without it nothing could ever match
-    const { data: menu } = await tenant.db.from("menu_items").select("name,price,available,category").limit(120);
+    const { data: menu } = await tenant.db.from("menu_items").select("name,price,available,category,photo_url").limit(120);
 
     // "Most ordered" from REAL builds. No builder orders yet means no trending list —
     // the page simply doesn't offer one rather than showing a made-up ranking.
