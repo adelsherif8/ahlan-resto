@@ -400,7 +400,6 @@ app.post("/api/build/:token/submit", async (req, res) => {
     const priced = priceBuild(config, picked);
     if (!priced.lines.length) return res.status(400).json({ error: "nothing on the sandwich" });
 
-    const code = await nextOrderCode(db, config);
     const name = describeBuild(priced.lines);
     // doneness/sauce/allergies and the customer's own name for the build belong on the
     // ticket — the kitchen needs them as much as the layer list
@@ -424,9 +423,59 @@ app.post("/api/build/:token/submit", async (req, res) => {
       build: Object.fromEntries(priced.lines.map((l) => [l.id, l.qty])),
     };
 
+    // WHERE DID THIS BUILD COME FROM?
+    // A link the bot sent belongs to a conversation — the build must return to that
+    // conversation so the customer picks delivery/pickup, address and payment where
+    // they already are, not get fired straight at the kitchen with none of it decided.
+    const fromChat = /^\+/.test(String(claim.sessionId));
+
+    if (fromChat) {
+      const { data: diner } = await db.from("diners").select("id,preferences,name")
+        .eq("phone_number", claim.sessionId).maybeSingle();
+      const built = {
+        name: item.name, qty: 1, unit_price: priced.total, notes: item.notes,
+        options: item.options, build: item.build,
+      };
+      if (diner?.id) {
+        const pending = diner.preferences?.pending_order || {};
+        const preferences = {
+          ...(diner.preferences || {}),
+          pending_order: { ...pending, items: [...(pending.items || []), built], at: new Date().toISOString() },
+          // saved builds live against the number, so the bot can offer "your usual"
+          builds: [{ name: item.name, layers: item.build, total: priced.total, at: new Date().toISOString() },
+                   ...((diner.preferences?.builds || []).slice(0, 4))],
+        };
+        await db.from("diners").update({ preferences }).eq("id", diner.id);
+      }
+      await pushGuest(tenant, { phone_number: claim.sessionId },
+        `Your build is in 🍔\n${item.name === "Build Your Own" ? name : `${item.name} — ${name}`}\n${priced.currency} ${priced.total}\n\nHow would you like it — dine-in, pickup or delivery?`,
+      ).catch(() => {});
+      return res.json({ ok: true, handoff: "whatsapp", total: priced.total, currency: priced.currency, summary: name });
+    }
+
+    // Walk-up / QR / kiosk: no conversation to return to, so we need a number —
+    // the receipt tells them to message that number to track the order.
+    const cust = req.body?.customer || {};
+    const phone = String(cust.phone || "").replace(/[^+\d]/g, "").slice(0, 20);
+    if (phone.replace(/\D/g, "").length < 8) {
+      return res.status(400).json({ error: "phone required", need: "customer" });
+    }
+    const custName = String(cust.name || "").trim().slice(0, 40) || null;
+
+    // remember them, so a later WhatsApp message from this number finds their order
+    try {
+      const { data: d } = await db.from("diners").select("id,preferences").eq("phone_number", phone).maybeSingle();
+      const builds = [{ name: item.name, layers: item.build, total: priced.total, at: new Date().toISOString() },
+                      ...((d?.preferences?.builds || []).slice(0, 4))];
+      if (d?.id) await db.from("diners").update({ preferences: { ...(d.preferences || {}), builds }, ...(custName ? { name: custName } : {}) }).eq("id", d.id);
+      else await db.from("diners").insert({ phone_number: phone, name: custName, preferences: { builds } });
+    } catch { /* the order matters more than the CRM row */ }
+
+    const code = await nextOrderCode(db, config);
     const row = {
       code,
-      phone_number: claim.sessionId,
+      phone_number: phone,
+      diner_name: custName,
       order_type: "pickup",          // the guest picks how to get it in chat, where that flow already lives
       items: [item],
       subtotal: priced.total,

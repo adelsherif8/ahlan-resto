@@ -13,6 +13,7 @@ import { PUBLIC_BASE, log } from "../config.js";
 import { featuresScript, DEFAULT_ALLERGENS } from "./builder-features.js";
 import { renderLitePage } from "./builder-lite.js";
 import { layoutScript } from "./builder-layout.js";
+import { checkoutScript } from "./builder-checkout.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "..", "..", "assets", "builder.html");
@@ -146,6 +147,10 @@ function pageSource() {
 
 const jsonScript = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
 
+// the token already says who this is; the page only needs to know whether that is
+// a phone number (a conversation to return to) or not
+const sessionFromToken = (t) => { const c = verifyBuildToken(t); return c ? c.sessionId : null; };
+
 // Better than a blank screen or a thrown error: say what is missing, in the
 // restaurant's own colours, in words a manager can act on.
 function notConfiguredPage(config, brand, bc) {
@@ -225,6 +230,14 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     });
   }
 
+  // "Make it a meal" offers the restaurant's REAL sides and drinks at their real
+  // prices — never a made-up combo. Declared before boot because boot references it.
+  const sideCats = /^(sides?|extras?|appetizers?|drinks?|beverages?)$/i;
+  const sides = (menu || [])
+    .filter((m) => m && sideCats.test(String(m.category || "")) && Number(m.price) > 0 && m.available !== false)
+    .slice(0, 8)
+    .map((m) => ({ name: m.name, price: Number(m.price) }));
+
   const boot = {
     token,
     submitUrl: `${PUBLIC_BASE}/api/build/${encodeURIComponent(token)}/submit`,
@@ -235,6 +248,9 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     maxPerLayer: bc.max_per_layer,
     basePrice: bc.base_price,   // the page must total what the SERVER will charge
     popular,                    // ids ranked by real past builds; empty means no data yet
+    sides,
+    // a link the bot sent belongs to a conversation; a QR/kiosk link does not
+    fromChat: /^\+/.test(String(sessionFromToken(token) || "")),
     // labels are drawn onto a canvas texture, so they need a real colour value —
     // the cream the prototype used disappears completely on a light brand
     labelColor: brand.mode === "light" ? "#16130f" : "rgba(242, 230, 200, 0.95)",
@@ -657,6 +673,10 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
   // the header belonged to the prototype, not to this restaurant
   html = html.replace("<h1>Build Your Sandwich</h1>", `<h1>${config.name} — build your own</h1>`);
 
+  // "Send order" was the FIRST step of a checkout labelled as the last. It becomes
+  // "Review order", and opens the checkout sheet instead of posting immediately.
+  html = html.replace(">Send order<", ">Review order<");
+
   // the stack "settles" once the order is actually accepted
   html = html.replace(
     "      statusEl.textContent = 'Order sent to the kitchen';",
@@ -667,11 +687,6 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
   const byoCfg = config.menu_config?.build_your_own || {};
   // "Make it a meal" offers the restaurant's REAL sides and drinks at their real
   // prices — never a made-up combo.
-  const sideCats = /^(sides?|extras?|appetizers?|drinks?|beverages?)$/i;
-  const sides = (menu || [])
-    .filter((m) => m && sideCats.test(String(m.category || "")) && Number(m.price) > 0 && m.available !== false)
-    .slice(0, 8)
-    .map((m) => ({ name: m.name, price: Number(m.price) }));
 
   html = html.replace("</body>", `${featuresScript({
     menu: menuForCompare,
@@ -685,7 +700,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     // doneness is a table-service question — a fast-casual kitchen never sees it
     doneness: byoCfg.doneness === true || config.basic_info?.restaurant_type === "fine",
     restaurant: config.name,
-  })}\n${layoutScript()}\n</body>`);
+  })}\n${layoutScript()}\n${checkoutScript()}\n</body>`);
 
   // No calorie data exists for these ingredients and inventing some would be worse
   // than showing none, so the counter is hidden.
