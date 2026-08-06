@@ -393,11 +393,12 @@ app.post("/api/build/:token/submit", async (req, res) => {
       status: "pending",
       source: "builder",
     };
-    let order;
-    try {
-      order = await db.from("orders").insert(row).select().single();
-    } catch (e) {
-      delete row.source;             // pre-migration schemas have no source column
+    // supabase-js RETURNS errors rather than throwing, so a missing column has to be
+    // handled on the result — not in a catch that never fires. `source` only exists
+    // once its migration has run; the ticket matters more than the provenance column.
+    let order = await db.from("orders").insert(row).select().single();
+    if (order.error && /source/.test(order.error.message)) {
+      delete row.source;
       order = await db.from("orders").insert(row).select().single();
     }
     if (order.error) throw new Error(order.error.message);
