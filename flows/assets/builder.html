@@ -268,8 +268,12 @@
   </aside>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<!-- r147, not r128: the models are texture-compressed to WebP (11MB -> 3.1MB, which
+     matters a lot on Egyptian mobile data) and EXT_texture_webp only landed in
+     GLTFLoader at r141. On r128 the bun, patty and tomato silently failed to load.
+     r147 is the last release that still ships this non-module loader build. -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
 (function () {
   // ============================================================
