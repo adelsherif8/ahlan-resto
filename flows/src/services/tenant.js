@@ -71,7 +71,18 @@ async function lookup(column, value) {
 // impossible.
 export async function resolveRestaurantByWpid(wpid) {
   if (!wpid) throw new Error("no phone_number_id on the inbound message");
-  return lookup("wpid", String(wpid));
+  try {
+    return await lookup("wpid", String(wpid));
+  } catch (e) {
+    // Safety net: with exactly ONE restaurant on the platform there is nothing to
+    // confuse it with, so a missing/stale wpid must not black out the bot. The
+    // moment a second restaurant exists this fallback is disabled and an unknown
+    // number is refused — correctness beats availability once mixing is possible.
+    const { count } = await control.from("restaurants").select("id", { count: "exact", head: true });
+    if ((count || 0) > 1) throw e;
+    log(`WARN: wpid ${wpid} not matched; single-restaurant fallback to ${RESTAURANT_SLUG}. Set restaurants.wpid.`);
+    return lookup("slug", RESTAURANT_SLUG);
+  }
 }
 
 export async function resolveRestaurantById(id) {
