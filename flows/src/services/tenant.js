@@ -89,6 +89,25 @@ export async function resolveRestaurantById(id) {
   return lookup("id", id);
 }
 
+// Every restaurant on the platform — schedulers (janitor, reminders, the
+// recovery/upsell/review sweeps) must run for ALL of them, not just the one
+// named in RESTAURANT_SLUG, or a second restaurant silently gets no automations.
+export async function resolveAllRestaurants() {
+  if (!control) throw new Error("SUPABASE_AHLAN_URL not configured");
+  const { data, error } = await control.from("restaurants").select("*");
+  if (error) throw new Error(error.message);
+  const out = [];
+  for (const row of data || []) {
+    try { out.push(buildTenant(row)); }
+    catch (e) { log(`skipping ${row.slug}: ${e.message}`); }
+  }
+  return out;
+}
+
+export async function resolveRestaurantBySlug(slug) {
+  return lookup("slug", slug);
+}
+
 export async function resolveRestaurant(wpid = null) {
   if (wpid) return resolveRestaurantByWpid(wpid);
   return lookup("slug", RESTAURANT_SLUG);

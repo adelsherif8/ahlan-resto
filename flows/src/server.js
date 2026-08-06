@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { PORT, log, llmReady } from "./config.js";
-import { resolveRestaurant, resolveRestaurantByWpid, resolveRestaurantById } from "./services/tenant.js";
+import { resolveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, resolveRestaurantBySlug, resolveAllRestaurants } from "./services/tenant.js";
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
@@ -110,7 +110,9 @@ app.post("/api/web/send", async (req, res) => {
     const { sessionId, message } = req.body || {};
     if (!sessionId || !message) return res.status(400).json({ error: "sessionId and message required" });
     // optional ?restaurant=<slug> lets the ops console drive any tenant's bot
-    const tenant = await resolveRestaurant(req.body.wpid || null);
+    const tenant = req.body.restaurant
+      ? await resolveRestaurantBySlug(String(req.body.restaurant))
+      : await resolveRestaurant(req.body.wpid || null);
     const ctx = { sessionId, tenant, channel: "web", trigger: "web" };
     const { exec } = await runFlow("ingest", ctx, { message, messageId: req.body.messageId || null });
     res.json({ accepted: true, executionId: exec.id });
@@ -132,7 +134,7 @@ app.get("/api/web/poll", async (req, res) => {
   const { sessionId } = req.query;
   if (!sessionId) return res.status(400).json({ error: "sessionId required" });
   try {
-    const tenant = await resolveRestaurant();
+    const tenant = req.query.restaurant ? await resolveRestaurantBySlug(String(req.query.restaurant)) : await resolveRestaurant();
     const { data, error } = await tenant.db
       .from("chat_messages")
       .select("sender,message,media_url,media_type,created_at")
@@ -631,8 +633,9 @@ startFlushWorker(flushHandler);
 // hourly janitor
 setInterval(async () => {
   try {
-    const tenant = await resolveRestaurant();
-    await runFlow("janitor", { sessionId: "janitor", tenant, trigger: "schedule" }, {});
+    for (const tenant of await resolveAllRestaurants()) {
+      await runFlow("janitor", { sessionId: "janitor", tenant, trigger: "schedule" }, {}).catch((e) => log(`janitor ${tenant.record.slug}:`, e.message));
+    }
   } catch (e) {
     log("janitor error:", e.message);
   }
@@ -641,8 +644,9 @@ setInterval(async () => {
 // reservation reminders every 15 min (T-3h window, WA-window aware)
 setInterval(async () => {
   try {
-    const tenant = await resolveRestaurant();
-    await runFlow("reminders", { sessionId: "reminders", tenant, trigger: "schedule" }, {});
+    for (const tenant of await resolveAllRestaurants()) {
+      await runFlow("reminders", { sessionId: "reminders", tenant, trigger: "schedule" }, {}).catch((e) => log(`reminders ${tenant.record.slug}:`, e.message));
+    }
   } catch (e) {
     log("reminders error:", e.message);
   }
