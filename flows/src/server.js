@@ -10,7 +10,7 @@ import { runRegression, regressionStatus } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
 import { getSession, logMessage } from "./services/chatlog.js";
 import { riderCopy } from "./services/ridercopy.js";
-import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, builderConfig, signBuildToken, MODEL_BASE } from "./services/builder.js";
+import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, builderConfig, signBuildToken, LAYERS as BUILDER_LAYERS, MODEL_BASE } from "./services/builder.js";
 import { nextOrderCode } from "./services/ordercode.js";
 
 // register flows
@@ -435,7 +435,15 @@ app.post("/api/ops/build-link", opsAuth, async (req, res) => {
     const tenant = await resolveRestaurantBySlug(slug);
     const bc = builderConfig(tenant.config);
     const token = signBuildToken({ sessionId: `web:test-preview-${Date.now()}`, slug, ttlMs: 3600_000 });
-    res.json({ url: `${PUBLIC_BASE}/build/${token}`, enabled: bc.enabled, reason: bc.reason, layers: bc.layers.length });
+    // the dashboard renders its price fields FROM this list, so the two can never
+    // drift out of sync the way a second hard-coded copy would
+    res.json({
+      url: `${PUBLIC_BASE}/build/${token}`,
+      enabled: bc.enabled,
+      reason: bc.reason,
+      priced: bc.layers.length,
+      catalog: BUILDER_LAYERS.map((l) => ({ key: l.key, name: l.name, category: l.category })),
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

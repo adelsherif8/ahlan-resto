@@ -42,6 +42,18 @@ export default function Settings() {
     setConfig((c: any) => ({ ...c, [section]: { ...c[section], ...patch } }));
   }
 
+  const [byoCatalog, setByoCatalog] = useState<any[]>([]);
+  const [byoUrl, setByoUrl] = useState("");
+
+  // The ingredient list comes from the flows service, which owns the 3D catalog —
+  // a second copy here would drift the moment a layer is added.
+  useEffect(() => {
+    if (tab !== "builder" || byoCatalog.length) return;
+    api.post("/api/settings/builder-preview", {})
+      .then((r) => { setByoCatalog(r.data?.catalog || []); setByoUrl(r.data?.url || ""); })
+      .catch(() => {});
+  }, [tab]);
+
   const SECTIONS: [string, string][] = [
     ["info", "Restaurant info"],
     ["charges", "Charges"],
@@ -278,7 +290,7 @@ export default function Settings() {
             setByo({ layers: next });
           };
           const priced = Object.values(layers).filter((v) => Number.isFinite(Number(v))).length;
-          const hasProtein = Number.isFinite(Number(layers.patty));
+          const hasProtein = byoCatalog.some((c) => c.category === "protein" && Number.isFinite(Number(layers[c.key])));
           return (
             <>
               <div className="grid gap-3 md:grid-cols-3">
@@ -298,15 +310,25 @@ export default function Settings() {
                 out of the builder entirely. Prices are what the kitchen charges — the total is always worked
                 out here on the server, never in the customer's browser.
               </p>
-              <div className="grid gap-3 md:grid-cols-3">
-                {([["bun", "Sesame bun"], ["patty", "Beef patty"], ["cheese", "Cheese slice"],
-                   ["melted", "Melted cheese"], ["lettuce", "Lettuce"], ["tomato", "Tomato"]] as const).map(([k, name]) => (
-                  <Field key={k} label={name}>
-                    <Input type="number" placeholder="not offered"
-                      value={layers[k] ?? ""} onChange={(e) => setLayer(k, e.target.value)} />
-                  </Field>
-                ))}
-              </div>
+              {byoCatalog.length === 0 && <p className="text-xs text-zinc-500">Loading ingredients…</p>}
+              {["bread", "protein", "cheese", "veggie", "sauce"].map((cat) => {
+                const inCat = byoCatalog.filter((c) => c.category === cat);
+                if (!inCat.length) return null;
+                const CAT_NAME: Record<string, string> = { bread: "Buns & wraps", protein: "Protein", cheese: "Cheese", veggie: "Veggies", sauce: "Sauces" };
+                return (
+                  <div key={cat} className="mb-4">
+                    <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-zinc-500">{CAT_NAME[cat]}</div>
+                    <div className="grid gap-3 md:grid-cols-4">
+                      {inCat.map((c) => (
+                        <Field key={c.key} label={c.name}>
+                          <Input type="number" placeholder="not offered"
+                            value={layers[c.key] ?? ""} onChange={(e) => setLayer(c.key, e.target.value)} />
+                        </Field>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
 
               {byo.enabled === true && !hasProtein && (
                 <p className="mt-3 text-xs text-amber-400">
@@ -316,12 +338,8 @@ export default function Settings() {
               )}
               <div className="mt-3 flex items-center gap-3">
                 <button type="button"
-                  onClick={async () => {
-                    try {
-                      const r = await api.post("/api/settings/builder-preview", {});
-                      if (r.data?.url) window.open(r.data.url, "_blank");
-                    } catch { /* the button simply does nothing rather than throwing at staff */ }
-                  }}
+                  onClick={() => { if (byoUrl) window.open(byoUrl, "_blank"); }}
+                  disabled={!byoUrl}
                   className="rounded-xl px-4 py-2 text-xs font-bold"
                   style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
                   Open the builder

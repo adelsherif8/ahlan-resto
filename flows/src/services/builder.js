@@ -17,7 +17,7 @@ const PAGE = path.join(HERE, "..", "..", "assets", "builder.html");
 // Models are generic geometry shared by every restaurant — one hosted copy.
 export const MODEL_BASE =
   process.env.BUILDER_MODEL_BASE ||
-  "https://sxthftiqvaojbdyjizjr.supabase.co/storage/v1/object/public/builder/burger1";
+  "https://sxthftiqvaojbdyjizjr.supabase.co/storage/v1/object/public/builder/v2";
 
 // ---- token -------------------------------------------------------------
 // Signed, self-describing, and short-lived: no table, no migration, and a link
@@ -54,16 +54,35 @@ export function verifyBuildToken(token) {
 }
 
 // ---- config ------------------------------------------------------------
-// Every layer the 3D scene can render. A layer a restaurant hasn't priced is
-// simply not offered — the guest never sees a price we invented.
-export const LAYERS = [
-  { id: "bread-bun",     key: "bun",     category: "bread",   name: "Sesame bun",    fixed: true },
-  { id: "protein-patty", key: "patty",   category: "protein", name: "Beef patty" },
-  { id: "cheese-slice",  key: "cheese",  category: "cheese",  name: "Cheese slice" },
-  { id: "cheese-melted", key: "melted",  category: "cheese",  name: "Melted cheese" },
-  { id: "veg-lettuce",   key: "lettuce", category: "veggie",  name: "Lettuce" },
-  { id: "veg-tomato",    key: "tomato",  category: "veggie",  name: "Tomato" },
-];
+// The real Luci'z layer library, exported from Blender. Each entry's radius and
+// height were measured from the model's own bounding box (in metres) and converted
+// to scene units, so a slice of cheddar is the size of a slice of cheddar relative
+// to the bun instead of a number someone guessed.
+//
+// A layer a restaurant hasn't priced is simply not offered — a customer never sees
+// a price we invented.
+const CATALOG = JSON.parse(
+  fs.readFileSync(path.join(HERE, "builder-catalog.json"), "utf8"),
+);
+
+// Tint used only where a model's own texture doesn't carry the look (procedural
+// fallback in the page). Grouped by category rather than invented per ingredient.
+const CAT_TINT = { bread: 0xd9a55c, protein: 0x6b3a25, cheese: 0xe0a13a, veggie: 0x4c8a3a, sauce: 0xc2402c };
+
+export const LAYERS = CATALOG.map((c) => ({
+  id: c.key,                       // key IS the id now — one name for one thing
+  key: c.key,
+  category: c.category,
+  name: c.name,
+  fixed: c.category === "bread",   // exactly one bread, and it wraps the stack
+  radius: c.radius,
+  height: c.height,
+  file: c.file,
+  topFile: c.topFile || null,
+  topHeight: c.topHeight || null,
+  bottomHeight: c.bottomHeight || null,
+  color: CAT_TINT[c.category] || 0xcccccc,
+}));
 
 export function builderConfig(config) {
   const byo = config?.menu_config?.build_your_own || {};
@@ -128,15 +147,37 @@ export function renderBuilderPage(tenant, token) {
   const brand = config.basic_info?.brand || {};
   let html = pageSource();
 
+  // The page's CATALOG is replaced wholesale rather than patched: it shipped with six
+  // demo ingredients at demo prices, and this is a real menu now.
+  const catalog = bc.layers.map((l) => {
+    const e = {
+      id: l.id, category: l.category, name: l.name, price: l.price,
+      radius: l.radius, color: l.color,
+    };
+    if (l.category === "bread") {
+      e.bottomModelUrl = `${MODEL_BASE}/${l.file}`;
+      e.topModelUrl = l.topFile ? `${MODEL_BASE}/${l.topFile}` : `${MODEL_BASE}/${l.file}`;
+      e.bottomHeight = l.bottomHeight || l.height;
+      e.topHeight = l.topHeight || l.height;
+      e.default = l.key === "bun_plain";
+    } else {
+      e.modelUrl = `${MODEL_BASE}/${l.file}`;
+      e.height = l.height;
+    }
+    return e;
+  });
+
   const boot = {
     token,
     submitUrl: `${PUBLIC_BASE}/api/build/${encodeURIComponent(token)}/submit`,
     modelBase: MODEL_BASE,
     currency: bc.currency,
     restaurant: config.name,
-    prices: Object.fromEntries(bc.layers.map((l) => [l.id, l.price])),
-    offered: bc.layers.map((l) => l.id),
+    catalog,
     maxPerLayer: bc.max_per_layer,
+    // labels are drawn onto a canvas texture, so they need a real colour value —
+    // the cream the prototype used disappears completely on a light brand
+    labelColor: brand.mode === "light" ? "#16130f" : "rgba(242, 230, 200, 0.95)",
   };
 
   // The prototype is hard-committed to a dark red-black "studio" look. That is one
@@ -222,15 +263,47 @@ export function renderBuilderPage(tenant, token) {
     "<script>\n(function () {",
     `<script>window.__AHLAN__ = ${jsonScript(boot)};</script>\n${guard}\n<script>\n(function () {`,
   );
-  // the demo's own prices must not survive into a page that takes money
-  html = html.replace(
-    "  const STACK_ORDER =",
-    `  CATALOG.forEach((d) => { d.price = window.__AHLAN__.prices[d.id] ?? d.price; });
-  for (let i = CATALOG.length - 1; i >= 0; i--) {
-    if (!window.__AHLAN__.offered.includes(CATALOG[i].id)) CATALOG.splice(i, 1);
-  }
+  // The demo CATALOG is REPLACED, not patched — six invented ingredients at invented
+  // prices have no business surviving into a page that takes money.
+  html = html.replace(/const CATALOG = \[[\s\S]*?\n  \];/, "const CATALOG = window.__AHLAN__.catalog;");
 
-  const STACK_ORDER =`,
+  // five categories now — sauces are new
+  html = html.replace(/const STACK_ORDER = \[[^\]]*\];/,
+    "const STACK_ORDER = ['sauce', 'protein', 'cheese', 'veggie'];");
+  html = html.replace(/const CATEGORY_LABELS = \{[^}]*\};/,
+    "const CATEGORY_LABELS = { bread: 'Bread', protein: 'Protein', cheese: 'Cheese', veggie: 'Veggies', sauce: 'Sauces' };");
+  html = html.replace(/const CATEGORY_DISPLAY_ORDER = \[[^\]]*\];/,
+    "const CATEGORY_DISPLAY_ORDER = ['bread', 'protein', 'cheese', 'veggie', 'sauce'];");
+
+  // The label colour was burned into the canvas texture as cream — invisible on a
+  // light brand. Take it from the brand instead.
+  html = html.replace("ctx.fillStyle = 'rgba(242, 230, 200, 0.95)';",
+    "ctx.fillStyle = (window.__AHLAN__ && window.__AHLAN__.labelColor) || 'rgba(242, 230, 200, 0.95)';");
+
+  // Labels are children of the rotating stack, so they orbited away from the camera as
+  // the burger spun. Sprites already face the camera; what they need is to hold their
+  // WORLD-space direction. Counter-rotating each one by the stack's own Y rotation
+  // pins them to the same side of the screen no matter how the burger is turned.
+  html = html.replace(
+    "    dust.rotation.y += 0.0006;",
+    `    dust.rotation.y += 0.0006;
+
+    // keep every label on the same side of the screen while the stack rotates
+    {
+      const ry = group.rotation.y, cs = Math.cos(-ry), sn = Math.sin(-ry);
+      for (const g of allGroups) {
+        const sp = g.userData.labelSprite;
+        if (!sp) continue;
+        const R = (g.userData.labelRadius = g.userData.labelRadius || Math.hypot(sp.position.x, sp.position.z) || 3);
+        sp.position.x = R * cs;
+        sp.position.z = R * sn;
+      }
+    }`,
   );
+
+  // No calorie data exists for these ingredients and inventing some would be worse
+  // than showing none, so the counter is hidden.
+  html = html.replace("</head>", "<style>#total-calories{display:none}</style>\n</head>");
+
   return html;
 }

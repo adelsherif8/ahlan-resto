@@ -1,0 +1,384 @@
+[
+  {
+    "key": "bun_plain",
+    "category": "bread",
+    "name": "Plain bun",
+    "file": "40_plain_bun_bottom.glb",
+    "radius": 1.87,
+    "height": 1.33,
+    "topFile": "39_plain_bun_top.glb",
+    "topHeight": 1.3,
+    "bottomHeight": 1.2,
+    "realDia": 0.1062,
+    "measured": true
+  },
+  {
+    "key": "bun_potato",
+    "category": "bread",
+    "name": "Potato bun",
+    "file": "36_potato_bun_bottom.glb",
+    "radius": 1.87,
+    "height": 1.32,
+    "topFile": "35_potato_bun_top.glb",
+    "topHeight": 1.36,
+    "bottomHeight": 1.2,
+    "realDia": 0.1066,
+    "measured": true
+  },
+  {
+    "key": "bun_pretzel",
+    "category": "bread",
+    "name": "Pretzel bun",
+    "file": "38_pretzel_bun_bottom.glb",
+    "radius": 1.87,
+    "height": 1.32,
+    "topFile": "37_pretzel_bun_top.glb",
+    "topHeight": 1.36,
+    "bottomHeight": 1.2,
+    "realDia": 0.1063,
+    "measured": true
+  },
+  {
+    "key": "bun_sesame",
+    "category": "bread",
+    "name": "Sesame bun",
+    "file": "12_bottombun.glb",
+    "radius": 1.91,
+    "height": 1.2,
+    "topFile": "01_topbun.glb",
+    "topHeight": 1.5,
+    "bottomHeight": 1.2,
+    "realDia": 0.1084,
+    "measured": true
+  },
+  {
+    "key": "wrap_lettuce",
+    "category": "bread",
+    "name": "Lettuce wrap",
+    "file": "41_lettuce_wrap.glb",
+    "radius": 2.1,
+    "height": 1.4,
+    "realDia": 0.163,
+    "measured": true
+  },
+  {
+    "key": "patty",
+    "category": "protein",
+    "name": "Beef patty",
+    "file": "05_patty.glb",
+    "radius": 2.1,
+    "height": 0.9,
+    "realDia": 0.1696,
+    "measured": true
+  },
+  {
+    "key": "patty_smash",
+    "category": "protein",
+    "name": "Smash patty",
+    "file": "07_patty2.glb",
+    "radius": 2.1,
+    "height": 0.9,
+    "realDia": 0.1696,
+    "measured": true
+  },
+  {
+    "key": "patty_pub",
+    "category": "protein",
+    "name": "Thick pub patty",
+    "file": "27_thick_pub_patty.glb",
+    "radius": 1.7,
+    "height": 0.83,
+    "realDia": 0.0964,
+    "measured": true
+  },
+  {
+    "key": "patty_plant",
+    "category": "protein",
+    "name": "Plant-based patty",
+    "file": "14_plant_patty.glb",
+    "radius": 2.1,
+    "height": 0.9,
+    "realDia": 0.1696,
+    "measured": true
+  },
+  {
+    "key": "chicken_crispy",
+    "category": "protein",
+    "name": "Crispy chicken",
+    "file": "25_crispy_chicken.glb",
+    "radius": 1.91,
+    "height": 0.9,
+    "realDia": 0.1085,
+    "measured": true
+  },
+  {
+    "key": "chicken_grilled",
+    "category": "protein",
+    "name": "Grilled chicken",
+    "file": "26_grilled_chicken.glb",
+    "radius": 1.85,
+    "height": 0.87,
+    "realDia": 0.1049,
+    "measured": true
+  },
+  {
+    "key": "bacon",
+    "category": "protein",
+    "name": "Bacon",
+    "file": "20_bacon.glb",
+    "radius": 2.1,
+    "height": 0.71,
+    "realDia": 0.1215,
+    "measured": true
+  },
+  {
+    "key": "fried_egg",
+    "category": "protein",
+    "name": "Fried egg",
+    "file": "23_fried_egg.glb",
+    "radius": 1.61,
+    "height": 0.74,
+    "realDia": 0.0916,
+    "measured": true
+  },
+  {
+    "key": "cheese_american",
+    "category": "cheese",
+    "name": "American cheese",
+    "file": "03_american_cheese.glb",
+    "radius": 1.94,
+    "height": 0.45,
+    "realDia": 0.1105,
+    "measured": true
+  },
+  {
+    "key": "cheese_cheddar",
+    "category": "cheese",
+    "name": "Cheddar",
+    "file": "13_cheddar.glb",
+    "radius": 1.94,
+    "height": 0.45,
+    "realDia": 0.1105,
+    "measured": true
+  },
+  {
+    "key": "cheese_emmental",
+    "category": "cheese",
+    "name": "Emmental",
+    "file": "06_emmental.glb",
+    "radius": 1.94,
+    "height": 0.45,
+    "realDia": 0.1105,
+    "measured": true
+  },
+  {
+    "key": "cheese_blue",
+    "category": "cheese",
+    "name": "Blue cheese crumble",
+    "file": "28_blue_cheese_crumble.glb",
+    "radius": 1.08,
+    "height": 0.45,
+    "realDia": 0.0613,
+    "measured": true
+  },
+  {
+    "key": "cheese_queso",
+    "category": "cheese",
+    "name": "Queso pour",
+    "file": "29_queso_pour.glb",
+    "radius": 1.7,
+    "height": 0.45,
+    "realDia": 0.0968,
+    "measured": true
+  },
+  {
+    "key": "lettuce",
+    "category": "veggie",
+    "name": "Lettuce",
+    "file": "10_lettuce.glb",
+    "radius": 2.1,
+    "height": 0.59,
+    "realDia": 0.1275,
+    "measured": true
+  },
+  {
+    "key": "tomato",
+    "category": "veggie",
+    "name": "Tomato",
+    "file": "09_tomato.glb",
+    "radius": 1.79,
+    "height": 0.38,
+    "realDia": 0.1018,
+    "measured": true
+  },
+  {
+    "key": "onions",
+    "category": "veggie",
+    "name": "Raw onions",
+    "file": "04_onions.glb",
+    "radius": 2.1,
+    "height": 0.12,
+    "realDia": 0.2182,
+    "measured": true
+  },
+  {
+    "key": "onions_caramel",
+    "category": "veggie",
+    "name": "Caramelized onions",
+    "file": "21_caramelized_onions.glb",
+    "radius": 1.52,
+    "height": 0.8,
+    "realDia": 0.0863,
+    "measured": true
+  },
+  {
+    "key": "onion_strings",
+    "category": "veggie",
+    "name": "Crispy onion strings",
+    "file": "22_crispy_onion_strings.glb",
+    "radius": 1.54,
+    "height": 0.8,
+    "realDia": 0.0873,
+    "measured": true
+  },
+  {
+    "key": "pickles",
+    "category": "veggie",
+    "name": "Pickles",
+    "file": "08_pickles.glb",
+    "radius": 2.1,
+    "height": 0.13,
+    "realDia": 0.1711,
+    "measured": true
+  },
+  {
+    "key": "jalapenos",
+    "category": "veggie",
+    "name": "Jalapenos",
+    "file": "24_jalapenos.glb",
+    "radius": 1.1,
+    "height": 0.25,
+    "realDia": 0.0624,
+    "measured": true
+  },
+  {
+    "key": "mushrooms",
+    "category": "veggie",
+    "name": "Sauteed mushrooms",
+    "file": "30_sauteed_mushrooms.glb",
+    "radius": 1.36,
+    "height": 0.8,
+    "realDia": 0.077,
+    "measured": true
+  },
+  {
+    "key": "peppers",
+    "category": "veggie",
+    "name": "Grilled peppers",
+    "file": "31_grilled_peppers.glb",
+    "radius": 1.58,
+    "height": 0.78,
+    "realDia": 0.0897,
+    "measured": true
+  },
+  {
+    "key": "coleslaw",
+    "category": "veggie",
+    "name": "Coleslaw",
+    "file": "32_coleslaw.glb",
+    "radius": 1.6,
+    "height": 0.8,
+    "realDia": 50.9061,
+    "measured": false
+  },
+  {
+    "key": "guacamole",
+    "category": "veggie",
+    "name": "Guacamole",
+    "file": "33_guacamole.glb",
+    "radius": 1.66,
+    "height": 0.62,
+    "realDia": 0.0943,
+    "measured": true
+  },
+  {
+    "key": "rocket",
+    "category": "veggie",
+    "name": "Rocket",
+    "file": "34_rocket.glb",
+    "radius": 1.17,
+    "height": 0.8,
+    "realDia": 0.0666,
+    "measured": true
+  },
+  {
+    "key": "sauce_ketchup",
+    "category": "sauce",
+    "name": "Ketchup",
+    "file": "15_ketchup.glb",
+    "radius": 1.93,
+    "height": 0.32,
+    "realDia": 0.1097,
+    "measured": true
+  },
+  {
+    "key": "sauce_mustard",
+    "category": "sauce",
+    "name": "Mustard",
+    "file": "16_mustard.glb",
+    "radius": 1.93,
+    "height": 0.32,
+    "realDia": 0.1097,
+    "measured": true
+  },
+  {
+    "key": "sauce_mayo",
+    "category": "sauce",
+    "name": "Mayo",
+    "file": "17_mayo.glb",
+    "radius": 1.93,
+    "height": 0.32,
+    "realDia": 0.1097,
+    "measured": true
+  },
+  {
+    "key": "sauce_bbq",
+    "category": "sauce",
+    "name": "BBQ",
+    "file": "18_bbq.glb",
+    "radius": 1.93,
+    "height": 0.32,
+    "realDia": 0.1097,
+    "measured": true
+  },
+  {
+    "key": "sauce_sriracha",
+    "category": "sauce",
+    "name": "Sriracha aioli",
+    "file": "19_sriracha_aioli.glb",
+    "radius": 1.93,
+    "height": 0.32,
+    "realDia": 0.1097,
+    "measured": true
+  },
+  {
+    "key": "sauce_crown",
+    "category": "sauce",
+    "name": "House sauce (top)",
+    "file": "02_sauce_crown.glb",
+    "radius": 1.93,
+    "height": 0.35,
+    "realDia": 0.1096,
+    "measured": true
+  },
+  {
+    "key": "sauce_heel",
+    "category": "sauce",
+    "name": "House sauce (base)",
+    "file": "11_sauce_heel.glb",
+    "radius": 1.93,
+    "height": 0.32,
+    "realDia": 0.1097,
+    "measured": true
+  }
+]
