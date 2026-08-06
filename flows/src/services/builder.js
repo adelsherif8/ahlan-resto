@@ -221,7 +221,6 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     return renderLitePage({
       config, brand, catalog, currency: bc.currency, basePrice: bc.base_price,
       maxPerLayer: bc.max_per_layer,
-    basePrice: bc.base_price,
       submitUrl: `${PUBLIC_BASE}/api/build/${encodeURIComponent(token)}/submit`, token,
     });
   }
@@ -234,6 +233,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     restaurant: config.name,
     catalog,
     maxPerLayer: bc.max_per_layer,
+    basePrice: bc.base_price,   // the page must total what the SERVER will charge
     // labels are drawn onto a canvas texture, so they need a real colour value —
     // the cream the prototype used disappears completely on a light brand
     labelColor: brand.mode === "light" ? "#16130f" : "rgba(242, 230, 200, 0.95)",
