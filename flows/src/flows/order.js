@@ -879,6 +879,10 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         ? [...outcome.saved.slice(0, 2).map((a, i) => (i === 0 ? `🏠 ${String(a).slice(0, 16)}` : `📍 ${String(a).slice(0, 16)}`)), "Somewhere new"]
       : outcome.kind === "confirm_order" ? ["Confirm ✅", "Change something"]
       : outcome.kind === "ask_payment" ? (outcome.methods || []).map((m) => m.split(" ")[0].replace(/^\w/, (c) => c.toUpperCase()))
+      // NOW is the moment for "the usual" — they have said they're ordering but not
+      // yet what. Offering it in the greeting spent a button before anyone had decided
+      // to order anything; offering it here is one tap at the exact decision point.
+      : ["ask_items", "no_history"].includes(outcome.kind) ? reorderChips(diner, config)
       : null;
     let optionList = null;
     if (forced) {
@@ -954,6 +958,18 @@ function publicOrder(o) {
 // A code-drawn progress ladder — the guest sees exactly where their food is and
 // how long each step took. Timestamps come from the board's own stamps, so the
 // bot can never invent progress that didn't happen.
+// Their real history, as taps: the saved custom build first (it is named, so it is the
+// strongest offer), then their last order. Nothing invented — an empty history means
+// no chips, and the model just asks what they'd like.
+function reorderChips(diner, config) {
+  const chips = [];
+  const build = (diner?.preferences?.builds || [])[0];
+  if (build?.name && build.layers) chips.push(`${String(build.name).slice(0, 18)} 🔁`);
+  const last = (diner?.preferences?.last_items || [])[0]?.name || diner?.preferences?.usual_item;
+  if (last) chips.push(`${String(last).slice(0, 18)} 🔁`);
+  return chips.length ? chips.slice(0, 2) : null;
+}
+
 function statusTimeline(o, tz = "Africa/Cairo") {
   const t = (v) => v ? new Date(v).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" }) : null;
   const delivery = o.order_type === "delivery";
