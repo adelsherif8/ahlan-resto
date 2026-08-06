@@ -87,21 +87,21 @@ export const LAYERS = CATALOG.map((c) => ({
   color: CAT_TINT[c.category] || 0xcccccc,
 }));
 
-// preview=true is the STAFF view: it shows the whole library so a manager can see
-// what is available to offer. Customers only ever get layers this restaurant priced —
-// which ingredients belong on their menu is their decision, not ours.
+// preview=true only bypasses the on/off switch — it shows the SAME ingredients a
+// customer would see. Showing the whole library here was actively misleading: it made
+// the builder look like it offered things the restaurant does not serve. Choosing from
+// the full library belongs in Settings, where every ingredient is listed with a price
+// box; an ingredient with no price is not offered, in preview or in production.
 export function builderConfig(config, { preview = false } = {}) {
   const byo = config?.menu_config?.build_your_own || {};
   const prices = byo.layers || {};
-  const priced = preview
-    ? LAYERS.map((l) => ({ ...l, price: Number(prices[l.key]) || 0, unpriced: !Number.isFinite(Number(prices[l.key])) }))
-    : LAYERS.map((l) => ({ ...l, price: Number(prices[l.key]) })).filter(
-        (l) => Number.isFinite(l.price) && l.price >= 0,
-      );
+  const priced = LAYERS.map((l) => ({ ...l, price: Number(prices[l.key]) })).filter(
+    (l) => Number.isFinite(l.price) && l.price >= 0,
+  );
   // A builder with no priced protein isn't a burger builder — treat it as unconfigured.
   const usable = priced.some((l) => l.category === "protein");
   return {
-    enabled: byo.enabled !== false && usable,
+    enabled: (preview || byo.enabled !== false) && usable,
     base_price: Number(byo.base_price) || 0,
     max_per_layer: Number(byo.max_per_layer) || 3,
     layers: priced,
