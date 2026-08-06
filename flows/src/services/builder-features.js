@@ -57,7 +57,12 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
 </style>
 <script>
 (function(){
-  var D = ${JSON.stringify(data)};
+  // SECURITY: data.restaurant/menu[].name/sides[].name are restaurant-controlled
+  // strings (config.name, menu_items.name) embedded straight into this <script>
+  // block. Escaping "<" (not just "</script>") is what builder.js's own jsonScript()
+  // does two call-sites over for window.__AHLAN__ — this one skipped it, which let a
+  // name containing "</script><script>..." close the tag early and run as real HTML.
+  var D = ${JSON.stringify(data).replace(/</g, "\\u003c")};
   var B = null;
   var state = { doneness: 1, sauce: 1, name: '', avoid: {}, meal: {}, kids: ${kidsMode ? "true" : "false"} };
 
@@ -256,18 +261,34 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
         });
         if (best) {
           var delta = total - best.m.price;
-          near.innerHTML = 'Your build \\u2248 <b>' + best.m.name + '</b>'
-            + (delta === 0 ? ' — same price' : (delta > 0 ? ' +' : ' \\u2212') + D.currency + ' ' + Math.abs(delta));
+          // SECURITY: best.m.name is a menu item's name — restaurant-controlled text,
+          // not a hardcoded string. innerHTML concatenation here let a menu item named
+          // e.g. '<img src=x onerror=...>' execute in every customer's browser. Built
+          // as real DOM nodes with textContent instead, same as the rest of this file.
+          near.textContent = '';
+          near.appendChild(document.createTextNode('Your build \\u2248 '));
+          var bEl = document.createElement('b');
+          bEl.textContent = best.m.name;
+          near.appendChild(bEl);
+          near.appendChild(document.createTextNode(
+            delta === 0 ? ' — same price' : (delta > 0 ? ' +' : ' \\u2212') + D.currency + ' ' + Math.abs(delta)
+          ));
         }
       }
     }
 
-    // protein counter, only when the restaurant has configured protein data
+    // protein counter, only when the restaurant has configured protein data — the
+    // number is code-computed, never restaurant/customer text, so plain nodes suffice
     if (Object.keys(D.protein).length) {
       var g = 0;
       Object.keys(B.qty).forEach(function(id){ g += (D.protein[id] || 0) * (B.qty[id] || 0); });
       var n2 = document.getElementById('bx-near');
-      if (n2 && g > 0) n2.innerHTML += ' \\u00b7 <b>' + Math.round(g) + 'g protein</b>';
+      if (n2 && g > 0) {
+        n2.appendChild(document.createTextNode(' \\u00b7 '));
+        var pEl = document.createElement('b');
+        pEl.textContent = Math.round(g) + 'g protein';
+        n2.appendChild(pEl);
+      }
     }
   }
 

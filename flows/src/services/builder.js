@@ -41,6 +41,12 @@ export function signBuildToken({ sessionId, slug, ttlMs = TTL_MS, preview = fals
   return `${body}.${sign(body)}`;
 }
 
+// Tracking reuses the same signed-token primitive with the ORDER CODE in place of a
+// phone number — no new column, no new secret, and a link that leaks is already
+// scoped to one order and expires on its own.
+export const signTrackToken = ({ code, slug, ttlMs = 14 * 24 * 3600_000 }) =>
+  signBuildToken({ sessionId: code, slug, ttlMs });
+
 export function verifyBuildToken(token) {
   try {
     const [body, sig] = String(token || "").split(".");
@@ -154,6 +160,13 @@ function pageSource() {
 
 const jsonScript = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
 
+// Every render function in this file shares these two — the bugs a security review
+// found here happened BECAUSE each function had its own copy of this, or skipped it
+// entirely. One implementation, used everywhere a restaurant-controlled string
+// (config.name, a menu item name, brand.logo_url) reaches HTML.
+const esc = (t) => String(t ?? "").replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+const safeUrl = (u) => (/^https?:\/\/[^\s"'<>]+$/i.test(String(u || "")) ? esc(u) : null);
+
 // the token already says who this is; the page only needs to know whether that is
 // a phone number (a conversation to return to) or not
 const sessionFromToken = (t) => { const c = verifyBuildToken(t); return c ? c.sessionId : null; };
@@ -162,7 +175,6 @@ const sessionFromToken = (t) => { const c = verifyBuildToken(t); return c ? c.se
 // restaurant's own colours, in words a manager can act on.
 function notConfiguredPage(config, brand, bc) {
   const accent = /^#[0-9a-f]{6}$/i.test(brand.primary || "") ? brand.primary : "#e81b23";
-  const esc = (t) => String(t ?? "").replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(config.name)} — build your own</title><style>
@@ -299,7 +311,10 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
   }</style>`;
 
   const replacements = [
-    [/<img id="brand-logo" src="[^"]*"/, `<img id="brand-logo" src="${brand.logo_url || ""}"`],
+    // SECURITY: was raw brand.logo_url with no escaping and no URL check — a value
+    // like x" onerror="..." x=" broke out of this attribute into arbitrary HTML/JS,
+    // served to every customer who opened this restaurant's builder link.
+    [/<img id="brand-logo" src="[^"]*"/, `<img id="brand-logo" src="${safeUrl(brand.logo_url) || ""}"`],
     // the guest arrived through a signed link — there is nobody to log in
     [
       "  function initAuth() {",
@@ -704,7 +719,9 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     "camera.position.z = Math.max(9, Math.min(20, camera.position.z + e.deltaY * 0.006));");
 
   // the header belonged to the prototype, not to this restaurant
-  html = html.replace("<h1>Build Your Sandwich</h1>", `<h1>${config.name} — build your own</h1>`);
+  // SECURITY: was raw config.name with no esc() — the restaurant's own display name
+  // reaching every customer's browser as literal HTML.
+  html = html.replace("<h1>Build Your Sandwich</h1>", `<h1>${esc(config.name)} — build your own</h1>`);
 
   // "Send order" was the FIRST step of a checkout labelled as the last. It becomes
   // "Review order", and opens the checkout sheet instead of posting immediately.
