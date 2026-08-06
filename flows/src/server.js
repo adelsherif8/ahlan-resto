@@ -350,7 +350,7 @@ app.get("/build/:token", async (req, res) => {
     const claim = verifyBuildToken(req.params.token);
     if (!claim) return res.status(404).send("<h3 style=\"font-family:sans-serif\">This build link has expired.</h3>");
     const tenant = await resolveRestaurantBySlug(claim.slug);
-    res.type("html").send(renderBuilderPage(tenant, req.params.token));
+    res.type("html").send(renderBuilderPage(tenant, req.params.token, { preview: claim.preview }));
   } catch (e) {
     log("build page:", e.message);
     res.status(500).send("builder unavailable");
@@ -361,6 +361,8 @@ app.post("/api/build/:token/submit", async (req, res) => {
   try {
     const claim = verifyBuildToken(req.params.token);
     if (!claim) return res.status(401).json({ error: "link expired" });
+    // the staff preview shows unpriced ingredients — it must never reach the kitchen
+    if (claim.preview) return res.json({ ok: true, preview: true, note: "Preview only — no ticket was sent to the kitchen." });
     const tenant = await resolveRestaurantBySlug(claim.slug);
     const { config, db } = tenant;
 
@@ -434,7 +436,7 @@ app.post("/api/ops/build-link", opsAuth, async (req, res) => {
     if (!slug) return res.status(400).json({ error: "restaurant required" });
     const tenant = await resolveRestaurantBySlug(slug);
     const bc = builderConfig(tenant.config);
-    const token = signBuildToken({ sessionId: `web:test-preview-${Date.now()}`, slug, ttlMs: 3600_000 });
+    const token = signBuildToken({ sessionId: `web:test-preview-${Date.now()}`, slug, ttlMs: 3600_000, preview: true });
     // the dashboard renders its price fields FROM this list, so the two can never
     // drift out of sync the way a second hard-coded copy would
     res.json({

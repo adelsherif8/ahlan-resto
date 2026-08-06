@@ -31,9 +31,9 @@ function sign(payload) {
   return crypto.createHmac("sha256", SECRET).update(payload).digest("base64url").slice(0, 32);
 }
 
-export function signBuildToken({ sessionId, slug, ttlMs = TTL_MS }) {
+export function signBuildToken({ sessionId, slug, ttlMs = TTL_MS, preview = false }) {
   if (!SECRET) throw new Error("BUILD_TOKEN_SECRET (or ENCRYPTION_KEY) is not set");
-  const body = b64u(JSON.stringify({ s: sessionId, r: slug, x: Date.now() + ttlMs }));
+  const body = b64u(JSON.stringify({ s: sessionId, r: slug, x: Date.now() + ttlMs, ...(preview ? { p: 1 } : {}) }));
   return `${body}.${sign(body)}`;
 }
 
@@ -47,7 +47,7 @@ export function verifyBuildToken(token) {
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
     const p = JSON.parse(Buffer.from(body, "base64url").toString());
     if (!p?.s || !p?.r || !p?.x || Date.now() > p.x) return null;
-    return { sessionId: String(p.s), slug: String(p.r) };
+    return { sessionId: String(p.s), slug: String(p.r), preview: p.p === 1 };
   } catch {
     return null;
   }
@@ -84,12 +84,17 @@ export const LAYERS = CATALOG.map((c) => ({
   color: CAT_TINT[c.category] || 0xcccccc,
 }));
 
-export function builderConfig(config) {
+// preview=true is the STAFF view: it shows the whole library so a manager can see
+// what is available to offer. Customers only ever get layers this restaurant priced —
+// which ingredients belong on their menu is their decision, not ours.
+export function builderConfig(config, { preview = false } = {}) {
   const byo = config?.menu_config?.build_your_own || {};
   const prices = byo.layers || {};
-  const priced = LAYERS.map((l) => ({ ...l, price: Number(prices[l.key]) })).filter(
-    (l) => Number.isFinite(l.price) && l.price >= 0,
-  );
+  const priced = preview
+    ? LAYERS.map((l) => ({ ...l, price: Number(prices[l.key]) || 0, unpriced: !Number.isFinite(Number(prices[l.key])) }))
+    : LAYERS.map((l) => ({ ...l, price: Number(prices[l.key]) })).filter(
+        (l) => Number.isFinite(l.price) && l.price >= 0,
+      );
   // A builder with no priced protein isn't a burger builder — treat it as unconfigured.
   const usable = priced.some((l) => l.category === "protein");
   return {
@@ -141,9 +146,9 @@ const jsonScript = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
 // The stock page is a standalone demo: localStorage login, placeholder webhook,
 // demo prices, relative model paths. Serving it means replacing exactly those
 // seams — everything else about the 3D scene is left alone.
-export function renderBuilderPage(tenant, token) {
+export function renderBuilderPage(tenant, token, { preview = false } = {}) {
   const config = tenant.config;
-  const bc = builderConfig(config);
+  const bc = builderConfig(config, { preview });
   const brand = config.basic_info?.brand || {};
   let html = pageSource();
 
@@ -299,6 +304,94 @@ export function renderBuilderPage(tenant, token) {
         sp.position.z = R * sn;
       }
     }`,
+  );
+
+  // ---- reorderable stack -------------------------------------------------
+  // The prototype fixed the order by category, so a customer could not put cheese
+  // under the patty or pickles on top. Bread stays pinned — a bun in the middle of a
+  // burger is not a customisation, it's a broken sandwich.
+  html = html.replace(
+    '    <div id="panel-scroll"></div>',
+    `    <div id="stack-panel"><div class="stack-title">Your stack <em>bottom to top</em></div><div id="stack-list"></div></div>
+    <div id="panel-scroll"></div>`,
+  );
+
+  html = html.replace("</head>", `<style>
+    #stack-panel{padding:10px 14px 4px}
+    .stack-title{font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
+    .stack-title em{font-style:normal;opacity:.65;letter-spacing:.4px;text-transform:none}
+    .stack-row{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:8px;font-size:12.5px;color:var(--text-main);background:rgba(var(--brand-red-rgb),.05);margin-bottom:3px}
+    .stack-row.pinned{opacity:.55;background:transparent}
+    .stack-row span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .stack-row button{border:0;background:rgba(var(--brand-red-rgb),.14);color:var(--text-main);width:22px;height:22px;border-radius:6px;font-size:12px;cursor:pointer;line-height:1;font-family:inherit}
+    .stack-row button:disabled{opacity:.25;cursor:default}
+  </style>\n</head>`);
+
+  // an explicit order, when the customer has set one, beats the category default
+  html = html.replace(
+    `    fillings.sort((a, b) => {
+      const ca = STACK_ORDER.indexOf(a.userData.category);`,
+    `    fillings.sort((a, b) => {
+      const ma = manualOrder.indexOf(a.userData.uid), mb = manualOrder.indexOf(b.userData.uid);
+      if (ma !== -1 && mb !== -1) return ma - mb;   // both moved by hand
+      if (ma !== -1) return -1;
+      if (mb !== -1) return 1;
+      const ca = STACK_ORDER.indexOf(a.userData.category);`,
+  );
+
+  html = html.replace(
+    "  function layoutStack() {",
+    `  let manualOrder = [];   // uids in the order the customer arranged them
+
+  function renderStackList(order) {
+    const el = document.getElementById('stack-list');
+    if (!el) return;
+    const movable = order.filter((g) => g.userData.category !== 'bread-top' && g.userData.category !== 'bread-bottom');
+    el.innerHTML = '';
+    order.slice().reverse().forEach((g) => {
+      const ud = g.userData;
+      const bread = ud.category === 'bread-top' || ud.category === 'bread-bottom';
+      const def = CATALOG.find((d) => d.id === ud.ingredientId);
+      const row = document.createElement('div');
+      row.className = 'stack-row' + (bread ? ' pinned' : '');
+      const name = document.createElement('span');
+      name.textContent = (def && def.name) || ud.ingredientId || 'layer';
+      row.appendChild(name);
+      if (!bread) {
+        const i = movable.indexOf(g);
+        const up = document.createElement('button'); up.textContent = '\u25B2'; up.title = 'Move up';
+        up.disabled = i >= movable.length - 1;
+        up.onclick = () => moveLayer(movable, i, 1);
+        const dn = document.createElement('button'); dn.textContent = '\u25BC'; dn.title = 'Move down';
+        dn.disabled = i <= 0;
+        dn.onclick = () => moveLayer(movable, i, -1);
+        row.appendChild(up); row.appendChild(dn);
+      }
+      el.appendChild(row);
+    });
+  }
+
+  function moveLayer(movable, i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= movable.length) return;
+    // freeze the CURRENT arrangement into manualOrder first, then swap — otherwise the
+    // category default would immediately undo the move
+    const uids = movable.map((g) => g.userData.uid);
+    const t = uids[i]; uids[i] = uids[j]; uids[j] = t;
+    manualOrder = uids;
+    layoutStack();
+  }
+
+  function layoutStack() {`,
+  );
+
+  html = html.replace(
+    `    order.forEach(g => {
+      const h = g.userData.height;`,
+    `    renderStackList(order);
+
+    order.forEach(g => {
+      const h = g.userData.height;`,
   );
 
   // No calorie data exists for these ingredients and inventing some would be worse
