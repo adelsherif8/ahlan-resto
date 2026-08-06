@@ -12,10 +12,14 @@ export function layoutScript() {
   /* THREE columns only when there is genuinely room for three. At 821px a
      288 + 320 pair leaves the burger about 200px, which is worse than two columns. */
   @media (min-width:1100px){
-    #app{display:grid;grid-template-columns:284px 1fr 318px;grid-template-rows:1fr auto;height:100%}
-    #scene-container{grid-column:2;grid-row:1;height:100%}
-    #panel{grid-column:3;grid-row:1;width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden}
-    #bx-left{grid-column:1;grid-row:1;display:block;overflow-y:auto;padding-top:58px;padding-bottom:14px;
+    #app{display:grid;grid-template-columns:284px 1fr 318px;grid-template-rows:minmax(0,1fr) auto;height:100%;overflow:hidden}
+    /* min-height:0 on every one of these. A grid item defaults to min-height:auto,
+       which makes it grow to fit its content instead of scrolling — which is why
+       neither sidebar would scroll and the 3D column ate the screen. */
+    #scene-container{grid-column:2;grid-row:1;height:100%;min-height:0;min-width:0;position:relative}
+    #panel{grid-column:3;grid-row:1;width:100%;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+    #bx-left{grid-column:1;grid-row:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto;
+      -webkit-overflow-scrolling:touch;padding-top:58px;padding-bottom:14px;
       border-right:1px solid rgba(var(--brand-red-rgb),.18);
       background:linear-gradient(180deg,var(--panel-grad-1),var(--panel-grad-2))}
     .panel-summary{grid-column:1 / -1;grid-row:2;border-top:1px solid rgba(var(--brand-red-rgb),.18)}
@@ -23,9 +27,9 @@ export function layoutScript() {
   }
   /* TABLET: burger left, panel right, tabs inside the panel */
   @media (min-width:821px) and (max-width:1099px){
-    #app{flex-direction:row}
-    #scene-container{flex:1;height:100%}
-    #panel{width:370px;height:100%;display:flex;flex-direction:column;overflow:hidden}
+    #app{flex-direction:row;overflow:hidden}
+    #scene-container{flex:1 1 auto;height:100%;min-width:0}
+    #panel{flex:0 0 370px;width:370px;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
   }
   /* Hide the rail ONLY below the three-column breakpoint. An unconditional
      display:none after the media query wins on source order and hid every control
@@ -54,7 +58,10 @@ export function layoutScript() {
   #panel .panel-header{padding:0}
 
   /* ---------- ingredient cards ---------- */
-  #panel-scroll{overflow-y:auto;flex:1}
+  #panel-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;min-height:0}
+  /* the stack list gets its own scroll so a long build never pushes the
+     sliders and buttons off the bottom of the rail */
+  #bx-left #stack-list{max-height:34vh}
   .bx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px;padding:0 12px 10px}
   @media (min-width:1200px){.bx-grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}}
   .bx-card{background:rgba(var(--brand-red-rgb),.05);border:1px solid rgba(var(--brand-red-rgb),.16);
@@ -219,6 +226,14 @@ export function layoutScript() {
     }
 
     draw();
+
+    // The renderer sized itself to the ORIGINAL two-column layout before this script
+    // rebuilt the grid, so its centre — and the burger with it — stayed where the old,
+    // wider canvas used to be. Ask it to re-measure once the new grid has been laid
+    // out, again next frame, and once more after fonts and scrollbars settle.
+    function remeasure(){ window.dispatchEvent(new Event('resize')); }
+    requestAnimationFrame(function(){ remeasure(); requestAnimationFrame(remeasure); });
+    setTimeout(remeasure, 300);
 
     // never leave a dead column: if there is nothing in the rail, collapse it
     if (!left.textContent.trim() && !left.querySelector('button,input')) {

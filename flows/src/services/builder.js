@@ -448,6 +448,8 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     order.slice().reverse().forEach((g) => {
       const ud = g.userData;
       const bread = ud.category === 'bread-top' || ud.category === 'bread-bottom';
+      // the bun is ONE choice drawn as two halves — listing it twice reads like a bug
+      if (ud.category === 'bread-top') return;
       const def = CATALOG.find((d) => d.id === ud.ingredientId);
       const row = document.createElement('div');
       row.className = 'stack-row' + (bread ? ' pinned' : '');
