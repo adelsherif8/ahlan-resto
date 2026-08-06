@@ -8,6 +8,18 @@ export default function Settings() {
   const [suggested, setSuggested] = useState<any[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [tab, setTab] = useState(() => window.location.hash.replace("#", "") || "info");
+  const [byoCatalog, setByoCatalog] = useState<any[]>([]);
+  const [byoUrl, setByoUrl] = useState("");
+
+  // The ingredient list comes from the flows service, which owns the 3D catalog —
+  // a second copy here would drift the moment a layer is added.
+  useEffect(() => {
+    if (tab !== "builder" || byoCatalog.length) return;
+    api.post("/api/settings/builder-preview", {})
+      .then((r) => { setByoCatalog(r.data?.catalog || []); setByoUrl(r.data?.url || ""); })
+      .catch(() => {});
+  }, [tab]);
+
 
   useEffect(() => {
     api.get("/api/settings").then((r) => setConfig(r.data)).catch(() => {});
@@ -42,17 +54,7 @@ export default function Settings() {
     setConfig((c: any) => ({ ...c, [section]: { ...c[section], ...patch } }));
   }
 
-  const [byoCatalog, setByoCatalog] = useState<any[]>([]);
-  const [byoUrl, setByoUrl] = useState("");
 
-  // The ingredient list comes from the flows service, which owns the 3D catalog —
-  // a second copy here would drift the moment a layer is added.
-  useEffect(() => {
-    if (tab !== "builder" || byoCatalog.length) return;
-    api.post("/api/settings/builder-preview", {})
-      .then((r) => { setByoCatalog(r.data?.catalog || []); setByoUrl(r.data?.url || ""); })
-      .catch(() => {});
-  }, [tab]);
 
   const SECTIONS: [string, string][] = [
     ["info", "Restaurant info"],
