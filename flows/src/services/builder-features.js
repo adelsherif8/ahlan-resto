@@ -385,12 +385,15 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
       };
     }
 
+    // one close path — removing the card via the button or the backdrop used to leave
+    // the keydown listener attached (only Escape cleaned itself up), so every reopen
+    // stacked another live listener on document
+    function esc(e){ if (e.key === 'Escape') close(); }
+    function close(){ back.remove(); document.removeEventListener('keydown', esc); }
     var cl = el('button', { type: 'button', class: 'bx-cv-ghost', text: 'Close' }, row);
-    cl.onclick = function(){ back.remove(); };
-    back.onclick = function(e){ if (e.target === back) back.remove(); };
-    document.addEventListener('keydown', function esc(e){
-      if (e.key === 'Escape') { back.remove(); document.removeEventListener('keydown', esc); }
-    });
+    cl.onclick = close;
+    back.onclick = function(e){ if (e.target === back) close(); };
+    document.addEventListener('keydown', esc);
   }
 
   // the build "settles" when it is sent — one short cue, and skipped entirely for

@@ -448,7 +448,11 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     // to be re-applied after it, not once when the slider moves
     for (const g of allGroups) {
       const ud = g.userData;
-      if (ud.category === 'sauce' && !ud.spawning && !ud.removing) g.scale.y = ud.sauceScale || 1;
+      // a freshly-spawned sauce layer has no sauceScale yet — fall back to the CURRENTLY
+      // selected thickness, not 1, or it flashes regular-sized for a frame before the
+      // next setSauce call corrects it
+      if (ud.category === 'sauce' && !ud.spawning && !ud.removing)
+        g.scale.y = ud.sauceScale != null ? ud.sauceScale : (window.__sauceMult || 1);
     }
 
     {
@@ -646,6 +650,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
     },
     setSauce: function(level){
       const mult = [0.45, 1, 1.75][level] != null ? [0.45, 1, 1.75][level] : 1;
+      window.__sauceMult = mult;   // new sauce layers spawn at the active thickness, no flicker
       for (const g of allGroups) {
         const ud = g.userData;
         if (ud.category !== 'sauce') continue;

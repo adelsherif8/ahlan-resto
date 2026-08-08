@@ -287,21 +287,29 @@ export function layoutScript() {
 
     // ---- lazy thumbnails, rendered from each ingredient's own model ----
     var cache = {};
+    // ONE observer for the page's life — thumbs() runs on every redraw (filter, search,
+    // add/remove), and a fresh observer each time was never disconnected, so they piled
+    // up watching detached nodes. Reused and cleared instead.
+    var seen = null;
     function thumbs(){
       if (!window.__BUILD__ || !window.__BUILD__.thumbnail) return;
-      var seen = new IntersectionObserver(function(entries){
-        entries.forEach(function(e){
-          if (!e.isIntersecting) return;
-          var cv = e.target, id = cv.dataset.thumb;
-          seen.unobserve(cv);
-          if (cache[id]) { paint(cv, cache[id]); return; }
-          window.__BUILD__.thumbnail(id, function(url){
-            if (!url) return;
-            cache[id] = url;
-            paint(cv, url);
+      if (!seen) {
+        seen = new IntersectionObserver(function(entries){
+          entries.forEach(function(e){
+            if (!e.isIntersecting) return;
+            var cv = e.target, id = cv.dataset.thumb;
+            seen.unobserve(cv);
+            if (cache[id]) { paint(cv, cache[id]); return; }
+            window.__BUILD__.thumbnail(id, function(url){
+              if (!url) return;
+              cache[id] = url;
+              paint(cv, url);
+            });
           });
-        });
-      }, { rootMargin: '160px' });
+        }, { rootMargin: '160px' });
+      } else {
+        seen.disconnect(); // drop the previous draw's now-detached canvases
+      }
       scroll.querySelectorAll('[data-thumb]').forEach(function(cv){ seen.observe(cv); });
     }
     function paint(cv, url){
