@@ -17,6 +17,9 @@ import { signTrackToken } from "../services/builder.js";
 
 
 const normName = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+// bare "yes/ok/tamam" — a confirmation, never an address or an item. One place,
+// reused wherever a plain affirmative needs telling apart from real content.
+const AFFIRM = /^(yes|ok|okay|sure|confirm|tamam|تمام|ماشي|اه|ايوه)(?![\p{L}\p{N}])[\s!.]*$/iu;
 
 defineFlow({
   name: "order",
@@ -76,9 +79,9 @@ Return JSON only:
  "pickup_time": string|null, "notes": string|null (sauce prefs, no onions, etc.),
  "address": "<the delivery address EXACTLY as the guest wrote it, verbatim>"|null,
  "branch": "<exact branch NAME from this list if the guest names one, else null>",
- "edits": [{"op": "add"|"remove"|"set_qty", "item": "<closest MENU name>", "qty": number|null}]|null}
+ "edits": [{"op": "add"|"remove"|"set_qty"|"replace", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null}]|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/garbled word (voice notes!) with no confident menu match is SKIPPED, never guessed; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
+Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/garbled word (voice notes!) with no confident menu match is SKIPPED, never guessed; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -278,18 +281,36 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           items = loaded.pending.items;
           unknown = [];
         }
+        // shared by "add" and "replace" — both need to turn an extractor-named item
+        // into a real menu row the same way
+        const findMenuItem = (want) => {
+          const w = normName(want || "");
+          if (!w) return null;
+          return loaded.menu.find((m) => normName(m.name) === w) ||
+                 loaded.menu.find((m) => normName(m.name).includes(w) || w.includes(normName(m.name))) || null;
+        };
         for (const ed of (e.edits || []).slice(0, 6)) {
           const target = normName(ed.item || "");
-          // "make it just 1" names no item — with a single-line draft there is
-          // exactly one thing it can mean, so resolve it in code
+          // "make it just 1" / "no I want X instead" (only one item on the order) names
+          // no item to replace FROM — with a single-line draft there is exactly one
+          // thing it can mean, so resolve it in code rather than making the LLM guess
+          // a name back at us for something already unambiguous.
           if (!target && ed.op !== "add" && items.length === 1) {
             if (ed.op === "remove") { items.splice(0, 1); continue; }
             if (ed.op === "set_qty") { items[0].qty = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20); continue; }
+            if (ed.op === "replace") {
+              const hit = findMenuItem(ed.with);
+              if (!hit) { unknown.push(ed.with); continue; }
+              // swapping items is a fresh choice — any option-walk in progress was
+              // about the item that just left the order, not this new one
+              loaded.pending.awaiting_option = null;
+              items[0] = { id: hit.id, name: hit.name, qty: items[0].qty, price: Number(hit.price), notes: null, options: {}, option_defs: hit.options || [] };
+              continue;
+            }
           }
           if (!target) continue;
           if (ed.op === "add") {
-            const hit = loaded.menu.find((m) => normName(m.name) === target) ||
-                        loaded.menu.find((m) => normName(m.name).includes(target) || target.includes(normName(m.name)));
+            const hit = findMenuItem(ed.item);
             if (!hit) { unknown.push(ed.item); continue; }
             const q = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20);
             const existing = items.find((it) => it.id === hit.id && !Object.keys(it.options || {}).length);
@@ -300,6 +321,12 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             if (idx < 0) continue;
             if (ed.op === "remove") items.splice(idx, 1);
             else if (ed.op === "set_qty") items[idx].qty = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20);
+            else if (ed.op === "replace") {
+              const hit = findMenuItem(ed.with);
+              if (!hit) { unknown.push(ed.with); continue; }
+              loaded.pending.awaiting_option = null;
+              items[idx] = { id: hit.id, name: hit.name, qty: items[idx].qty, price: Number(hit.price), notes: null, options: {}, option_defs: hit.options || [] };
+            }
           }
         }
         if (e.edits?.length && !items.length) {
@@ -344,8 +371,12 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       let address = (e.address && String(e.address).trim()) || loaded.pending?.address || null;
       // they tapped/typed one of their saved ones (WhatsApp truncates button titles,
       // so a prefix counts) or said "same as last time" with only one on file
+      // "same/usual" explicitly names the ask; a bare "yes" is just as much an answer
+      // to "same as before, or somewhere new?" and was previously only understood as
+      // one of those two exact words — so an honest "yes" fell through, unmatched,
+      // and the guest got the identical question again instead of their address.
       const reuse = matchSaved(input.message, saved) ||
-        (saved.length === 1 && /(?<![\p{L}\p{N}])(same|usual|نفس|زي كل مرة)(?![\p{L}\p{N}])/iu.test(input.message) ? saved[0] : null);
+        (saved.length === 1 && (/(?<![\p{L}\p{N}])(same|usual|نفس|زي كل مرة)(?![\p{L}\p{N}])/iu.test(input.message) || AFFIRM.test(input.message.trim())) ? saved[0] : null);
       if (reuse && !loaded.pending?.address) address = reuse.text;
       // Deterministic address capture: we're mid-delivery waiting for the address,
       // nothing else in the message fits — the guest's words ARE the address. The
@@ -355,7 +386,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const isCommand = (e.items?.length) || (e.edits?.length) ||
           /^(dine.?in|pick.?up|pickup|delivery|توصيل|استلام|في المطعم)(?![\p{L}\p{N}])/iu.test(t) ||
           /^(cash|card|visa|instapay|كاش|فيزا|بطاقة|انستاباي)(?![\p{L}\p{N}])/iu.test(t) ||
-          /^(yes|ok|okay|sure|confirm|tamam|تمام|ماشي|اه|ايوه)(?![\p{L}\p{N}])[\s!.]*$/iu.test(t) ||
+          AFFIRM.test(t) ||
           /[?؟]\s*$/.test(t);
         // structure it here, once, so the ticket and the driver page both read a
         // proper address instead of each re-deriving one from a blob
