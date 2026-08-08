@@ -579,19 +579,14 @@ function memoryBlock(context, diner) {
   const p = context.prefs || {};
   const lines = [];
   if (p.favorite_items?.length) lines.push(`- Their favorite dishes (they told us): ${p.favorite_items.join(", ")} — use for "the usual?" moments and personal recommendations`);
-  if (context.usualFromOrders) lines.push(`- Their USUAL from real order history: ${context.usualFromOrders.name} (ordered ${context.usualFromOrders.times}×) — the strongest "the usual?" signal; if they say "the usual" or "same as always", THIS is what they mean. On a FIRST greeting, offer it IN WORDS as part of your sentence ("the usual ${context.usualFromOrders.name}?") — never as a button; the buttons are reserved for the menu, ordering and the builder`);
-  if (context.lastOrder) {
-    // A single past order doesn't clear the "usual" bar (≥2× the same thing), but it
-    // is still the exact reorder signal the removed greeting BUTTON used to carry —
-    // dropping it silently when the button went away would be a real loss, not a
-    // simplification. Offered in words, and skipped when the stronger "usual" signal
-    // above already covers the same moment so it isn't mentioned twice.
-    lines.push(`- Their last order (${context.lastOrder.when}): ${context.lastOrder.items} — "same as last time" refers to this.${
-      !context.usualFromOrders
-        ? ` On a FIRST greeting, offer it IN WORDS as part of your sentence ("same as last time — ${context.lastOrder.items}?") — never as a button.`
-        : ""
-    }`);
-  }
+  // The MANDATORY "mention this on a first greeting, in words, never a button" rule
+  // lives in ONE place now — situationGuide()'s "returning" case below. Two competing
+  // copies of that instruction (one here, one there) diluted each other: the model had
+  // a "pick one, vary it" example list in situationGuide AND a separate "you must"
+  // directive here, and it satisfied the weaker/more general one. These stay purely
+  // informational — what the phrase "the usual"/"same as last time" refers to.
+  if (context.usualFromOrders) lines.push(`- Their USUAL from real order history: ${context.usualFromOrders.name} (ordered ${context.usualFromOrders.times}×) — if they say "the usual" or "same as always", THIS is what they mean.`);
+  if (context.lastOrder) lines.push(`- Their last order (${context.lastOrder.when}): ${context.lastOrder.items} — "same as last time" refers to this.`);
   if (p.seating) lines.push(`- Seating preference: ${p.seating}`);
   if (p.facts?.length) lines.push(`- Known about them: ${p.facts.join(" · ")}`);
   if (p.ai_notes?.length) lines.push(`- Your own recent observations (you noted these for the team): ${p.ai_notes.join(" · ")}`);
@@ -711,13 +706,16 @@ function situationGuide(context, config) {
     case "returning": {
       const usual = context.usualFromOrders?.name || context.prefs?.favorite_items?.[0] || null;
       const last = context.lastOrder?.items || null;
-      const examples = [
-        `"Welcome back to ${config.name}, ${context.greetName || "…"}! What can we get you today? 😄"`,
-        usual ? `"Welcome back, ${context.greetName || "…"}! Same ${usual} as usual, or something different today?"` : null,
-        last ? `"Good to see you again! Want the same as last time (${last}), or browse the menu?"` : null,
-        `"Welcome back${context.greetName ? `, ${context.greetName}` : ""}! Ordering today, or just checking the menu?"`,
-      ].filter(Boolean);
-      return `a returning guest — greet them as ${config.name}'s host: warm, by name, and IMMEDIATELY useful. Pick ONE natural opener in this spirit (vary it, don't copy): ${examples.join(" · ")}${usual ? `\n  Their usual is ${usual}${context.usualFromOrders ? ` (ordered ${context.usualFromOrders.times}×)` : ""} — offering it back is service, not marketing.` : ""}${last ? `\n  Their last order: ${last} — "same as last time?" is a great one-tap offer.` : ""}
+      // A "pick one of these, vary it" list let the model reliably pick the weakest,
+      // most generic option — it satisfied "pick one" without ever mentioning the
+      // usual/last order the founder specifically wants surfaced. Only one is offered
+      // as a MUST now; the generic phrasing is reachable only when neither signal exists.
+      const mandatory = usual
+        ? `You MUST mention their usual — ${usual}${context.usualFromOrders ? ` (ordered ${context.usualFromOrders.times}×)` : ""} — in your own words, in this exact reply (e.g. "the usual ${usual}?" or "same ${usual} as always?"). This is the single highest-converting thing you can say to them — never fall back to a generic "what can we get you today?" when this signal exists.`
+        : last
+        ? `You MUST mention their last order — ${last} — in your own words, in this exact reply (e.g. "same as last time — ${last}?" or "want ${last} again?"). Never fall back to a generic "what can we get you today?" when this signal exists.`
+        : `Pick a natural, warm opener — no purchase signal exists for them yet, so keep it simple: "Welcome back${context.greetName ? `, ${context.greetName}` : ""}! Ordering today, or just checking the menu?"`;
+      return `a returning guest — greet them as ${config.name}'s host: warm, by name, and IMMEDIATELY useful. ${mandatory}
   Always make it about helping them (order / usual / menu), never vague chat. BAD: "back for another round?", "just checking in?", "what's your vibe?", "hit me up".`;
     }
     default:
