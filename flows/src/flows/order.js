@@ -726,8 +726,18 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       const trackUrl = orderType === "delivery" ? `${PUBLIC_BASE}/track/${signTrackToken({ code, slug: config.slug })}` : null;
       const receiptUrl = await makeReceipt(db, {
         restaurant: config.name,
-        order: { ...row, bill, created_at: new Date().toISOString(), track_url: trackUrl },
+        order: {
+          ...row, bill, created_at: new Date().toISOString(), track_url: trackUrl,
+          // a QR is always on the receipt — track link for delivery, otherwise the
+          // branded order page (the customer can scan it to see their order any time)
+          scan_url: trackUrl || publicLink(`/receipt/${code}`, config.slug),
+        },
         branch: branchInfo, currency,
+        // everything the branded thermal template needs, all from config
+        brand: config.basic_info?.brand || {},
+        tagline: config.basic_info?.tagline || "",
+        hotline: config.basic_info?.hotline || config.basic_info?.phone || "",
+        vatRate: taxRate(config),
       });
       if (receiptUrl) await db.from("orders").update({ receipt_url: receiptUrl }).eq("code", code).then(() => {}, () => {});
       await notifyDashboard(db, "order",
@@ -1538,6 +1548,19 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
 // Money — computed in code, always. Only charges the restaurant actually
 // configured appear; an unset fee is absent, never guessed at.
 // ---------------------------------------------------------------------------
+// The VAT rate, for the receipt's Net/VAT/Total breakdown. Same >=1 → percent rule as
+// the bill. Defaults to Egypt's 14% when unset — every restaurant here charges it and
+// the printed receipt is legally required to show it, so this is a real national
+// standard, not an invented number.
+function taxRate(config) {
+  const p = config?.payments || {};
+  for (const k of ["tax_pct", "vat_pct", "tax"]) {
+    const v = Number(p[k]);
+    if (Number.isFinite(v) && v > 0) return v >= 1 ? v / 100 : v;
+  }
+  return 0.14;
+}
+
 function priceOrder(items, config, orderType) {
   const p = config.payments || {};
   const round = (n) => Math.round(n * 100) / 100;
