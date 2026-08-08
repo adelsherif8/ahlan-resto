@@ -106,12 +106,29 @@ const CASES = [
   { id: "addressparts", needs: "casual", name: "The delivery address ask spells out floor and apartment, not 'type it out'",
     turns: ["1 loaded fries delivered please"],
     expect: [/floor/i, /apartment/i, /area/i] },
-  { id: "leadinonce", needs: "casual", name: "'Almost done' appears on the FIRST fulfilment ask only, never repeated",
+  // Two halves, pinned separately — a single forbid on turn 2 would still pass if the
+  // lead-in were deleted ENTIRELY (it only proves "not repeated", never "shown once").
+  { id: "leadinshown", needs: "casual", name: "'Almost done' DOES show on the first fulfilment ask",
+    turns: ["1 loaded fries"],
+    expect: [/almost done/i, /dine.?in|pickup|delivery/i] },
+  { id: "leadinonce", needs: "casual", name: "'Almost done' is NOT repeated on the next fulfilment ask",
     turns: ["1 loaded fries", "delivery"],
+    expect: [/address|floor|apartment/i],   // positive anchor: we're really on the address ask, not an error/empty reply
     forbid: [/almost done/i] },
   { id: "editadd", needs: "casual", name: "'add a loaded fries' mid-order adds a line",
     turns: ["1 iconic meal for pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "add a loaded fries", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /loaded fries/i] },
+  // Live bug (founder chat): mid-sub-question, "no I want X" was silently dropped and
+  // the WRONG item rode to a real order. The swap must land and the old item must go.
+  { id: "itemcorrection", needs: "casual", name: "'no I want the truck meal' mid-question swaps the item",
+    turns: ["an iconic meal for pickup from Maadi", "no i want the american truck meal instead"],
+    expect: [/truck/i], forbid: [/iconic/i] },
+  // Live bug (founder chat): "Yes" to "same address as before?" was not understood and
+  // the question repeated. A bare yes must accept the saved address and move on.
+  { id: "savedaddressyes", needs: "casual", name: "'Yes' accepts the saved delivery address and proceeds",
+    turns: ["a loaded fries delivered please", "yes"],
+    seed: { diner: { name: "Mostafa", visit_count: 4, preferences: { addresses: [{ text: "12 Road 9, Maadi", last_used: "2026-08-01T12:00:00Z" }] } } },
+    expect: [/pay|cash|card/i], forbid: [/same as before|somewhere new/i] },
   { id: "editqty", needs: "casual", name: "'make it just 1' drops the quantity",
     turns: ["2 american truck meals for pickup from Maadi", "Meal", "Medium", "French fries", "coca cola", "make it just 1", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /1× American Truck/i], forbid: [/2× American Truck/i] },
