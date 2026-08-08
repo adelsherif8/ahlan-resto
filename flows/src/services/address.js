@@ -3,10 +3,18 @@
 // the area. We ask for the parts by name and parse them deterministically here:
 // address shape is structure, and structure is code's job, not the model's.
 
-const FLOOR = /(?:^|[,،\n|·-])\s*(?:floor|fl\.?|الدور|دور|طابق)\s*[:#]?\s*([\p{L}\p{N}]{1,12})/iu;
-const APT = /(?:^|[,،\n|·-])\s*(?:apartment|apt\.?|flat|unit|شقة|شقه|وحدة)\s*[:#]?\s*([\p{L}\p{N}]{1,12})/iu;
-const BUILDING = /(?:^|[,،\n|·-])\s*(?:building|bldg\.?|block|عمارة|عماره|مبنى|بلوك)\s*[:#]?\s*([\p{L}\p{N}]{1,14})/iu;
-const LANDMARK = /(?:^|[,،\n|·-])\s*(?:landmark|near|beside|next to|in front of|علامة مميزة|جنب|بجوار|قدام|امام)\s*[:#]?\s*([^,،\n|]{2,60})/iu;
+// (?![\p{L}]) after each keyword group: without it, "^" matches unconditionally at the
+// start of the string, so any address whose first word merely STARTS WITH a keyword —
+// "الدوران" (a landmark meaning "the roundabout") starts with "الدور" (floor), "Nearby
+// Mosque" starts with "near" — got torn apart and misread as that field's label. Letters
+// only (not digits) so a guest who writes "floor3" with no space still parses correctly.
+const FLOOR = /(?:^|[,،\n|·-])\s*(?:floor|fl\.?|الدور|دور|طابق)(?![\p{L}])\s*[:#]?\s*([\p{L}\p{N}]{1,12})/iu;
+const APT = /(?:^|[,،\n|·-])\s*(?:apartment|apt\.?|flat|unit|شقة|شقه|وحدة)(?![\p{L}])\s*[:#]?\s*([\p{L}\p{N}]{1,12})/iu;
+const BUILDING = /(?:^|[,،\n|·-])\s*(?:building|bldg\.?|block|عمارة|عماره|مبنى|بلوك)(?![\p{L}])\s*[:#]?\s*([\p{L}\p{N}]{1,14})/iu;
+// capture excludes '-' too, matching every other delimiter in this file (including this
+// regex's own leading anchor) — without it, "near X - floor 3" let LANDMARK swallow
+// past the dash and duplicate the floor label into the landmark text.
+const LANDMARK = /(?:^|[,،\n|·-])\s*(?:landmark|near|beside|next to|in front of|علامة مميزة|جنب|بجوار|قدام|امام)(?![\p{L}])\s*[:#]?\s*([^,،\n|-]{2,60})/iu;
 
 const clean = (s) => String(s || "").replace(/\s+/g, " ").trim().replace(/^[,،\-·|]+|[,،\-·|]+$/g, "").trim();
 
