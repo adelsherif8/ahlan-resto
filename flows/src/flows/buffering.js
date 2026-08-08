@@ -158,8 +158,14 @@ defineFlow({
       // so that was ~8s of dead air on nearly every order turn. A tap flushes almost
       // immediately (a hair of window only to coalesce an accidental double-tap).
       const isTap = event.kind === "interactive";
+      // The window is a DEBOUNCE — it resets on each message and fires only after
+      // silence — so it only has to outlast the GAP between two messages in a burst
+      // (~1-3s while someone is mid-thought), not the whole burst. 8s was far more than
+      // that gap; 5s still coalesces bursts (and heuristicWindow still extends +4s when
+      // a message trails off in "and"/","/"kaman", the real "more coming" signal),
+      // while a complete message stops waiting ~3s sooner.
       const base = isTap ? 600
-        : ctx.fastWindow || config.ai?.buffer_window_ms || (ctx.channel === "whatsapp" ? 8000 : 5000);
+        : ctx.fastWindow || config.ai?.buffer_window_ms || 5000;
       const r = await pushMessage(db, bufKey(ctx), finalText, messageId, { channel: ctx.channel, isNewSession, windowBase: base, phone: ctx.sessionId });
       return { ...r, tap: isTap, next: `→ RESPOND flow fires after ${Math.round((r.window_ms || base) / 1000)}s of silence (or 25s cap) and routes to MASTER` };
     }, { input: { channel: ctx.channel, per_channel_default: ctx.channel === "whatsapp" ? "8s" : "5s", max_cap: `${MAX_CAP_MS / 1000}s` } });
