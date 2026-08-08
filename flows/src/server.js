@@ -587,6 +587,11 @@ app.post("/api/build/:token/share", async (req, res) => {
   try {
     const claim = verifyBuildToken(req.params.token);
     if (!claim) return res.status(401).json({ error: "link expired" });
+    // A staff PREVIEW token is for looking only — the submit endpoint refuses it. But
+    // /share minted a fresh token WITHOUT the preview flag, so a preview could be
+    // laundered into a real, orderable, week-long link. Refuse: a preview is not a
+    // source of shareable real-order links.
+    if (claim.preview) return res.status(403).json({ error: "preview links can't be shared" });
     const picked = {};
     for (const it of Array.isArray(req.body?.items) ? req.body.items : []) {
       if (it?.id) picked[String(it.id)] = Math.max(0, Math.min(9, Number(it.quantity) || 0));
