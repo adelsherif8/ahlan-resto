@@ -31,7 +31,13 @@ export function detectCloser(message, sticky) {
 // "build my own" — the guest wants the 3D builder, not a menu item. Kept as a
 // pattern here (with the same Unicode boundaries as every other matcher, because
 // \b never matches beside Arabic script) so master can mint the signed link.
-const BUILD_PAT = /(?<![\p{L}\p{N}])(build (my |your |a )?own|make (my |your )own|build (a |my )?(burger|sandwich)|customi[sz]e (my |a )?(burger|sandwich)|design (my |a )?(burger|sandwich)|3d builder|اعمل (برجر|ساندوتش)|اصمم|بظبط برجر|a3mel burger|a3mel sandwich|asamem)(?![\p{L}\p{N}])/iu;
+// اصمم/asamem is bare "design/insist" in Egyptian Arabic — "insist" is the FAR more
+// common everyday sense ("لو حد اصمم على السعر" = "if someone insists on the price"),
+// so without requiring an object the pattern hijacked ordinary sentences into the
+// sandwich builder. Requiring "برجر"/"ساندوتش"/"burger"/"sandwich" right after it,
+// same as the English "design (my|a)? (burger|sandwich)" branch, is what actually
+// distinguishes "design a burger" from "insist on it".
+const BUILD_PAT = /(?<![\p{L}\p{N}])(build (my |your |a )?own|make (my |your )own|build (a |my )?(burger|sandwich)|customi[sz]e (my |a )?(burger|sandwich)|design (my |a )?(burger|sandwich)|3d builder|اعمل (برجر|ساندوتش)|اصمم (لي |لى )?(برجر|ساندوتش)|بظبط برجر|a3mel burger|a3mel sandwich|asamem (my |a )?(burger|sandwich))(?![\p{L}\p{N}])/iu;
 
 export function wantsBuilder(message) {
   return BUILD_PAT.test(String(message || ""));
