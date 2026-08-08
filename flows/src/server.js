@@ -10,7 +10,7 @@ import { runRegression, regressionStatus } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
 import { getSession, logMessage } from "./services/chatlog.js";
 import { riderCopy } from "./services/ridercopy.js";
-import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, builderConfig, signBuildToken, signTrackToken, LAYERS as BUILDER_LAYERS, MODEL_BASE } from "./services/builder.js";
+import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, builderConfig, priceMeal, signBuildToken, signTrackToken, LAYERS as BUILDER_LAYERS, MODEL_BASE } from "./services/builder.js";
 import { nextOrderCode } from "./services/ordercode.js";
 import { renderDriverPage } from "./services/driverpage.js";
 import { renderTrackPage } from "./services/trackpage.js";
@@ -72,7 +72,18 @@ app.get("/pdf/receipt/:code", async (req, res) => {
   try {
     const code = String(req.params.code || "").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 12);
     const slug = String(req.query?.r || "").trim().toLowerCase();
-    const tenants = slug ? [await resolveRestaurantBySlug(slug)] : await resolveAllRestaurants();
+    // SECURITY: with no slug this used to scan EVERY restaurant and redirect to the
+    // first match — order codes are per-restaurant daily sequences, so two restaurants
+    // routinely share the same code, and a stripped/dropped ?r= silently handed a guest
+    // a STRANGER's receipt (name, address, phone, items). Now refuses to guess when the
+    // tenant is ambiguous, matching /pdf/menu's tenantFromQuery.
+    let tenants;
+    if (slug) tenants = [await resolveRestaurantBySlug(slug)];
+    else {
+      const all = await resolveAllRestaurants();
+      if (all.length > 1) return res.status(404).send("receipt not found");
+      tenants = all;
+    }
     for (const t of tenants) {
       const { data } = await t.db.from("orders").select("receipt_url").eq("code", code).maybeSingle();
       if (data?.receipt_url) return res.redirect(302, data.receipt_url);
@@ -409,7 +420,11 @@ app.post("/api/build/:token/submit", async (req, res) => {
       name,
       x.doneness ? String(x.doneness).slice(0, 20) : null,
       x.sauce ? String(x.sauce).slice(0, 20) : null,
-      Array.isArray(x.avoid) && x.avoid.length ? `NO ${x.avoid.slice(0, 5).join(", ").toUpperCase()}` : null,
+      // was .slice(0,5) on the ARRAY only — an individual entry had no length cap, so a
+      // single multi-megabyte string could still land in this stored field
+      Array.isArray(x.avoid) && x.avoid.length
+        ? `NO ${x.avoid.slice(0, 5).map((a) => String(a).slice(0, 20)).join(", ").toUpperCase()}`
+        : null,
       x.kids ? "kids portion" : null,
     ].filter(Boolean).join(" · ");
 
@@ -424,11 +439,24 @@ app.post("/api/build/:token/submit", async (req, res) => {
       build: Object.fromEntries(priced.lines.map((l) => [l.id, l.qty])),
     };
 
+    // SECURITY/CORRECTNESS: the checkout's "make it a meal" step shows and totals real
+    // menu prices for the sides/drinks picked, then sent their NAMES here — which used
+    // to be read nowhere. The customer was shown and told a price that included the
+    // meal; the order and kitchen ticket reflected only the sandwich. Priced here from
+    // the restaurant's own current menu (never a client-sent price) and added as their
+    // own line items so the kitchen actually sees them, not just a total.
+    const { data: mealMenu } = await db.from("menu_items").select("name,price,available,category,photo_url").limit(120);
+    const meal = priceMeal(mealMenu, x.meal);
+    const mealItems = meal.lines.map((l) => ({ name: l.name, qty: 1, unit_price: l.price }));
+
     // WHERE DID THIS BUILD COME FROM?
     // A link the bot sent belongs to a conversation — the build must return to that
     // conversation so the customer picks delivery/pickup, address and payment where
     // they already are, not get fired straight at the kitchen with none of it decided.
     const fromChat = /^\+/.test(String(claim.sessionId));
+
+    const grandTotal = priced.total + meal.total;
+    const mealLine = meal.lines.length ? `\n+ ${meal.lines.map((l) => l.name).join(", ")}` : "";
 
     if (fromChat) {
       const { data: diner } = await db.from("diners").select("id,preferences,name")
@@ -441,7 +469,10 @@ app.post("/api/build/:token/submit", async (req, res) => {
         const pending = diner.preferences?.pending_order || {};
         const preferences = {
           ...(diner.preferences || {}),
-          pending_order: { ...pending, items: [...(pending.items || []), built], at: new Date().toISOString() },
+          // meal items ride along as their OWN pending-order lines, priced from the
+          // menu just like the sandwich — this is the fix: they used to be shown and
+          // totalled on the checkout screen and then read nowhere on this side.
+          pending_order: { ...pending, items: [...(pending.items || []), built, ...mealItems], at: new Date().toISOString() },
           // saved builds live against the number, so the bot can offer "your usual"
           builds: [{ name: item.name, layers: item.build, total: priced.total, at: new Date().toISOString() },
                    ...((diner.preferences?.builds || []).slice(0, 4))],
@@ -449,9 +480,9 @@ app.post("/api/build/:token/submit", async (req, res) => {
         await db.from("diners").update({ preferences }).eq("id", diner.id);
       }
       await pushGuest(tenant, { phone_number: claim.sessionId },
-        `Your build is in 🍔\n${item.name === "Build Your Own" ? name : `${item.name} — ${name}`}\n${priced.currency} ${priced.total}\n\nHow would you like it — dine-in, pickup or delivery?`,
+        `Your build is in 🍔\n${item.name === "Build Your Own" ? name : `${item.name} — ${name}`}${mealLine}\n${priced.currency} ${grandTotal}\n\nHow would you like it — dine-in, pickup or delivery?`,
       ).catch(() => {});
-      return res.json({ ok: true, handoff: "whatsapp", total: priced.total, currency: priced.currency, summary: name });
+      return res.json({ ok: true, handoff: "whatsapp", total: grandTotal, currency: priced.currency, summary: name });
     }
 
     // Walk-up / QR / kiosk: no conversation to return to, so we need a number —
@@ -478,9 +509,9 @@ app.post("/api/build/:token/submit", async (req, res) => {
       phone_number: phone,
       diner_name: custName,
       order_type: "pickup",          // the guest picks how to get it in chat, where that flow already lives
-      items: [item],
-      subtotal: priced.total,
-      total: priced.total,
+      items: [item, ...mealItems],
+      subtotal: grandTotal,
+      total: grandTotal,
       status: "pending",
       source: "builder",
     };
@@ -498,18 +529,26 @@ app.post("/api/build/:token/submit", async (req, res) => {
     await db.from("notifications").insert({
       type: "order",
       title: `Custom sandwich ${code}`,
-      body: `${name} · ${priced.currency} ${priced.total}`,
+      body: `${name}${mealLine.replace(/^\n/, " ")} · ${priced.currency} ${grandTotal}`,
       ref_id: code,
     }).then(() => {}, () => {});
 
-    // and the guest gets told on the channel they came from
+    // BUG FIX: this pushed to claim.sessionId — for a walk-up/QR/share link that is an
+    // internal token string like "web:share-xxxxx", never the phone number the customer
+    // just typed into the checkout form. The confirmation was silently going nowhere;
+    // every walk-up order's WhatsApp receipt never arrived. `phone` (validated above) is
+    // the number that was actually collected.
+    // The ticket already went to the kitchen as pickup (order_type is fixed above, not
+    // asked) — the message says so instead of asking a question this flow has no way to
+    // receive an answer to (no pending_order/session state exists for a fresh walk-up
+    // number to route a reply through).
     await pushGuest(
       tenant,
-      { phone_number: claim.sessionId },
-      `Your custom sandwich is in — ${code}.\n${name}\nTotal: ${priced.currency} ${priced.total}\n\nHow would you like it — dine-in, pickup or delivery?`,
+      { phone_number: phone },
+      `Your custom sandwich is in — ${code}.\n${name}${mealLine}\nTotal: ${priced.currency} ${grandTotal}\n\nWe've got it as pickup — message us here with this code any time to check on it.`,
     ).catch(() => {});
 
-    res.json({ ok: true, code, total: priced.total, currency: priced.currency, summary: name });
+    res.json({ ok: true, code, total: grandTotal, currency: priced.currency, summary: name });
   } catch (e) {
     log("build submit:", e.message);
     res.status(500).json({ error: e.message });

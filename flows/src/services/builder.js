@@ -151,6 +151,45 @@ export function describeBuild(lines) {
   return parts.length ? parts.join(", ") : "Plain bun";
 }
 
+// ---- make it a meal ------------------------------------------------------
+// A MEAL is a side plus a drink — not the whole extras menu. Milkshakes,
+// nuggets and tenders are things you order, not what "make it a meal" means.
+// Exported so the checkout page and the submit endpoint's server-side pricing
+// read the SAME list — the checkout showed a real price for a real side, but
+// the server only priced the sandwich and silently dropped the side/drink
+// entirely: shown and charged had drifted apart because this lived in only
+// one of the two places that needed it.
+const SIDE_CATS = /^(sides?|fries)$/i;
+const DRINK_CATS = /^(drinks?|beverages?|sodas?)$/i;
+
+export function mealOptions(menu) {
+  const asOption = (m) => ({
+    name: m.name, price: Number(m.price), photo: m.photo_url || null,
+    group: DRINK_CATS.test(String(m.category || "")) ? "drink" : "side",
+  });
+  return (menu || [])
+    .filter((m) => m && Number(m.price) > 0 && m.available !== false &&
+      (SIDE_CATS.test(String(m.category || "")) || DRINK_CATS.test(String(m.category || ""))))
+    .map(asOption)
+    .sort((a, b) => (a.group === b.group ? a.price - b.price : a.group === "side" ? -1 : 1))
+    .slice(0, 14);
+}
+
+// Takes the NAMES the checkout sent (never a price) and returns each one priced from
+// the restaurant's own current menu — a name the restaurant doesn't currently sell as
+// a side/drink (renamed, removed, never existed) is silently dropped, same discipline
+// as priceBuild's unknown-ingredient handling.
+export function priceMeal(menu, names) {
+  const options = mealOptions(menu);
+  const lines = [];
+  for (const raw of Array.isArray(names) ? names.slice(0, 6) : []) {
+    const name = String(raw || "").slice(0, 60);
+    const opt = options.find((o) => o.name === name);
+    if (opt) lines.push({ name: opt.name, price: opt.price });
+  }
+  return { lines, total: lines.reduce((s, l) => s + l.price, 0) };
+}
+
 // ---- page --------------------------------------------------------------
 let cached = null;
 function pageSource() {
@@ -251,20 +290,7 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
 
   // "Make it a meal" offers the restaurant's REAL sides and drinks at their real
   // prices — never a made-up combo. Declared before boot because boot references it.
-  // A MEAL is a side plus a drink — not the whole extras menu. Milkshakes, nuggets and
-  // tenders are things you order, not what "make it a meal" means.
-  const sideCats = /^(sides?|fries)$/i;
-  const drinkCats = /^(drinks?|beverages?|sodas?)$/i;
-  const asOption = (m) => ({
-    name: m.name, price: Number(m.price), photo: m.photo_url || null,
-    group: drinkCats.test(String(m.category || "")) ? "drink" : "side",
-  });
-  const sides = (menu || [])
-    .filter((m) => m && Number(m.price) > 0 && m.available !== false &&
-      (sideCats.test(String(m.category || "")) || drinkCats.test(String(m.category || ""))))
-    .map(asOption)
-    .sort((a, b) => (a.group === b.group ? a.price - b.price : a.group === "side" ? -1 : 1))
-    .slice(0, 14);
+  const sides = mealOptions(menu);
 
   const boot = {
     token,
@@ -560,7 +586,14 @@ export function renderBuilderPage(tenant, token, { preview = false, menu = [], l
         rm.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>';
         rm.onclick = () => {
           qty[ud.ingredientId] = Math.max(0, (qty[ud.ingredientId] || 0) - 1);
-          renderPanel(); syncStackWithState();
+          // window.__BUILD__.rerender is monkey-patched (by builder-layout.js) to also
+          // rebuild the custom ingredient grid — calling the raw functions directly, as
+          // this did before, skipped that rebuild and reverted the whole ingredient
+          // panel to the old plain chip list until something else happened to fire the
+          // patched path. Guarded fallback only for the (practically unreachable) case
+          // this runs before __BUILD__ exists.
+          if (window.__BUILD__ && window.__BUILD__.rerender) window.__BUILD__.rerender();
+          else { renderPanel(); syncStackWithState(); }
         };
         row.appendChild(up); row.appendChild(dn); row.appendChild(rm);
       }
