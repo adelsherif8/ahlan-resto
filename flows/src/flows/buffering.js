@@ -150,9 +150,18 @@ defineFlow({
     const pushed = await f.node("buffer_push", async () => {
       const hist = await getHistory(db, ctx.sessionId);
       const isNewSession = hist.length === 0;
-      const base = ctx.fastWindow || config.ai?.buffer_window_ms || (ctx.channel === "whatsapp" ? 8000 : 5000);
+      // The buffer window exists to coalesce a BURST of typed fragments (guests here
+      // fire several short WhatsApp messages in a row). A button/list tap is not that:
+      // it's one discrete, complete UI action, and nobody rapid-taps quick replies. It
+      // used to sit through the full 8s silence window anyway — and taps are most of an
+      // ordering flow (type, branch, payment, confirm, saved-address are all buttons),
+      // so that was ~8s of dead air on nearly every order turn. A tap flushes almost
+      // immediately (a hair of window only to coalesce an accidental double-tap).
+      const isTap = event.kind === "interactive";
+      const base = isTap ? 600
+        : ctx.fastWindow || config.ai?.buffer_window_ms || (ctx.channel === "whatsapp" ? 8000 : 5000);
       const r = await pushMessage(db, bufKey(ctx), finalText, messageId, { channel: ctx.channel, isNewSession, windowBase: base, phone: ctx.sessionId });
-      return { ...r, next: `→ RESPOND flow fires after ${Math.round((r.window_ms || base) / 1000)}s of silence (or 25s cap) and routes to MASTER` };
+      return { ...r, tap: isTap, next: `→ RESPOND flow fires after ${Math.round((r.window_ms || base) / 1000)}s of silence (or 25s cap) and routes to MASTER` };
     }, { input: { channel: ctx.channel, per_channel_default: ctx.channel === "whatsapp" ? "8s" : "5s", max_cap: `${MAX_CAP_MS / 1000}s` } });
 
     return { buffered: pushed.accepted, window_ms: pushed.window_ms, burst_count: pushed.burst_count };
