@@ -825,11 +825,16 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         ? `Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`
         : ADDRESS_TEMPLATE_EN);
       // The lead-in ("Almost done — just the last details") belongs on the FIRST
-      // fulfilment question only. Repeated verbatim every turn it stops reading as
-      // progress and starts reading as a stuck loop: being told "almost done" three
-      // times while still being asked things is worse than no lead-in at all.
-      // need_type is only ever true before anything has been chosen, so it IS "first".
-      reply = outcome.need_type ? `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : qs.join("\n\n");
+      // fulfilment question only. Repeated every turn it reads as a stuck loop.
+      // Keying on need_type was WRONG: a guest who states the type up front ("1 fries
+      // delivered") has need_type=false on their very first fulfilment ask (we ask
+      // branch/address next), so the lead-in was skipped exactly when it should show.
+      // The real signal is PRIOR session state — this is the first ask iff no
+      // fulfilment slot was captured before this turn. loaded.pending is the state as
+      // of the previous turn (savePending never rewrites these fields in place).
+      const priorFulfilment = loaded.pending?.order_type || loaded.pending?.branch ||
+        loaded.pending?.address || loaded.pending?.table_number;
+      reply = priorFulfilment ? qs.join("\n\n") : `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}`;
     }
 
     // Option questions are STRUCTURE, and structure is code's job — the model
