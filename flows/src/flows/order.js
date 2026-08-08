@@ -68,8 +68,23 @@ defineFlow({
 
     const ex = await f.node("extract", async () => {
       const menuNames = loaded.menu.map((m) => `${m.name} (${m.category})`).join(" | ");
+      // Grounding the model in the ACTUAL current state beats asking it to infer intent
+      // from phrasing alone. Earlier this only had a paragraph of trigger phrases for
+      // "replace" ("no I want X", "actually X") and the model just never used it — a
+      // plain "No i want chicken ranch" kept coming back as items:[{name:"Chicken
+      // Ranch"}], edits:null, exactly like a fresh order for that item, because that IS
+      // the more natural reading of the sentence in isolation. Telling it directly what
+      // is already on the order removes the guesswork: it isn't inferring "this phrasing
+      // usually means a swap", it's comparing the name it just extracted against a name
+      // it was handed.
+      const pendingLine = loaded.pending?.items?.length
+        ? `\nTHE GUEST ALREADY HAS THIS ON THEIR ORDER (not yet finalized): ${loaded.pending.items.map((it) => `${it.qty}× ${it.name}`).join(", ")}. Three ways this message can relate to it:
+  (1) It uses ADD language ("add", "also", "kaman", "زود", "كمان") naming another dish → edits op "add" (unchanged from below).
+  (2) It answers a choice being asked about the item above (a size, a drink flavor, "sandwich" vs "combo", a modifier) → leave "items" and "edits" null, that answer is handled elsewhere.
+  (3) Otherwise, if it names a DIFFERENT main dish from MENU with no add-language — a correction, or just restating what they want — they are SWAPPING the item above OUT, not adding a second dish: edits op "replace", "item" = the name above, "with" = the new name.`
+        : "";
       const sys = `Extract a food order from one WhatsApp message to a fast-casual restaurant. MENU (only these exist): ${menuNames}
-Recent conversation may add context: ${JSON.stringify((input.history || []).slice(-4).map((h) => h.message?.slice(0, 80)))}
+Recent conversation may add context: ${JSON.stringify((input.history || []).slice(-4).map((h) => h.message?.slice(0, 80)))}${pendingLine}
 Return JSON only:
 {"intent": "order"|"repeat_last"|"confirm"|"cancel_order"|"status"|"other",
  "payment_method": "cash"|"card"|"instapay"|null,
