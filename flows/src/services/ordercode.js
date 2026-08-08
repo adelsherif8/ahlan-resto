@@ -1,7 +1,10 @@
 // Order codes in ONE place. Every front that opens a ticket — chat, POS, the
 // sandwich builder — has to produce the same shape, or the branded daily
 // sequence a restaurant configured silently applies to only some of its orders.
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+// Must match backend/src/routes/ordersRoutes.js's alphabet and
+// services/availability.js's makeReservationCode — no I/L/O/U confusables,
+// since a rider or cashier reads these aloud and a guest types them back.
+const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 export const randomOrderCode = () =>
   "O-" + Array.from({ length: 4 }, () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join("");
