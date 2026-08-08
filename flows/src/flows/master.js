@@ -6,7 +6,7 @@ import { chatJSON } from "../services/llm.js";
 import { MODEL_FAST, MODEL_NANO } from "../config.js";
 import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath } from "../services/fastpaths.js";
 import { wantsBuilder } from "../services/fastpaths.js";
-import { signBuildToken, builderConfig, priceBuild, describeBuild } from "../services/builder.js";
+import { signBuildToken, builderConfig, priceBuild, describeBuild, LAYERS as BUILDER_LAYERS } from "../services/builder.js";
 import { label, isLabel } from "../services/labels.js";
 import { PUBLIC_BASE } from "../config.js";
 import { bump } from "../services/metrics.js";
@@ -74,6 +74,18 @@ defineFlow({
           if (priced.lines.length) {
             bump("saved_build_hits");
             const summary = describeBuild(priced.lines);
+            // A saved build can reference an ingredient the restaurant has since
+            // un-priced (menu changed after it was saved). priceBuild silently drops
+            // those — replaying the "usual" and quietly handing over a different burger
+            // is worse than saying so. Name what's missing.
+            const keptIds = new Set(priced.lines.map((l) => l.id));
+            const droppedNames = Object.keys(saved.layers || {})
+              .filter((id) => (saved.layers[id] || 0) > 0 && !keptIds.has(id))
+              .map((id) => BUILDER_LAYERS.find((L) => L.id === id)?.name)
+              .filter(Boolean);
+            const droppedNote = droppedNames.length
+              ? `\n(heads up — ${droppedNames.join(" and ")} ${droppedNames.length > 1 ? "aren't" : "isn't"} available right now, so I left ${droppedNames.length > 1 ? "them" : "it"} off)`
+              : "";
             const pending = diner.preferences?.pending_order || {};
             await db.from("diners").update({
               preferences: {
@@ -91,7 +103,7 @@ defineFlow({
             }).eq("id", diner.id).then(() => {}, () => {});
             return {
               kind: "saved_build",
-              reply: `${saved.name} it is 🍔\n${summary}\n${priced.currency} ${priced.total}\n\nHow would you like it — dine-in, pickup or delivery?`,
+              reply: `${saved.name} it is 🍔\n${summary}\n${priced.currency} ${priced.total}${droppedNote}\n\nHow would you like it — dine-in, pickup or delivery?`,
             };
           }
         }
