@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CalendarClock, Grid3X3, Hourglass, UtensilsCrossed,
-  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator, ChevronDown,
-} from "lucide-react";
+  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator, ChevronDown, Star } from "lucide-react";
 import { api, session } from "../config/api";
 import NotificationBell from "./NotificationBell";
 import { unreadCount } from "../lib/unread";
@@ -34,6 +33,7 @@ const NAV = [
   { group: "Guests", items: [
     { to: "/chats", label: "Chats", icon: MessageCircle, roles: ["admin", "manager", "host", "livechat"] },
     { to: "/diners", label: "Diners", icon: Users, roles: ["admin", "manager", "host"] },
+    { to: "/reviews", label: "Reviews", icon: Star, roles: ["admin", "manager", "host"] },
     { to: "/events", label: "Events", icon: PartyPopper, roles: ["admin", "manager"] },
   ]},
   { group: "Setup", items: [

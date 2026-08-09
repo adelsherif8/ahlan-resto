@@ -249,7 +249,7 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 12. QUICK REPLIES: buttons are for real DECISION POINTS only (booking next step, menu, yes/no choices) — set quick_replies to 2-3 SHORT labels (1-3 words, max 20 chars, guest's language). NO buttons during: emotional moments, apologies, empathy, flowing chit-chat, or when your reply already ends the topic. Most replies should have NO buttons — think one in every few replies, not every reply.
 13. If they ask to SEE THE MENU / "what do you have" / tap an order button: reply with a 1-line appetizing teaser and set send_menu_list=true — the menu PDF and its link are attached automatically. NEVER paste the menu as text and NEVER ask "what would you like?" without sending it. BUT a question about a CATEGORY ("what burgers do you have?", "عندكم برجر ايه") is NOT a menu request — NAME the items of that category in your reply (COMPLETE ANSWERS rule); never deflect to the PDF instead of answering.
 14. WAITLIST: if the guest asks to join tonight's waitlist (or wants a table right now and accepts waiting) AND gave a party size, set add_to_waitlist = {"party_size": n, "name": <their name if known>}. When you set it you MAY tell them they're on the list (we really add them). Never invent wait times.
-15. FEEDBACK: if they describe a PAST visit experience — praise or complaint — set detected_feedback = {"sentiment": "positive"|"negative", "text": "<their words, short>"}. For complaints: apologize once, genuinely; serious ones also get needs_handoff=true.
+15. FEEDBACK: if they describe a PAST visit experience — praise or complaint — OR reply to our "rate 1–5" ask with a number/stars, set detected_feedback = {"sentiment": "positive"|"negative", "text": "<their words, short>", "rating": <1–5 if they gave a number/stars, else null>}. A bare number 1–5 right after we asked them to rate IS a rating (4–5 positive, 1–2 negative, 3 neutral→use positive). For complaints: apologize once, genuinely; serious ones also get needs_handoff=true.
 16. LOCATION PIN: if they ask where you are or for directions, answer briefly AND set send_location_pin=true (we drop a real map pin on WhatsApp).
 17. REACTION: set react_emoji to ONE emoji (❤️ 🎉 😂 👏) ONLY for a strongly emotional guest moment (engagement, big news, a genuinely funny joke). This is rare — default null.
 18. If "Right now" in FACTS says CLOSED and the guest wants to come NOW / walk in / join tonight's waitlist: lead with the fact that you're closed + today's hours, THEN help them plan. NEVER offer to "hold a table" — you can't hold tables.
@@ -258,7 +258,7 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
       : `(pickup / pre-order) we take them via chat — collect the items and pickup time, then set needs_handoff=true with reason "order request" and the FULL order in handoff_briefing; tell the guest the team will confirm when it's ready. NEVER claim an order is placed, charged or paid — no payments in chat. Delivery: only per FACTS policy.`}
 20. STAFF ALERT (your host's notebook): when something happens the TEAM should know about, set staff_alert = {"type": "<2-4 words>", "note": "<one factual third-person line, max 120 chars>"}. Worth alerting: engagement/anniversary celebration coming · big group intent · an upset regular · VIP planning a visit · special request (cake, surprise, decoration) · guest asked for a manager. NOT worth alerting: routine questions, menu chat, normal bookings (those already notify). Sparing — most messages have staff_alert null.
 
-Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string}|null, "send_location_pin": boolean, "react_emoji": string|null, "staff_alert": {"type": string, "note": string}|null, "suggested_faq": {"question": string, "context": string}|null }`;
+Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string, "rating": number|null}|null, "send_location_pin": boolean, "react_emoji": string|null, "staff_alert": {"type": string, "note": string}|null, "suggested_faq": {"question": string, "context": string}|null }`;
 
       // VOICE MODE: "auto" (default) runs the fast model and escalates to the
       // premium one exactly where voice sells — bad mood, VIP, a pending handoff,
@@ -426,17 +426,36 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         effects.push("waitlist-added");
       }
       if (out.detected_feedback?.text && ["positive", "negative"].includes(out.detected_feedback.sentiment)) {
-        await db.from("feedback").insert({
+        const fb = out.detected_feedback;
+        const rating = Number.isFinite(Number(fb.rating)) && fb.rating >= 1 && fb.rating <= 5 ? Math.round(Number(fb.rating)) : null;
+        // link the review to the guest's most recent order, so the Reviews tab can show
+        // WHAT they're reviewing. Best-effort — a review without an order still records.
+        let orderCode = null;
+        try {
+          const { data: lastOrd } = await db.from("orders").select("code")
+            .eq("phone_number", ctx.sessionId).order("created_at", { ascending: false }).limit(1);
+          orderCode = lastOrd?.[0]?.code || null;
+        } catch { /* no order link — fine */ }
+        // the workflow columns (order_code/source/status) arrive with migration 025;
+        // insert with them, and fall back to the base shape if the DB doesn't have them yet
+        const base = {
           phone_number: ctx.sessionId,
-          comments: String(out.detected_feedback.text).slice(0, 800),
-          sentiment: out.detected_feedback.sentiment,
-          escalated: out.detected_feedback.sentiment === "negative",
-        });
-        if (out.detected_feedback.sentiment === "negative") {
-          await notifyDashboard(db, "feedback", "Negative feedback from a guest",
-            `${diner?.name || ctx.sessionId}: ${String(out.detected_feedback.text).slice(0, 140)}`, ctx.sessionId);
+          comments: String(fb.text).slice(0, 800),
+          sentiment: fb.sentiment,
+          rating,
+          escalated: fb.sentiment === "negative",
+        };
+        const full = { ...base, order_code: orderCode, source: "whatsapp", status: "new" };
+        let ins = await db.from("feedback").insert(full);
+        if (ins.error && /column|order_code|source|status/i.test(ins.error.message)) {
+          await db.from("feedback").insert(base).then(() => {}, () => {});
         }
-        effects.push(`feedback-${out.detected_feedback.sentiment}`);
+        if (fb.sentiment === "negative") {
+          // manager alert with the order + complaint, so it's actioned before Google
+          await notifyDashboard(db, "feedback", `⚠️ Complaint${rating ? ` (${rating}★)` : ""} from a guest`,
+            `${diner?.name || ctx.sessionId}${orderCode ? ` · ${orderCode}` : ""}: ${String(fb.text).slice(0, 140)}`, ctx.sessionId);
+        }
+        effects.push(`feedback-${fb.sentiment}${rating ? `-${rating}star` : ""}`);
       }
       if (out.suggested_faq?.question) {
         // don't re-suggest a question that's already pending

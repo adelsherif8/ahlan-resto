@@ -9,6 +9,7 @@ import tablesRoutes from "./routes/tablesRoutes.js";
 import menuRoutes from "./routes/menuRoutes.js";
 import dinersRoutes from "./routes/dinersRoutes.js";
 import waitlistRoutes from "./routes/waitlistRoutes.js";
+import reviewsRoutes from "./routes/reviewsRoutes.js";
 import ordersRoutes from "./routes/ordersRoutes.js";
 import couriersRoutes from "./routes/couriersRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
@@ -36,6 +37,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/dashboard", kpisRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/events", eventsRoutes);
+app.use("/api/reviews", reviewsRoutes);
 app.use("/api/users", usersRoutes);
 
 app.use((err, _req, res, _next) => {
