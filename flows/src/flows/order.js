@@ -1586,12 +1586,18 @@ function priceOrder(items, config, orderType) {
   };
   // service charge is a dine-in convention — never added to a delivery or pickup bill
   const service_charge = orderType === "dine_in" ? charge("Service", rateOf("service_charge", "service_charge_pct")) : 0;
-  const tax = charge("VAT", rateOf("tax", "tax_pct", "vat_pct"));
   const delivery_fee = orderType === "delivery" ? round(Number(p.delivery_fee) || 0) : 0;
   if (delivery_fee > 0) extras.push({ label: "Delivery", amount: delivery_fee });
 
+  // VAT is INCLUSIVE — menu prices already include it, exactly like the printed
+  // receipt ("Prices are VAT inclusive"). It is NEVER added on top; it's shown as a
+  // breakdown of the total: Net = total / (1 + rate), VAT = total − Net. Adding it as
+  // an extra was overcharging ~14% on prices that already contained it.
   const total = round(subtotal + extras.reduce((s, x) => s + x.amount, 0));
-  return { subtotal, extras, service_charge, tax, delivery_fee, total };
+  const rate = rateOf("tax", "tax_pct", "vat_pct") || 0.14;
+  const vat = round(total - total / (1 + rate));
+  const net = round(total - vat);
+  return { subtotal, extras, service_charge, delivery_fee, tax: vat, vat, net, vat_inclusive: true, total };
 }
 
 // The bill as the guest sees it. Built here so the model never writes a number
@@ -1607,7 +1613,13 @@ function renderBill({ items, bill, currency, orderType, tableNumber, branchName,
 
   const totals = [`Subtotal: ${money(bill.subtotal)}`];
   for (const x of bill.extras) totals.push(`${x.label}: ${money(x.amount)}`);
-  totals.push(`*TOTAL: ${money(bill.total)}*`);
+  // VAT-inclusive breakdown — same wording and math as the printed receipt
+  if (bill.vat_inclusive) {
+    totals.push(`Net Amount: ${money(bill.net)}`);
+    totals.push(`VAT Amount: ${money(bill.vat)}`);
+  }
+  totals.push(`*Total Due: ${money(bill.total)}*`);
+  if (bill.vat_inclusive) totals.push("_Prices are VAT inclusive._");
 
   const where = orderType === "dine_in" ? `Dine-in${tableNumber ? ` · table ${tableNumber}` : ""}${!tableNumber && branchName ? ` · ${branchName}` : ""}`
     : orderType === "pickup" ? `Pickup${branchName ? ` · ${branchName}` : ""}${branchPin?.address ? `\n📍 ${branchPin.address}` : ""}${branchPin?.lat && branchPin?.lng ? `\n🗺 maps.google.com/?q=${branchPin.lat},${branchPin.lng}` : ""}`
