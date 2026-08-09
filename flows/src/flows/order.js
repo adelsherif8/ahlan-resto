@@ -992,6 +992,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
             tagline: config.basic_info?.tagline || "",
             phone: config.basic_info?.phone || "",
             website: config.basic_info?.website || "",
+            logoUrl: config.basic_info?.brand?.logo_url || null,
           });
       if (pdf) {
         doc = { url: pdf.url, caption: `${config.name} — full menu 📄`, filename: pdf.filename };

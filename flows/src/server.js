@@ -60,6 +60,7 @@ app.get("/pdf/menu", async (req, res) => {
           tagline: t.config.basic_info?.tagline || "",
           phone: t.config.basic_info?.phone || "",
           website: t.config.basic_info?.website || "",
+          logoUrl: t.config.basic_info?.brand?.logo_url || null,
         });
     if (!pdf?.url) return res.status(404).send("menu unavailable");
     res.redirect(302, pdf.url);
