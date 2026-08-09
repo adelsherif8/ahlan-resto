@@ -124,9 +124,10 @@ export default function MenuDesign() {
           <p className="mt-1 text-xs text-zinc-500">Photos come from your menu items. Add item photos in Menu for the best look.</p>
         </div>
 
-        {/* live preview — the real template, scaled to fit */}
-        <div className="overflow-auto rounded-xl border border-zinc-800 bg-zinc-100 p-4">
-          <div style={{ width: 794, transform: "scale(0.62)", transformOrigin: "top left", marginBottom: -280 }}>
+        {/* live preview — the real template. `zoom` scales AND reflows, so the container
+            wraps the whole menu with no dead space (transform left a gap + clipped it). */}
+        <div className="overflow-auto rounded-xl border border-zinc-800 bg-zinc-200 p-3">
+          <div style={{ zoom: 0.62 } as React.CSSProperties}>
             <MenuTemplate template={template} data={data} />
           </div>
         </div>

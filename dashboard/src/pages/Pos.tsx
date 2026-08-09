@@ -271,7 +271,11 @@ export default function Pos() {
     return cats.map((c2) => ({ title: c2, items: shown.filter((m) => m.category === c2) })).filter((x) => x.items.length);
   }, [shown, cat, q, cats]);
   // tile density follows how much is on screen — 4 items shouldn't look lost
-  const gridCols = (n: number) => (touch || n <= 4) ? "grid-cols-2 xl:grid-cols-3" : n <= 9 ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-3" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4";
+  // Columns by count, but never leave a lone orphan on its own row. A 4-item category
+  // gets 4 columns (one clean row) instead of 3+1; larger ones fill 4 across.
+  const gridCols = (n: number) =>
+    n <= 3 ? "grid-cols-2 xl:grid-cols-3"
+    : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4";
   function pluAdd() {
     if (!plu) return;
     const hasQuestions = (plu.item.options || []).some((g: any) => g.key === "slots" || groupChoices(g, menu).length);

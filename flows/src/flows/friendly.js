@@ -249,7 +249,7 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 12. QUICK REPLIES: buttons are for real DECISION POINTS only (booking next step, menu, yes/no choices) — set quick_replies to 2-3 SHORT labels (1-3 words, max 20 chars, guest's language). NO buttons during: emotional moments, apologies, empathy, flowing chit-chat, or when your reply already ends the topic. Most replies should have NO buttons — think one in every few replies, not every reply.
 13. If they ask to SEE THE MENU / "what do you have" / tap an order button: reply with a 1-line appetizing teaser and set send_menu_list=true — the menu PDF and its link are attached automatically. NEVER paste the menu as text and NEVER ask "what would you like?" without sending it. BUT a question about a CATEGORY ("what burgers do you have?", "عندكم برجر ايه") is NOT a menu request — NAME the items of that category in your reply (COMPLETE ANSWERS rule); never deflect to the PDF instead of answering.
 14. WAITLIST: if the guest asks to join tonight's waitlist (or wants a table right now and accepts waiting) AND gave a party size, set add_to_waitlist = {"party_size": n, "name": <their name if known>}. When you set it you MAY tell them they're on the list (we really add them). Never invent wait times.
-15. FEEDBACK: if they describe a PAST visit experience — praise or complaint — OR reply to our "rate 1–5" ask with a number/stars, set detected_feedback = {"sentiment": "positive"|"negative", "text": "<their words, short>", "rating": <1–5 if they gave a number/stars, else null>}. A bare number 1–5 right after we asked them to rate IS a rating (4–5 positive, 1–2 negative, 3 neutral→use positive). For complaints: apologize once, genuinely; serious ones also get needs_handoff=true.
+15. FEEDBACK: if they describe a PAST visit experience — praise or complaint — OR reply to our "rate 1–5" ask with a number/stars, set detected_feedback = {"sentiment": "positive"|"negative", "text": "<their words, short>", "rating": <1–5 if they gave a number/stars, else null>}. A bare number 1–5 right after we asked them to rate IS a rating (4–5 positive, 1–2 negative, 3 neutral→use positive). For PRAISE: react like a warm human FIRST — thank them and reference what they liked ("so glad the smash burger hit the spot! 🧡"). Do NOT pivot to pushing an order or listing items; a Google-review invite is appended automatically for you, so DON'T write a review link yourself. For complaints: apologize once, genuinely; serious ones also get needs_handoff=true.
 16. LOCATION PIN: if they ask where you are or for directions, answer briefly AND set send_location_pin=true (we drop a real map pin on WhatsApp).
 17. REACTION: set react_emoji to ONE emoji (❤️ 🎉 😂 👏) ONLY for a strongly emotional guest moment (engagement, big news, a genuinely funny joke). This is rare — default null.
 18. If "Right now" in FACTS says CLOSED and the guest wants to come NOW / walk in / join tonight's waitlist: lead with the fact that you're closed + today's hours, THEN help them plan. NEVER offer to "hold a table" — you can't hold tables.
@@ -454,6 +454,14 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           // manager alert with the order + complaint, so it's actioned before Google
           await notifyDashboard(db, "feedback", `⚠️ Complaint${rating ? ` (${rating}★)` : ""} from a guest`,
             `${diner?.name || ctx.sessionId}${orderCode ? ` · ${orderCode}` : ""}: ${String(fb.text).slice(0, 140)}`, ctx.sessionId);
+        }
+        // Happy guest → invite a Google review, with the REAL link (code appends it; the
+        // LLM only wrote the warm human reply above). Once per conversation, and never
+        // when they're unhappy. If the reply already carries a link, don't double up.
+        const reviewUrl = config.ai?.google_reviews_url;
+        if (fb.sentiment === "positive" && reviewUrl && !/https?:\/\//.test(reply) && !context.reviewInvited) {
+          reply = `${reply}\n\nIf you have 20 seconds, a quick Google review would mean the world to us 🙏\n${reviewUrl}`;
+          context.reviewInvited = true;
         }
         effects.push(`feedback-${fb.sentiment}${rating ? `-${rating}star` : ""}`);
       }
@@ -754,7 +762,7 @@ function situationGuide(context, config) {
         ? `You MUST mention their last order — ${last} — in your own words, in this exact reply (e.g. "same as last time — ${last}?" or "want ${last} again?"). Never fall back to a generic "what can we get you today?" when this signal exists.`
         : `Pick a natural, warm opener — no purchase signal exists for them yet, so keep it simple: "Welcome back${context.greetName ? `, ${context.greetName}` : ""}! Ordering today, or just checking the menu?"`;
       return `a returning guest — greet them as ${config.name}'s host: warm, by name, and IMMEDIATELY useful. ${mandatory}
-  Always make it about helping them (order / usual / menu), never vague chat. BAD: "back for another round?", "just checking in?", "what's your vibe?", "hit me up".`;
+  Lead with warmth and be genuinely useful — but if they're just chatting or giving feedback, be a human about it first; don't force an order pitch onto every message. BAD: "back for another round?", "just checking in?", "what's your vibe?", "hit me up".`;
     }
     default:
       return `a first-time contact — a simple genuine welcome TO ${config.name} and ONE helpful question, e.g. "Hello! Welcome to ${config.name} 🍔 What can we get you today?" or "…Would you like to see the menu or order straight away?". No menu pitching, no product talk. Don't overwhelm.`;
