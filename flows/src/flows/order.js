@@ -19,7 +19,7 @@ import { signTrackToken } from "../services/builder.js";
 const normName = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 // bare "yes/ok/tamam" — a confirmation, never an address or an item. One place,
 // reused wherever a plain affirmative needs telling apart from real content.
-const AFFIRM = /^(yes|ok|okay|sure|confirm|tamam|تمام|ماشي|اه|ايوه)(?![\p{L}\p{N}])[\s!.]*$/iu;
+const BARE_YES = /^(yes|ok|okay|sure|confirm|tamam|تمام|ماشي|اه|ايوه)(?![\p{L}\p{N}])[\s!.]*$/iu;
 
 defineFlow({
   name: "order",
@@ -391,7 +391,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // one of those two exact words — so an honest "yes" fell through, unmatched,
       // and the guest got the identical question again instead of their address.
       const reuse = matchSaved(input.message, saved) ||
-        (saved.length === 1 && (/(?<![\p{L}\p{N}])(same|usual|نفس|زي كل مرة)(?![\p{L}\p{N}])/iu.test(input.message) || AFFIRM.test(input.message.trim())) ? saved[0] : null);
+        (saved.length === 1 && (/(?<![\p{L}\p{N}])(same|usual|نفس|زي كل مرة)(?![\p{L}\p{N}])/iu.test(input.message) || BARE_YES.test(input.message.trim())) ? saved[0] : null);
       if (reuse && !loaded.pending?.address) address = reuse.text;
       // Deterministic address capture: we're mid-delivery waiting for the address,
       // nothing else in the message fits — the guest's words ARE the address. The
@@ -401,7 +401,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const isCommand = (e.items?.length) || (e.edits?.length) ||
           /^(dine.?in|pick.?up|pickup|delivery|توصيل|استلام|في المطعم)(?![\p{L}\p{N}])/iu.test(t) ||
           /^(cash|card|visa|instapay|كاش|فيزا|بطاقة|انستاباي)(?![\p{L}\p{N}])/iu.test(t) ||
-          AFFIRM.test(t) ||
+          BARE_YES.test(t) ||
           /[?؟]\s*$/.test(t);
         // structure it here, once, so the ticket and the driver page both read a
         // proper address instead of each re-deriving one from a blob
