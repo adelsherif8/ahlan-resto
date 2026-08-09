@@ -13,6 +13,7 @@ import Pos from "./pages/Pos";
 import Menu from "./pages/Menu";
 import Diners from "./pages/Diners";
 import Reviews from "./pages/Reviews";
+import QrCodes from "./pages/QrCodes";
 import Chats from "./pages/Chats";
 import Events from "./pages/Events";
 import Settings from "./pages/Settings";
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/menu" element={<ProtectedRoute roles={["manager", "kitchen"]}><Menu /></ProtectedRoute>} />
         <Route path="/diners" element={<ProtectedRoute roles={["manager", "host"]}><Diners /></ProtectedRoute>} />
         <Route path="/reviews" element={<ProtectedRoute roles={["manager", "host"]}><Reviews /></ProtectedRoute>} />
+        <Route path="/qr" element={<ProtectedRoute roles={["manager"]}><QrCodes /></ProtectedRoute>} />
         <Route path="/chats" element={<ProtectedRoute roles={["manager", "host", "livechat"]}><Chats /></ProtectedRoute>} />
         <Route path="/events" element={<ProtectedRoute roles={["manager"]}><Events /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute roles={["manager"]}><Settings /></ProtectedRoute>} />
