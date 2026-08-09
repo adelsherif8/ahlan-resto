@@ -132,10 +132,13 @@ const CASES = [
   { id: "editqty", needs: "casual", name: "'make it just 1' drops the quantity",
     turns: ["2 american truck meals for pickup from Maadi", "Meal", "Medium", "French fries", "coca cola", "make it just 1", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /1× American Truck/i], forbid: [/2× American Truck/i] },
-  { id: "usualchip", needs: "casual", name: "Returning guest gets a one-tap reorder chip",
+  // The greeting offers the usual IN WORDS now (buttons are reserved for menu / order /
+  // builder), so this asserts the item is named in the greeting — not the old
+  // "Same as last time" button, which we deliberately removed.
+  { id: "usualchip", needs: "casual", name: "Returning guest is offered their usual by name in the greeting",
     msg: "hi",
     seed: { diner: { name: "Omar", visit_count: 4, last_seen_days_ago: 3 }, order: { items: [{ name: "Iconic Meal", qty: 1, price: 265, options: { format: "Full Meal", size: "Small", side: "French fries", drink: "Sprite" } }], order_type: "pickup", total: 265, status: "served" } },
-    expect: [/Same as last/i] },
+    expect: [/iconic meal/i, /again|usual/i] },
   { id: "faketable", needs: "tables", name: "Unknown table → honest, never claims the order is placed",
     turns: ["1 iconic meal", "Full Meal, Small, French fries, sprite", "dine-in", "23"],
     expect: [/T1|T2|T3|B1|TR1/i], forbid: [/kitchen'?s on it|order (is )?placed|on the grill|O-[A-Z2-9]{4}/i] },

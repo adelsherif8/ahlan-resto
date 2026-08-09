@@ -533,11 +533,16 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       const needTable = orderType === "dine_in" && tablesOn && !tableNumber;
       const needAddress = orderType === "delivery" && !address && !mapLink && !sharedPin;
       if (needType || needBranch || needTable || needAddress) {
-        await savePending({ address, map_link: mapLinkRaw, awaiting_option: null });
+        // The lead-in ("Almost done…") shows on the FIRST fulfilment ask only. The real
+        // "first" signal is whether we've ASKED before, not whether a slot was saved —
+        // turn 1 asks the type but saves no slot, so a saved-slot check wrongly repeats
+        // the lead-in on turn 2. Persist the ask itself.
+        const firstFulfilment = !loaded.pending?.leadin_shown;
+        await savePending({ address, map_link: mapLinkRaw, awaiting_option: null, leadin_shown: true });
         const loc = freshLocation(diner);
         const near = loc ? nearestBranches(branches, loc.lat, loc.lng, 3).map((b) => `${b.name} (${b.km} km)`) : null;
         return {
-          kind: "ask_fulfillment", items, running,
+          kind: "ask_fulfillment", items, running, first_fulfilment: firstFulfilment,
           need_type: needType, delivery: deliveryOn,
           need_branch: needBranch, branches: branches.map((b) => b.name), nearest: near,
           usual: branches.find((b) => b.key === usualKey)?.name || null,
@@ -835,16 +840,11 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         ? `Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`
         : ADDRESS_TEMPLATE_EN);
       // The lead-in ("Almost done — just the last details") belongs on the FIRST
-      // fulfilment question only. Repeated every turn it reads as a stuck loop.
-      // Keying on need_type was WRONG: a guest who states the type up front ("1 fries
-      // delivered") has need_type=false on their very first fulfilment ask (we ask
-      // branch/address next), so the lead-in was skipped exactly when it should show.
-      // The real signal is PRIOR session state — this is the first ask iff no
-      // fulfilment slot was captured before this turn. loaded.pending is the state as
-      // of the previous turn (savePending never rewrites these fields in place).
-      const priorFulfilment = loaded.pending?.order_type || loaded.pending?.branch ||
-        loaded.pending?.address || loaded.pending?.table_number;
-      reply = priorFulfilment ? qs.join("\n\n") : `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}`;
+      // fulfilment ask only; repeated every turn it reads as a stuck loop. The act node
+      // computes this from whether we'd already asked (persisted leadin_shown) — which
+      // is right even when the guest states the type up front (need_type would be false
+      // on their genuine first ask) AND when turn 1 asks but saves no slot.
+      reply = outcome.first_fulfilment ? `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : qs.join("\n\n");
     }
 
     // Option questions are STRUCTURE, and structure is code's job — the model
