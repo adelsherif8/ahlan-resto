@@ -1,11 +1,51 @@
 import { Router } from "express";
 import multer from "multer";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, allowRoles } from "../middleware/auth.js";
 import { restaurantContext } from "../middleware/restaurantContext.js";
+import { supabaseAhlan } from "../config/connections.js";
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
 const router = Router();
 router.use(requireAuth, restaurantContext);
+
+// Publish a designed menu: the dashboard renders a chosen template to a PDF and posts
+// it here. We store it in tenant storage and point menu_config.pdf_url at it — which
+// the bot already prefers over the auto-generated menu, so guests immediately get the
+// designed one. A cache-buster on the URL forces WhatsApp/CDN to fetch the new file.
+router.post("/pdf", allowRoles("manager"), upload.single("pdf"), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "pdf file required" });
+    if (!req.tenantClient) return res.status(501).json({ error: "needs real mode (tenant storage)" });
+    const BUCKET = "menus";
+    const path = `designed-${req.restaurant.id}.pdf`;
+    let up = await req.tenantClient.storage.from(BUCKET).upload(path, req.file.buffer, { contentType: "application/pdf", upsert: true });
+    if (up.error) {
+      await req.tenantClient.storage.createBucket(BUCKET, { public: true }).catch(() => {});
+      up = await req.tenantClient.storage.from(BUCKET).upload(path, req.file.buffer, { contentType: "application/pdf", upsert: true });
+    }
+    if (up.error) throw new Error(up.error.message);
+    const { data: pub } = req.tenantClient.storage.from(BUCKET).getPublicUrl(path);
+    const pdf_url = `${pub.publicUrl}?v=${Date.now()}`;
+
+    // merge into the existing menu_config (keep display mode, build_your_own, etc.)
+    const menu_config = { ...(req.restaurant.menu_config || {}), pdf_url, pdf_template: req.body.template || null };
+    const { error } = await supabaseAhlan.from("restaurants")
+      .update({ menu_config, updated_at: new Date().toISOString() }).eq("id", req.restaurant.id);
+    if (error) throw new Error(error.message);
+    res.json({ ok: true, pdf_url });
+  } catch (e) { next(e); }
+});
+
+// Revert to the auto-generated menu (clear the designed override).
+router.delete("/pdf", allowRoles("manager"), async (req, res, next) => {
+  try {
+    const { pdf_url: _drop, pdf_template: _t, ...rest } = req.restaurant.menu_config || {};
+    const { error } = await supabaseAhlan.from("restaurants")
+      .update({ menu_config: rest, updated_at: new Date().toISOString() }).eq("id", req.restaurant.id);
+    if (error) throw new Error(error.message);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
 
 // Photo upload → tenant storage → menu_items.photo_url (the bot sends these to guests)
 router.post("/:id/photo", upload.single("photo"), async (req, res, next) => {

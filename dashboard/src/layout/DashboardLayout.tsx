@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CalendarClock, Grid3X3, Hourglass, UtensilsCrossed,
-  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator, ChevronDown, Star, QrCode } from "lucide-react";
+  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator, ChevronDown, Star, QrCode, FileText } from "lucide-react";
 import { api, session } from "../config/api";
 import NotificationBell from "./NotificationBell";
 import { unreadCount } from "../lib/unread";
@@ -38,6 +38,7 @@ const NAV = [
   ]},
   { group: "Setup", items: [
     { to: "/menu", label: "Menu", icon: UtensilsCrossed, roles: ["admin", "manager", "kitchen"] },
+    { to: "/menu-design", label: "Menu design", icon: FileText, roles: ["admin", "manager"] },
     { to: "/users", label: "Staff", icon: Users, roles: ["admin", "manager"] },
     { to: "/qr", label: "QR codes", icon: QrCode, roles: ["admin", "manager"] },
     { to: "/settings", label: "Settings", icon: Settings, roles: ["admin", "manager"] },
