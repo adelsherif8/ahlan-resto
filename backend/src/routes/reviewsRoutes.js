@@ -76,16 +76,22 @@ router.patch("/:id", allowRoles("manager", "host"), async (req, res, next) => {
 router.post("/", allowRoles("manager", "host"), async (req, res, next) => {
   try {
     const rating = req.body.rating != null ? Math.max(1, Math.min(5, Math.round(Number(req.body.rating)))) : null;
-    const row = await req.repo.insert("feedback", {
+    const base = {
       phone_number: req.body.phone_number ? String(req.body.phone_number).slice(0, 20) : null,
       rating,
       comments: String(req.body.comments || "").slice(0, 800) || null,
       sentiment: rating != null ? (rating <= 2 ? "negative" : rating >= 4 ? "positive" : "neutral") : (req.body.sentiment || null),
       escalated: rating != null && rating <= 2,
-      order_code: req.body.order_code ? String(req.body.order_code).slice(0, 12) : null,
-      source: "manual",
-      status: "new",
-    });
+    };
+    const full = { ...base, order_code: req.body.order_code ? String(req.body.order_code).slice(0, 12) : null, source: "manual", status: "new" };
+    // schema-tolerant until migration 025: fall back to the base columns
+    let row;
+    try {
+      row = await req.repo.insert("feedback", full);
+    } catch (e) {
+      if (!/column|order_code|source|status|schema/i.test(e.message)) throw e;
+      row = await req.repo.insert("feedback", base);
+    }
     res.status(201).json(row);
   } catch (e) { next(e); }
 });
