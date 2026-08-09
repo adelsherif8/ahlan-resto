@@ -98,6 +98,7 @@ defineFlow({
         const lo = pastOrders[0];
         lastOrder = {
           items: (lo.items || []).map((i) => `${i.qty}× ${i.name}`).join(", "),
+          first: lo.items?.[0]?.name || null,   // the single dish to name in "same as last time — X?"
           when: String(lo.created_at).slice(0, 10),
         };
       }
@@ -314,15 +315,25 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         const firstName = (context.greetName || "").split(" ")[0];
         const missName = bareGreeting && firstName && context.situation !== "first_timer" && !draft.toLowerCase().includes(firstName.toLowerCase());
         const missRest = bareGreeting && context.situation === "first_timer" && !draft.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase());
+        // The usual: the founder wants it offered on a returning guest's greeting, but
+        // the LLM only remembers ~half the time even when told it MUST. Treat a missing
+        // usual as a broken greeting so the same re-ask + code fallback that guarantees
+        // the name also guarantees the usual. Scoped to bare greetings — a first-message
+        // question keeps its answer.
+        const usualName = context.usualFromOrders?.name || context.lastOrder?.first || null;
+        const missUsual = bareGreeting && usualName && context.situation === "returning" &&
+          !draft.toLowerCase().includes(usualName.toLowerCase());
         const broken = (d) =>
           BOTISM.test(d) || PITCH.test(d) ||
           (bareGreeting && firstName && context.situation !== "first_timer" && !d.toLowerCase().includes(firstName.toLowerCase())) ||
-          (bareGreeting && context.situation === "first_timer" && !d.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase()));
+          (bareGreeting && context.situation === "first_timer" && !d.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase())) ||
+          (bareGreeting && usualName && context.situation === "returning" && !d.toLowerCase().includes(usualName.toLowerCase()));
         if (broken(draft)) {
           const wants = bareGreeting
             ? [
                 firstName && context.situation !== "first_timer" ? `greet them by name ("${firstName}")` : null,
                 context.situation === "first_timer" ? `welcome them TO ${config.name} (say the restaurant name)` : null,
+                missUsual ? `offer their usual BY NAME ("same as last time — ${usualName}?" or similar, in the guest's language)` : null,
                 "warm and simple like a real host",
                 "NO dish pitching, NO assistant phrases",
               ].filter(Boolean).join("; ")
@@ -342,10 +353,17 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           // still broken after the rewrite? keep the model's own words but guarantee
           // the welcome/name by prefixing — a guest must never be greeted anonymously
           if (bareGreeting && broken(r.value?.reply || "")) {
-            const prefix = context.situation === "first_timer"
-              ? (config.ai?.greeting || `Welcome to ${config.name}!`).trim()
-              : `Welcome back${firstName ? `, ${firstName}` : ""}!`;
-            r.value = { ...(r.value || {}), reply: `${prefix} ${(r.value?.reply || "").replace(/^(hey|hi|hello)[!,. ]*/i, "")}`.trim() };
+            let fixed = (r.value?.reply || "").replace(/^(hey|hi|hello)[!,. ]*/i, "");
+            if (context.situation !== "first_timer" && firstName && !fixed.toLowerCase().includes(firstName.toLowerCase())) {
+              fixed = `Welcome back${firstName ? `, ${firstName}` : ""}! ${fixed}`.trim();
+            } else if (context.situation === "first_timer" && !fixed.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase())) {
+              fixed = `${(config.ai?.greeting || `Welcome to ${config.name}!`).trim()} ${fixed}`.trim();
+            }
+            // guarantee the usual is offered — code's last word when the model won't
+            if (usualName && !fixed.toLowerCase().includes(usualName.toLowerCase())) {
+              fixed = `${fixed} Same as last time — ${usualName}?`.trim();
+            }
+            r.value = { ...(r.value || {}), reply: fixed };
           }
         }
       }
