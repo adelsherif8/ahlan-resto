@@ -58,10 +58,11 @@ export function featuresScript({ menu = [], currency = "EGP", kidsMode = false, 
 <script>
 (function(){
   // SECURITY: data.restaurant/menu[].name/sides[].name are restaurant-controlled
-  // strings (config.name, menu_items.name) embedded straight into this <script>
-  // block. Escaping "<" (not just "</script>") is what builder.js's own jsonScript()
-  // does two call-sites over for window.__AHLAN__ — this one skipped it, which let a
-  // name containing "</script><script>..." close the tag early and run as real HTML.
+  // strings (config.name, menu_items.name) embedded straight into this script block.
+  // We escape every "<" to < (the same thing builder.js's jsonScript() does for
+  // window.__AHLAN__), so a name carrying a script-closing tag can't break out of the
+  // block. NOTE: keep the literal close-tag sequence OUT of this comment too — a raw
+  // one here would itself close the script element early. (It did once. Not again.)
   var D = ${JSON.stringify(data).replace(/</g, "\\u003c")};
   var B = null;
   var state = { doneness: 1, sauce: 1, name: '', avoid: {}, meal: {}, kids: ${kidsMode ? "true" : "false"} };
