@@ -2,21 +2,40 @@ import { money } from "./format";
 
 // modifiers in the order a cook thinks: format → size → fries → drink → the rest
 const KEY_ORDER = ["format", "size", "side", "drink"];
+
+// an option value can be a string, an array, or (from POS / older orders) an object
+// like {name, price} — never render that as "[object Object]". Pull a human label.
+export function optVal(v: any): string {
+  if (v == null) return "";
+  if (Array.isArray(v)) return v.map(optVal).filter(Boolean).join(", ");
+  if (typeof v === "object") return String(v.label ?? v.name ?? v.value ?? "").trim();
+  return String(v).trim();
+}
+
+// "just the sandwich" / "sandwich only" is the default, not a modification — a plain
+// sandwich needs no annotation. Only a MEAL earns extra lines (its fries + drink).
+const SANDWICH_ONLY = /^(sandwich[\s-]*only|just[\s-]*(a|the)?[\s-]*sandwich|no[\s-]*meal|بس|ساندوتش بس|لوحده)$/i;
+
 export function modLines(i: any): string[] {
   const entries = Object.entries(i.options || {}).filter(([k]) => k !== "slots");
   entries.sort(([a], [b]) => {
     const ia = KEY_ORDER.indexOf(a), ib = KEY_ORDER.indexOf(b);
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
-  const out = entries.map(([, v]) => (Array.isArray(v) ? v.join(", ") : String(v)));
+  const out: string[] = [];
+  for (const [, v] of entries) {
+    const s = optVal(v);
+    if (!s || SANDWICH_ONLY.test(s)) continue; // drop empties + the sandwich-only default
+    out.push(s);
+  }
   const slots = (i.options || {}).slots;
   if (Array.isArray(slots)) {
     slots.forEach((sl: any, si: number) => {
-      const vals = Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ");
-      out.push(`${si + 1}) ${vals}${sl?.notes ? ` — ${sl.notes}` : ""}`);
+      const vals = Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => optVal(x)).filter(Boolean).join(" + ");
+      if (vals || sl?.notes) out.push(`${si + 1}) ${vals}${sl?.notes ? ` — ${sl.notes}` : ""}`);
     });
   }
-  if (i.notes) out.push(`* ${i.notes}`);
+  if (i.notes && !SANDWICH_ONLY.test(String(i.notes).trim())) out.push(`* ${i.notes}`);
   return out;
 }
 

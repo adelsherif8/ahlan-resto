@@ -6,6 +6,8 @@
 // actually know (no rider assigned yet, no location shared) is said plainly rather
 // than filled in with a plausible number.
 
+import { itemMods } from "./orderline.js";
+
 const esc = (s) => String(s ?? "").replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c]));
 const safeUrl = (u) => (/^https?:\/\/[^\s"'<>]+$/i.test(String(u || "")) ? esc(u) : null);
 
@@ -41,7 +43,7 @@ export function renderTrackPage({ config, brand, order, courier, apiBase, token 
   }).join("");
 
   const items = (order.items || []).map((i) => {
-    const extra = [i.options, i.notes].filter(Boolean).map(esc).join(" · ");
+    const extra = itemMods(i).map(esc).join(" · ");
     return `<div class="item"><span class="q">${esc(i.qty || 1)}×</span><span><b>${esc(i.name)}</b>${extra ? `<em>${extra}</em>` : ""}</span></div>`;
   }).join("");
 

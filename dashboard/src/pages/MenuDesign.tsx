@@ -40,6 +40,23 @@ export default function MenuDesign() {
   const [current, setCurrent] = useState<string | null>(null);  // currently published pdf_url
   const [msg, setMsg] = useState("");
   const renderRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(0.62);
+
+  // fit the fixed 794px template to the preview column width so it fills the space
+  // (no dead gap on wide screens); zoom scales AND reflows height, unlike transform.
+  useEffect(() => {
+    const el = previewRef.current;
+    if (!el) return;
+    const fit = () => {
+      const avail = el.clientWidth - 24; // minus padding
+      if (avail > 0) setZoom(Math.min(1.2, avail / 794));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [data]);
 
   useEffect(() => {
     Promise.all([api.get("/api/menu"), api.get("/api/settings")]).then(([m, s]) => {
@@ -126,8 +143,8 @@ export default function MenuDesign() {
 
         {/* live preview — the real template. `zoom` scales AND reflows, so the container
             wraps the whole menu with no dead space (transform left a gap + clipped it). */}
-        <div className="overflow-auto rounded-xl border border-zinc-800 bg-zinc-200 p-3">
-          <div style={{ zoom: 0.62 } as React.CSSProperties}>
+        <div ref={previewRef} className="overflow-auto rounded-xl border border-zinc-800 bg-zinc-200 p-3">
+          <div style={{ zoom } as React.CSSProperties}>
             <MenuTemplate template={template} data={data} />
           </div>
         </div>

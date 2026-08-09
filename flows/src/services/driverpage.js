@@ -9,6 +9,8 @@
 //   · distance is measured, ETA is derived from it and labelled as an estimate —
 //     the page never states a time it cannot actually stand behind
 
+import { itemMods } from "./orderline.js";
+
 const esc = (s) => String(s ?? "")
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
   .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -59,7 +61,7 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
   // What's actually in the bag — a rider handing over the wrong order is the one
   // mistake this page exists to prevent.
   const items = (order.items || []).map((i) => {
-    const extras = [i.options, i.notes].filter(Boolean).map(esc).join(" · ");
+    const extras = itemMods(i).map(esc).join(" · ");
     return `<div class="item"><span class="q">${esc(i.qty || 1)}×</span><span><b>${esc(i.name)}</b>${extras ? `<em>${extras}</em>` : ""}</span></div>`;
   }).join("") || '<div class="item muted">No items listed</div>';
 

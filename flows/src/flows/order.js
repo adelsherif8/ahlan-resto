@@ -11,6 +11,7 @@ import { fmtMoney } from "../services/format.js";
 import { makeReceipt } from "../services/receipt.js";
 import { menuPdfUrl } from "../services/menupdf.js";
 import { nextOrderCode } from "../services/ordercode.js";
+import { itemMods } from "../services/orderline.js";
 import { parseAddress, formatAddress, ADDRESS_TEMPLATE_EN } from "../services/address.js";
 import { signTrackToken } from "../services/builder.js";
 
@@ -1081,26 +1082,10 @@ function matchSaved(message, saved) {
 // ---------------------------------------------------------------------------
 // One human line for everything chosen on a line item — picks can be a single
 // name or a list (a bundle picks several sandwiches).
+// Delegates to the shared formatter (object-safe, and "sandwich only" is the
+// default so a plain sandwich shows no modifier) — see services/orderline.js.
 function modifiers(it) {
-  const opts = it.options || {};
-  if (Array.isArray(opts.slots)) {
-    const out = opts.slots.map((sl, i) => {
-      const vals = Object.entries(sl || {}).filter(([k]) => k !== "notes").map(([, v]) => v);
-      const note = sl?.notes ? ` — ${sl.notes}` : "";
-      return `${i + 1}) ${vals.join(" + ") || "?"}${note}`;
-    });
-    if (it.notes) out.push(it.notes);
-    return out;
-  }
-  const order = (it.option_defs || []).map((g) => g.key);
-  const keys = [...order.filter((k) => opts[k]), ...Object.keys(opts).filter((k) => !order.includes(k) && opts[k])];
-  const out = [];
-  for (const k of keys) {
-    const v = opts[k];
-    out.push(Array.isArray(v) ? v.join(", ") : v);
-  }
-  if (it.notes) out.push(it.notes);
-  return out;
+  return itemMods(it);
 }
 
 // Option groups live on the menu item itself (menu_items.options), so each

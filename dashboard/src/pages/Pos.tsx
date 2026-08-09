@@ -6,7 +6,7 @@ import {
   History, Gift, MonitorSmartphone, PauseCircle, Grid3X3, Ticket as TicketIcon, Languages, CloudOff, Maximize, Store,
 } from "lucide-react";
 import { api, session } from "../config/api";
-import { printTicket as printSharedTicket } from "../lib/ticket";
+import { printTicket as printSharedTicket, optVal } from "../lib/ticket";
 import { PageHeader, Btn } from "../components/ui";
 
 // The POS walks the SAME option questions the bot asks — one config, two fronts.
@@ -760,11 +760,11 @@ export default function Pos() {
                     </span>
                     <span className="tabular-nums text-zinc-300">{money(l.unit * l.qty)}</span>
                   </div>
-                  {Object.entries(l.options).filter(([k]) => k !== "slots").map(([k, v]) => (
-                    <div key={k} className="text-[11px] text-zinc-500">{Array.isArray(v) ? v.join(", ") : String(v)}</div>
+                  {Object.entries(l.options).filter(([k]) => k !== "slots").map(([k, v]) => optVal(v)).filter(Boolean).map((s, k) => (
+                    <div key={k} className="text-[11px] text-zinc-500">{s}</div>
                   ))}
                   {Array.isArray(l.options.slots) && l.options.slots.map((sl: any, si: number) => (
-                    <div key={si} className="text-[11px] text-zinc-500">{si + 1}) {Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => x).join(" + ")}{sl?.notes ? ` — ${sl.notes}` : ""}</div>
+                    <div key={si} className="text-[11px] text-zinc-500">{si + 1}) {Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => optVal(x)).filter(Boolean).join(" + ")}{sl?.notes ? ` — ${sl.notes}` : ""}</div>
                   ))}
                   {l.notes && <div className="flex items-center gap-1 text-[11px] text-amber-300"><StickyNote size={10} /> {l.notes}</div>}
                   {(l as any).hold && <div className="text-[10px] font-bold uppercase text-amber-400">on hold — fire from the board</div>}
