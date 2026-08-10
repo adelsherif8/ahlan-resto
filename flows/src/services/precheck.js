@@ -26,20 +26,14 @@ export async function sessionPrecheck(db, sessionId, history) {
   out.turns_in_session = guestTurns.length;
   if (out.turns_in_session >= MAX_TURNS_SESSION) out.circuit_breaker = true;
 
-  // Loop detection is SEMANTIC, not byte-exact: the model rarely repeats a reply
-  // verbatim ("Which drink?" vs "And to drink?"), so exact-string matching missed real
-  // loops. Normalize (lowercase, strip punctuation/emoji/whitespace) and treat two
-  // replies as "the same" when they share ≥85% of their words.
+  // Loop detection stays byte-exact ON PURPOSE. A fuzzy (word-overlap) version false-
+  // positived on legit multi-step order asks (branch → payment → confirm share
+  // boilerplate), tripping a handoff mid-order and killing the order. The reported
+  // "same wrong answer" loop is prevented upstream now (order-flow handoff + per-session
+  // lock), so exact-match is the safe, sufficient backstop here.
   const aiTurns = (history || []).filter((h) => h.role === "ai").map((h) => h.message);
-  const normWords = (s) => new Set(String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean));
-  const similar = (a, b) => {
-    const A = normWords(a), B = normWords(b);
-    if (!A.size || !B.size) return false;
-    let inter = 0; for (const w of A) if (B.has(w)) inter++;
-    return inter / (A.size + B.size - inter) >= 0.85; // Jaccard
-  };
-  const repeatedTwice = aiTurns.length >= 2 && similar(aiTurns.at(-1), aiTurns.at(-2));
-  const repeatedThrice = aiTurns.length >= 3 && repeatedTwice && similar(aiTurns.at(-2), aiTurns.at(-3));
+  const repeatedTwice = aiTurns.length >= 2 && aiTurns.at(-1) === aiTurns.at(-2);
+  const repeatedThrice = aiTurns.length >= 3 && repeatedTwice && aiTurns.at(-2) === aiTurns.at(-3);
   if (repeatedTwice) out.loop_detected = true;
 
   // reservation session state (lights up with the reservation agent)
