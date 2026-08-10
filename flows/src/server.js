@@ -744,6 +744,28 @@ app.post("/api/driver/:token/action", rateLimit("dact", 30, 60_000, (req) => req
       await pushGuest(tenant, order, riderCopy.delay(order, 10));
       return res.json({ ok: true, note: "Customer told about the delay" });
     }
+    if (action === "pod") {
+      // Proof of delivery: the rider snaps a photo at the door (page downscales it to
+      // ~1280px JPEG before upload). Stored in tenant storage; pod_url on the order is
+      // best-effort (migration 028) so a pre-migration DB still keeps the photo.
+      const dataUrl = String(req.body?.photo || "");
+      const m = dataUrl.match(/^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/);
+      if (!m) return res.status(400).json({ error: "photo (data URL) required" });
+      const buf = Buffer.from(m[2], "base64");
+      if (buf.length > 3_500_000) return res.status(413).json({ error: "photo too large" });
+      const BUCKET = "pod";
+      const path = `${order.code}.jpg`;
+      let up = await db.storage.from(BUCKET).upload(path, buf, { contentType: "image/jpeg", upsert: true });
+      if (up.error) {
+        await db.storage.createBucket(BUCKET, { public: true }).catch(() => {});
+        up = await db.storage.from(BUCKET).upload(path, buf, { contentType: "image/jpeg", upsert: true });
+      }
+      if (up.error) return res.status(500).json({ error: up.error.message });
+      const { data: pub } = db.storage.from(BUCKET).getPublicUrl(path);
+      const pod_url = `${pub.publicUrl}?v=${Date.now()}`;
+      await db.from("orders").update({ pod_url }).eq("id", order.id).then(() => {}, () => {});
+      return res.json({ ok: true, url: pod_url, note: "Proof of delivery saved 📸" });
+    }
     if (action === "cod") {
       // Rider records the cash he actually received; change is computed here, not typed —
       // one less place for a tired rider to make math at a doorstep. Stored on the order

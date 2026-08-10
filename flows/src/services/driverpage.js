@@ -111,6 +111,7 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
   button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:11px;padding:14px;font-size:15px;font-weight:700;margin-bottom:8px;cursor:pointer;font-family:inherit}
   .primary{background:var(--accent);color:#fff}
   .ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+  label.podbtn{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:11px;padding:14px;font-size:15px;font-weight:700;margin-bottom:8px;cursor:pointer}
   .ok{background:#0f7a4d;color:#fff}
   .step{display:flex;align-items:center;gap:9px;font-size:13.5px;padding:5px 0;color:var(--muted)}
   .step i{width:19px;height:19px;border-radius:50%;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
@@ -165,6 +166,9 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
       <button class="ghost" onclick="act('near')">${icon("pin")} I'm 2 minutes away</button>
       <button class="ghost" onclick="act('arrived')">${icon("door")} I've arrived</button>
       <button class="ghost" onclick="act('delay')">${icon("clock")} Running ~10 min late</button>
+      <label class="ghost podbtn" for="podfile">${icon("check")} 📸 Proof of delivery (photo at the door)</label>
+      <input id="podfile" type="file" accept="image/*" capture="environment" style="display:none" onchange="podUpload(this)">
+      <div id="podstate" class="muted" style="display:none"></div>
       <button class="ok" onclick="if(confirm('Mark ${esc(order.code)} as DELIVERED?'))act('delivered')">${icon("check")} Delivered</button>
       <div id="msg"></div>
       <div class="muted">Each button sends the customer a WhatsApp update from the restaurant's number. Sharing your location keeps the ETA accurate.</div>
@@ -196,6 +200,28 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
     const rcv = Number((document.getElementById('rcv')||{}).value)||0;
     if(rcv <= 0) { document.getElementById('msg').textContent = 'Enter the cash you received first'; return; }
     act('cod', { received: rcv });
+  }
+  // Proof of delivery: downscale to ~1280px JPEG in the browser (phone photos are 3-8MB;
+  // the server caps uploads), then send as a data URL.
+  function podUpload(input){
+    const f = input.files && input.files[0];
+    if(!f) return;
+    const st = document.getElementById('podstate');
+    st.style.display=''; st.textContent='Uploading photo…';
+    const img = new Image();
+    img.onload = function(){
+      const MAX = 1280;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const dataUrl = c.toDataURL('image/jpeg', 0.72);
+      fetch(API+'/api/driver/'+T+'/action', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'pod', photo:dataUrl})})
+        .then(r=>r.json()).then(j=>{ st.textContent = j.ok ? '✅ Proof of delivery saved' : (j.error || 'Upload failed — try again'); })
+        .catch(()=>{ st.textContent = 'Upload failed — try again'; });
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(f);
   }
 
   function km(a, b){

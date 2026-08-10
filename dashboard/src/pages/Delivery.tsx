@@ -30,6 +30,7 @@ export default function Delivery() {
   const [addName, setAddName] = useState("");
   const [addPhone, setAddPhone] = useState("");
   const [addVehicle, setAddVehicle] = useState("");
+  const [addPlate, setAddPlate] = useState("");
   const [editCourier, setEditCourier] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [zones, setZones] = useState<any[]>([]);
@@ -146,9 +147,9 @@ export default function Delivery() {
 
   async function addCourier() {
     if (!addName.trim()) return;
-    await api.post("/api/couriers", { name: addName.trim(), phone_number: addPhone.trim() || null, vehicle: addVehicle.trim() || null }).catch((e: any) =>
+    await api.post("/api/couriers", { name: addName.trim(), phone_number: addPhone.trim() || null, vehicle: addVehicle.trim() || null, plate: addPlate.trim() || null }).catch((e: any) =>
       alert(e.response?.data?.error === undefined ? "Run migration 013 first (couriers table)" : e.response?.data?.error));
-    setAddName(""); setAddPhone(""); setAddVehicle("");
+    setAddName(""); setAddPhone(""); setAddVehicle(""); setAddPlate("");
     load();
   }
 
@@ -299,6 +300,9 @@ export default function Delivery() {
                         <div className="flex items-center gap-1 text-xs text-emerald-400">
                           <BadgeCheck size={12} /> delivered {new Date(o.delivered_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           {mins(o.created_at) !== null && o.delivered_at ? ` · ${Math.round((new Date(o.delivered_at).getTime() - new Date(o.created_at).getTime()) / 60000)} min door-to-door` : ""}
+                          {o.pod_url && (
+                            <a href={o.pod_url} target="_blank" rel="noreferrer" className="ml-1 underline decoration-dotted hover:text-emerald-300">📸 proof</a>
+                          )}
                         </div>
                       )}
                     </div>
@@ -337,7 +341,8 @@ export default function Delivery() {
                   <div className="mt-2 space-y-1.5 border-t border-zinc-800 pt-2">
                     <Input placeholder="Name" value={editCourier.name || ""} onChange={(e: any) => setEditCourier({ ...editCourier, name: e.target.value })} />
                     <Input placeholder="Phone" value={editCourier.phone_number || ""} onChange={(e: any) => setEditCourier({ ...editCourier, phone_number: e.target.value })} />
-                    <Input placeholder="Vehicle — scooter, plate no…" value={editCourier.vehicle || ""} onChange={(e: any) => setEditCourier({ ...editCourier, vehicle: e.target.value })} />
+                    <Input placeholder="Vehicle — scooter, bike…" value={editCourier.vehicle || ""} onChange={(e: any) => setEditCourier({ ...editCourier, vehicle: e.target.value })} />
+                    <Input placeholder="Plate no. (shown to the customer)" value={editCourier.plate || ""} onChange={(e: any) => setEditCourier({ ...editCourier, plate: e.target.value })} />
                     <Input placeholder="National ID" value={editCourier.national_id || ""} onChange={(e: any) => setEditCourier({ ...editCourier, national_id: e.target.value })} />
                     <Input placeholder="Notes" value={editCourier.notes || ""} onChange={(e: any) => setEditCourier({ ...editCourier, notes: e.target.value })} />
                     <Btn className="w-full px-3 py-1.5 text-xs" onClick={async () => {
@@ -354,6 +359,7 @@ export default function Delivery() {
               <Input placeholder="Rider name" value={addName} onChange={(e: any) => setAddName(e.target.value)} />
               <Input placeholder="Phone (for WhatsApp send)" value={addPhone} onChange={(e: any) => setAddPhone(e.target.value)} />
               <Input placeholder="Vehicle (optional)" value={addVehicle} onChange={(e: any) => setAddVehicle(e.target.value)} />
+              <Input placeholder="Plate no. (optional)" value={addPlate} onChange={(e: any) => setAddPlate(e.target.value)} />
               <Btn className="w-full px-3 py-1.5 text-xs" onClick={addCourier}><span className="flex items-center justify-center gap-1"><Plus size={12} /> Add courier</span></Btn>
             </div>
           </Card>

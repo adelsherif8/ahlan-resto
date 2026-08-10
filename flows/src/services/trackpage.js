@@ -104,7 +104,7 @@ export function renderTrackPage({ config, brand, order, courier, apiBase, token 
       <div class="lbl">${icon("bike", 13)} Your rider</div>
       <div class="rider">
         <div class="av">${esc(String(courier.name).trim().charAt(0).toUpperCase())}</div>
-        <div class="who"><b>${esc(courier.name)}</b><span>${esc(courier.vehicle || "On the way to you")}</span></div>
+        <div class="who"><b>${esc(courier.name)}</b><span>${esc([courier.vehicle, courier.plate ? `plate ${courier.plate}` : null].filter(Boolean).join(" · ") || "On the way to you")}</span></div>
         ${courier.phone_number ? `<a class="call" href="tel:${esc(String(courier.phone_number).replace(/[^+\d]/g, ""))}">${icon("phone", 15)} Call</a>` : ""}
       </div>
     </div>` : ""}
