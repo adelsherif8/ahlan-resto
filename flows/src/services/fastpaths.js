@@ -83,6 +83,11 @@ export function matchFaq(message, config, sticky) {
   // "where's MY ORDER / my food / my delivery" asks about their ticket, not our
   // address — it belongs to the order agent's status flow, never to this FAQ
   if (/(?<![\p{L}\p{N}])(my |the |our )?(order|food|delivery|rider|driver|طلب(ي|ه)?|الطلب|الاوردر|الأوردر|اوردري|الدليفري|السواق)(?![\p{L}\p{N}])/iu.test(message)) return null;
+  // ANY delivery-coverage question ("where do you (not) deliver to?", "بتوصلوا فين") is
+  // about ZONES, not our address — the LLM answers it from the delivery facts. The old
+  // guard only caught the noun "delivery"; the verb slipped through and a guest asking
+  // about coverage got a map pin to the branch instead.
+  if (/(?<![\p{L}\p{N}])(deliver(s|y|ies|ing)?|توصيل|توصلوا|بتوصل|توصل)(?![\p{L}\p{N}])/iu.test(message)) return null;
   // only fire on short, single-topic questions — anything nuanced goes to the LLM
   if (message.length > 90 || message.split("\n").length > 2) return null;
   if (DAY_PAT.test(message) || COMPOUND_PAT.test(message)) return null;

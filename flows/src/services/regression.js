@@ -171,6 +171,16 @@ const CASES = [
   { id: "midconfigq", needs: "casual", name: "Question while configuring an item isn't forced into payment",
     turns: ["an iconic meal", "do you deliver to Maadi and how much?"],
     expect: [/deliver|pickup|pick.?up|توصيل|نوصل|maadi|range|far/i], forbid: [/how would you like to pay|كيف تحب تدفع|\bcash\b.*\bcard\b/i] },
+  // "Medium" during a delivery order's SIZE question is the size answer — it must never
+  // be captured as the delivery address (which made the bot claim "we don't deliver to
+  // your area" out of nowhere and re-ask the size forever — the Habiba bug).
+  { id: "optnotaddress", needs: "casual", name: "Option answer mid-delivery isn't mistaken for the address",
+    turns: ["3 fries delivered please", "Medium"],
+    expect: [/address|street|building|maps|عنوان|اللوكيشن/i], forbid: [/don'?t deliver|can'?t deliver|منوصلش|مش بنوصل/i] },
+  // "where do you (not) deliver to?" asks about COVERAGE — never the branch map pin
+  { id: "wheredeliver", name: "Delivery-coverage question isn't hijacked by the location FAQ",
+    msg: "where do you not deliver to?",
+    expect: [/deliver|توصيل/i], forbid: [/^📍/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
     expect: [/vegan|shawarma|edamame/i, /valet|parking|park(ing)?\b|تركن|جراج/i] },

@@ -434,7 +434,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // Deterministic address capture: we're mid-delivery waiting for the address,
       // nothing else in the message fits — the guest's words ARE the address. The
       // extractor misses bare areas ("Nasr City") and the guest got re-asked forever.
-      if (!address && orderType === "delivery" && loaded.pending?.order_type === "delivery" && items.length) {
+      // NEVER while an option question is open: "Medium" during the size ask is the
+      // ANSWER, not an address — capturing it as one poisoned the draft (fake area →
+      // false "we don't deliver", size re-asked forever, every later answer eaten).
+      if (!address && orderType === "delivery" && loaded.pending?.order_type === "delivery" && items.length && !loaded.pending?.awaiting_option) {
         const t = input.message.trim();
         const isCommand = (e.items?.length) || (e.edits?.length) ||
           /^(dine.?in|pick.?up|pickup|delivery|توصيل|استلام|في المطعم)(?![\p{L}\p{N}])/iu.test(t) ||
@@ -496,6 +499,9 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const pending_order = {
           ...(loaded.pending || {}),
           items, order_type: orderType, table_number: tableNumber, branch, address, map_link: mapLinkRaw,
+          // payment said early ("pickup and pay cash" while a size question is still open)
+          // is remembered — it used to be lost on every option re-ask
+          ...(e.payment_method ? { payment_method: e.payment_method } : {}),
           ...(dq?.covered ? { delivery_fee: dq.fee } : {}),
           at: new Date().toISOString(),
           ...extra,
