@@ -96,11 +96,11 @@ Return JSON only:
  "pickup_time": string|null, "notes": string|null (sauce prefs, no onions, etc. — ALSO cash-change requests: "change for 500"/"معايا ٥٠٠ طلع الباقي" → "change for 500"),
  "address": "<the delivery address EXACTLY as the guest wrote it, verbatim>"|null,
  "branch": "<exact branch NAME from this list if the guest names one, else null>",
- "edits": [{"op": "add"|"remove"|"set_qty"|"replace", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null}]|null,
+ "edits": [{"op": "add"|"remove"|"set_qty"|"replace"|"set_option", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null, "option": "<ONLY for op set_option: the choice they want for that item, e.g. 'combo'/'sandwich'/'large'>"|null}]|null,
  "reorder_ref": "<ONLY with intent repeat_last: if they point at a SPECIFIC past order — a weekday ('same as last Tuesday'), a dish ('the truffle one I got'), 'my first order' — put that phrase here; a plain 'the usual'/'same as last time' leaves this null>"|null,
  "question": "<people mix ordering and chatting in ONE message: 'add a J special, and is the jalapeno bites spicy?' — the NON-order part (a question, asking for a suggestion, chit-chat) goes here so it gets ANSWERED alongside the order step; null when the whole message is order actions. NEVER put it in notes. If the ENTIRE message is a question with no order content, use intent 'question' instead>"|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/GARBLED word (voice notes!) is SKIPPED, never guessed — but a CLEARLY named product we don't carry ("a cola zero", "red bull") goes into items AS THE GUEST SAID IT (code reports it as unavailable — silently dropping it loses part of the order); if the RECENT CONVERSATION shows the guest already AGREED to a specific dish we recommended ("thats nice i want this" after we pitched it) and it is NOT already in the draft, include that dish in items too — to the guest it's ALREADY on their order and dropping it loses it ("also I want X" means X in ADDITION to it); never duplicate a dish the draft already has; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel/scrap the WHOLE order or start over ("cancel it all", "cancel this order", "start over", "forget the whole thing", "الغي الاوردر", "بلاش كله", "من الأول") — removing ONE item is edits op "remove", never cancel_order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
+Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/GARBLED word (voice notes!) is SKIPPED, never guessed — but a CLEARLY named product we don't carry ("a cola zero", "red bull") goes into items AS THE GUEST SAID IT (code reports it as unavailable — silently dropping it loses part of the order); if the RECENT CONVERSATION shows the guest already AGREED to a specific dish we recommended ("thats nice i want this" after we pitched it) and it is NOT already in the draft, include that dish in items too — to the guest it's ALREADY on their order and dropping it loses it ("also I want X" means X in ADDITION to it); never duplicate a dish the draft already has; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item — BUT a bare "no" + item + OPTION word ("no, nashville slaw combo, the other is not") is NEVER removal: it's correcting WHICH item has that option → edits op "set_option" per item ([{op:"set_option", item:"Nashville Slaw", option:"combo"}, {op:"set_option", item:"J'S Special Burger", option:"sandwich"}]); removal needs remove-words (remove/take off/شيل/didn't order); an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel/scrap the WHOLE order or start over ("cancel it all", "cancel this order", "start over", "forget the whole thing", "الغي الاوردر", "بلاش كله", "من الأول") — removing ONE item is edits op "remove", never cancel_order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -377,6 +377,24 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           return loaded.menu.find((m) => normName(m.name) === w) ||
                  loaded.menu.find((m) => normName(m.name).includes(w) || w.includes(normName(m.name))) || null;
         };
+        // op "set_option": "no, the SLAW is the combo, the other one isn't" — reassigning
+        // an option between items, applied by code against the item's real choice lists.
+        // Ambiguous matches set nothing (the walk re-asks) — never a guess.
+        const applyOptionTo = (it, want) => {
+          const w = normName(want || "");
+          if (!w || !it) return false;
+          for (const g of it.option_defs || []) {
+            if (g.key === "slots") continue;
+            const opts = groupChoices(g, loaded.menu);
+            let hit = opts.find((o) => normName(o.name) === w) || null;
+            if (!hit) {
+              const near = opts.filter((o) => normName(o.name).includes(w) || w.includes(normName(o.name)));
+              hit = near.length === 1 ? near[0] : null;
+            }
+            if (hit) { it.options[g.key] = hit.name; return true; }
+          }
+          return false;
+        };
         for (const ed of (e.edits || []).slice(0, 6)) {
           const target = normName(ed.item || "");
           // "make it just 1" / "no I want X instead" (only one item on the order) names
@@ -385,6 +403,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           // a name back at us for something already unambiguous.
           if (!target && ed.op !== "add" && items.length === 1) {
             if (ed.op === "remove") { items.splice(0, 1); continue; }
+            if (ed.op === "set_option") { applyOptionTo(items[0], ed.option); continue; }
             if (ed.op === "set_qty") { items[0].qty = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20); continue; }
             if (ed.op === "replace") {
               const hit = findMenuItem(ed.with);
@@ -408,6 +427,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             const idx = items.findIndex((it) => normName(it.name).includes(target) || target.includes(normName(it.name)));
             if (idx < 0) continue;
             if (ed.op === "remove") items.splice(idx, 1);
+            else if (ed.op === "set_option") applyOptionTo(items[idx], ed.option);
             else if (ed.op === "set_qty") items[idx].qty = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20);
             else if (ed.op === "replace") {
               const hit = findMenuItem(ed.with);

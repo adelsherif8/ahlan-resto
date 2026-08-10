@@ -183,6 +183,11 @@ const CASES = [
     expect: [/deliver|توصيل/i], forbid: [/^📍/] },
   // One answer must configure ONE item — the second combo-item gets its own ask
   // (a real guest's 'Combo cola' silently configured BOTH her sandwiches).
+  // "no, X is the combo, the other isn't" reassigns options between items — it must
+  // NEVER be read as removing X (a real guest's slaw vanished exactly this way).
+  { id: "optreassign", needs: "casual", name: "Option correction between items never removes an item",
+    turns: ["an iconic meal and an american truck meal please", "full meal", "no the american truck is the full meal, the iconic is not"],
+    expect: [/iconic/i, /american truck/i], forbid: [/O-[A-Z2-9]{4}/] },
   // "cancel it all" kills the DRAFT too — it must never resurrect with stale items on
   // the next order (a real guest cancelled, re-ordered, and got the old draft back).
   { id: "cancelall", needs: "casual", name: "Cancel-all clears the draft — next order starts truly fresh",
