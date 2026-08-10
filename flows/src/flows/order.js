@@ -620,8 +620,8 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             `${i + 1}. "${g.label || g.key}": [${groupChoices(g, loaded.menu).map((c) => `"${c.name}"`).join(", ")}]`).join("\n");
           const rsys = `A restaurant guest is answering menu questions. Their message may be Arabic, Franco-Arabic, misspelled, or a garbled voice transcript — understand accents and translations ("ديابلو"→"Diablo fries", "في كولا"→"V Cola", "برتقان"→the orange drink).
 QUESTIONS:\n${lists}
-Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "unmatched": "<what the guest asked for that is NOT in any list — e.g. 'cola zero' when the list has Coca-Cola and Coca-Cola Diet; null if nothing>"}.
-RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a named VARIANT that isn't in the list answers NOTHING — "cola zero" when the list has "Coca - Cola" and "Coca - Cola Diet" is null (asking beats serving the wrong drink), NEVER the nearest-looking choice; never guess.`;
+Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "equivalent": {"asked": "<what they said>", "used": "<the list choice you mapped it to>"}|null, "unmatched": "<what they asked for with NO reasonable equivalent in any list; null if nothing>"}.
+RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent" so we can tell the guest. Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent.`;
           const rr = await f.node("resolve_options", async () =>
             chatJSON(MODEL_NANO, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
             { input: { open_groups: openGroups.map((g) => g.label || g.key), message: input.message } });
@@ -631,6 +631,10 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           const unmatchedOpt = typeof rr.value?.unmatched === "string" && rr.value.unmatched.trim()
             ? rr.value.unmatched.trim().slice(0, 40) : null;
           if (unmatchedOpt) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
+          // transparent substitution: applied AND announced, never silent — the guest can
+          // overrule it in one message ("no, sprite then")
+          const eq = rr.value?.equivalent;
+          if (eq?.asked && eq?.used) outcomeNotices.push(`${String(eq.asked).slice(0, 30)} → closest we carry is *${String(eq.used).slice(0, 40)}*, put that in ✍️ (say the word to switch)`);
           let appliedAny = false;
           openGroups.forEach((g, i) => {
             const a = answers[String(i + 1)];

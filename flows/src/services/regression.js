@@ -186,10 +186,10 @@ const CASES = [
   // "cola zero" (a variant we don't carry) mid-ask: ONE reply, no false "Got it,
   // Coca-Cola Diet" claim, drink question stays open (a real guest got two
   // contradictory messages claiming a drink she never chose).
-  { id: "colazero", needs: "casual", name: "Unknown variant answer: says we don't have it, no false claim, one reply",
+  { id: "colazero", needs: "casual", name: "Variant we don't carry maps to its equivalent — applied AND announced",
     turns: ["an iconic meal for pickup from Maadi", "Full Meal cola zero"],
-    expect: [/don'?t have|we don'?t|مفيش|not (carry|available)/i, /drink|coca|sprite|fanta/i],
-    forbid: [/got it[^\n]{0,40}(diet|coca)/i, /just say ['"]?order/i] },
+    expect: [/closest|بدل|قريب|don'?t have|مفيش/i, /coca[ -]*cola diet|diet/i],
+    forbid: [/just say ['"]?order/i] },
   // The same option question missed 3× is a LOOP — a human takes over instead of a
   // 4th identical re-ask (the last unguarded loop class; C2 from the perf plan).
   { id: "stuckhandoff", needs: "casual", name: "Same question missed 3x -> human takes over, never a 4th re-ask",
