@@ -166,6 +166,11 @@ const CASES = [
   { id: "midorderresume", needs: "casual", name: "Order continues after a mid-order question",
     turns: ["I want to order", "do you deliver to Maadi?", "an iconic meal for pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/] },
+  // A question WHILE an item is mid-configuration must be answered, NEVER force-progressed
+  // to payment/options (the "J'S Special awaiting options → بتوصلوا؟ → how to pay" bug).
+  { id: "midconfigq", needs: "casual", name: "Question while configuring an item isn't forced into payment",
+    turns: ["an iconic meal", "do you deliver to Maadi and how much?"],
+    expect: [/deliver|pickup|pick.?up|توصيل|نوصل|maadi|range|far/i], forbid: [/how would you like to pay|كيف تحب تدفع|\bcash\b.*\bcard\b/i] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
     expect: [/vegan|shawarma|edamame/i, /valet|parking|park(ing)?\b|تركن|جراج/i] },

@@ -87,7 +87,7 @@ defineFlow({
       const sys = `Extract a food order from one WhatsApp message to a fast-casual restaurant. MENU (only these exist): ${menuNames}
 Recent conversation may add context: ${JSON.stringify((input.history || []).slice(-4).map((h) => h.message?.slice(0, 80)))}${pendingLine}
 Return JSON only:
-{"intent": "order"|"repeat_last"|"confirm"|"cancel_order"|"status"|"other",
+{"intent": "order"|"repeat_last"|"confirm"|"cancel_order"|"status"|"question"|"other",
  "payment_method": "cash"|"card"|"instapay"|null,
  "items": [{"name": "<closest MENU name>", "qty": number, "notes": "<modifiers for THIS item, e.g. 'no onion', 'extra cheese', 'well done'>"|null}]|null,
  "order_type": "pickup"|"delivery"|"dine_in"|null (dine_in when they mention a table / being inside),
@@ -97,7 +97,7 @@ Return JSON only:
  "branch": "<exact branch NAME from this list if the guest names one, else null>",
  "edits": [{"op": "add"|"remove"|"set_qty"|"replace", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null}]|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/garbled word (voice notes!) with no confident menu match is SKIPPED, never guessed; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history.`;
+Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/garbled word (voice notes!) with no confident menu match is SKIPPED, never guessed; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -129,10 +129,18 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // normal brain to answer; the draft is left EXACTLY as it was, so the guest picks
       // ordering right back up afterwards (add/edit/confirm all still work). We trust the
       // model's own `intent` here — no keyword lists, no message-length guessing.
-      const idleDraft = !loaded.pending?.items?.length && !loaded.pending?.awaiting_option && loaded.pending?.awaiting_confirm !== true;
+      // A QUESTION (delivery coverage/fee, hours, ingredients, "do you have tissues") is
+      // ANSWERED by the normal brain, never absorbed into the order — even while we're
+      // mid-configuring an item. The extractor flags it as intent "question"; a bare
+      // option/branch/payment answer is never flagged that way. This is the fix for
+      // "بتوصلوا المعادي؟" jumping to payment while a burger awaited its options.
+      if (e.intent === "question") return { kind: "handoff_to_friendly" };
+      // Belt-and-suspenders: an "other" message carrying zero order content, when we're
+      // not waiting on a specific answer, is chit-chat/a question too → hand it off.
+      const notAwaiting = !loaded.pending?.awaiting_option && loaded.pending?.awaiting_confirm !== true;
       const noOrderContent = e.intent === "other" && !(e.items?.length) && !(e.edits?.length)
         && !e.order_type && !e.address && !e.table_number && !e.payment_method && !e.pickup_time && !named;
-      if (idleDraft && noOrderContent) return { kind: "handoff_to_friendly" };
+      if (notAwaiting && noOrderContent) return { kind: "handoff_to_friendly" };
 
       if (e.intent === "cancel_order") {
         if (!loaded.openOrder) return { kind: "no_open_order" };
