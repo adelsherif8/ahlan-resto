@@ -61,6 +61,16 @@ Last full green baseline: **79/0** (routing-fix deploy, before the question-inte
 - [ ] FOUNDER: run migration **027** (cod columns) in tenant DB — code falls back to notes until then.
 - [ ] Guest "change for 500" lands in order notes and shows on the rider's page.
 
+## 🔐 Sprint 3 security (BUILT + verified live 2026-08-10)
+- [x] WA webhook signature FAIL-CLOSED (unset secret → drop, not accept) — real WA traffic still flowing ✓
+- [x] opsAuth fail-closed in prod + timingSafeEqual (wrong token → 401 ✓)
+- [x] /api/web/send + /typing locked behind ops token (no token → 401 ✓, ops console unaffected ✓)
+- [x] Rate limits live: webhook 600/m/IP · build submit 20/m + share 10/m per token (429 proven ✓) · driver action 30/m + loc 240/m per token · web/send 60/m
+- [x] CORS scoped to vercel domain + localhost on flows AND backend
+- [x] Prod boot guards: builder token secret + backend JWT_SECRET must be set
+- [ ] DEFERRED: courier-token signing/expiry (would break printed links; revisit), prompt-injection deep pass (D8), RLS policies (D9)
+- [ ] FOUNDER: rotate the WA token pasted in chat (Meta → System User → regenerate → Railway WA_TOKEN)
+
 ## 👀 Manual / live checks the suite can't fully cover (do on real WhatsApp)
 - [ ] Menu PDF sends **text-first** then the document (no long silence).
 - [ ] No **forced buttons** on a plain delivery question.
