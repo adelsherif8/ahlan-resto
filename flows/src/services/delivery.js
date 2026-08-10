@@ -43,6 +43,38 @@ function matchZone(zones, area) {
   return null;
 }
 
+// Share-location → auto-quote: a zone may carry an optional center + radius
+// ({lat, lng, radius_km}); a dropped pin inside that circle matches the zone with no
+// typing. Zones without coords simply don't participate (name/alias matching still works).
+import { distanceKm } from "./branches.js";
+function matchZoneByPin(zones, coords) {
+  if (!coords || coords.lat == null) return null;
+  let best = null;
+  for (const z of zones) {
+    if (typeof z.lat !== "number" || typeof z.lng !== "number") continue;
+    const km = distanceKm(coords.lat, coords.lng, z.lat, z.lng);
+    if (km <= (Number(z.radius_km) || 5) && (!best || km < best.km)) best = { z, km };
+  }
+  return best?.z || null;
+}
+
+// Delivery hours — a restaurant (or a branch) may deliver only part of the day.
+// config.delivery.hours = {open:"12:00", close:"23:00"} (overnight windows supported:
+// close < open spans midnight). branch.delivery_hours overrides. Absent → always open.
+export function deliveryOpenNow(config, branch = null, now = new Date()) {
+  const h = branch?.delivery_hours || config?.delivery?.hours || null;
+  if (!h?.open || !h?.close) return { open: true };
+  const tz = config?.basic_info?.timezone || "Africa/Cairo";
+  const [hh, mm] = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false })
+    .format(now).split(":").map(Number);
+  const cur = hh * 60 + mm;
+  const [oh, om] = String(h.open).split(":").map(Number);
+  const [ch, cm] = String(h.close).split(":").map(Number);
+  const o = oh * 60 + (om || 0), c = ch * 60 + (cm || 0);
+  const open = o <= c ? cur >= o && cur < c : cur >= o || cur < c; // overnight window
+  return { open, hours: h };
+}
+
 // The heart: given an area name and/or coordinates (+ current subtotal), return whether we
 // deliver there, from which branch, the exact fee (honouring free_over) and ETA (with rush pad).
 // Multi-branch: try branches nearest-first (when coords given) and return the FIRST that covers
@@ -53,10 +85,14 @@ export function deliveryQuote(config, { area = null, coords = null, subtotal = 0
   const ordered = coords ? nearestBranches(branches, coords.lat, coords.lng, 50) : branches;
   const pool = ordered.length ? ordered : [null]; // single-location brands have no branch rows
   const d = config?.delivery || {};
+  const hoursNow = deliveryOpenNow(config);
+  if (!hoursNow.open) return { available: false, reason: "hours", hours: hoursNow.hours };
 
   for (const b of pool) {
     if (deliveryPaused(config, b)) { if (pool.length === 1) return { available: false, reason: "paused" }; continue; }
-    const z = area ? matchZone(zonesFor(config, b), area) : null;
+    if (b && !deliveryOpenNow(config, b).open) continue; // this branch's delivery window is closed
+    const zs = zonesFor(config, b);
+    const z = (area ? matchZone(zs, area) : null) || matchZoneByPin(zs, coords);
     if (z) {
       const freeOver = Number(d.free_over) || 0;
       const free = freeOver > 0 && Number(subtotal) >= freeOver;
@@ -82,6 +118,8 @@ export function deliveryQuote(config, { area = null, coords = null, subtotal = 0
 export function deliveryFacts(config) {
   if (!deliveryEnabled(config)) return "- Delivery: NOT offered — only dine-in / pickup. If asked, say so honestly.";
   if (deliveryPaused(config)) return "- Delivery: PAUSED right now (kitchen busy). Tell the guest delivery is temporarily paused and offer pickup — do NOT take a delivery order.";
+  const hn = deliveryOpenNow(config);
+  const hoursLine = config?.delivery?.hours?.open ? `\n  Delivery hours: ${config.delivery.hours.open}–${config.delivery.hours.close}${hn.open ? "" : " — delivery is CLOSED right now (outside those hours): say so and offer pickup, do NOT take a delivery order"}.` : "";
   const branches = branchList(config);
   const pool = branches.length ? branches : [null];
   const d = config?.delivery || {};
@@ -99,5 +137,5 @@ export function deliveryFacts(config) {
     Number(d.min_order) ? `minimum order ${d.min_order} EGP` : "",
     Number(d.free_over) ? `free delivery over ${d.free_over} EGP` : "",
   ].filter(Boolean).join(", ");
-  return `- DELIVERY ZONES — quote these EXACTLY, NEVER invent a fee or an area:\n${lines.map((l) => "  • " + l).join("\n")}${extras ? `\n  (${extras})` : ""}\n  If the guest's area is NOT listed above, say we don't deliver there yet and offer pickup — never guess a fee.`;
+  return `- DELIVERY ZONES — quote these EXACTLY, NEVER invent a fee or an area:\n${lines.map((l) => "  • " + l).join("\n")}${extras ? `\n  (${extras})` : ""}${hoursLine}\n  If the guest's area is NOT listed above, say we don't deliver there yet and offer pickup — never guess a fee.`;
 }

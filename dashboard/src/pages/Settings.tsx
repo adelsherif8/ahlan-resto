@@ -295,6 +295,8 @@ export default function Settings() {
           <Field label="Rush-hour padding (min added to every ETA)"><Input type="number" value={dv.rush_pad_min ?? ""} onChange={(e) => setDelivery({ rush_pad_min: Number(e.target.value) || 0 })} placeholder="0" /></Field>
           <Field label="Minimum order for delivery (EGP, 0 = none)"><Input type="number" value={dv.min_order ?? ""} onChange={(e) => setDelivery({ min_order: Number(e.target.value) || 0 })} placeholder="0" /></Field>
           <Field label="Free delivery over (EGP, 0 = off)"><Input type="number" value={dv.free_over ?? ""} onChange={(e) => setDelivery({ free_over: Number(e.target.value) || 0 })} placeholder="0" /></Field>
+          <Field label="Delivery hours — from (optional, e.g. 12:00)"><Input value={dv.hours?.open || ""} onChange={(e) => setDelivery({ hours: { ...(dv.hours || {}), open: e.target.value } })} placeholder="always" /></Field>
+          <Field label="Delivery hours — until (e.g. 23:00)"><Input value={dv.hours?.close || ""} onChange={(e) => setDelivery({ hours: { ...(dv.hours || {}), close: e.target.value } })} placeholder="always" /></Field>
           <Field label="What to say for an area you don't cover" full>
             <Input value={dv.uncovered_message || ""} onChange={(e) => setDelivery({ uncovered_message: e.target.value })} placeholder="We don't deliver there yet 🙏 but pickup's always ready." />
           </Field>

@@ -476,6 +476,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const sub = items.reduce((s2, i2) => s2 + itemPrice(i2) * i2.qty, 0);
         const dq = deliveryQuote(config, { area: address, coords, subtotal: sub });
         if (!dq.available && dq.reason === "paused") return { kind: "delivery_paused", items };
+        if (!dq.available && dq.reason === "hours") return { kind: "delivery_closed", items, hours: dq.hours };
         if (dq.available && dq.covered === false && dq.has_zones) return { kind: "no_delivery_area", items, branch: branchInfo?.name || null };
         if (dq.covered && dq.min_order && !dq.meets_min) return { kind: "below_min_order", items, min_order: dq.min_order };
       }
@@ -844,6 +845,7 @@ OUTCOMES:
 - no_open_order: no active order found — want to start one?
 - no_delivery: we don't do delivery — pickup or dine-in works great though.
 - delivery_paused: delivery is temporarily paused (kitchen busy) — say so warmly and offer pickup. NEVER take the delivery order.
+- delivery_closed: delivery only runs during OUTCOME.hours (open–close) and it's outside them now — say the hours honestly and offer pickup. NEVER take the delivery order.
 - no_delivery_area: we don't deliver to their area — say so honestly and offer pickup at the branch (in OUTCOME.branch). NEVER quote or invent a delivery fee for it.
 - below_min_order: delivery has a minimum (OUTCOME.min_order) they haven't reached — say the minimum warmly and offer to add more or switch to pickup. NEVER place it yet.
 - no_history: no past orders on this number yet — invite them to make their first one (it becomes their "usual").
@@ -873,6 +875,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       no_open_order: "No active order found — want to start one? 🍔",
       draft_cleared: "All cleared ✅ Want to start a fresh order?",
       delivery_paused: "Delivery's paused right now (kitchen's slammed 🙏) — but pickup's open! Want to switch to pickup?",
+      delivery_closed: `Delivery runs ${outcome.hours?.open || ""}–${outcome.hours?.close || ""} 🙏 — we're outside those hours right now, but pickup works! Want pickup instead?`,
       no_delivery_area: `We don't deliver to that area yet 🙏 — but pickup's ready${outcome.branch ? ` at ${outcome.branch}` : ""}. Want pickup instead?`,
       below_min_order: `Delivery needs a minimum of ${outcome.min_order} EGP 🙏 — add a bit more, or pickup has no minimum. Which works?`,
     };
