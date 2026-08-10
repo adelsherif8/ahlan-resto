@@ -104,6 +104,8 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
+    // was an option question open when this turn STARTED? (act mutates pending later)
+    const awaitingAtTurnStart = !!loaded.pending?.awaiting_option;
 
     const outcome = await f.node("act", async () => {
       const name = diner?.name || diner?.wa_profile_name || null;
@@ -1040,10 +1042,11 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         return `${head}:\n${q.options.map((o) => `• ${o}`).join("\n")}`;
       }).join("\n\n");
       let lead = reply.split("\n")[0];
-      if (outcome.notices?.length) lead = `${outcome.notices.join("\n")}\n${lead}`;
       // zero-hallucination guard: no choice exists until the guest answers the
-      // questions below — a lead-in claiming "you chose… confirm?" is dropped
-      const CLAIMS = /تؤكد|تأكيد|أكد الطلب|اخترت|اخترتي|اختارت|confirm|you (chose|picked|selected)|chosen|noted|got it as/i;
+      // questions below — a lead-in claiming "you chose… / Got it, X" is dropped.
+      // (Tested BEFORE the code notices are prepended — our own "Noted — pickup ✅"
+      // notice must never trip its own guard.)
+      const CLAIMS = /تؤكد|تأكيد|أكد الطلب|اخترت|اخترتي|اختارت|سجلت|confirm|you (chose|picked|selected)|chosen|noted|got it|recorded|✍️/i;
       if (CLAIMS.test(lead)) {
         const ar = /[\u0600-\u06FF]/.test(lead);
         lead = ar
@@ -1051,6 +1054,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
           : `Quick choices for your *${outcome.item}* — you can answer in one go 👇`;
         if (value.value) value.value.quick_replies = [];
       }
+      if (outcome.notices?.length) lead = `${outcome.notices.join("\n")}\n${lead}`;
       // The dish being configured pops in WhatsApp bold — the guest's eye finds WHICH
       // item these questions belong to at a glance (model-written leads included).
       if (outcome.item && lead.includes(outcome.item) && !lead.includes(`*${outcome.item}*`)) {
@@ -1196,7 +1200,12 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // right under it. Both halves of the message get served, neither is dropped.
     let sidePhotos = [];
     const sideQ = String(e.question || "").trim();
-    if (sideQ.length >= 4) {
+    // Never on a turn that was ANSWERING an open option question (the extractor sometimes
+    // splits "Combo cola zero" and mislabels the tail a "question" — friendly then sends a
+    // second, contradictory message). Real mixed turns carry items/edits; pure questions
+    // mid-ask go through the question-intent handoff instead.
+    const sideAllowed = !!(e.items?.length || e.edits?.length) || !awaitingAtTurnStart;
+    if (sideQ.length >= 4 && sideAllowed) {
       const side = await f.flow("friendly", { message: sideQ, diner, history: input.history, precheck: input.precheck, classification });
       if (side?.reply) {
         reply = `${side.reply}\n\n${reply}`;
