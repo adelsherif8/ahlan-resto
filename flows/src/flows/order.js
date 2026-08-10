@@ -453,6 +453,18 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         }
       }
 
+      // DELIVERY COVERAGE GATE: with zones configured, never take a delivery order to an
+      // area we don't cover, while delivery is paused, or below the minimum — say so
+      // honestly and offer pickup. (Code decides from config; the reply is phrased below.)
+      if (orderType === "delivery" && (address || mapLink?.lat != null || sharedPin)) {
+        const coords = (mapLink?.lat != null ? mapLink : sharedPin) || null;
+        const sub = items.reduce((s2, i2) => s2 + itemPrice(i2) * i2.qty, 0);
+        const dq = deliveryQuote(config, { area: address, coords, subtotal: sub });
+        if (!dq.available && dq.reason === "paused") return { kind: "delivery_paused", items };
+        if (dq.available && dq.covered === false && dq.has_zones) return { kind: "no_delivery_area", items, branch: branchInfo?.name || null };
+        if (dq.covered && dq.min_order && !dq.meets_min) return { kind: "below_min_order", items, min_order: dq.min_order };
+      }
+
       // remember the in-progress order so the next short answer doesn't lose it
       const savePending = async (extra = {}) => {
         if (!diner?.id) return;
@@ -816,6 +828,9 @@ OUTCOMES:
 - too_late_to_cancel: it's already READY — can't cancel now; the team can help at the counter.
 - no_open_order: no active order found — want to start one?
 - no_delivery: we don't do delivery — pickup or dine-in works great though.
+- delivery_paused: delivery is temporarily paused (kitchen busy) — say so warmly and offer pickup. NEVER take the delivery order.
+- no_delivery_area: we don't deliver to their area — say so honestly and offer pickup at the branch (in OUTCOME.branch). NEVER quote or invent a delivery fee for it.
+- below_min_order: delivery has a minimum (OUTCOME.min_order) they haven't reached — say the minimum warmly and offer to add more or switch to pickup. NEVER place it yet.
 - no_history: no past orders on this number yet — invite them to make their first one (it becomes their "usual").
 Return JSON: {"reply": string, "quick_replies": string[]|null}
 LANGUAGE (last line so everything above stays cacheable): mirror the guest's language & script — ${lang}.`;
@@ -842,6 +857,9 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       bad_table: `I can't find table ${outcome.given} — ours are ${(outcome.tables || []).slice(0, 8).join(", ")}. Which one are you at?`,
       no_open_order: "No active order found — want to start one? 🍔",
       draft_cleared: "All cleared ✅ Want to start a fresh order?",
+      delivery_paused: "Delivery's paused right now (kitchen's slammed 🙏) — but pickup's open! Want to switch to pickup?",
+      no_delivery_area: `We don't deliver to that area yet 🙏 — but pickup's ready${outcome.branch ? ` at ${outcome.branch}` : ""}. Want pickup instead?`,
+      below_min_order: `Delivery needs a minimum of ${outcome.min_order} EGP 🙏 — add a bit more, or pickup has no minimum. Which works?`,
     };
     let reply = value.value?.reply || fallback[outcome.kind] || fallback.ask_items;
 
