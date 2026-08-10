@@ -12,7 +12,8 @@ How to run the full suite: `POST /api/ops/run-regression` (x-ops-token), poll
 
 ## ⏳ Pending full-suite verification (changed since last full green)
 
-Last full green baseline: **79/0** (routing-fix deploy, before the question-intent change).
+Last full green baseline: **84/0** — FINAL milestone run 2026-08-10 (everything below verified:
+question-intent, delivery coverage+gates, all 5 new intents, Sprint-3 security deploy).
 
 - [ ] **Order "question" intent** (order.js extract + act) — a real question during an
       order (delivery/hours/ingredients) is handed to friendly, never absorbed. Bare
