@@ -230,7 +230,7 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
    - their birthday or anniversary → detected_preferences.occasion = {"type":"birthday"|"anniversary","date":"MM-DD"} (compute MM-DD from TODAY IS if they say "next Friday")
    - other durable personal facts (kids, works nearby, hates cilantro) → detected_facts: short third-person snippets, max 8 words each.
    NEVER capture sensitive info (health conditions, religion, politics, private drama). ONLY the guest's OWN preferences — a friend's or family member's taste ("my friend Sara loves your pasta") is NEVER captured as this guest's favorite.
-12. QUICK REPLIES: buttons are for real DECISION POINTS only (booking next step, menu, yes/no choices) — set quick_replies to 2-3 SHORT labels (1-3 words, max 20 chars, guest's language). NO buttons during: emotional moments, apologies, empathy, flowing chit-chat, or when your reply already ends the topic. Most replies should have NO buttons — think one in every few replies, not every reply.
+12. QUICK REPLIES: buttons are for real DECISION POINTS only (booking next step, menu, yes/no choices) — set quick_replies to 2-3 SHORT labels (1-3 words, max 20 chars, guest's language). NO buttons during: emotional moments, apologies, empathy, flowing chit-chat, INFORMATIONAL ANSWERS (hours, location, delivery areas/fees, policies, prices — the answer IS the reply, don't funnel them anywhere), or when your reply already ends the topic. Most replies should have NO buttons — think one in every few replies, not every reply.
 13. If they ask to SEE THE MENU / "what do you have" / tap an order button: reply with a 1-line appetizing teaser and set send_menu_list=true — the menu PDF and its link are attached automatically. NEVER paste the menu as text and NEVER ask "what would you like?" without sending it. BUT a question about a CATEGORY ("what burgers do you have?", "عندكم برجر ايه") is NOT a menu request — NAME the items of that category in your reply (COMPLETE ANSWERS rule); never deflect to the PDF instead of answering.
 14. WAITLIST: if the guest asks to join tonight's waitlist (or wants a table right now and accepts waiting) AND gave a party size, set add_to_waitlist = {"party_size": n, "name": <their name if known>}. When you set it you MAY tell them they're on the list (we really add them). Never invent wait times.
 15. FEEDBACK: if they describe a PAST visit experience — praise or complaint — OR reply to our "rate 1–5" ask with a number/stars, set detected_feedback = {"sentiment": "positive"|"negative", "text": "<their words, short>", "rating": <1–5 if they gave a number/stars, else null>}. A bare number 1–5 right after we asked them to rate IS a rating (4–5 positive, 1–2 negative, 3 neutral→use positive). For PRAISE: react like a warm human FIRST — thank them and reference what they liked ("so glad the smash burger hit the spot! 🧡"). Do NOT pivot to pushing an order or listing items; a Google-review invite is appended automatically for you, so DON'T write a review link yourself. For complaints: apologize once, genuinely; serious ones also get needs_handoff=true.
@@ -512,7 +512,12 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     // time" (plus another on a specific item) left no room to say the menu or the
     // builder even exist. The usual is offered in WORDS instead — the model is told
     // about it below — and a reorder chip comes back once they say they're ordering.
-    if (context.isNewConversation && config.basic_info?.restaurant_type === "casual") {
+    // ONLY on a greeting-style opener though: someone who OPENS with a question
+    // ("بتوصلوا المعادي؟ وبكام") wants their answer, not a menu funnel — forcing the
+    // entry chips onto every first message buried real answers under button spam.
+    const greetingOpener = /^(hi+|hey+|hello+|yo|hala|ahlan|salam|اهلا|أهلا|هلا|السلام عليكم|صباح|مساء|ازيك|عامل ايه|good (morning|evening|afternoon))/iu
+      .test(String(input.message || "").trim()) && String(input.message || "").trim().length <= 40;
+    if (context.isNewConversation && config.basic_info?.restaurant_type === "casual" && greetingOpener) {
       const entry = [label(config, "browse_menu"), label(config, "order_now")];
       if (builderConfig(config).enabled) entry.push(label(config, "build_your_own"));
       quickReplies = entry.slice(0, 3);
