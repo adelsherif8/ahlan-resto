@@ -85,6 +85,15 @@ question-intent, delivery coverage+gates, all 5 new intents, Sprint-3 security d
 
 ---
 
+
+## 🧾 Ordering-robustness patches (2026-08-11, targeted-verified — confirm next full run)
+- `colazero` — unknown variant answer: ONE reply, no false "Got it, Coca-Cola Diet", drink stays open.
+- Named asks — every option question names its dish ("Now for your *Nashville Slaw* 👇"); no more "Next up!" ambiguity.
+- `set_option` direction fix (item named WITH the option receives it; "the other" gets the opposite).
+- Re-ask circuit breaker is progress-aware (productive turns don't count) + handoff is code-spoken + session flagged needs_attention.
+- Side-question call gated (never fires on an option-answer turn) — no contradictory second message.
+- Suite now ~93 cases.
+
 ## Notes
 - `usualchip` is a known-flaky greeting-wording assertion (passes on re-run) — not a real
   failure if it's the only miss.
