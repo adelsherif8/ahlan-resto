@@ -54,6 +54,12 @@ export default function Settings() {
     setConfig((c: any) => ({ ...c, [section]: { ...c[section], ...patch } }));
   }
 
+  // Delivery coverage lives inside basic_info.delivery (saved via the basic_info section).
+  const dv = bi.delivery || {};
+  const dzones: any[] = dv.zones || [];
+  const setDelivery = (patch: any) => upd("basic_info", { delivery: { ...dv, ...patch } });
+  const setZone = (i: number, patch: any) => setDelivery({ zones: dzones.map((z, j) => (j === i ? { ...z, ...patch } : z)) });
+
 
 
   const SECTIONS: [string, string][] = [
@@ -62,6 +68,7 @@ export default function Settings() {
     ["ai", "AI host"],
     ["branding", "Branding"],
     ["menu", "Menu display"],
+    ["delivery", "Delivery"],
     ["builder", "Build your own"],
     ...(((bi.restaurant_type || "fine") !== "casual" ? [["reservations", "Reservations"]] : []) as [string, string][]),
     ["offers", "Offers & specials"],
@@ -277,6 +284,39 @@ export default function Settings() {
           )}
         </div>
         <p className="mt-2 text-xs text-zinc-500">List: categories the guest taps. One message: the whole menu as text. PDF: your designed menu file, sent as a document.</p>
+      </Card>}
+
+      {tab === "delivery" && <Card className="p-5">
+        <SectionTitle title="Delivery coverage" saved={saved === "basic_info"} onSave={() => saveSection("basic_info", config.basic_info)} />
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Delivery enabled"><Toggle on={dv.enabled !== false} onClick={() => setDelivery({ enabled: dv.enabled === false })} /></Field>
+          <Field label="Paused right now (kitchen slammed → pickup only)"><Toggle on={!!dv.paused} onClick={() => setDelivery({ paused: !dv.paused })} /></Field>
+          <Field label="Show ETAs to guests"><Toggle on={dv.eta_enabled !== false} onClick={() => setDelivery({ eta_enabled: dv.eta_enabled === false })} /></Field>
+          <Field label="Rush-hour padding (min added to every ETA)"><Input type="number" value={dv.rush_pad_min ?? ""} onChange={(e) => setDelivery({ rush_pad_min: Number(e.target.value) || 0 })} placeholder="0" /></Field>
+          <Field label="Minimum order for delivery (EGP, 0 = none)"><Input type="number" value={dv.min_order ?? ""} onChange={(e) => setDelivery({ min_order: Number(e.target.value) || 0 })} placeholder="0" /></Field>
+          <Field label="Free delivery over (EGP, 0 = off)"><Input type="number" value={dv.free_over ?? ""} onChange={(e) => setDelivery({ free_over: Number(e.target.value) || 0 })} placeholder="0" /></Field>
+          <Field label="What to say for an area you don't cover" full>
+            <Input value={dv.uncovered_message || ""} onChange={(e) => setDelivery({ uncovered_message: e.target.value })} placeholder="We don't deliver there yet 🙏 but pickup's always ready." />
+          </Field>
+        </div>
+
+        <div className="mt-5 mb-2 flex items-center justify-between">
+          <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Zones you deliver to</div>
+          <Btn variant="ghost" onClick={() => setDelivery({ zones: [...dzones, { area: "", aliases: [], fee: 0, eta_min: 0 }] })}>+ Add zone</Btn>
+        </div>
+        <div className="space-y-2">
+          {dzones.length === 0 && <p className="text-xs text-zinc-500">No zones yet — add the areas you deliver to and their fees. If the guest's area isn't listed, the bot honestly says you don't deliver there and offers pickup (never invents a fee).</p>}
+          {dzones.map((z, i) => (
+            <div key={i} className="grid grid-cols-12 items-center gap-2 rounded-lg border border-zinc-800 p-2">
+              <div className="col-span-4"><Input value={z.area || ""} onChange={(e) => setZone(i, { area: e.target.value })} placeholder="Area name (e.g. Tagamoa)" /></div>
+              <div className="col-span-4"><Input value={(z.aliases || []).join(", ")} onChange={(e) => setZone(i, { aliases: e.target.value.split(",").map((s: string) => s.trim()).filter(Boolean) })} placeholder="aliases: التجمع, new cairo" /></div>
+              <div className="col-span-2"><Input type="number" value={z.fee ?? ""} onChange={(e) => setZone(i, { fee: Number(e.target.value) || 0 })} placeholder="fee" /></div>
+              <div className="col-span-1"><Input type="number" value={z.eta_min ?? ""} onChange={(e) => setZone(i, { eta_min: Number(e.target.value) || 0 })} placeholder="min" /></div>
+              <button className="col-span-1 text-zinc-500 hover:text-red-400" onClick={() => setDelivery({ zones: dzones.filter((_, j) => j !== i) })} title="Remove">✕</button>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-zinc-500">Fee in EGP, ETA in minutes. Aliases let guests say the area in Arabic, English or Franco (comma-separated). The bot quotes these exact fees and the order bill matches. For multiple branches, each branch can also carry its own zones (advanced).</p>
       </Card>}
 
       {tab === "builder" && <Card className="p-5">
