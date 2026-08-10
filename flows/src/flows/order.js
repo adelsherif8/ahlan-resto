@@ -986,8 +986,13 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         const ar = /[\u0600-\u06FF]/.test(lead);
         lead = ar
           ? `اختيارات سريعة لـ ${outcome.item} — ممكن تجاوب كلها مرة واحدة 👇`
-          : `Quick choices for your ${outcome.item} — you can answer in one go 👇`;
+          : `Quick choices for your *${outcome.item}* — you can answer in one go 👇`;
         if (value.value) value.value.quick_replies = [];
+      }
+      // The dish being configured pops in WhatsApp bold — the guest's eye finds WHICH
+      // item these questions belong to at a glance (model-written leads included).
+      if (outcome.item && lead.includes(outcome.item) && !lead.includes(`*${outcome.item}*`)) {
+        lead = lead.replace(outcome.item, `*${outcome.item}*`);
       }
       reply = `${lead}\n\n${qBlock}`;
     }
@@ -1013,7 +1018,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       const anyOpen = outcome.running.items.some(open_);
       const lines = outcome.running.items.map((it) => {
         const mods = modifiers(it);
-        return `• ${it.qty}× ${it.name}${mods.length ? ` (${mods.join(" · ")})` : ""} — ${open_(it) ? "from " : ""}${money(itemPrice(it) * it.qty)}`;
+        return `• ${it.qty}× *${it.name}*${mods.length ? ` (${mods.join(" · ")})` : ""} — ${open_(it) ? "from " : ""}${money(itemPrice(it) * it.qty)}`;
       });
       const RULE = "―".repeat(24);
       reply = `${reply}\n\n${RULE}\n${lines.join("\n")}\nSubtotal: ${anyOpen ? "from " : ""}${money(outcome.running.subtotal)}\n${RULE}`;
@@ -1749,7 +1754,7 @@ function renderBill({ items, bill, currency, orderType, tableNumber, branchName,
   const money = (n) => `${fmtAmount(n)} ${currency}`;
   const lines = items.map((it) => {
     const mods = modifiers(it);
-    return `• ${it.qty}× ${it.name}${mods.length ? ` (${mods.join(" · ")})` : ""} — ${money(itemPrice(it) * Number(it.qty))}`;
+    return `• ${it.qty}× *${it.name}*${mods.length ? ` (${mods.join(" · ")})` : ""} — ${money(itemPrice(it) * Number(it.qty))}`;
   });
 
   const totals = [`Subtotal: ${money(bill.subtotal)}`];
