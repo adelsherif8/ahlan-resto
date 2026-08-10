@@ -12,6 +12,18 @@ import { PUBLIC_BASE } from "../config.js";
 import { bump } from "../services/metrics.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm)\W*$/i;
+// a bare greeting (nothing else) — used both for the 0-LLM first-timer welcome and the
+// classify shortcut so the two never disagree on what counts as "just a greeting"
+const GREETING = /^(hi+|hey+|hello+|yo|hala|ahlan|اهلا|أهلا|هلا|السلام عليكم|صباح الخير|مساء الخير|good (morning|evening))[\s!.😊👋🙏]*$/i;
+// warm, assumption-free fallbacks when the restaurant hasn't set config.ai.greetings.
+// {name} = restaurant name (filled in below). Returning guests never see these — they
+// get the context-rich LLM greeting (their usual, birthday, welcome-back).
+const DEFAULT_GREETINGS = [
+  "Heyy! 👋 Welcome to {name} — what are you craving today? 🍔",
+  "Hi there! 😊 Welcome to {name}. What can I get you?",
+  "Ahlan! 🙌 Ready when you are — what would you like today?",
+];
+let greetIdx = 0; // rotates the canned line so it isn't identical every time
 
 import { getMenu } from "../services/menucache.js";
 
@@ -62,6 +74,20 @@ defineFlow({
       const sticky = input.stickyLanguage || null;
       const closer = detectCloser(message, sticky);
       if (closer) { bump("closer_hits"); return closer; }
+      // A4: a brand-new guest saying only "hi" → warm canned welcome, 0 LLM (~instant).
+      // Returning/known guests fall through to the LLM greeting (usual/birthday/welcome-back
+      // — enforced by the suite), and anyone who says more than a bare greeting also falls through.
+      if (GREETING.test(message.trim())) {
+        const firstTimer = !diner?.name && !(diner?.visit_count > 0) && !diner?.last_visit_at
+          && !diner?.preferences?.occasions?.birthday && !diner?.preferences?.pending_order;
+        if (firstTimer) {
+          bump("greeting_hits");
+          const rname = ctx.tenant.config.basic_info?.name || ctx.tenant.config.name || "us";
+          const pool = ctx.tenant.config.ai?.greetings?.length ? ctx.tenant.config.ai.greetings : DEFAULT_GREETINGS;
+          const reply = String(pool[greetIdx++ % pool.length]).replace(/\{name\}/g, rname);
+          return { kind: "greeting", reply, language: sticky || undefined };
+        }
+      }
       // "build my own" hands over a signed one-guest link instead of an answer.
       // Offered only when the restaurant has actually priced its layers — an
       // unpriced builder would quote numbers nobody set.
@@ -157,7 +183,7 @@ defineFlow({
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare affirmative)" } };
       }
       // a bare greeting is friendly, full stop — no model needed to know that
-      if (/^(hi+|hey+|hello+|yo|hala|ahlan|اهلا|أهلا|هلا|السلام عليكم|صباح الخير|مساء الخير|good (morning|evening))[\s!.😊👋🙏]*$/i.test(message.trim())) {
+      if (GREETING.test(message.trim())) {
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare greeting)" } };
       }
       // A live order session already tells us where this belongs. Short answers to

@@ -13,16 +13,31 @@ const sessions = new Map();
 const seenIds = new Set(); // fast in-memory dedup layer (DB unique constraint is the real guard)
 const repliedBursts = new Set(); // idempotency: burst signature -> already replied
 
+const TRAILING_INCOMPLETE = /(\.\.\.|…|,)$/;
+const TRAILING_CONJUNCTION = /(?<![\p{L}\p{N}])(and|also|w|wa|kaman|كمان|و|bas|بس)$/u;
+
 function heuristicWindow(message, base) {
   const t = (message || "").trim().toLowerCase();
   // incomplete thought → wait longer
-  if (/(\.\.\.|…|,)$/.test(t) || /(?<![\p{L}\p{N}])(and|also|w|wa|kaman|كمان|و|bas|بس)$/u.test(t)) return base + 4000;
+  if (TRAILING_INCOMPLETE.test(t) || TRAILING_CONJUNCTION.test(t)) return base + 4000;
   // direct question → answer faster
   if (/[?؟]$/.test(t)) return Math.max(2500, base - 3000);
   return base;
 }
 
-export async function pushMessage(db, sessionId, message, messageId, { channel = "web", isNewSession = false, windowBase = null, phone = null } = {}) {
+// SPEED (A3): the FIRST message of a turn is usually the whole turn (a greeting, a short
+// answer like "Maadi"/"card"/"yes", a question). If it looks COMPLETE, flush fast instead
+// of sitting through the full burst window — that window only needs to outlast the GAP
+// between fragments of a real burst, and `post_check` re-flushes any straggler anyway.
+function firstMessageWindow(message, base, fast) {
+  const t = (message || "").trim().toLowerCase();
+  if (TRAILING_INCOMPLETE.test(t) || TRAILING_CONJUNCTION.test(t)) return base + 4000; // mid-thought, more coming
+  if (t.length <= 60) return fast;                    // short + complete → snappy (greeting/answer/short cmd)
+  if (/[?؟]$/.test(t)) return Math.max(2000, base - 3000); // a longer question
+  return Math.min(base, 3000);                        // a longer complete statement — don't wait the full window
+}
+
+export async function pushMessage(db, sessionId, message, messageId, { channel = "web", isNewSession = false, windowBase = null, windowFast = null, phone = null } = {}) {
   // sessionId here is the tenant-scoped buffer key; `phone` is what goes in the DB
   const dbPhone = phone || sessionId;
   // dedup: memory fast-path
@@ -50,13 +65,15 @@ export async function pushMessage(db, sessionId, message, messageId, { channel =
   }
 
   const base = windowBase || BUFFER_WINDOW_MS;
+  const fast = windowFast || 1200; // config.ai.buffer_window_fast_ms (passed from ingest)
   const now = Date.now();
   const meta = sessions.get(sessionId) || { firstAt: now, count: 0, typingUntil: 0, channel };
   meta.lastAt = now;
   meta.count += 1;
   meta.channel = channel;
-  meta.windowMs = isNewSession && meta.count === 1 && message.length < 25
-    ? Math.min(3000, base) // snappy first impression on a bare "hi"
+  // first message of the turn → maybe flush fast; a real burst (count > 1) coalesces at base
+  meta.windowMs = meta.count === 1
+    ? firstMessageWindow(message, base, fast)
     : heuristicWindow(message, base);
   if (!meta.memoryRows) meta.memoryRows = [];
   if (!persisted) meta.memoryRows.push(message);

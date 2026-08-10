@@ -166,7 +166,9 @@ defineFlow({
       // while a complete message stops waiting ~3s sooner.
       const base = isTap ? 600
         : ctx.fastWindow || config.ai?.buffer_window_ms || 5000;
-      const r = await pushMessage(db, bufKey(ctx), finalText, messageId, { channel: ctx.channel, isNewSession, windowBase: base, phone: ctx.sessionId });
+      // A3: a complete short first message flushes in ~this instead of the full window
+      const fast = isTap ? 600 : config.ai?.buffer_window_fast_ms || 1200;
+      const r = await pushMessage(db, bufKey(ctx), finalText, messageId, { channel: ctx.channel, isNewSession, windowBase: base, windowFast: fast, phone: ctx.sessionId });
       return { ...r, tap: isTap, next: `→ RESPOND flow fires after ${Math.round((r.window_ms || base) / 1000)}s of silence (or 25s cap) and routes to MASTER` };
     }, { input: { channel: ctx.channel, per_channel_default: ctx.channel === "whatsapp" ? "8s" : "5s", max_cap: `${MAX_CAP_MS / 1000}s` } });
 
@@ -206,6 +208,10 @@ defineFlow({
     if (burst.empty) return { replied: false, reason: "nothing to claim (already processed elsewhere)" };
     const merged = burst.merged;
 
+    // SPEED (A2): kick off the history read NOW so it runs concurrently with the gates
+    // reads instead of after them — the two slowest reads in the flow overlap.
+    const historyPromise = getHistory(db, ctx.sessionId);
+
     // ---- gates ----
     const gate = await f.node("gates", async () => {
       const session = await getSession(db, ctx.sessionId);
@@ -220,7 +226,7 @@ defineFlow({
 
     // ---- load_history (TTL-filtered: fresh conversation after 1h silence) ----
     const history = await f.node("load_history", async () => {
-      const all = await getHistory(db, ctx.sessionId);
+      const all = await historyPromise; // already in flight since claim_burst (A2)
       const cutoff = Date.now() - HISTORY_TTL_MS;
       const fresh = all.filter((h) => !h.at || new Date(h.at).getTime() > cutoff);
       await appendHistory(db, ctx.sessionId, "guest", merged);
@@ -278,9 +284,15 @@ defineFlow({
     }, { input: { configured: config.ai?.response_delay_ms || "default 800ms" } });
 
     // ---- deliver (channel-aware, splits long replies, sends photos/buttons/lists) ----
+    // SPEED: the guest only waits for the SENDS. The bookkeeping (logMessage / appendHistory
+    // / last_seen) used to run one-after-another AFTER each send — ~4s of pure DB latency on
+    // the guest's clock. Now the sends go first, and every DB write is collected and run in
+    // parallel at the end (awaited so the next turn sees the reply in history, but as
+    // max(writes) not sum(writes)).
     await f.node("deliver", async () => {
       const parts = splitReply(reply);
       const isWa = (sessionRoutes.get(bufKey(ctx))?.channel || ctx.channel) === "whatsapp";
+      const writes = []; // DB logging — fired now, awaited together at the end
       let qrs = routed?.quickReplies || [];
       const list = routed?.menuList || null;
       // pacing: no back-to-back buttons — EXCEPT at order decision points, where a
@@ -308,11 +320,11 @@ defineFlow({
         // the log mirrors what the guest sees (buttons/list rows as ▸ lines; also the web fallback)
         const suffix = last && list ? `\n📋 ${list.sections[0].rows.map((r) => "▸ " + r.title).join("  ")}`
           : last && qrs.length ? `\n${qrs.map((q) => "▸ " + q).join("  ")}` : "";
-        await logMessage(db, ctx.sessionId, "ai", parts[i] + suffix, ctx.channel);
+        writes.push(logMessage(db, ctx.sessionId, "ai", parts[i] + suffix, ctx.channel));
       }
       for (const photo of routed?.photos || []) {
         await deliverPhoto(ctx, photo);
-        await logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" });
+        writes.push(logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" }));
       }
       if (md) {
         // WhatsApp caps document captions at 1024 chars
@@ -329,7 +341,7 @@ defineFlow({
         }
         // merged and the document didn't go out → the guest would get nothing at all
         if (mergeDoc && !sent) await deliverToChannel(ctx, `${parts[0]}\n${md.url}`);
-        await logMessage(db, ctx.sessionId, "ai", mergeDoc ? `${caption}\n📄 ${md.url}` : `📄 ${caption}\n${md.url}`, ctx.channel, { url: md.url, type: "document" });
+        writes.push(logMessage(db, ctx.sessionId, "ai", mergeDoc ? `${caption}\n📄 ${md.url}` : `📄 ${caption}\n${md.url}`, ctx.channel, { url: md.url, type: "document" }));
       }
       if (routed?.locationPin) {
         const pin = routed.locationPin;
@@ -337,12 +349,13 @@ defineFlow({
           const pnid = sessionRoutes.get(bufKey(ctx))?.phoneNumberId || ctx.tenant?.record?.wpid || WA_PHONE_NUMBER_ID;
           if (pnid) await sendLocation(pnid, ctx.sessionId.replace(/^\+/, ""), pin.lat, pin.lng, pin.name, pin.address).catch(() => {});
         }
-        await logMessage(db, ctx.sessionId, "ai", `📍 ${pin.name} — ${pin.address}${!isWa && pin.maps ? `\n${pin.maps}` : ""}`, ctx.channel);
+        writes.push(logMessage(db, ctx.sessionId, "ai", `📍 ${pin.name} — ${pin.address}${!isWa && pin.maps ? `\n${pin.maps}` : ""}`, ctx.channel));
       }
-      await appendHistory(db, ctx.sessionId, "ai", reply);
-      // chat-level last-seen (greetings compute "welcome back / long time no see" gaps
-      // from it) — stamped AFTER the reply so FRIENDLY saw the PREVIOUS interaction time
-      await db.from("diners").update({ last_seen_at: new Date().toISOString() }).eq("phone_number", ctx.sessionId);
+      // history append must land before the next turn reads it — kept in the batch (awaited),
+      // but now in parallel with the message logs. last_seen is best-effort.
+      writes.push(appendHistory(db, ctx.sessionId, "ai", reply));
+      writes.push(db.from("diners").update({ last_seen_at: new Date().toISOString() }).eq("phone_number", ctx.sessionId));
+      await Promise.allSettled(writes);
       return { parts: parts.length, photos: routed?.photos?.length || 0, buttons: qrs.length, menu_list: !!list, via: sessionRoutes.get(bufKey(ctx))?.channel || ctx.channel, reply };
     }, { input: { reply_length: reply.length, fast_path: routed?.fast_path || null, photos: routed?.photos?.length || 0 } });
 

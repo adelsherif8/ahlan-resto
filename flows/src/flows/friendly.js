@@ -44,31 +44,20 @@ defineFlow({
         .filter((s) => s?.text && (!s.until || s.until >= today))
         .map((s) => s.text);
 
-      const { data: mf } = await db.from("message_full").select("conversation_summary").eq("phone_number", ctx.sessionId).maybeSingle();
-
-      const { data: events } = await db
-        .from("events")
-        .select("title,description,date,start_time,price,status")
-        .eq("status", "upcoming")
-        .order("date")
-        .limit(5);
-
-      const { data: upcoming } = await db
-        .from("reservations")
-        .select("code,date,time_slot,party_size,status,occasion")
-        .eq("diner_phone", ctx.sessionId)
-        .gte("date", today)
-        .in("status", ["confirmed", "reminded", "pending"])
-        .limit(1);
-
-      // dining RIGHT NOW = a reservation today marked arrived/seated (staff or ARRIVAL flow)
-      const { data: atTable } = await db
-        .from("reservations")
-        .select("code,party_size,time_slot,occasion")
-        .eq("diner_phone", ctx.sessionId)
-        .eq("date", today)
-        .in("status", ["arrived", "seated"])
-        .limit(1);
+      // SPEED (A2): every independent read fires together (was 6 sequential round-trips,
+      // each 300–800ms — the default path for greetings/chit-chat). getMenu is cached.
+      const [mfRes, eventsRes, upcomingRes, atTableRes, pastOrdersRes, session] = await Promise.all([
+        db.from("message_full").select("conversation_summary").eq("phone_number", ctx.sessionId).maybeSingle(),
+        db.from("events").select("title,description,date,start_time,price,status").eq("status", "upcoming").order("date").limit(5),
+        db.from("reservations").select("code,date,time_slot,party_size,status,occasion").eq("diner_phone", ctx.sessionId).gte("date", today).in("status", ["confirmed", "reminded", "pending"]).limit(1),
+        // dining RIGHT NOW = a reservation today marked arrived/seated (staff or ARRIVAL flow)
+        db.from("reservations").select("code,party_size,time_slot,occasion").eq("diner_phone", ctx.sessionId).eq("date", today).in("status", ["arrived", "seated"]).limit(1),
+        // ORDER HISTORY → memory: the real "usual" comes from receipts, not just words
+        db.from("orders").select("items,order_type,created_at,status").eq("phone_number", ctx.sessionId).neq("status", "cancelled").order("created_at", { ascending: false }).limit(15),
+        getSession(db, ctx.sessionId),
+      ]);
+      const mf = mfRes.data, events = eventsRes.data, upcoming = upcomingRes.data, atTable = atTableRes.data;
+      const pastOrders = pastOrdersRes.data;
 
       // relationship situation — pure code, from CRM facts
       const lastTouchMs = Math.max(
@@ -80,16 +69,9 @@ defineFlow({
       const prefs = diner?.preferences || {};
       const birthdayInDays = daysUntilMMDD(prefs.occasions?.birthday);
 
-      // ORDER HISTORY → memory: the real "usual" comes from receipts, not just words
+      // "usual" + last order, derived from the order history fetched above
       let usualFromOrders = null;
       let lastOrder = null;
-      const { data: pastOrders } = await db
-        .from("orders")
-        .select("items,order_type,created_at,status")
-        .eq("phone_number", ctx.sessionId)
-        .neq("status", "cancelled")
-        .order("created_at", { ascending: false })
-        .limit(15);
       if (pastOrders?.length) {
         const counts = {};
         for (const o of pastOrders) for (const it of o.items || []) counts[it.name] = (counts[it.name] || 0) + (Number(it.qty) || 1);
@@ -112,8 +94,6 @@ defineFlow({
         : !knownGuest ? "first_timer"
         : gapDays !== null && gapDays > 45 ? "long_time_no_see"
         : "returning";
-
-      const session = await getSession(db, ctx.sessionId);
 
       const h = hoursToday(config.hours, config.basic_info?.timezone);
       return {
