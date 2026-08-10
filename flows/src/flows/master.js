@@ -186,13 +186,19 @@ defineFlow({
       if (GREETING.test(message.trim())) {
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare greeting)" } };
       }
-      // NOTE: we deliberately do NOT force short mid-order messages into the order bucket
-      // by length any more. "بتوصلوا المعادي؟" is short but it's a QUESTION, not an order
-      // answer — the old length rule swallowed it and dumped the menu. Routing is now by
-      // CONTEXT: the classifier below decides (it knows an order is in progress and that a
-      // real subject-change goes to friendly), and the ORDER flow itself hands any non-order
-      // message back to friendly (see order.js handoff_to_friendly). Answers like "Maadi",
-      // "sprite", "card" still land in order via the classifier's continuation rule.
+      // A live order session tells us where a short message belongs. Bare answers to our
+      // own questions ("Maadi", "T3", "sprite", "card", "Medium", an address) are the
+      // overwhelming majority of mid-order turns, and the small classifier is NOT reliable
+      // at routing those to the order flow — dropping this rule silently broke real orders.
+      // So we still route mid-order messages to ORDER. The key: the order flow itself now
+      // hands any NON-order message (a question, chit-chat — extractor intent "other" with
+      // no order content) straight to friendly (order.js handoff_to_friendly), so
+      // "بتوصلوا المعادي؟" gets a real answer instead of a menu dump — WITHOUT us guessing
+      // question-vs-answer by length here. Routing stays simple; the smart decision lives
+      // where the extractor already read the message.
+      if (precheck.active_flow === "order" && message.trim().length <= 45) {
+        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (short message inside an active order — order flow re-routes non-order ones)" } };
+      }
       // A filled-in slots template ("FIRST CHOICE / SANDWICH: iconic / NOTES: …")
       // is structurally an order answer. The classifier once filed one under
       // friendly and dropped the whole order — structure is code's job, not a
