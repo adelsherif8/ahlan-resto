@@ -6,6 +6,7 @@ import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, publicLink, log } from "../config.js";
 import { notifyDashboard } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
+import { deliveryQuote } from "../services/delivery.js";
 import { getMenu } from "../services/menucache.js";
 import { fmtMoney } from "../services/format.js";
 import { makeReceipt } from "../services/receipt.js";
@@ -457,9 +458,17 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         if (!diner?.id) return;
         // MERGE over the previous draft — rebuilding from scratch erased fields
         // other gates had saved (payment_method said early, upsell_offered, …)
+        // Delivery fee comes from the configured zones (code computes, never guessed) so
+        // the bill matches what the bot quotes. Only set when the area is actually covered;
+        // otherwise leave it untouched (back-compat: no zones configured → no fee change).
+        const subtotal = items.reduce((s2, i2) => s2 + itemPrice(i2) * i2.qty, 0);
+        const dq = orderType === "delivery"
+          ? deliveryQuote(config, { area: address, coords: (mapLink?.lat != null ? mapLink : sharedPin) || null, subtotal })
+          : null;
         const pending_order = {
           ...(loaded.pending || {}),
           items, order_type: orderType, table_number: tableNumber, branch, address, map_link: mapLinkRaw,
+          ...(dq?.covered ? { delivery_fee: dq.fee } : {}),
           at: new Date().toISOString(),
           ...extra,
         };

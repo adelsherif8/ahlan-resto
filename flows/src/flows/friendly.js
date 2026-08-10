@@ -8,6 +8,7 @@ import { hoursToday } from "../services/tenant.js";
 import { setSessionFlags, notifyDashboard, getSession } from "../services/chatlog.js";
 import { todayISO } from "../services/availability.js";
 import { branchList, nearestBranches, matchBranchByText, freshLocation } from "../services/branches.js";
+import { deliveryFacts } from "../services/delivery.js";
 import { menuPdfUrl } from "../services/menupdf.js";
 import { label } from "../services/labels.js";
 import { builderConfig } from "../services/builder.js";
@@ -179,6 +180,7 @@ faster). Anything that changes per guest or per minute lives further down.
 - Dress code: ${bi.dress_code || "none specified"} | Parking: ${bi.parking || "none specified"}
 - Payment methods: ${(config.payments?.methods || []).join(", ") || "n/a"}
 - Services: dine-in yes · delivery ${bi.services?.delivery === true ? "YES" : bi.services?.delivery === false ? "no" : "not set"} · pickup ${bi.services?.pickup === true ? "YES" : bi.services?.pickup === false ? "no" : "not set"}
+${deliveryFacts(config)}
 - House policies: alcohol ${bi.policies?.alcohol ?? "not set"} · shisha ${bi.policies?.shisha ?? "not set"} · kids ${bi.policies?.kids ?? "not set"} · smoking ${bi.policies?.smoking ?? "not set"}
 ${config.basic_info?.restaurant_type === "casual" ? "" : `- Reservation policy: ${reservationPolicyLine(config.reservation_policy)}`}
 ${(ai.offers || []).length ? `- Current offers (ONLY these exist): ${JSON.stringify(ai.offers)}` : "- Offers/discounts: none configured — NEVER invent one; if asked, say you\'ll check with the team"}
