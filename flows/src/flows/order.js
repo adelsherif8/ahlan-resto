@@ -1458,6 +1458,16 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
       const need2 = Number(g.count) || 1;
       const have2 = it2.options[g.key];
       if ((Array.isArray(have2) ? have2.length : have2 ? 1 : 0) >= need2) continue;
+      // Same ambiguity rule as the inference above: when MORE THAN ONE item has this
+      // question open, one message can't answer it for all of them — the asked item is
+      // handled by the awaiting-answer block below, and the next item gets its own ask.
+      const openHosts2 = out.filter((x) => {
+        const gg = (x.option_defs || []).find((d) => d.key === g.key && d.key !== "slots");
+        if (!gg || !groupApplies(gg, x.options)) return false;
+        const hv = x.options[g.key];
+        return (Array.isArray(hv) ? hv.length : hv ? 1 : 0) < (Number(gg.count) || 1);
+      }).length;
+      if (openHosts2 > 1) continue;
       const strict = groupChoices(g, menu).filter((o) => {
         const cn = normName(o.name);
         return cn && padded.includes(` ${cn} `);
