@@ -320,9 +320,15 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             for (const c of groupChoices(g, loaded.menu)) if (c?.name) choiceNames.add(normName(c.name));
             for (const sg of g.slot_groups || []) for (const cn of slotChoiceNames(sg, loaded.menu)) choiceNames.add(normName(cn));
           }
-          const additions = items.filter((ni) =>
-            !choiceNames.has(normName(ni.name)) &&
-            !loaded.pending.items.find((it) => normName(it.name) === normName(ni.name)));
+          // containment counts, not just exact: the extractor says "American Truck Meal"
+          // while the slot choice says "American Truck" — still the same answer-word,
+          // never a new order line
+          const choiceArr = [...choiceNames];
+          const additions = items.filter((ni) => {
+            const n = normName(ni.name);
+            if (loaded.pending.items.find((it) => normName(it.name) === n)) return false;
+            return !choiceArr.some((cn) => cn === n || n.includes(cn) || cn.includes(n));
+          });
           loaded.pending.items.push(...additions);
           items = loaded.pending.items;
           unknown = [];
