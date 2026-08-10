@@ -93,7 +93,7 @@ Return JSON only:
  "items": [{"name": "<closest MENU name>", "qty": number, "notes": "<modifiers for THIS item, e.g. 'no onion', 'extra cheese', 'well done'>"|null}]|null,
  "order_type": "pickup"|"delivery"|"dine_in"|null (dine_in when they mention a table / being inside),
  "table_number": string|null ("t3"/"table 3" → "T3"),
- "pickup_time": string|null, "notes": string|null (sauce prefs, no onions, etc.),
+ "pickup_time": string|null, "notes": string|null (sauce prefs, no onions, etc. — ALSO cash-change requests: "change for 500"/"معايا ٥٠٠ طلع الباقي" → "change for 500"),
  "address": "<the delivery address EXACTLY as the guest wrote it, verbatim>"|null,
  "branch": "<exact branch NAME from this list if the guest names one, else null>",
  "edits": [{"op": "add"|"remove"|"set_qty"|"replace", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null}]|null,

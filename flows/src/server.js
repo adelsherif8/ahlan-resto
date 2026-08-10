@@ -715,6 +715,20 @@ app.post("/api/driver/:token/action", async (req, res) => {
       await pushGuest(tenant, order, riderCopy.delay(order, 10));
       return res.json({ ok: true, note: "Customer told about the delay" });
     }
+    if (action === "cod") {
+      // Rider records the cash he actually received; change is computed here, not typed —
+      // one less place for a tired rider to make math at a doorstep. Stored on the order
+      // (best-effort columns) AND appended to notes so it shows on tickets/back-office
+      // even before any migration adds the columns.
+      const received = Math.max(0, Number(req.body?.received) || 0);
+      if (!received) return res.status(400).json({ error: "received amount required" });
+      const change = Math.max(0, received - (Number(order.total) || 0));
+      const codNote = `COD: received ${received}, change ${change}`;
+      const notes = [String(order.notes || "").replace(/COD: received \d+(?:\.\d+)?, change \d+(?:\.\d+)?/g, "").trim() || null, codNote].filter(Boolean).join(" · ");
+      await db.from("orders").update({ cod_received: received, cod_change: change, notes }).eq("id", order.id)
+        .then((r2) => r2.error ? db.from("orders").update({ notes }).eq("id", order.id) : r2);
+      return res.json({ ok: true, note: `Recorded — change to give: EGP ${change.toLocaleString()}` });
+    }
     if (action === "delivered") {
       const patch = { status: "delivered", delivered_at: new Date().toISOString(), notified_status: "delivered" };
       if (order.payment_method === "cash") patch.payment_status = "paid"; // COD collected at the door

@@ -32,13 +32,18 @@ export default function Delivery() {
   const [addVehicle, setAddVehicle] = useState("");
   const [editCourier, setEditCourier] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [zones, setZones] = useState<any[]>([]);
+  const [showStats, setShowStats] = useState(true);
 
   const load = () => {
     api.get("/api/orders", { params: { branch } }).then((r) => setOrders(r.data || [])).catch(() => {});
     api.get("/api/couriers").then((r) => setCouriers(r.data || [])).catch(() => {});
   };
   useEffect(() => {
-    api.get("/api/settings").then((r) => setBranches(r.data?.basic_info?.branches || [])).catch(() => {});
+    api.get("/api/settings").then((r) => {
+      setBranches(r.data?.basic_info?.branches || []);
+      setZones(r.data?.basic_info?.delivery?.zones || []);
+    }).catch(() => {});
   }, []);
   useEffect(() => {
     load();
@@ -62,6 +67,52 @@ export default function Delivery() {
     .map((o) => (o.delivered_at ? (new Date(o.delivered_at).getTime() - new Date(o.created_at).getTime()) / 60000 : null))
     .filter((x): x is number => x !== null && x > 0 && x < 240);
   const avgDoor = doorTimes.length ? Math.round(doorTimes.reduce((s, x) => s + x, 0) / doorTimes.length) : null;
+
+  // ---- driver-fed analytics (last 30 days of delivered delivery orders) ----
+  // COD from the driver page: cod_received/cod_change columns (migration 027), with a
+  // notes fallback ("COD: received X, change Y") so it works pre-migration too.
+  const codOf = (o: any): { received: number; change: number } | null => {
+    if (o.cod_received != null) return { received: Number(o.cod_received) || 0, change: Number(o.cod_change) || 0 };
+    const m = String(o.notes || "").match(/COD: received (\d+(?:\.\d+)?), change (\d+(?:\.\d+)?)/);
+    return m ? { received: Number(m[1]), change: Number(m[2]) } : null;
+  };
+  // destination = the configured delivery zone whose name/alias appears in the address
+  const destOf = (addr: string): string => {
+    const t = String(addr || "").toLowerCase();
+    for (const z of zones) {
+      const names = [z.area, ...(z.aliases || [])].map((s: string) => String(s || "").toLowerCase()).filter((s: string) => s.length >= 3);
+      if (names.some((n: string) => t.includes(n))) return z.area;
+    }
+    return "Other";
+  };
+  const stats = useMemo(() => {
+    const since = Date.now() - 30 * 86400000;
+    const del30 = orders.filter((o) => o.order_type === "delivery" && ["delivered", "served", "paid"].includes(o.status)
+      && new Date(o.created_at).getTime() > since);
+    const byDest: Record<string, { n: number; mins: number[]; fees: number[] }> = {};
+    const byCourier: Record<string, { n: number; mins: number[] }> = {};
+    for (const o of del30) {
+      const t = o.delivered_at ? (new Date(o.delivered_at).getTime() - new Date(o.created_at).getTime()) / 60000 : null;
+      const ok = t !== null && t > 0 && t < 240;
+      const d = destOf(o.address);
+      (byDest[d] = byDest[d] || { n: 0, mins: [], fees: [] }).n++;
+      if (ok) byDest[d].mins.push(t as number);
+      if (Number(o.delivery_fee)) byDest[d].fees.push(Number(o.delivery_fee));
+      const c = o.courier_name || couriers.find((x) => x.id === o.courier_id)?.name;
+      if (c) { (byCourier[c] = byCourier[c] || { n: 0, mins: [] }).n++; if (ok) byCourier[c].mins.push(t as number); }
+    }
+    const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((s, x) => s + x, 0) / xs.length) : null);
+    const dests = Object.entries(byDest).map(([area, v]) => ({ area, n: v.n, avgMin: avg(v.mins), avgFee: avg(v.fees) }))
+      .sort((a, b) => b.n - a.n);
+    const courierRows = Object.entries(byCourier).map(([name, v]) => ({ name, n: v.n, avgMin: avg(v.mins) })).sort((a, b) => b.n - a.n);
+    // COD reconciliation for TODAY's delivered cash orders
+    const cashDone = doneRows.filter((o) => o.payment_method === "cash");
+    const expected = cashDone.reduce((s, o) => s + Number(o.total || 0), 0);
+    const recorded = cashDone.map(codOf).filter(Boolean) as { received: number; change: number }[];
+    const received = recorded.reduce((s, r) => s + r.received, 0);
+    const change = recorded.reduce((s, r) => s + r.change, 0);
+    return { dests, courierRows, cod: { expected, received, change, net: received - change, recorded: recorded.length, of: cashDone.length } };
+  }, [orders, zones, couriers, doneRows]);
 
   async function assign(o: any, courierId: string) {
     const c = couriers.find((x) => x.id === courierId);
@@ -116,6 +167,53 @@ export default function Delivery() {
           ) : undefined
         }
       />
+
+      {/* driver-fed analytics: COD reconciliation (today) + route times (30 days) */}
+      <div className="mb-4">
+        <button onClick={() => setShowStats((s) => !s)} className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 hover:text-zinc-300">
+          Delivery analytics {showStats ? "▾" : "▸"}
+        </button>
+        {showStats && (
+          <div className="grid gap-3 md:grid-cols-3">
+            <Card className="p-4">
+              <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500"><Banknote size={13} /> COD today (delivered)</div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-zinc-400">Expected (cash orders)</span><b className="tabular-nums">EGP {money(stats.cod.expected)}</b></div>
+                <div className="flex justify-between"><span className="text-zinc-400">Received (driver-recorded)</span><b className="tabular-nums">EGP {money(stats.cod.received)}</b></div>
+                <div className="flex justify-between"><span className="text-zinc-400">Change given back</span><b className="tabular-nums">EGP {money(stats.cod.change)}</b></div>
+                <div className="flex justify-between border-t border-zinc-800 pt-1"><span className="text-zinc-400">Net in rider pockets</span><b className="tabular-nums text-emerald-400">EGP {money(stats.cod.net)}</b></div>
+                <div className="text-[11px] text-zinc-500">{stats.cod.recorded}/{stats.cod.of} cash orders recorded on the driver page</div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500"><MapPin size={13} /> By destination (30 days)</div>
+              {stats.dests.length === 0 ? <div className="text-xs text-zinc-500">No delivered orders yet.</div> : (
+                <div className="space-y-1 text-sm">
+                  {stats.dests.slice(0, 6).map((d) => (
+                    <div key={d.area} className="flex items-center justify-between gap-2">
+                      <span className="truncate text-zinc-300">{d.area}</span>
+                      <span className="shrink-0 tabular-nums text-zinc-400">{d.n}× {d.avgMin != null ? `· avg ${d.avgMin}m` : ""} {d.avgFee != null ? `· fee ${d.avgFee}` : ""}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+            <Card className="p-4">
+              <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500"><Bike size={13} /> By rider (30 days)</div>
+              {stats.courierRows.length === 0 ? <div className="text-xs text-zinc-500">Assign riders to see per-rider stats.</div> : (
+                <div className="space-y-1 text-sm">
+                  {stats.courierRows.slice(0, 6).map((c) => (
+                    <div key={c.name} className="flex items-center justify-between gap-2">
+                      <span className="truncate text-zinc-300">{c.name}</span>
+                      <span className="shrink-0 tabular-nums text-zinc-400">{c.n} deliveries{c.avgMin != null ? ` · avg ${c.avgMin}m` : ""}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-4">
         <div className="space-y-3 lg:col-span-3">

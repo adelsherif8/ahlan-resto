@@ -103,6 +103,8 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
   .item em{display:block;font-style:normal;color:var(--muted);font-size:12px;margin-top:1px}
   .row{display:flex;justify-content:space-between;font-size:14px;padding:4px 0}
   .cod{display:flex;align-items:center;justify-content:center;gap:8px;background:#fff8e6;border:1.5px solid #e8b52e;border-radius:11px;padding:12px;font-weight:800;font-size:17px;margin-top:9px}
+  .codform{margin-top:8px;display:flex;flex-direction:column;gap:7px}
+  .codform input{width:100%;box-sizing:border-box;border:1.5px solid #d9d2c7;border-radius:10px;padding:11px 12px;font-size:16px;font-weight:700}
   .addr{font-size:16px;font-weight:650;line-height:1.45;margin-bottom:11px}
   a.link{display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid var(--line);border-radius:11px;padding:12px;font-weight:600;color:var(--ink);text-decoration:none;margin-bottom:8px;font-size:14px}
   a.link:active{background:#faf8f6}
@@ -135,7 +137,13 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
       ${items}
       <div class="row"><span>Total</span><b>EGP ${Number(order.total || 0).toLocaleString()}</b></div>
       ${cod
-        ? `<div class="cod">${icon("cash", 19)} Collect cash · EGP ${cod.toLocaleString()}</div>`
+        ? `<div class="cod">${icon("cash", 19)} Collect cash · EGP ${cod.toLocaleString()}</div>
+      ${order.notes ? `<div class="row" style="color:#a15c00"><span>Note</span><b>${esc(order.notes)}</b></div>` : ""}
+      <div class="codform">
+        <input id="rcv" type="number" inputmode="numeric" placeholder="Cash received (EGP)" oninput="chg()">
+        <div class="row"><span>Change to give back</span><b id="chgv">—</b></div>
+        <button class="ghost" onclick="recordCod()">${icon("cash")} Record cash received</button>
+      </div>`
         : `<div class="row"><span>Payment</span><b>${esc(String(order.payment_method || "paid").toUpperCase())} — nothing to collect</b></div>`}
     </div>
 
@@ -171,11 +179,23 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
   // presenting a guess as a promise.
   const KMH = 18;
 
-  async function act(action){
-    const r = await fetch(API+'/api/driver/'+T+'/action', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action})});
+  async function act(action, extra){
+    const r = await fetch(API+'/api/driver/'+T+'/action', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action, ...(extra||{})})});
     const j = await r.json().catch(()=>({}));
     document.getElementById('msg').textContent = j.ok ? (j.note || 'Customer notified') : (j.error || 'Failed — try again');
     if(action==='delivered' && j.ok) setTimeout(()=>location.reload(), 800);
+  }
+  const COD = ${cod};
+  function chg(){
+    const el = document.getElementById('rcv'), out = document.getElementById('chgv');
+    if(!el || !out) return;
+    const rcv = Number(el.value)||0;
+    out.textContent = rcv >= COD ? 'EGP ' + (rcv - COD).toLocaleString() : (rcv > 0 ? 'not enough — EGP ' + (COD - rcv).toLocaleString() + ' short' : '—');
+  }
+  function recordCod(){
+    const rcv = Number((document.getElementById('rcv')||{}).value)||0;
+    if(rcv <= 0) { document.getElementById('msg').textContent = 'Enter the cash you received first'; return; }
+    act('cod', { received: rcv });
   }
 
   function km(a, b){
