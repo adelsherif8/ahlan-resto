@@ -96,7 +96,8 @@ Return JSON only:
  "pickup_time": string|null, "notes": string|null (sauce prefs, no onions, etc.),
  "address": "<the delivery address EXACTLY as the guest wrote it, verbatim>"|null,
  "branch": "<exact branch NAME from this list if the guest names one, else null>",
- "edits": [{"op": "add"|"remove"|"set_qty"|"replace", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null}]|null}
+ "edits": [{"op": "add"|"remove"|"set_qty"|"replace", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null}]|null,
+ "reorder_ref": "<ONLY with intent repeat_last: if they point at a SPECIFIC past order — a weekday ('same as last Tuesday'), a dish ('the truffle one I got'), 'my first order' — put that phrase here; a plain 'the usual'/'same as last time' leaves this null>"|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
 Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/garbled word (voice notes!) with no confident menu match is SKIPPED, never guessed; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
@@ -173,8 +174,22 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         // rebuild from their real history at CURRENT prices; unavailable items are dropped honestly
         const { data: prev } = await db.from("orders").select("*")
           .eq("phone_number", ctx.sessionId).neq("status", "cancelled")
-          .order("created_at", { ascending: false }).limit(1);
-        const last = prev?.[0];
+          .order("created_at", { ascending: false }).limit(15);
+        // "same as last Tuesday" / "the truffle one I got" → pick the SPECIFIC past order
+        // they mean (by weekday or by a dish it contained); a plain "the usual" → most recent.
+        let last = prev?.[0];
+        const ref = normName(e.reorder_ref || "");
+        if (ref && prev?.length) {
+          const WD = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+            "الاحد": 0, "الأحد": 0, "الاثنين": 1, "الإثنين": 1, "الثلاثاء": 2, "الاربعاء": 3, "الأربعاء": 3, "الخميس": 4, "الجمعة": 5, "السبت": 6 };
+          const wdKey = Object.keys(WD).find((d) => ref.includes(normName(d)));
+          const byDay = wdKey != null ? prev.find((o) => new Date(o.created_at).getDay() === WD[wdKey]) : null;
+          const byItem = !byDay ? prev.find((o) => (o.items || []).some((it) => {
+            const n = normName(it.name); const toks = n.split(" ").filter((t) => t.length >= 4);
+            return (n && ref.includes(n)) || toks.some((t) => ref.includes(t));
+          })) : null;
+          last = byDay || byItem || last;
+        }
         if (!last?.items?.length) return { kind: "no_history" };
         for (const it of last.items) {
           const hit = loaded.menu.find((m) => normName(m.name) === normName(it.name));
