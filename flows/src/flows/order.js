@@ -620,12 +620,17 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             `${i + 1}. "${g.label || g.key}": [${groupChoices(g, loaded.menu).map((c) => `"${c.name}"`).join(", ")}]`).join("\n");
           const rsys = `A restaurant guest is answering menu questions. Their message may be Arabic, Franco-Arabic, misspelled, or a garbled voice transcript — understand accents and translations ("ديابلو"→"Diablo fries", "في كولا"→"V Cola", "برتقان"→the orange drink).
 QUESTIONS:\n${lists}
-Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}}.
+Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "unmatched": "<what the guest asked for that is NOT in any list — e.g. 'cola zero' when the list has Coca-Cola and Coca-Cola Diet; null if nothing>"}.
 RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a named VARIANT that isn't in the list answers NOTHING — "cola zero" when the list has "Coca - Cola" and "Coca - Cola Diet" is null (asking beats serving the wrong drink), NEVER the nearest-looking choice; never guess.`;
           const rr = await f.node("resolve_options", async () =>
             chatJSON(MODEL_NANO, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
             { input: { open_groups: openGroups.map((g) => g.label || g.key), message: input.message } });
           const answers = rr.value?.answers || {};
+          // The guest asked for something we don't carry ("cola zero") — SAY so instead
+          // of silently re-printing the list, which reads as the bot being stuck.
+          const unmatchedOpt = typeof rr.value?.unmatched === "string" && rr.value.unmatched.trim()
+            ? rr.value.unmatched.trim().slice(0, 40) : null;
+          if (unmatchedOpt) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
           let appliedAny = false;
           openGroups.forEach((g, i) => {
             const a = answers[String(i + 1)];
