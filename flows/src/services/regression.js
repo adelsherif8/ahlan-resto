@@ -183,6 +183,12 @@ const CASES = [
     expect: [/deliver|توصيل/i], forbid: [/^📍/] },
   // One answer must configure ONE item — the second combo-item gets its own ask
   // (a real guest's 'Combo cola' silently configured BOTH her sandwiches).
+  // Accepting a recommended dish IS ordering it — the chat agent must never fake-confirm
+  // ("coming right up") and the accepted dish must survive into the real order draft
+  // (a real guest lost her Double Caramelized exactly this way).
+  { id: "acceptrec", needs: "casual", name: "Accepted recommendation lands on the real order, never fake-confirmed",
+    turns: ["which burger do you recommend? something with lots of stuffing", "thats nice, I want this one", "also add a loaded fries"],
+    expect: [/loaded fries/i, /1×/], forbid: [/coming right up|on its way|kitchen'?s on it|الطلب جاي/i] },
   { id: "peritemopts", needs: "casual", name: "Each combo item is asked separately, one answer never fills both",
     turns: ["an iconic meal and an american truck meal please", "Full Meal, Small, French fries, sprite"],
     expect: [/american truck/i, /choices|which one|pick|full meal|sandwich/i], forbid: [/O-[A-Z2-9]{4}/, /how would you like it|dine.?in.*pickup.*deliver/is] },
