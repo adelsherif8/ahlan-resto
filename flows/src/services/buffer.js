@@ -140,7 +140,11 @@ export async function claimBurst(db, sessionId, phone = null) {
 
 let flushFn = null;
 
-export function startFlushWorker(onFlush, tickMs = 1000) {
+// tick = how often we CHECK whether a chat's silence window has elapsed. It is NOT the
+// window itself (that's per-session windowMs, the burst protection) — so checking more
+// often is pure latency win with zero burst risk: once your window is up, we notice within
+// 250ms instead of up to a full second.
+export function startFlushWorker(onFlush, tickMs = 250) {
   flushFn = onFlush;
   setInterval(() => {
     const now = Date.now();

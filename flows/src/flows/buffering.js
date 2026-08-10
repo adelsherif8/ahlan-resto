@@ -277,9 +277,11 @@ defineFlow({
         if (pnid) markReadWithTyping(pnid, burst.last_message_id).catch(() => {});
       }
       // after the buffer + LLM the reply is already seconds old — a long extra
-      // pause reads as lag, not humanity
-      const ms = Math.min(Number(config.ai?.response_delay_ms) || 300, 2000);
-      await new Promise((r) => setTimeout(r, ms));
+      // pause reads as lag, not humanity. A fast-path reply (canned greeting, FAQ,
+      // price) had no "thinking" time at all, so skip the humanize pause entirely —
+      // instant is the whole point of those.
+      const ms = routed?.fast_path ? 0 : Math.min(Number(config.ai?.response_delay_ms) || 300, 2000);
+      if (ms) await new Promise((r) => setTimeout(r, ms));
       return { delayed_ms: ms };
     }, { input: { configured: config.ai?.response_delay_ms || "default 800ms" } });
 
@@ -305,11 +307,13 @@ defineFlow({
         const pnid = sessionRoutes.get(bufKey(ctx))?.phoneNumberId || ctx.tenant?.record?.wpid || WA_PHONE_NUMBER_ID;
         if (pnid) await sendReaction(pnid, ctx.sessionId.replace(/^\+/, ""), burst.last_message_id, routed.reactEmoji).catch(() => {});
       }
-      // A document with a caption IS the message — sending the text separately turns
-      // one reply into two notifications for the guest. Merge whenever nothing else
-      // (buttons, a list, a second part) needs to ride on the text.
+      // A document (the menu PDF) takes several seconds for WhatsApp to deliver. Merging
+      // the reply into the doc's caption meant the guest saw NOTHING until the whole PDF
+      // landed — ~12s of dead silence. Send the appetizing text reply FIRST (instant),
+      // then let the PDF follow a moment later. Two notifications, but the guest gets an
+      // immediate answer instead of staring at silence.
       const md = routed?.menuDoc || null;
-      const mergeDoc = isWa && md && parts.length === 1 && !list && !qrs.length;
+      const mergeDoc = false; // text-first: never wait on the document to show the reply
 
       for (let i = 0; i < parts.length; i++) {
         const last = i === parts.length - 1;

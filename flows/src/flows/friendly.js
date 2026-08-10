@@ -185,7 +185,8 @@ ${(ai.offers || []).length ? `- Current offers (ONLY these exist): ${JSON.string
 - MENU (if an item is not listed, it is NOT on the menu):
 ${menuText || "(menu not loaded)"}
 ${context.events.length ? `- UPCOMING EVENTS: ${context.events.map((e) => `${e.title} on ${e.date}${e.start_time ? " at " + String(e.start_time).slice(0, 5) : ""}${e.price ? " (EGP " + e.price + ")" : ""}`).join("; ")}` : "- UPCOMING EVENTS: none announced"}
-- FAQs: ${JSON.stringify(config.faqs || [])}
+- FAQs (staff-approved answers; a fast path already handles the common ones — these are a fallback):
+${(config.faqs || []).filter((f) => f?.q && f?.a).map((f) => `  • ${f.q} → ${f.a}`).join("\n") || "  (none configured)"}
 
 RIGHT NOW (live — overrides anything above):
 - TODAY IS: ${context.hoursNow.weekday} ${context.hoursNow.dateISO}, local time ${context.hoursNow.localTime} — compute ALL relative dates ("tomorrow", "this weekend", "Friday") against this date.
