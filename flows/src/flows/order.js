@@ -655,7 +655,19 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           e.payment_method || null,
         ].filter(Boolean);
         if (noted.length) outcomeNotices.push(`Noted — ${noted.join(" + ")} ✅`);
-        await savePending({ awaiting_option: { index: step.ask.index, keys: step.ask.keys } });
+        // RE-ASK CIRCUIT BREAKER: the SAME question issued a 4th time means three
+        // answers in a row didn't land — asking again is a loop, not persistence.
+        // Hand them to a human instead of grinding (the last unguarded loop class).
+        const prevAw = loaded.pending?.awaiting_option;
+        const sameAsk = prevAw && prevAw.index === step.ask.index &&
+          JSON.stringify(prevAw.keys || []) === JSON.stringify(step.ask.keys || []);
+        const tries = sameAsk ? (Number(prevAw.tries) || 1) + 1 : 1;
+        if (tries >= 4) {
+          await notifyDashboard(db, "handoff", "Human needed: guest stuck on an order question",
+            `${name || ctx.sessionId} — "${step.ask.item || "item options"}" asked ${tries - 1}× without an answer that matched`, ctx.sessionId).catch(() => {});
+          return { kind: "stuck_handoff", items };
+        }
+        await savePending({ awaiting_option: { index: step.ask.index, keys: step.ask.keys, tries } });
         // recompute the bill AFTER this turn's answer — showing the pre-answer
         // state made prices look like they jumped a turn late
         return { kind: "ask_choice", items, running, ...step.ask, notices: [...(step.ask.notices || []), ...outcomeNotices] };
@@ -928,6 +940,7 @@ OUTCOMES:
 - draft_cleared: they removed everything from the order being built — confirm it's wiped, offer to start fresh.
 - too_late_to_cancel: it's already READY — can't cancel now; the team can help at the counter.
 - no_open_order: no active order found — want to start one?
+- stuck_handoff: the same question did not land three times — warmly say you do not want to keep repeating yourself and a TEAM MEMBER will jump in right here to finish the order with them. NEVER blame the guest, never re-ask the question.
 - no_delivery: we don't do delivery — pickup or dine-in works great though.
 - delivery_paused: delivery is temporarily paused (kitchen busy) — say so warmly and offer pickup. NEVER take the delivery order.
 - delivery_closed: delivery only runs during OUTCOME.hours (open–close) and it's outside them now — say the hours honestly and offer pickup. NEVER take the delivery order.
@@ -958,6 +971,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       ask_table: `Which table are you at? The number's printed on it${(outcome.tables || []).length ? ` — they look like ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`,
       bad_table: `I can't find table ${outcome.given} — ours are ${(outcome.tables || []).slice(0, 8).join(", ")}. Which one are you at?`,
       no_open_order: "No active order found — want to start one? 🍔",
+      stuck_handoff: "I don't want to keep asking the same thing 😅 — a team member will jump in right here and finish your order with you 🙏",
       draft_cleared: "All cleared ✅ Want to start a fresh order?",
       delivery_paused: "Delivery's paused right now (kitchen's slammed 🙏) — but pickup's open! Want to switch to pickup?",
       delivery_closed: `Delivery runs ${outcome.hours?.open || ""}–${outcome.hours?.close || ""} 🙏 — we're outside those hours right now, but pickup works! Want pickup instead?`,

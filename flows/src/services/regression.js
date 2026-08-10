@@ -183,6 +183,11 @@ const CASES = [
     expect: [/deliver|توصيل/i], forbid: [/^📍/] },
   // One answer must configure ONE item — the second combo-item gets its own ask
   // (a real guest's 'Combo cola' silently configured BOTH her sandwiches).
+  // The same option question missed 3× is a LOOP — a human takes over instead of a
+  // 4th identical re-ask (the last unguarded loop class; C2 from the perf plan).
+  { id: "stuckhandoff", needs: "casual", name: "Same question missed 3x -> human takes over, never a 4th re-ask",
+    turns: ["an iconic meal please", "qwerty blah", "asdfgh nonsense", "zxcvb what"],
+    expect: [/team|member|jump in|human|فريق/i], forbid: [/which one[\s\S]*sandwich only/i] },
   // "no, X is the combo, the other isn't" reassigns options between items — it must
   // NEVER be read as removing X (a real guest's slaw vanished exactly this way).
   { id: "optreassign", needs: "casual", name: "Option correction between items never removes an item",
