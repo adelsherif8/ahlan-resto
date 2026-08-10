@@ -646,17 +646,25 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
             ? { asked: String(rr.value.equivalent.asked).slice(0, 30), used: String(rr.value.equivalent.used).trim(), different: rr.value.equivalent.different_product === true }
             : null;
           if (eq) {
-            const inSomeList = openGroups.some((g) => groupChoices(g, loaded.menu).some((c) => c.name === eq.used));
-            if (!inSomeList) {
+            // normalized match, canonical spelling: the nano writes "Coca-Cola Diet",
+            // the menu says "Coca - Cola Diet" — same choice, list string wins
+            let canonUsed = null;
+            for (const g of openGroups) {
+              const hit = groupChoices(g, loaded.menu).find((c) => normName(c.name) === normName(eq.used));
+              if (hit) { canonUsed = hit.name; break; }
+            }
+            if (!canonUsed) {
               // invented product — discard the mapping, tell the guest honestly instead
               if (!unmatchedOpt && !e.items?.length) outcomeNotices.push(`We don't have ${eq.asked} 🙏 — the options we've got are below.`);
               eq = null;
-            } else if (!Object.values(answers).some((v) => typeof v === "string" && v.trim() === eq.used)) {
-              // model reported the equivalent but forgot to answer with it — place it
-              openGroups.forEach((g, i) => {
-                const k = String(i + 1);
-                if (!answers[k] && groupChoices(g, loaded.menu).some((c) => c.name === eq.used)) answers[k] = eq.used;
-              });
+            } else {
+              eq.used = canonUsed;
+              if (!Object.values(answers).some((v) => typeof v === "string" && normName(v) === normName(canonUsed))) {
+                openGroups.forEach((g, i) => {
+                  const k = String(i + 1);
+                  if (!answers[k] && groupChoices(g, loaded.menu).some((c) => c.name === canonUsed)) answers[k] = canonUsed;
+                });
+              }
             }
           }
           let appliedAny = false;
@@ -664,7 +672,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           openGroups.forEach((g, i) => {
             const a = answers[String(i + 1)];
             if (!a || typeof a !== "string") return;
-            const valid = groupChoices(g, loaded.menu).find((c) => c.name === a.trim());
+            const valid = groupChoices(g, loaded.menu).find((c) => c.name === a.trim() || normName(c.name) === normName(a));
             if (valid && !askedItem.options[g.key]) { askedItem.options[g.key] = valid.name; appliedAny = true; appliedVals.add(valid.name); }
           });
           // the substitution notice may only state what ACTUALLY landed on the draft
