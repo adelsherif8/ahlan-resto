@@ -1054,6 +1054,14 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
           : `Quick choices for your *${outcome.item}* — you can answer in one go 👇`;
         if (value.value) value.value.quick_replies = [];
       }
+      // The lead MUST name the dish being configured — "Next up!" with a bare drink
+      // list read as being stuck on the FIRST sandwich. If the model's lead doesn't
+      // carry the name, code writes one that does.
+      if (outcome.item && !lead.includes(outcome.item)) {
+        lead = /[\u0600-\u06FF]/.test(lead)
+          ? `دلوقتي اختيارات *${outcome.item}* 👇`
+          : `Now for your *${outcome.item}* 👇`;
+      }
       if (outcome.notices?.length) lead = `${outcome.notices.join("\n")}\n${lead}`;
       // The dish being configured pops in WhatsApp bold — the guest's eye finds WHICH
       // item these questions belong to at a glance (model-written leads included).
