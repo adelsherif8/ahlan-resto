@@ -63,16 +63,16 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
   const items = (order.items || []).map((i) => {
     const extras = itemMods(i).map(esc).join(" · ");
     return `<div class="item"><span class="q">${esc(i.qty || 1)}×</span><span><b>${esc(i.name)}</b>${extras ? `<em>${extras}</em>` : ""}</span></div>`;
-  }).join("") || '<div class="item muted">No items listed</div>';
+  }).join("") || '<div class="item muted">لا توجد أصناف · No items listed</div>';
 
   const delivered = order.status === "delivered";
   const steps = [
-    { label: "Order received", at: order.created_at, done: true },
-    { label: "Kitchen started", at: order.started_at, done: !!order.started_at || ["preparing", "ready", "out_for_delivery", "delivered"].includes(order.status) },
-    { label: "Packed & ready", at: order.ready_at, done: ["ready", "out_for_delivery", "delivered"].includes(order.status) },
-    { label: "Picked up", at: order.out_at, done: ["out_for_delivery", "delivered"].includes(order.status) },
-    { label: "At the door", at: order.courier_arrived_at, done: !!order.courier_arrived_at || delivered },
-    { label: "Delivered", at: order.delivered_at, done: delivered },
+    { label: "استلمنا الطلب · Order received", at: order.created_at, done: true },
+    { label: "المطبخ بدأ · Kitchen started", at: order.started_at, done: !!order.started_at || ["preparing", "ready", "out_for_delivery", "delivered"].includes(order.status) },
+    { label: "اتجهز واتغلف · Packed & ready", at: order.ready_at, done: ["ready", "out_for_delivery", "delivered"].includes(order.status) },
+    { label: "استلمته من المطعم · Picked up", at: order.out_at, done: ["out_for_delivery", "delivered"].includes(order.status) },
+    { label: "على الباب · At the door", at: order.courier_arrived_at, done: !!order.courier_arrived_at || delivered },
+    { label: "تم التسليم · Delivered", at: order.delivered_at, done: delivered },
   ].map((s) => {
     const t = timeOf(s.at, tz);
     return `<div class="step ${s.done ? "on" : ""}"><i>${s.done ? icon("check", 13) : ""}</i><span>${esc(s.label)}</span><b>${t ? esc(t) : ""}</b></div>`;
@@ -136,42 +136,42 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
     <div class="card">
       <div class="lbl">${icon("bag", 13)} In the bag</div>
       ${items}
-      <div class="row"><span>Total</span><b>EGP ${Number(order.total || 0).toLocaleString()}</b></div>
+      <div class="row"><span>الإجمالي · Total</span><b>EGP ${Number(order.total || 0).toLocaleString()}</b></div>
       ${cod
-        ? `<div class="cod">${icon("cash", 19)} Collect cash · EGP ${cod.toLocaleString()}</div>
-      ${order.notes ? `<div class="row" style="color:#a15c00"><span>Note</span><b>${esc(order.notes)}</b></div>` : ""}
+        ? `<div class="cod">${icon("cash", 19)} حصّل كاش · Collect cash — EGP ${cod.toLocaleString()}</div>
+      ${order.notes ? `<div class="row" style="color:#a15c00"><span>ملحوظة · Note</span><b>${esc(order.notes)}</b></div>` : ""}
       <div class="codform">
-        <input id="rcv" type="number" inputmode="numeric" placeholder="Cash received (EGP)" oninput="chg()">
-        <div class="row"><span>Change to give back</span><b id="chgv">—</b></div>
-        <button class="ghost" onclick="recordCod()">${icon("cash")} Record cash received</button>
+        <input id="rcv" type="number" inputmode="numeric" placeholder="الكاش اللي استلمته (EGP) · Cash received" oninput="chg()">
+        <div class="row"><span>الباقي للعميل · Change to give back</span><b id="chgv">—</b></div>
+        <button class="ghost" onclick="recordCod()">${icon("cash")} سجل الكاش · Record cash</button>
       </div>`
-        : `<div class="row"><span>Payment</span><b>${esc(String(order.payment_method || "paid").toUpperCase())} — nothing to collect</b></div>`}
+        : `<div class="row"><span>Payment</span><b>${esc(String(order.payment_method || "paid").toUpperCase())}  — مدفوع، من غير تحصيل · nothing to collect</b></div>`}
     </div>
 
     <div class="card">
-      <div class="lbl">${icon("pin", 13)} Deliver to</div>
+      <div class="lbl">${icon("pin", 13)} التوصيل إلى · Deliver to</div>
       <div class="addr">${esc(order.address || "—")}</div>
-      <a class="link" href="${custMaps}" target="_blank" rel="noopener">${icon("route")} Open customer location</a>
-      ${callable ? `<a class="link" href="tel:${esc(phone)}">${icon("phone")} Call customer</a>` : ""}
-      ${brMaps ? `<a class="link" href="${brMaps}" target="_blank" rel="noopener">${icon("store")} Collect from ${esc(br.name)}</a>` : ""}
+      <a class="link" href="${custMaps}" target="_blank" rel="noopener">${icon("route")} موقع العميل على الخريطة · Customer location</a>
+      ${callable ? `<a class="link" href="tel:${esc(phone)}">${icon("phone")} اتصل بالعميل · Call customer</a>` : ""}
+      ${brMaps ? `<a class="link" href="${brMaps}" target="_blank" rel="noopener">${icon("store")} استلم من ${esc(br.name)} · Collect from ${esc(br.name)}</a>` : ""}
     </div>
 
     <div class="card">
-      <div class="lbl">${icon("clock", 13)} Progress</div>
+      <div class="lbl">${icon("clock", 13)} خط سير الطلب · Progress</div>
       ${steps}
     </div>
 
     <div class="card">
-      <button class="primary" onclick="act('out')">${icon("bike")} On my way</button>
-      <button class="ghost" onclick="act('near')">${icon("pin")} I'm 2 minutes away</button>
-      <button class="ghost" onclick="act('arrived')">${icon("door")} I've arrived</button>
-      <button class="ghost" onclick="act('delay')">${icon("clock")} Running ~10 min late</button>
-      <label class="ghost podbtn" for="podfile">${icon("check")} 📸 Proof of delivery (photo at the door)</label>
+      <button class="primary" onclick="act('out')">${icon("bike")} في الطريق · On my way</button>
+      <button class="ghost" onclick="act('near')">${icon("pin")} باقي دقيقتين · 2 minutes away</button>
+      <button class="ghost" onclick="act('arrived')">${icon("door")} وصلت · Arrived</button>
+      <button class="ghost" onclick="act('delay')">${icon("clock")} هتأخر ~١٠ دقايق · ~10 min late</button>
+      <label class="ghost podbtn" for="podfile">${icon("check")} 📸 صورة إثبات التسليم · Proof of delivery</label>
       <input id="podfile" type="file" accept="image/*" capture="environment" style="display:none" onchange="podUpload(this)">
       <div id="podstate" class="muted" style="display:none"></div>
-      <button class="ok" onclick="if(confirm('Mark ${esc(order.code)} as DELIVERED?'))act('delivered')">${icon("check")} Delivered</button>
+      <button class="ok" onclick="if(confirm('Mark ${esc(order.code)} as DELIVERED?'))act('delivered')">${icon("check")} تم التسليم · Delivered</button>
       <div id="msg"></div>
-      <div class="muted">Each button sends the customer a WhatsApp update from the restaurant's number. Sharing your location keeps the ETA accurate.</div>
+      <div class="muted">كل زرار بيبعت للعميل رسالة واتساب من رقم المطعم. خلي مشاركة موقعك شغالة عشان الوقت المتوقع يفضل مظبوط.<br>Each button sends the customer a WhatsApp update from the restaurant's number.</div>
     </div>
   </div>
 <script>
@@ -198,7 +198,7 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
   }
   function recordCod(){
     const rcv = Number((document.getElementById('rcv')||{}).value)||0;
-    if(rcv <= 0) { document.getElementById('msg').textContent = 'Enter the cash you received first'; return; }
+    if(rcv <= 0) { document.getElementById('msg').textContent = 'اكتب الكاش اللي استلمته الأول · enter the cash first'; return; }
     act('cod', { received: rcv });
   }
   // Proof of delivery: downscale to ~1280px JPEG in the browser (phone photos are 3-8MB;
@@ -207,7 +207,7 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
     const f = input.files && input.files[0];
     if(!f) return;
     const st = document.getElementById('podstate');
-    st.style.display=''; st.textContent='Uploading photo…';
+    st.style.display=''; st.textContent='جاري رفع الصورة… Uploading…';
     const img = new Image();
     img.onload = function(){
       const MAX = 1280;
@@ -217,8 +217,8 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       const dataUrl = c.toDataURL('image/jpeg', 0.72);
       fetch(API+'/api/driver/'+T+'/action', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'pod', photo:dataUrl})})
-        .then(r=>r.json()).then(j=>{ st.textContent = j.ok ? '✅ Proof of delivery saved' : (j.error || 'Upload failed — try again'); })
-        .catch(()=>{ st.textContent = 'Upload failed — try again'; });
+        .then(r=>r.json()).then(j=>{ st.textContent = j.ok ? '✅ اتسجلت صورة التسليم · Proof saved' : (j.error || 'فشل الرفع، جرب تاني · Upload failed'); })
+        .catch(()=>{ st.textContent = 'فشل الرفع، جرب تاني · Upload failed'; });
       URL.revokeObjectURL(img.src);
     };
     img.src = URL.createObjectURL(f);
