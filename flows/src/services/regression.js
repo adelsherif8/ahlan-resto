@@ -131,7 +131,7 @@ const CASES = [
     expect: [/pay|cash|card/i], forbid: [/same as before|somewhere new/i] },
   { id: "editqty", needs: "casual", name: "'make it just 1' drops the quantity",
     turns: ["2 american truck meals for pickup from Maadi", "Meal", "Medium", "French fries", "coca cola", "make it just 1", "cash", "yes confirm"],
-    expect: [/O-[A-Z2-9]{4}/, /1× American Truck/i], forbid: [/2× American Truck/i] },
+    expect: [/O-[A-Z2-9]{4}/, /1× \*?American Truck/i], forbid: [/2× \*?American Truck/i] },
   // The greeting offers the usual IN WORDS now (buttons are reserved for menu / order /
   // builder), so this asserts the item is named in the greeting — not the old
   // "Same as last time" button, which we deliberately removed.
