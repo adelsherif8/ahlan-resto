@@ -34,7 +34,7 @@ question-intent, delivery coverage+gates, all 5 new intents, Sprint-3 security d
 - [x] Order to covered area → proceeds w/ zone fee on bill (Tagamoa ✓).
 - [x] Tenant WITHOUT zones (Just Smash) unaffected — deliverybranch still completes ✓.
 - [ ] Full-suite confirm the delivery gate didn't shift any other order case.
-- Luci'z zones (placeholders, founder to tune): Tagamoa/New Cairo 30 · Rehab 35 · Nasr City 45.
+- Luci'z zones FINAL per founder (do NOT ask again): Tagamoa/New Cairo 30 · Rehab 35 · Nasr City 45.
 
 ## 🆕 New intents (BUILT + targeted-verified — confirm in final run)
 - [x] `lostfound` — reassure + branch team/phone, never claims found ✓
@@ -59,7 +59,7 @@ question-intent, delivery coverage+gates, all 5 new intents, Sprint-3 security d
 ## 🛵 COD + delivery analytics (BUILT — manual checks)
 - [ ] Driver page (cash order): enter cash received → change auto-computed → Record works.
 - [ ] Dashboard → Delivery → analytics strip: COD expected/received/change, per-destination times, per-rider stats.
-- [ ] FOUNDER: run migration **027** (cod columns) in tenant DB — code falls back to notes until then.
+- [x] Migrations 027 + 028 ran (founder confirmed).
 - [ ] Guest "change for 500" lands in order notes and shows on the rider's page.
 
 ## 🔐 Sprint 3 security (BUILT + verified live 2026-08-10)
