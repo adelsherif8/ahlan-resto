@@ -183,6 +183,11 @@ const CASES = [
     expect: [/deliver|توصيل/i], forbid: [/^📍/] },
   // One answer must configure ONE item — the second combo-item gets its own ask
   // (a real guest's 'Combo cola' silently configured BOTH her sandwiches).
+  // Naming new dishes while a draft exists ADDS to it — the dishes you didn't mention
+  // must survive (a real guest's 3-item draft got replaced by the 2 newly-named ones).
+  { id: "draftmerge", needs: "casual", name: "New dishes mid-draft add on — unmentioned dishes stay",
+    turns: ["a loaded fries please", "also an american truck meal and an iconic meal"],
+    expect: [/loaded fries/i, /american truck/i, /iconic/i], forbid: [/O-[A-Z2-9]{4}/] },
   // ONE message can carry an order AND a question ("add X — and is Y spicy?"): the item
   // must land on the order AND the question must get a real answer, in the same reply.
   { id: "mixedintent", needs: "casual", name: "Order + question in one message — both halves answered",

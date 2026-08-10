@@ -296,13 +296,34 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         // is an attempted answer, never a replacement for the order in progress —
         // letting it through drops the burger and leaves a lone drink.
         if (loaded.pending?.awaiting_option && loaded.pending?.items?.length && !e.edits?.length) {
-          // an explicit add-verb naming an item NOT on the draft is an addition
-          // even while an option question is open — never an answer to it
-          const adding = items.length === 1 && ADD_VERB.test(input.message) &&
-            !loaded.pending.items.find((it) => normName(it.name) === normName(items[0].name));
-          if (adding) loaded.pending.items.push(items[0]);
+          // NEW dishes spoken during an option ask are ADDED, never lost ("js special
+          // combo and the nashville slaw as a combo too" mid-ask must keep everything).
+          // But an option ANSWER the extractor mis-read as an item ("sprite", "French
+          // fries" while we asked the meal's questions) must not become a phantom line:
+          // anything matching a CHOICE name of the awaited item's groups is an answer.
+          const awaited = loaded.pending.items[loaded.pending.awaiting_option.index] || null;
+          const choiceNames = new Set();
+          for (const g of awaited?.option_defs || []) {
+            for (const c of groupChoices(g, loaded.menu)) if (c?.name) choiceNames.add(normName(c.name));
+            for (const sg of g.slot_groups || []) for (const cn of slotChoiceNames(sg, loaded.menu)) choiceNames.add(normName(cn));
+          }
+          const additions = items.filter((ni) =>
+            !choiceNames.has(normName(ni.name)) &&
+            !loaded.pending.items.find((it) => normName(it.name) === normName(ni.name)));
+          loaded.pending.items.push(...additions);
           items = loaded.pending.items;
           unknown = [];
+        }
+        // A draft exists and the guest named items with NO option question open: that's
+        // adding or updating, NEVER starting over — the unmentioned dishes stay. Items
+        // they re-named keep previously answered options unless restated.
+        else if (loaded.pending?.items?.length && items.length) {
+          for (const ni of items) {
+            const prev = loaded.pending.items.find((p) => normName(p.name) === normName(ni.name));
+            if (prev?.options && Object.keys(prev.options).length) ni.options = { ...prev.options, ...ni.options };
+          }
+          const namedNew = new Set(items.map((i) => normName(i.name)));
+          items = [...loaded.pending.items.filter((p) => !namedNew.has(normName(p.name))), ...items].slice(0, 12);
         }
         // nothing new — carry the in-progress order across turns
         if (!items.length && loaded.pending?.items?.length) { items = loaded.pending.items; unknown = []; }

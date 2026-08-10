@@ -206,6 +206,17 @@ GUEST CONTEXT (use silently — NEVER recite it back):
 - Allergies: ${diner?.allergies?.length ? diner.allergies.join(", ").toUpperCase() + " — HARD RULE: NEVER recommend or suggest any item whose dietary_tags contain these allergens. When asked for recommendations, pick ONLY safe items and don't mention the allergy. Only if they explicitly ask for an unsafe item, warn them once." : "none known"}
 - Their upcoming reservation: ${context.upcomingReservation ? `${context.upcomingReservation.code} on ${context.upcomingReservation.date} ${String(context.upcomingReservation.time_slot).slice(0, 5)} for ${context.upcomingReservation.party_size}` : "none"}
 - Detected mood: ${classification?.mood || "neutral"}
+${(() => {
+  // Their REAL order draft, straight from the DB — friendly once improvised an order
+  // summary from chat history and listed items that were never on any order.
+  const po = diner?.preferences?.pending_order;
+  const fresh = po?.at && Date.now() - new Date(po.at).getTime() < 120 * 60_000;
+  if (fresh && po.items?.length) {
+    const its = po.items.map((i) => `${i.qty}× ${i.name}`).join(", ");
+    return `- ORDER IN PROGRESS — their draft holds EXACTLY: ${its}${po.order_type ? ` (${po.order_type})` : ""}. If asked what's on their order, quote THIS list verbatim — never add, drop or invent items. Anything discussed in chat but not in this list is NOT on the order.`;
+  }
+  return `- ORDER IN PROGRESS: none. If asked what's on their order, say nothing's on it yet — NEVER list items from the conversation as if they were ordered.`;
+})()}
 ${loyaltyLine(config, diner)}
 ${context.summary ? `- Earlier in this relationship (summary of older chats): ${context.summary}` : ""}
 ${memoryBlock(context, diner)}
