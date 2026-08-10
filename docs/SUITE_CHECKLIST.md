@@ -55,6 +55,12 @@ Last full green baseline: **79/0** (routing-fix deploy, before the question-inte
       picks the branch that actually covers it.
 - [ ] **Min-order enforcement** (if configured): below min → says so, doesn't place.
 
+## 🛵 COD + delivery analytics (BUILT — manual checks)
+- [ ] Driver page (cash order): enter cash received → change auto-computed → Record works.
+- [ ] Dashboard → Delivery → analytics strip: COD expected/received/change, per-destination times, per-rider stats.
+- [ ] FOUNDER: run migration **027** (cod columns) in tenant DB — code falls back to notes until then.
+- [ ] Guest "change for 500" lands in order notes and shows on the rider's page.
+
 ## 👀 Manual / live checks the suite can't fully cover (do on real WhatsApp)
 - [ ] Menu PDF sends **text-first** then the document (no long silence).
 - [ ] No **forced buttons** on a plain delivery question.
