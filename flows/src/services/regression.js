@@ -183,6 +183,11 @@ const CASES = [
     expect: [/deliver|توصيل/i], forbid: [/^📍/] },
   // One answer must configure ONE item — the second combo-item gets its own ask
   // (a real guest's 'Combo cola' silently configured BOTH her sandwiches).
+  // "cancel it all" kills the DRAFT too — it must never resurrect with stale items on
+  // the next order (a real guest cancelled, re-ordered, and got the old draft back).
+  { id: "cancelall", needs: "casual", name: "Cancel-all clears the draft — next order starts truly fresh",
+    turns: ["an iconic meal please", "cancel the whole order, start over", "a loaded fries please"],
+    expect: [/loaded fries/i], forbid: [/iconic/i, /O-[A-Z2-9]{4}/] },
   // Naming new dishes while a draft exists ADDS to it — the dishes you didn't mention
   // must survive (a real guest's 3-item draft got replaced by the 2 newly-named ones).
   { id: "draftmerge", needs: "casual", name: "New dishes mid-draft add on — unmentioned dishes stay",
