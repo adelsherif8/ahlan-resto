@@ -99,7 +99,7 @@ Return JSON only:
  "edits": [{"op": "add"|"remove"|"set_qty"|"replace", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null}]|null,
  "reorder_ref": "<ONLY with intent repeat_last: if they point at a SPECIFIC past order — a weekday ('same as last Tuesday'), a dish ('the truffle one I got'), 'my first order' — put that phrase here; a plain 'the usual'/'same as last time' leaves this null>"|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/garbled word (voice notes!) with no confident menu match is SKIPPED, never guessed; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
+Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/GARBLED word (voice notes!) is SKIPPED, never guessed — but a CLEARLY named product we don't carry ("a cola zero", "red bull") goes into items AS THE GUEST SAID IT (code reports it as unavailable — silently dropping it loses part of the order); a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -551,7 +551,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const rsys = `A restaurant guest is answering menu questions. Their message may be Arabic, Franco-Arabic, misspelled, or a garbled voice transcript — understand accents and translations ("ديابلو"→"Diablo fries", "في كولا"→"V Cola", "برتقان"→the orange drink).
 QUESTIONS:\n${lists}
 Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}}.
-RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); never guess.`;
+RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a named VARIANT that isn't in the list answers NOTHING — "cola zero" when the list has "Coca - Cola" and "Coca - Cola Diet" is null (asking beats serving the wrong drink), NEVER the nearest-looking choice; never guess.`;
           const rr = await f.node("resolve_options", async () =>
             chatJSON(MODEL_NANO, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
             { input: { open_groups: openGroups.map((g) => g.label || g.key), message: input.message } });
@@ -575,7 +575,18 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       }
       items = step.items;
       running = runningOf(items); // this turn's answers are in — never echo the stale bill
+      // Anything the guest named that we DON'T carry is said out loud mid-gather —
+      // silently dropping "a cola zero" loses part of the order and erodes trust.
+      if (unknown.length) outcomeNotices.push(`Couldn't find ${unknown.join(", ")} on the menu 🙏`);
       if (step.ask) {
+        // Info said alongside an unanswered option ("pickup and pay cash" while the size
+        // is still open) IS captured (savePending) — acknowledge it so the re-ask doesn't
+        // read as if we ignored them.
+        const noted = [
+          e.order_type ? e.order_type.replace("_", "-") : null,
+          e.payment_method || null,
+        ].filter(Boolean);
+        if (noted.length) outcomeNotices.push(`Noted — ${noted.join(" + ")} ✅`);
         await savePending({ awaiting_option: { index: step.ask.index, keys: step.ask.keys } });
         // recompute the bill AFTER this turn's answer — showing the pre-answer
         // state made prices look like they jumped a turn late
@@ -607,7 +618,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         const loc = freshLocation(diner);
         const near = loc ? nearestBranches(branches, loc.lat, loc.lng, 3).map((b) => `${b.name} (${b.km} km)`) : null;
         return {
-          kind: "ask_fulfillment", items, running, first_fulfilment: firstFulfilment,
+          kind: "ask_fulfillment", items, running, first_fulfilment: firstFulfilment, notices: outcomeNotices,
           need_type: needType, delivery: deliveryOn,
           need_branch: needBranch, branches: branches.map((b) => b.name), nearest: near,
           usual: branches.find((b) => b.key === usualKey)?.name || null,
@@ -925,7 +936,8 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // computes this from whether we'd already asked (persisted leadin_shown) — which
       // is right even when the guest states the type up front (need_type would be false
       // on their genuine first ask) AND when turn 1 asks but saves no slot.
-      reply = outcome.first_fulfilment ? `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : qs.join("\n\n");
+      const noticeHead = outcome.notices?.length ? `${outcome.notices.join("\n")}\n` : "";
+      reply = outcome.first_fulfilment ? `${noticeHead}${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : `${noticeHead}${qs.join("\n\n")}`;
     }
 
     // Option questions are STRUCTURE, and structure is code's job — the model
@@ -1412,6 +1424,10 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
   // Answers can arrive before their gate: "medium fries and a cola" while
   // sandwich-or-meal is still open. Naming a choice that only exists under ONE
   // gate value IS choosing that value — code infers it, the guest isn't re-asked.
+  // TWO GUARDS (a real guest hit both): the match must be the FULL choice name or
+  // ALL of its distinguishing tokens — a lone shared word ("cola" from "cola zero")
+  // must never infer anything; and if MORE THAN ONE item has this gate open, whose
+  // drink is it? Ambiguous — skip, each item gets asked properly in turn.
   for (const it2 of out) {
     for (const g of it2.option_defs || []) {
       if (g.key === "slots" || !g.when) continue;
@@ -1420,6 +1436,8 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
       const [pKey, pWant] = entries[0];
       const pVal = Array.isArray(pWant) ? (pWant.length === 1 ? pWant[0] : null) : pWant;
       if (!pVal || it2.options[pKey]) continue;
+      const openHosts = out.filter((x) => !x.options[pKey] && (x.option_defs || []).some((gg) => gg.key === pKey)).length;
+      if (openHosts > 1) continue; // ambiguous across items — ask each in turn
       const opts2 = groupChoices(g, menu);
       if (!opts2.length) continue;
       const stop2 = distinctTokens(opts2);
@@ -1427,7 +1445,7 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
         const on = normName(o.name);
         if (said.includes(on)) return true;
         const oTok = on.split(" ").filter((t) => !stop2.has(t));
-        return oTok.length && optionMatches(said, oTok.join(" "));
+        return oTok.length && oTok.every((t) => optionMatches(said, t));
       });
       if (hit) it2.options[pKey] = pVal;
     }
@@ -1541,9 +1559,12 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
         }));
         out.splice(aw.index, 1, ...lines);
         break; // indexes shifted — remaining groups get asked next round
-      } else {
+      } else if (new Set(picked).size === 1) {
         it.options[g.key] = picked[0];
       }
+      // else: the message matched SEVERAL choices equally ("cola zero" scored the same
+      // against Coca-Cola and Coca-Cola Diet) — a tie is a question, not an answer.
+      // Leave the group open so the printed list disambiguates; never guess picked[0].
     }
   }
 

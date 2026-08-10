@@ -88,6 +88,10 @@ export function matchFaq(message, config, sticky) {
   // guard only caught the noun "delivery"; the verb slipped through and a guest asking
   // about coverage got a map pin to the branch instead.
   if (/(?<![\p{L}\p{N}])(deliver(s|y|ies|ing)?|توصيل|توصلوا|بتوصل|توصل)(?![\p{L}\p{N}])/iu.test(message)) return null;
+  // "Where am I?" asks about the GUEST's location, not ours — we genuinely don't know
+  // it. Answering with the branch address read as creepy/wrong; the LLM answers honestly
+  // ("I can't see your location — share a pin and I'll help").
+  if (/(?<![\p{L}\p{N}])(where am i|انا فين|أنا فين|ana fein|ana fen)(?![\p{L}\p{N}])/iu.test(message)) return null;
   // only fire on short, single-topic questions — anything nuanced goes to the LLM
   if (message.length > 90 || message.split("\n").length > 2) return null;
   if (DAY_PAT.test(message) || COMPOUND_PAT.test(message)) return null;

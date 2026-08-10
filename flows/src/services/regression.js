@@ -176,11 +176,16 @@ const CASES = [
   // your area" out of nowhere and re-ask the size forever — the Habiba bug).
   { id: "optnotaddress", needs: "casual", name: "Option answer mid-delivery isn't mistaken for the address",
     turns: ["3 fries delivered please", "Medium"],
-    expect: [/address|street|building|maps|عنوان|اللوكيشن/i], forbid: [/don'?t deliver|can'?t deliver|منوصلش|مش بنوصل/i] },
+    expect: [/address|area|location|street|building|maps|عنوان|منطقة|اللوكيشن/i], forbid: [/don'?t deliver|can'?t deliver|منوصلش|مش بنوصل/i] },
   // "where do you (not) deliver to?" asks about COVERAGE — never the branch map pin
   { id: "wheredeliver", name: "Delivery-coverage question isn't hijacked by the location FAQ",
     msg: "where do you not deliver to?",
     expect: [/deliver|توصيل/i], forbid: [/^📍/] },
+  // One answer must configure ONE item — the second combo-item gets its own ask
+  // (a real guest's 'Combo cola' silently configured BOTH her sandwiches).
+  { id: "peritemopts", needs: "casual", name: "Each combo item is asked separately, one answer never fills both",
+    turns: ["an iconic meal and a super chicken meal please", "Full Meal, Small, French fries, sprite"],
+    expect: [/super chicken|iconic/i, /choices|which|pick|fries|drink/i], forbid: [/O-[A-Z2-9]{4}/, /how would you like it|dine.?in.*pickup.*deliver/is] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
     expect: [/vegan|shawarma|edamame/i, /valet|parking|park(ing)?\b|تركن|جراج/i] },
