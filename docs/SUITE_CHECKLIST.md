@@ -12,7 +12,9 @@ How to run the full suite: `POST /api/ops/run-regression` (x-ops-token), poll
 
 ## ⏳ Pending full-suite verification (changed since last full green)
 
-Last full green baseline: **84/0** — FINAL milestone run 2026-08-10 (everything below verified:
+Last full green baseline: **91/91** (2026-08-11, all live-QA fixes: multi-intent, draft-merge, cancel-all draft-clear, set_option correction, bold names, accept-rec)
+
+_(prior: 84/0)_ — FINAL milestone run 2026-08-10 (everything below verified:
 question-intent, delivery coverage+gates, all 5 new intents, Sprint-3 security deploy).
 
 - [ ] **Habiba fixes (2026-08-10 evening)** — targeted-verified 10/0; confirm in next full run:
