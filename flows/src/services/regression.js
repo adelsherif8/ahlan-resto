@@ -184,8 +184,8 @@ const CASES = [
   // One answer must configure ONE item — the second combo-item gets its own ask
   // (a real guest's 'Combo cola' silently configured BOTH her sandwiches).
   { id: "peritemopts", needs: "casual", name: "Each combo item is asked separately, one answer never fills both",
-    turns: ["an iconic meal and a super chicken meal please", "Full Meal, Small, French fries, sprite"],
-    expect: [/super chicken|iconic/i, /choices|which|pick|fries|drink/i], forbid: [/O-[A-Z2-9]{4}/, /how would you like it|dine.?in.*pickup.*deliver/is] },
+    turns: ["an iconic meal and an american truck meal please", "Full Meal, Small, French fries, sprite"],
+    expect: [/american truck/i, /choices|which one|pick|full meal|sandwich/i], forbid: [/O-[A-Z2-9]{4}/, /how would you like it|dine.?in.*pickup.*deliver/is] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
     expect: [/vegan|shawarma|edamame/i, /valet|parking|park(ing)?\b|تركن|جراج/i] },

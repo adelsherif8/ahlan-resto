@@ -541,7 +541,14 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // from the lists; code validates every returned string. Zero invention.
       let step = nextQuestion(items, loaded.menu, input.message, loaded.pending, currency);
       const guestSaidSomething = String(input.message || "").replace(/^\[voice\]\s*/i, "").trim().length >= 3;
-      if (step.ask && guestSaidSomething) {
+      // The model may only resolve answers against the ask the guest actually SAW (last
+      // turn's awaiting_option) — or the very first ask when nothing was pending (option
+      // info spoken inline with the order). When this turn's answer completed item A and
+      // the ask moved on to item B, the same message must NOT also answer B's questions:
+      // the guest hasn't seen them yet. (One 'Full Meal, Small…' configured BOTH meals.)
+      const aw0 = loaded.pending?.awaiting_option;
+      const askIsWhatGuestSaw = !aw0 || (step.ask && step.ask.index === aw0.index);
+      if (step.ask && guestSaidSomething && askIsWhatGuestSaw) {
         const askedItem = step.items[step.ask.index];
         const openGroups = (askedItem?.option_defs || []).filter((g) =>
           g.key !== "slots" && step.ask.keys?.includes(g.key) && groupApplies(g, askedItem.options) && !askedItem.options[g.key]);
