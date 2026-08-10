@@ -186,14 +186,13 @@ defineFlow({
       if (GREETING.test(message.trim())) {
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare greeting)" } };
       }
-      // A live order session already tells us where this belongs. Short answers to
-      // our own questions ("Maadi", "T3", "sprite", "card", an address) are the
-      // overwhelming majority of mid-order turns — classifying them again buys
-      // nothing and costs a call. A longer message might be a genuine change of
-      // subject, so that still goes to the model.
-      if (precheck.active_flow === "order" && message.trim().length <= 45) {
-        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (short answer inside an active order)" } };
-      }
+      // NOTE: we deliberately do NOT force short mid-order messages into the order bucket
+      // by length any more. "بتوصلوا المعادي؟" is short but it's a QUESTION, not an order
+      // answer — the old length rule swallowed it and dumped the menu. Routing is now by
+      // CONTEXT: the classifier below decides (it knows an order is in progress and that a
+      // real subject-change goes to friendly), and the ORDER flow itself hands any non-order
+      // message back to friendly (see order.js handoff_to_friendly). Answers like "Maadi",
+      // "sprite", "card" still land in order via the classifier's continuation rule.
       // A filled-in slots template ("FIRST CHOICE / SANDWICH: iconic / NOTES: …")
       // is structurally an order answer. The classifier once filed one under
       // friendly and dropped the whole order — structure is code's job, not a

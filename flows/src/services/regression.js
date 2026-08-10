@@ -157,6 +157,15 @@ const CASES = [
     expect: [/pay|cash|card|instapay/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "confirmgate", needs: "casual", name: "Confirmation required before the kitchen sees it", turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "cash"],
     expect: [/confirm/i], forbid: [/O-[A-Z2-9]{4}/] },
+  // A QUESTION during an open order must be ANSWERED, never swallowed by the order flow
+  // and answered with a menu dump (the "بتوصلوا المعادي؟ → here's the menu" loop bug).
+  { id: "midorderq", needs: "casual", name: "A question mid-order is answered, not menu-dumped",
+    turns: ["I want to order 🍔", "wait, do you guys deliver to Maadi?"],
+    expect: [/deliver|pickup|pick.?up|توصيل|نوصل/i], forbid: [/📄|menu\.pdf|قول لي تحب تطلب/i] },
+  // …and after the question, the SAME order continues and completes (state was kept)
+  { id: "midorderresume", needs: "casual", name: "Order continues after a mid-order question",
+    turns: ["I want to order", "do you deliver to Maadi?", "an iconic meal for pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "cash", "yes confirm"],
+    expect: [/O-[A-Z2-9]{4}/] },
   // ---- probe-derived locks (each was a real failure in the 100-scenario audit) ----
   { id: "compound3", name: "Compound question: all parts answered", msg: "what time do you open, do you have vegan food, and is there parking?",
     expect: [/vegan|shawarma|edamame/i, /valet|parking|park(ing)?\b|تركن|جراج/i] },

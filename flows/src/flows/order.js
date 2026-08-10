@@ -121,6 +121,19 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       }
       let branchInfo = branches.find((b) => b.key === branch) || null;
 
+      // NOT AN ORDER MESSAGE: the extractor found nothing order-related (no item, edit,
+      // type, address, table, payment, branch) and the draft is idle (no items being
+      // built, no question we're waiting on). It only reached the order flow because an
+      // order session was open — but it's really a question or chit-chat ("do you deliver
+      // to Maadi?", "do you have tissues?", "what time do you close?"). Hand it to the
+      // normal brain to answer; the draft is left EXACTLY as it was, so the guest picks
+      // ordering right back up afterwards (add/edit/confirm all still work). We trust the
+      // model's own `intent` here — no keyword lists, no message-length guessing.
+      const idleDraft = !loaded.pending?.items?.length && !loaded.pending?.awaiting_option && loaded.pending?.awaiting_confirm !== true;
+      const noOrderContent = e.intent === "other" && !(e.items?.length) && !(e.edits?.length)
+        && !e.order_type && !e.address && !e.table_number && !e.payment_method && !e.pickup_time && !named;
+      if (idleDraft && noOrderContent) return { kind: "handoff_to_friendly" };
+
       if (e.intent === "cancel_order") {
         if (!loaded.openOrder) return { kind: "no_open_order" };
         if (["ready"].includes(loaded.openOrder.status)) return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder) };
@@ -752,6 +765,14 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         ctx.sessionId, branch);
       return { kind: "order_placed", loyalty, code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, track_url: trackUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
     }, { input: { intent: e.intent, items: (e.items || []).length, order_type: e.order_type, table: e.table_number } });
+
+    // The message wasn't about the order — answer it with the normal brain and return.
+    // pending_order is untouched (we never wrote it), so the classifier still sees the
+    // order as active and the guest's next "add fries" / "make it 2" continues the exact
+    // same draft. This is what stops a mid-order question from getting the menu dump.
+    if (outcome.kind === "handoff_to_friendly") {
+      return f.flow("friendly", { message: input.message, diner, history: input.history, precheck: input.precheck, classification });
+    }
 
     const value = await f.node("phrase", async () => {
       const lang = classification?.language || "en";

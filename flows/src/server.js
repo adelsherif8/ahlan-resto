@@ -922,7 +922,15 @@ app.get("/api/executions/:id", opsAuth, async (req, res) => {
 // Buffer keys are "<restaurantId>|<sessionId>" so two restaurants can never
 // share a burst — the same guest phone may talk to both, and their messages
 // must stay in separate conversations.
-async function flushHandler(bufferKey, channel = "web") {
+// A session's turns MUST run one at a time. Two overlapping `respond` cycles for the
+// same chat (flush worker + a post_check chained re-flush, or two quick bursts) each
+// read the diner/history, then write them back from their turn-old copy — the second
+// clobbers the first, losing the guest's just-given answer, so the agent re-asks and
+// the guest sees "the same wrong answer again". Serializing per bufferKey removes the
+// race (and stops duplicate replies). claimBurst still guards the same burst; this
+// guards different bursts of the SAME session running concurrently.
+const flushLocks = new Map(); // bufferKey -> tail of its turn queue
+async function flushOnce(bufferKey, channel = "web") {
   const sep = String(bufferKey).indexOf("|");
   const restaurantId = sep > 0 ? bufferKey.slice(0, sep) : null;
   const sessionId = sep > 0 ? bufferKey.slice(sep + 1) : bufferKey;
@@ -930,6 +938,12 @@ async function flushHandler(bufferKey, channel = "web") {
   const ctx = { sessionId, bufferKey, tenant, channel, trigger: "buffer-flush" };
   const { error } = await runFlow("respond", ctx, {});
   if (error) await handleFlushFailure(ctx, error);
+}
+function flushHandler(bufferKey, channel = "web") {
+  const prev = flushLocks.get(bufferKey) || Promise.resolve();
+  const run = prev.catch(() => {}).then(() => flushOnce(bufferKey, channel));
+  flushLocks.set(bufferKey, run.finally(() => { if (flushLocks.get(bufferKey) === run) flushLocks.delete(bufferKey); }));
+  return run;
 }
 
 startFlushWorker(flushHandler);
