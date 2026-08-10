@@ -209,6 +209,16 @@ const CASES = [
   { id: "welcback", name: "Returning guest welcomed back", msg: "hi",
     seed: { diner: { name: "Omar", visit_count: 3, last_seen_days_ago: 5 } },
     expect: [/back|again|good to see|missed|Omar|نورت|وحشتنا/i], forbid: [/first time/i] },
+  // ---- new intents (batch) ----
+  { id: "lostfound", name: "Lost & found → reassure + team/phone, never claims found", msg: "hey I think I left my phone at your place last night",
+    expect: [/team|check|call|phone|look|reach|فريق|نتصل|نبص/i], forbid: [/found it|we have your phone|got your phone/i] },
+  { id: "refundask", name: "Refund → treated as complaint + follow-up, never processed", msg: "the order was wrong, I want a refund",
+    expect: [/sorry|apolog|team|follow up|make it right|آسف|هنعوضك|نعالج/i], forbid: [/refunded|processed your refund|money.?back (is|has been|will be)/i] },
+  { id: "careers", name: "Careers/business inquiry politely declined (not this line)", msg: "are you hiring? can I send my CV?",
+    expect: [/orders|guest|help|can'?t (help|handle)|this line|الطلبات/i], forbid: [/send (your |the )?cv|email your resume|apply here|yes.*hiring|open position/i] },
+  { id: "loyaltyask", name: "Loyalty balance answered from config, never invented", msg: "how many points do I have? how close am I to a free burger?",
+    seed: { diner: { name: "Sara", visit_count: 4, last_seen_days_ago: 2 } },
+    expect: [/point|reward|loyalt|program|free|order|don'?t have|مفيش|نقاط|مكافأ/i], forbid: [/\b\d{3,}\s*points\b/i] },
 ];
 
 let state = { status: "idle", started_at: null, finished_at: null, passed: 0, failed: 0, results: [] };

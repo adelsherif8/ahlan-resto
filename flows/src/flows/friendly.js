@@ -206,6 +206,7 @@ GUEST CONTEXT (use silently — NEVER recite it back):
 - Allergies: ${diner?.allergies?.length ? diner.allergies.join(", ").toUpperCase() + " — HARD RULE: NEVER recommend or suggest any item whose dietary_tags contain these allergens. When asked for recommendations, pick ONLY safe items and don't mention the allergy. Only if they explicitly ask for an unsafe item, warn them once." : "none known"}
 - Their upcoming reservation: ${context.upcomingReservation ? `${context.upcomingReservation.code} on ${context.upcomingReservation.date} ${String(context.upcomingReservation.time_slot).slice(0, 5)} for ${context.upcomingReservation.party_size}` : "none"}
 - Detected mood: ${classification?.mood || "neutral"}
+${loyaltyLine(config, diner)}
 ${context.summary ? `- Earlier in this relationship (summary of older chats): ${context.summary}` : ""}
 ${memoryBlock(context, diner)}
 
@@ -240,6 +241,10 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
       ? `we have a dedicated ordering flow that takes the whole order end-to-end. If they want to order, DO NOT collect items, DO NOT hand off to staff, DO NOT say "I'll pass this to the team" — just set send_menu_list=true and invite them to say what they'd like; the ordering flow picks it up from there.`
       : `(pickup / pre-order) we take them via chat — collect the items and pickup time, then set needs_handoff=true with reason "order request" and the FULL order in handoff_briefing; tell the guest the team will confirm when it's ready. NEVER claim an order is placed, charged or paid — no payments in chat. Delivery: only per FACTS policy.`}
 20. STAFF ALERT (your host's notebook): when something happens the TEAM should know about, set staff_alert = {"type": "<2-4 words>", "note": "<one factual third-person line, max 120 chars>"}. Worth alerting: engagement/anniversary celebration coming · big group intent · an upset regular · VIP planning a visit · special request (cake, surprise, decoration) · guest asked for a manager. NOT worth alerting: routine questions, menu chat, normal bookings (those already notify). Sparing — most messages have staff_alert null.
+21. LOYALTY: if they ask about points / rewards / "how close to a free X" / their loyalty — answer ONLY from the LOYALTY line in GUEST CONTEXT (exact numbers). If none is configured, say we don't have a loyalty program yet. NEVER invent points, tiers or rewards.
+22. LOST & FOUND: if they say they left/lost something ("I left my phone/wallet/keys"), be reassuring, tell them you'll flag it to the branch team to check right away, and give them the branch PHONE (from FACTS) so they can call directly for a faster look — say the team will get back with any updates. Set needs_handoff=true and staff_alert={"type":"lost & found","note":"<what + when, short>"}. NEVER promise it's found.
+23. REFUND / MONEY BACK: if they ask for a refund or their money back, treat it as a COMPLAINT — apologize once, set detected_feedback={"sentiment":"negative","text":"<their words, short>","rating":null} and needs_handoff=true, and tell them a team member will follow up personally to make it right. NEVER promise, confirm or process a refund yourself — refunds are never handled over WhatsApp.
+24. NOT OUR LINE: this WhatsApp is for GUESTS — ordering, bookings, menu, help. It is NOT a business/HR line. For jobs/hiring/CV, franchise, partnership, supplier or investor inquiries: politely say this line is just for orders & guest help and you can't handle hiring/business requests here — don't answer them, don't collect CVs/details, don't hand off. One warm line, then back to how you can help them as a guest.
 
 Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string, "rating": number|null}|null, "send_location_pin": boolean, "react_emoji": string|null, "staff_alert": {"type": string, "note": string}|null, "suggested_faq": {"question": string, "context": string}|null }`;
 
@@ -604,6 +609,19 @@ function buildMenuList(menu, byo = null) {
 
 // MEMORY block — what we know about this guest, with hard anti-creepiness rules.
 // Only lines with real data are included; empty memory = no block at all.
+// Loyalty balance, computed from config (pos.loyalty_every/reward) + real visits — so the
+// bot can answer "how many points / how close to a free X" with exact numbers, never guessed.
+// Mirrors the reward math in order.js (reward lands on every Nth order).
+function loyaltyLine(config, diner) {
+  const every = Number(config?.pos?.loyalty_every) || 0;
+  if (!every) return "- LOYALTY: no points/rewards program is configured — if asked, say we don't have a loyalty program yet (NEVER invent points or a reward).";
+  const reward = String(config?.pos?.loyalty_reward || "a reward");
+  const visits = Number(diner?.visit_count) || 0;
+  const into = visits % every;
+  const remaining = into === 0 && visits > 0 ? every : every - into;
+  return `- LOYALTY: every ${every} orders earns ${reward}. This guest has placed ${visits} order${visits === 1 ? "" : "s"} — ${remaining} more to their next ${reward}. If they ask about points/rewards, quote these EXACT numbers; never invent.`;
+}
+
 function memoryBlock(context, diner) {
   const p = context.prefs || {};
   const lines = [];
