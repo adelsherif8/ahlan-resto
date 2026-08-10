@@ -195,6 +195,11 @@ const CASES = [
   { id: "pepsidiet", needs: "casual", name: "Cross-brand equivalent auto-applies, no permission question",
     turns: ["an iconic meal for pickup from Maadi", "Full Meal pepsi diet"],
     expect: [/coca[ -]*cola diet|diet/i], forbid: [/would you like|هل تحب|zero/i] },
+  // Bare "pepsi" during a drink ask is an ANSWER (→ equivalence), never a fuzzy-matched
+  // "Soft Drink" line added to the bill (a live guest got +50 EGP they never ordered).
+  { id: "pepsiphantom", needs: "casual", name: "Brand-word answer never becomes a phantom order line",
+    turns: ["an iconic meal for pickup from Maadi", "Full Meal", "pepsi"],
+    expect: [/coca/i], forbid: [/1×\s*\*?soft/i, /1×\s*\*?coca/i] },
   // Ordering by dish names must NEVER trip the unmatched-option notice — a live guest
   // adding 3 dishes was told "We don't have The caramelised burger, The Nashville sl 🙏"
   // while all 3 landed on the bill correctly.

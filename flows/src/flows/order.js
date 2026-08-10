@@ -326,10 +326,18 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           // while the slot choice says "American Truck" — still the same answer-word,
           // never a new order line
           const choiceArr = [...choiceNames];
+          // The matched dish must also have actually been SPOKEN. "pepsi" fuzzy-matched
+          // the "Soft Drink" menu item and added a 50 EGP line the guest never ordered —
+          // when the message names neither the dish nor an add-word, it's an attempted
+          // ANSWER for the open question and the resolver owns it.
+          const msgN = normName(arOptionWords(input.message));
+          const ADD_WORDS = /(?<![\p{L}])(add|another|also|plus|كمان|تاني|زود|هات)(?![\p{L}])/iu;
           const additions = items.filter((ni) => {
             const n = normName(ni.name);
             if (loaded.pending.items.find((it) => normName(it.name) === n)) return false;
-            return !choiceArr.some((cn) => cn === n || n.includes(cn) || cn.includes(n));
+            if (choiceArr.some((cn) => cn === n || n.includes(cn) || cn.includes(n))) return false;
+            const spoken = msgN.includes(n) || n.split(" ").filter((t) => t.length >= 3).some((t) => msgN.includes(t));
+            return spoken || ADD_WORDS.test(input.message);
           });
           loaded.pending.items.push(...additions);
           items = loaded.pending.items;
