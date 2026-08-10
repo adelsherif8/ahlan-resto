@@ -15,12 +15,13 @@ How to run the full suite: `POST /api/ops/run-regression` (x-ops-token), poll
 Last full green baseline: **84/0** — FINAL milestone run 2026-08-10 (everything below verified:
 question-intent, delivery coverage+gates, all 5 new intents, Sprint-3 security deploy).
 
-- [ ] **Order "question" intent** (order.js extract + act) — a real question during an
-      order (delivery/hours/ingredients) is handed to friendly, never absorbed. Bare
-      answers (size/drink/cash/branch/yes) must NOT be flagged as questions and must still
-      complete the order. *Targeted-verified 7/0; needs full-suite confirmation it didn't
-      shift any order case.*
-- [ ] **Delivery coverage feature** (when built) — see below.
+- [ ] **Habiba fixes (2026-08-10 evening)** — targeted-verified 10/0; confirm in next full run:
+      address-capture yields to awaiting_option (`optnotaddress`) · per-item option asks —
+      3 leaks closed: loose inference / strict matcher / resolver answering an unseen ask
+      (`peritemopts`) · variant tie = re-ask, never picked[0] · unknown items surfaced
+      ("Couldn't find X 🙏") · "Noted — pickup + cash ✅" ack · where-deliver + where-am-I
+      FAQ guards (`wheredeliver`).
+- [ ] The 84/0 baseline predates these — one full suite at the next milestone re-locks everything.
 
 ## ✅ Already added regression cases (keep them green)
 - `midorderq` — question mid-order answered, not menu-dumped.
