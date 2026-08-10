@@ -619,7 +619,13 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // the guest hasn't seen them yet. (One 'Full Meal, Small…' configured BOTH meals.)
       const aw0 = loaded.pending?.awaiting_option;
       const askIsWhatGuestSaw = !aw0 || (step.ask && step.ask.index === aw0.index);
-      if (step.ask && guestSaidSomething && askIsWhatGuestSaw) {
+      // One applied answer can OPEN a follow-up group in the same breath ("pepsi"
+      // infers Combo, which opens the combo-drink list the same word was meant to
+      // answer — the drink then got re-asked cold). Resolution runs up to twice,
+      // always against the SAME item, so the message's whole meaning lands.
+      const resolveIndex = step.ask?.index;
+      for (let pass = 0; pass < 2 && step.ask && guestSaidSomething; pass++) {
+        if (pass === 0 ? !askIsWhatGuestSaw : step.ask.index !== resolveIndex) break;
         const askedItem = step.items[step.ask.index];
         const openGroups = (askedItem?.option_defs || []).filter((g) =>
           g.key !== "slots" && step.ask.keys?.includes(g.key) && groupApplies(g, askedItem.options) && !askedItem.options[g.key]);
@@ -638,7 +644,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           // of silently re-printing the list, which reads as the bot being stuck.
           const unmatchedOpt = typeof rr.value?.unmatched === "string" && rr.value.unmatched.trim()
             ? rr.value.unmatched.trim().slice(0, 40) : null;
-          if (unmatchedOpt && !e.items?.length) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
+          if (unmatchedOpt && !e.items?.length && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
           // Equivalents are AUTO-APPLIED, never asked about — and only ever a real list
           // string. The nano once invented "Coca-Cola Zero" (not on the menu) and the
           // notice claimed it was applied while nothing landed. Code verifies both.
@@ -655,7 +661,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
             }
             if (!canonUsed) {
               // invented product — discard the mapping, tell the guest honestly instead
-              if (!unmatchedOpt && !e.items?.length) outcomeNotices.push(`We don't have ${eq.asked} 🙏 — the options we've got are below.`);
+              if (!unmatchedOpt && !e.items?.length && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${eq.asked} 🙏 — the options we've got are below.`);
               eq = null;
             } else {
               eq.used = canonUsed;
@@ -677,11 +683,10 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           });
           // the substitution notice may only state what ACTUALLY landed on the draft
           if (eq && eq.different && appliedVals.has(eq.used)) outcomeNotices.push(`${eq.asked} → closest we carry is *${eq.used.slice(0, 40)}*, put that in ✍️ (say the word to switch)`);
-          if (appliedAny) {
-            items = step.items;
-            step = nextQuestion(items, loaded.menu, "", loaded.pending, currency);
-          }
-        }
+          if (!appliedAny) break;
+          items = step.items;
+          step = nextQuestion(items, loaded.menu, "", loaded.pending, currency);
+        } else break;
       }
       if (removedNames?.length) {
         step.items = step.items || items;

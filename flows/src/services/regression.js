@@ -200,6 +200,11 @@ const CASES = [
   { id: "pepsiphantom", needs: "casual", name: "Brand-word answer never becomes a phantom order line",
     turns: ["an iconic meal for pickup from Maadi", "Full Meal", "pepsi"],
     expect: [/coca/i], forbid: [/1×\s*\*?soft/i, /1×\s*\*?coca/i] },
+  // "full meal pepsi" in one breath: choosing the format opens the drink group —
+  // the SAME message's pepsi must land there (second resolution pass), never re-ask cold.
+  { id: "pepsi2pass", needs: "casual", name: "Answer that opens a follow-up group still consumes the whole message",
+    turns: ["an iconic meal for pickup from Maadi", "full meal pepsi"],
+    expect: [/coca/i], forbid: [/1×\s*\*?soft/i] },
   // Ordering by dish names must NEVER trip the unmatched-option notice — a live guest
   // adding 3 dishes was told "We don't have The caramelised burger, The Nashville sl 🙏"
   // while all 3 landed on the bill correctly.
