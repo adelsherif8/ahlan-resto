@@ -621,7 +621,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const rsys = `A restaurant guest is answering menu questions. Their message may be Arabic, Franco-Arabic, misspelled, or a garbled voice transcript — understand accents and translations ("ديابلو"→"Diablo fries", "في كولا"→"V Cola", "برتقان"→the orange drink).
 QUESTIONS:\n${lists}
 Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "equivalent": {"asked": "<what they said>", "used": "<the list choice you mapped it to>", "different_product": <true ONLY when the mapped choice is a genuinely DIFFERENT product/brand (pepsi→Coca-Cola, cola→V Cola); false when it's the same thing worded differently (coke→Coca-Cola, cola zero→the sugar-free cola we carry)>}|null, "unmatched": "<an attempted ANSWER to the questions with NO reasonable equivalent in any list; null if nothing>"}. The guest's message may be ORDERING dishes — dish/item names are handled elsewhere and are NEVER "unmatched" and never an attempted answer; when the message just names dishes to order, equivalent=null and unmatched=null.
-RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent" so we can tell the guest. Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent.`;
+RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent". "used" and every answer MUST be an EXACT string from the lists — NEVER a product that isn't listed (never invent "Coca-Cola Zero" when the list has "Coca - Cola Diet"). Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent.`;
           const rr = await f.node("resolve_options", async () =>
             chatJSON(MODEL_NANO, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
             { input: { open_groups: openGroups.map((g) => g.label || g.key), message: input.message } });
@@ -631,19 +631,36 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           const unmatchedOpt = typeof rr.value?.unmatched === "string" && rr.value.unmatched.trim()
             ? rr.value.unmatched.trim().slice(0, 40) : null;
           if (unmatchedOpt && !e.items?.length) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
-          // transparent substitution: applied AND announced, never silent — the guest can
-          // overrule it in one message ("no, sprite then")
-          const eq = rr.value?.equivalent;
-          // same product re-worded (cola zero → our diet cola) applies SILENTLY — the bill
-          // shows it; only a genuinely different brand (pepsi → Coca-Cola) gets announced
-          if (eq?.asked && eq?.used && eq.different_product === true) outcomeNotices.push(`${String(eq.asked).slice(0, 30)} → closest we carry is *${String(eq.used).slice(0, 40)}*, put that in ✍️ (say the word to switch)`);
+          // Equivalents are AUTO-APPLIED, never asked about — and only ever a real list
+          // string. The nano once invented "Coca-Cola Zero" (not on the menu) and the
+          // notice claimed it was applied while nothing landed. Code verifies both.
+          let eq = rr.value?.equivalent?.asked && rr.value?.equivalent?.used
+            ? { asked: String(rr.value.equivalent.asked).slice(0, 30), used: String(rr.value.equivalent.used).trim(), different: rr.value.equivalent.different_product === true }
+            : null;
+          if (eq) {
+            const inSomeList = openGroups.some((g) => groupChoices(g, loaded.menu).some((c) => c.name === eq.used));
+            if (!inSomeList) {
+              // invented product — discard the mapping, tell the guest honestly instead
+              if (!unmatchedOpt && !e.items?.length) outcomeNotices.push(`We don't have ${eq.asked} 🙏 — the options we've got are below.`);
+              eq = null;
+            } else if (!Object.values(answers).some((v) => typeof v === "string" && v.trim() === eq.used)) {
+              // model reported the equivalent but forgot to answer with it — place it
+              openGroups.forEach((g, i) => {
+                const k = String(i + 1);
+                if (!answers[k] && groupChoices(g, loaded.menu).some((c) => c.name === eq.used)) answers[k] = eq.used;
+              });
+            }
+          }
           let appliedAny = false;
+          const appliedVals = new Set();
           openGroups.forEach((g, i) => {
             const a = answers[String(i + 1)];
             if (!a || typeof a !== "string") return;
             const valid = groupChoices(g, loaded.menu).find((c) => c.name === a.trim());
-            if (valid && !askedItem.options[g.key]) { askedItem.options[g.key] = valid.name; appliedAny = true; }
+            if (valid && !askedItem.options[g.key]) { askedItem.options[g.key] = valid.name; appliedAny = true; appliedVals.add(valid.name); }
           });
+          // the substitution notice may only state what ACTUALLY landed on the draft
+          if (eq && eq.different && appliedVals.has(eq.used)) outcomeNotices.push(`${eq.asked} → closest we carry is *${eq.used.slice(0, 40)}*, put that in ✍️ (say the word to switch)`);
           if (appliedAny) {
             items = step.items;
             step = nextQuestion(items, loaded.menu, "", loaded.pending, currency);
@@ -1060,7 +1077,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // questions below — a lead-in claiming "you chose… / Got it, X" is dropped.
       // (Tested BEFORE the code notices are prepended — our own "Noted — pickup ✅"
       // notice must never trip its own guard.)
-      const CLAIMS = /تؤكد|تأكيد|أكد الطلب|اخترت|اخترتي|اختارت|سجلت|confirm|you (chose|picked|selected)|chosen|noted|got it|recorded|✍️/i;
+      const CLAIMS = /تؤكد|تأكيد|أكد الطلب|اخترت|اخترتي|اختارت|سجلت|confirm|you (chose|picked|selected)|chosen|noted|got it|recorded|✍️|closest|would you like|instead|rather|بدل|هل تحب/i;
       if (CLAIMS.test(lead)) {
         const ar = /[\u0600-\u06FF]/.test(lead);
         lead = ar

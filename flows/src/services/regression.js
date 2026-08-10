@@ -190,6 +190,11 @@ const CASES = [
     turns: ["an iconic meal for pickup from Maadi", "Full Meal cola zero"],
     expect: [/coca[ -]*cola diet|diet/i],
     forbid: [/we don'?t have/i, /just say ['"]?order/i] },
+  // Cross-brand answer (pepsi diet) auto-applies our diet cola — announced, never
+  // asked about ("Would you like that?" is banned), never an invented product ("Zero").
+  { id: "pepsidiet", needs: "casual", name: "Cross-brand equivalent auto-applies, no permission question",
+    turns: ["an iconic meal for pickup from Maadi", "Full Meal pepsi diet"],
+    expect: [/coca[ -]*cola diet|diet/i], forbid: [/would you like|هل تحب|zero/i] },
   // Ordering by dish names must NEVER trip the unmatched-option notice — a live guest
   // adding 3 dishes was told "We don't have The caramelised burger, The Nashville sl 🙏"
   // while all 3 landed on the bill correctly.

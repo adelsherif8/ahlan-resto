@@ -254,6 +254,7 @@ export default function Chats() {
   const [filter, setFilter] = useState<string>("all");
   const [aiName, setAiName] = useState("AI");
   const [drafting, setDrafting] = useState(false);
+  const [armReset, setArmReset] = useState(false);
   const [highlight, setHighlight] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
@@ -470,12 +471,14 @@ export default function Chats() {
                   <button
                     title="Reset this guest completely — deletes chats, memory, orders and reservations so they start fresh (testing tool)"
                     onClick={async () => {
-                      if (!confirm(`Fully reset ${active.diner_name || active.session_id}? This wipes their chats, memory, orders and reservations.`)) return;
+                      // two-step arm instead of confirm() — the sync dialog blocked the main thread (872ms INP)
+                      if (!armReset) { setArmReset(true); setTimeout(() => setArmReset(false), 4000); return; }
+                      setArmReset(false);
                       await api.delete(`/api/chat/sessions/${encodeURIComponent(active.session_id)}/reset`).catch(() => {});
                       setActive(null); setMessages([]); setCtx(null); loadSessions();
                     }}
-                    className="rounded-lg border border-red-500/40 p-2 text-red-400 hover:bg-red-500/10"
-                  ><Trash2 size={14} /></button>
+                    className={armReset ? "flex items-center gap-1 rounded-lg bg-red-600 p-2 text-xs font-semibold text-white" : "rounded-lg border border-red-500/40 p-2 text-red-400 hover:bg-red-500/10"}
+                  ><Trash2 size={14} />{armReset ? "Sure? Wipes everything" : null}</button>
                   <Btn variant={active.ai_enabled ? "ghost" : "primary"} className="px-3 py-1.5 text-xs" onClick={toggleAi}>
                     <span className="flex items-center gap-1.5">
                       {active.ai_enabled ? <><Bot size={14} /> AI on — take over</> : <><BotOff size={14} /> Hand back to AI</>}
