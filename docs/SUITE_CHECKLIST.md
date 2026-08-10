@@ -26,6 +26,15 @@ Last full green baseline: **79/0** (routing-fix deploy, before the question-inte
 - `midorderresume` — order completes after a mid-order question (state kept).
 - `midconfigq` — question while configuring an item isn't force-progressed to payment.
 
+## 🚚 Delivery coverage (BUILT + live for Luci'z — verify in final run)
+- [x] Inquiry covered → quotes exact zone fee/ETA (Tagamoa 30 ✓, live).
+- [x] Inquiry uncovered → honest "not covered + pickup", no invented fee (Maadi ✓, live).
+- [x] Order to uncovered area → `no_delivery_area` block (Maadi order ✓).
+- [x] Order to covered area → proceeds w/ zone fee on bill (Tagamoa ✓).
+- [x] Tenant WITHOUT zones (Just Smash) unaffected — deliverybranch still completes ✓.
+- [ ] Full-suite confirm the delivery gate didn't shift any other order case.
+- Luci'z zones (placeholders, founder to tune): Tagamoa/New Cairo 30 · Rehab 35 · Nasr City 45.
+
 ## 🆕 Regression cases to ADD before the final run
 - [ ] **Delivery in-zone**: "do you deliver to New Cairo and how much" → quotes the real
       zone fee (not a guess), for the covering branch.
