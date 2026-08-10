@@ -292,7 +292,10 @@ defineFlow({
     // parallel at the end (awaited so the next turn sees the reply in history, but as
     // max(writes) not sum(writes)).
     await f.node("deliver", async () => {
-      const parts = splitReply(reply);
+      // A flow that composed its own bubbles (order asks: [side answer][notices][ask])
+      // controls the split — the 400-char heuristic once cut the "👇" lead off its choices.
+      const parts = Array.isArray(routed?.parts) && routed.parts.length
+        ? routed.parts.filter(Boolean) : splitReply(reply);
       const isWa = (sessionRoutes.get(bufKey(ctx))?.channel || ctx.channel) === "whatsapp";
       const writes = []; // DB logging — fired now, awaited together at the end
       let qrs = routed?.quickReplies || [];

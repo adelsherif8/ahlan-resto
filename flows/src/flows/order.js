@@ -620,7 +620,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             `${i + 1}. "${g.label || g.key}": [${groupChoices(g, loaded.menu).map((c) => `"${c.name}"`).join(", ")}]`).join("\n");
           const rsys = `A restaurant guest is answering menu questions. Their message may be Arabic, Franco-Arabic, misspelled, or a garbled voice transcript — understand accents and translations ("ديابلو"→"Diablo fries", "في كولا"→"V Cola", "برتقان"→the orange drink).
 QUESTIONS:\n${lists}
-Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "equivalent": {"asked": "<what they said>", "used": "<the list choice you mapped it to>"}|null, "unmatched": "<what they asked for with NO reasonable equivalent in any list; null if nothing>"}.
+Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "equivalent": {"asked": "<what they said>", "used": "<the list choice you mapped it to>", "different_product": <true ONLY when the mapped choice is a genuinely DIFFERENT product/brand (pepsi→Coca-Cola, cola→V Cola); false when it's the same thing worded differently (coke→Coca-Cola, cola zero→the sugar-free cola we carry)>}|null, "unmatched": "<an attempted ANSWER to the questions with NO reasonable equivalent in any list; null if nothing>"}. The guest's message may be ORDERING dishes — dish/item names are handled elsewhere and are NEVER "unmatched" and never an attempted answer; when the message just names dishes to order, equivalent=null and unmatched=null.
 RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent" so we can tell the guest. Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent.`;
           const rr = await f.node("resolve_options", async () =>
             chatJSON(MODEL_NANO, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
@@ -630,11 +630,13 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           // of silently re-printing the list, which reads as the bot being stuck.
           const unmatchedOpt = typeof rr.value?.unmatched === "string" && rr.value.unmatched.trim()
             ? rr.value.unmatched.trim().slice(0, 40) : null;
-          if (unmatchedOpt) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
+          if (unmatchedOpt && !e.items?.length) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
           // transparent substitution: applied AND announced, never silent — the guest can
           // overrule it in one message ("no, sprite then")
           const eq = rr.value?.equivalent;
-          if (eq?.asked && eq?.used) outcomeNotices.push(`${String(eq.asked).slice(0, 30)} → closest we carry is *${String(eq.used).slice(0, 40)}*, put that in ✍️ (say the word to switch)`);
+          // same product re-worded (cola zero → our diet cola) applies SILENTLY — the bill
+          // shows it; only a genuinely different brand (pepsi → Coca-Cola) gets announced
+          if (eq?.asked && eq?.used && eq.different_product === true) outcomeNotices.push(`${String(eq.asked).slice(0, 30)} → closest we carry is *${String(eq.used).slice(0, 40)}*, put that in ✍️ (say the word to switch)`);
           let appliedAny = false;
           openGroups.forEach((g, i) => {
             const a = answers[String(i + 1)];
@@ -999,6 +1001,9 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       below_min_order: `Delivery needs a minimum of ${outcome.min_order} EGP 🙏 — add a bit more, or pickup has no minimum. Which works?`,
     };
     let reply = value.value?.reply || fallback[outcome.kind] || fallback.ask_items;
+    // Notices ("Noted — pickup ✅", equivalence swaps) render as their OWN WhatsApp bubble,
+    // so the "👇" ask lead always sits directly on top of its choices.
+    let noticeBlock = null;
 
     // ZERO-HALLUCINATION BACKSTOP: only an outcome that actually wrote a ticket may
     // say so. The model has claimed "the kitchen's on it" while we were still asking
@@ -1038,8 +1043,8 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // computes this from whether we'd already asked (persisted leadin_shown) — which
       // is right even when the guest states the type up front (need_type would be false
       // on their genuine first ask) AND when turn 1 asks but saves no slot.
-      const noticeHead = outcome.notices?.length ? `${outcome.notices.join("\n")}\n` : "";
-      reply = outcome.first_fulfilment ? `${noticeHead}${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : `${noticeHead}${qs.join("\n\n")}`;
+      if (outcome.notices?.length) noticeBlock = outcome.notices.join("\n");
+      reply = outcome.first_fulfilment ? `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : qs.join("\n\n");
     }
 
     // Option questions are STRUCTURE, and structure is code's job — the model
@@ -1071,7 +1076,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
           ? `دلوقتي اختيارات *${outcome.item}* 👇`
           : `Now for your *${outcome.item}* 👇`;
       }
-      if (outcome.notices?.length) lead = `${outcome.notices.join("\n")}\n${lead}`;
+      if (outcome.notices?.length) noticeBlock = outcome.notices.join("\n");
       // The dish being configured pops in WhatsApp bold — the guest's eye finds WHICH
       // item these questions belong to at a glance (model-written leads included).
       if (outcome.item && lead.includes(outcome.item) && !lead.includes(`*${outcome.item}*`)) {
@@ -1084,7 +1089,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // guest must read or copy-paste is appended by code, verbatim.
     if (outcome.kind === "ask_choice" && (outcome.slots_intro || outcome.slots_missing)) {
       const parts = [reply.split("\n")[0]];
-      if (outcome.notices?.length) parts.push(outcome.notices.join("\n"));
+      if (outcome.notices?.length) noticeBlock = outcome.notices.join("\n");
       if (outcome.slots_missing?.length) parts.push(`Still missing — ${outcome.slots_missing.join(" · ")}`);
       if (outcome.slots_intro && outcome.slots_template) parts.push(outcome.slots_intro);
       if (outcome.slots_template) parts.push(`Copy this, fill it in, and send it back 👇\n\n${outcome.slots_template}`);
@@ -1216,6 +1221,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // hallucinated answers) and its answer leads the reply, with the order's next step
     // right under it. Both halves of the message get served, neither is dropped.
     let sidePhotos = [];
+    let sideText = null;
     const sideQ = String(e.question || "").trim();
     // Never on a turn that was ANSWERING an open option question (the extractor sometimes
     // splits "Combo cola zero" and mislabels the tail a "question" — friendly then sends a
@@ -1225,13 +1231,19 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     if (sideQ.length >= 4 && sideAllowed) {
       const side = await f.flow("friendly", { message: sideQ, diner, history: input.history, precheck: input.precheck, classification });
       if (side?.reply) {
-        reply = `${side.reply}\n\n${reply}`;
+        sideText = side.reply;
         sidePhotos = side.photos || [];
       }
     }
 
+    // Explicit bubbles: [friendly's side answer] [notices] [the ask/bill — never split].
+    // The deliverer sends these as separate messages instead of guessing a split point.
+    const bubbles = [sideText, noticeBlock, reply].filter(Boolean);
+    reply = bubbles.join("\n\n");
+
     return {
       reply,
+      parts: bubbles,
       menuList: optionList,
       // pipeline decision points keep their buttons even back-to-back — the
       // anti-spam pacing rule cost a guest their Confirm button and the order died

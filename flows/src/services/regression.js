@@ -186,10 +186,16 @@ const CASES = [
   // "cola zero" (a variant we don't carry) mid-ask: ONE reply, no false "Got it,
   // Coca-Cola Diet" claim, drink question stays open (a real guest got two
   // contradictory messages claiming a drink she never chose).
-  { id: "colazero", needs: "casual", name: "Variant we don't carry maps to its equivalent — applied AND announced",
+  { id: "colazero", needs: "casual", name: "Same-brand rewording (cola zero) applies SILENTLY as the diet cola",
     turns: ["an iconic meal for pickup from Maadi", "Full Meal cola zero"],
-    expect: [/closest|بدل|قريب|don'?t have|مفيش/i, /coca[ -]*cola diet|diet/i],
-    forbid: [/just say ['"]?order/i] },
+    expect: [/coca[ -]*cola diet|diet/i],
+    forbid: [/we don'?t have/i, /just say ['"]?order/i] },
+  // Ordering by dish names must NEVER trip the unmatched-option notice — a live guest
+  // adding 3 dishes was told "We don't have The caramelised burger, The Nashville sl 🙏"
+  // while all 3 landed on the bill correctly.
+  { id: "addnofalse", needs: "casual", name: "Multi-item add: no false 'We don't have' notice",
+    turns: ["an american truck meal and loaded fries for pickup from Maadi"],
+    expect: [/which one|meal|sandwich|size|drink/i], forbid: [/we don'?t have/i] },
   // The same option question missed 3× is a LOOP — a human takes over instead of a
   // 4th identical re-ask (the last unguarded loop class; C2 from the perf plan).
   { id: "stuckhandoff", needs: "casual", name: "Same question missed 3x -> human takes over, never a 4th re-ask",
