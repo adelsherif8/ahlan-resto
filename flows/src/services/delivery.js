@@ -31,11 +31,16 @@ export function deliveryPaused(config, branch) {
 function zonesFor(config, branch) {
   return (branch?.delivery_zones?.length ? branch.delivery_zones : config?.delivery?.zones) || [];
 }
+// A zone matches by its area name OR any alias (so "التجمع"/"tagamoa"/"new cairo" all hit
+// the same zone). Guests write areas in Arabic, English or Franco — aliases bridge them.
 function matchZone(zones, area) {
   const t = norm(area);
   if (!t) return null;
-  return zones.find((z) => norm(z.area) === t)
-    || zones.find((z) => { const a = norm(z.area); return a && (t.includes(a) || a.includes(t)); });
+  for (const z of zones) {
+    const names = [z.area, ...(z.aliases || [])].map(norm).filter((a) => a.length >= 3);
+    if (names.some((a) => a === t || t.includes(a) || a.includes(t))) return z;
+  }
+  return null;
 }
 
 // The heart: given an area name and/or coordinates (+ current subtotal), return whether we

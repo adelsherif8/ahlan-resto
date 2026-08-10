@@ -119,6 +119,7 @@ function shapeConfig(r) {
     name: r.name,
     slug: r.slug,
     basic_info: r.basic_info || {},
+    delivery: r.basic_info?.delivery || {}, // delivery coverage: zones/fees/toggles (services/delivery.js)
     hours: r.hours || {},
     sections: r.sections || [],
     reservation_policy: r.reservation_policy || {},
