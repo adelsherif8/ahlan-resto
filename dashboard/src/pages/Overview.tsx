@@ -100,15 +100,64 @@ export default function Overview() {
 // ---------------- casual: orders-first ----------------
 
 function CasualBoard({ O, kpis, orders }: any) {
-  const delta = O.revenue_yesterday > 0 ? Math.round(((O.revenue - O.revenue_yesterday) / O.revenue_yesterday) * 100) : null;
   const aiPct = O.count > 0 ? Math.round(((O.ai_count || 0) / O.count) * 100) : null;
   const today = new Date().toLocaleDateString("en-CA");
   const todays = (orders || []).filter((o: any) => String(o.created_at).slice(0, 10) === today && o.status !== "cancelled");
+  // Same-weekday comparison: a Friday only means something next to last Friday, not
+  // Thursday. Falls back to vs-yesterday when last week has no data (young restaurants).
+  const lastWeekISO = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
+  const lastWeekRev = (orders || [])
+    .filter((o: any) => String(o.created_at).slice(0, 10) === lastWeekISO && o.status !== "cancelled")
+    .reduce((s: number, o: any) => s + (Number(o.total) || 0), 0);
+  const weekday = new Date().toLocaleDateString("en", { weekday: "long" });
+  const delta = lastWeekRev > 0 ? Math.round((((O.revenue || 0) - lastWeekRev) / lastWeekRev) * 100)
+    : O.revenue_yesterday > 0 ? Math.round((((O.revenue || 0) - O.revenue_yesterday) / O.revenue_yesterday) * 100) : null;
+  const deltaLabel = lastWeekRev > 0 ? `vs last ${weekday}` : "vs yesterday";
+  // "Usual pace" per hour: the average of the last 4 same-weekday days, so tonight's
+  // curve reads as busy/slow FOR THIS WEEKDAY — not vs an arbitrary flat scale.
+  const usualByHour: Record<number, number> = {};
+  {
+    const sameDays: string[] = [];
+    for (let w = 1; w <= 4; w++) sameDays.push(new Date(Date.now() - w * 7 * 86400000).toLocaleDateString("en-CA"));
+    const counts: Record<number, number> = {};
+    let daysWithData = 0;
+    for (const d of sameDays) {
+      const dayOrders = (orders || []).filter((o: any) => String(o.created_at).slice(0, 10) === d && o.status !== "cancelled");
+      if (!dayOrders.length) continue;
+      daysWithData++;
+      for (const o of dayOrders) { const h = new Date(o.created_at).getHours(); counts[h] = (counts[h] || 0) + 1; }
+    }
+    if (daysWithData) for (const h of Object.keys(counts)) usualByHour[Number(h)] = counts[Number(h)] / daysWithData;
+  }
+  // Top movers: items selling clearly above/below their own recent norm (last 7 days'
+  // daily rate vs the 21 days before). Only items with enough history to mean anything.
+  const movers: { name: string; pct: number }[] = [];
+  {
+    const now = Date.now();
+    const rate = (from: number, to: number) => {
+      const per: Record<string, number> = {};
+      for (const o of orders || []) {
+        const t = new Date(o.created_at).getTime();
+        if (t < from || t >= to || o.status === "cancelled") continue;
+        for (const i of o.items || []) per[i.name] = (per[i.name] || 0) + Number(i.qty || 1);
+      }
+      return per;
+    };
+    const recent = rate(now - 7 * 86400000, now);            // units in last 7 days
+    const base = rate(now - 28 * 86400000, now - 7 * 86400000); // units in the 21 days before
+    for (const name of new Set([...Object.keys(recent), ...Object.keys(base)])) {
+      const r = (recent[name] || 0) / 7, b = (base[name] || 0) / 21;
+      if (b * 21 < 3 && (recent[name] || 0) < 3) continue; // too little history to call a trend
+      const pct = b > 0 ? Math.round(((r - b) / b) * 100) : 100;
+      if (Math.abs(pct) >= 40) movers.push({ name, pct });
+    }
+    movers.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+  }
   const byType: Record<string, number> = {};
   for (const o of todays) byType[o.order_type] = (byType[o.order_type] || 0) + 1;
   const avgTicket = O.count > 0 ? Math.round((O.revenue || 0) / O.count) : null;
   const stats = [
-    { label: "Revenue today", value: `EGP ${money(O.revenue || 0)}`, sub: delta !== null ? `${delta >= 0 ? "+" : ""}${delta}% vs yesterday` : null, up: delta !== null ? delta >= 0 : null },
+    { label: "Revenue today", value: `EGP ${money(O.revenue || 0)}`, sub: delta !== null ? `${delta >= 0 ? "+" : ""}${delta}% ${deltaLabel}` : null, up: delta !== null ? delta >= 0 : null },
     { label: "Orders today", value: O.count ?? 0, sub: O.cancelled ? `${O.cancelled} cancelled` : null },
     { label: "Avg ticket", value: avgTicket != null ? `EGP ${money(avgTicket)}` : "—" },
     { label: "Open now", value: O.open_now ?? 0, sub: O.late_now ? `${O.late_now} late` : null },
@@ -139,37 +188,67 @@ function CasualBoard({ O, kpis, orders }: any) {
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
-          <h2 className="mb-4 text-sm font-semibold text-zinc-300">Orders by hour (today)</h2>
+          <h2 className="mb-1 text-sm font-semibold text-zinc-300">Orders by hour (today)</h2>
+          {Object.keys(usualByHour).length > 0 && (
+            <div className="mb-3 text-[11px] text-zinc-500">— dash = your usual {weekday} at that hour (4-week average)</div>
+          )}
           {(O.by_hour || []).length === 0 ? (
             <Empty text="No orders yet today" />
           ) : (
             <div className="flex h-36 items-end gap-1.5">
-              {(O.by_hour || []).map((h: any) => (
-                <div key={h.hour} className="flex flex-1 flex-col items-center gap-1">
-                  <div className="text-xs text-zinc-400">{h.count}</div>
-                  <div className="w-full rounded-t-md" style={{ height: `${(h.count / maxHour) * 100}%`, backgroundColor: "var(--accent)", opacity: 0.85 }} />
-                  <div className="text-[10px] text-zinc-500">{String(h.hour).padStart(2, "0")}</div>
-                </div>
-              ))}
+              {(O.by_hour || []).map((h: any) => {
+                const usual = usualByHour[h.hour];
+                const scale = Math.max(maxHour, ...Object.values(usualByHour));
+                return (
+                  <div key={h.hour} className="flex h-full flex-1 flex-col items-center gap-1">
+                    <div className="text-xs text-zinc-400">{h.count}</div>
+                    <div className="relative w-full flex-1">
+                      <div className="absolute bottom-0 w-full rounded-t-md" style={{ height: `${(h.count / scale) * 100}%`, backgroundColor: "var(--accent)", opacity: 0.85 }} />
+                      {usual != null && (
+                        <div className="absolute w-full border-t-2 border-dashed border-zinc-400/70" style={{ bottom: `${(usual / scale) * 100}%` }} title={`usual: ${usual.toFixed(1)}`} />
+                      )}
+                    </div>
+                    <div className="text-[10px] text-zinc-500">{String(h.hour).padStart(2, "0")}</div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </Card>
 
-        <Card className="p-5">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-300">Top items today</h2>
-          {(O.top_items || []).length === 0 ? (
-            <Empty text="—" />
-          ) : (
-            <div className="space-y-2">
-              {(O.top_items || []).map((t: any, i: number) => (
-                <div key={t.name} className="flex items-center justify-between text-sm">
-                  <span className="truncate pr-2 text-zinc-300">{i + 1}. {t.name}</span>
-                  <span className="shrink-0 tabular-nums text-zinc-500">×{t.units}</span>
-                </div>
-              ))}
-            </div>
+        <div className="space-y-4">
+          <Card className="p-5">
+            <h2 className="mb-3 text-sm font-semibold text-zinc-300">Top items today</h2>
+            {(O.top_items || []).length === 0 ? (
+              <Empty text="—" />
+            ) : (
+              <div className="space-y-2">
+                {(O.top_items || []).map((t: any, i: number) => (
+                  <div key={t.name} className="flex items-center justify-between text-sm">
+                    <span className="truncate pr-2 text-zinc-300">{i + 1}. {t.name}</span>
+                    <span className="shrink-0 tabular-nums text-zinc-500">×{t.units}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+          {movers.length > 0 && (
+            <Card className="p-5">
+              <h2 className="mb-1 text-sm font-semibold text-zinc-300">Movers vs usual</h2>
+              <div className="mb-3 text-[11px] text-zinc-500">selling clearly above/below their own 4-week norm</div>
+              <div className="space-y-2">
+                {movers.slice(0, 4).map((m) => (
+                  <div key={m.name} className="flex items-center justify-between text-sm">
+                    <span className="truncate pr-2 text-zinc-300">{m.name}</span>
+                    <span className={`flex shrink-0 items-center gap-1 tabular-nums ${m.pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {m.pct >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}{m.pct >= 0 ? "+" : ""}{m.pct}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
           )}
-        </Card>
+        </div>
       </div>
 
       {(O.by_branch || []).length > 1 && (
