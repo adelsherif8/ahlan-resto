@@ -183,6 +183,11 @@ const CASES = [
     expect: [/deliver|توصيل/i], forbid: [/^📍/] },
   // One answer must configure ONE item — the second combo-item gets its own ask
   // (a real guest's 'Combo cola' silently configured BOTH her sandwiches).
+  // ONE message can carry an order AND a question ("add X — and is Y spicy?"): the item
+  // must land on the order AND the question must get a real answer, in the same reply.
+  { id: "mixedintent", needs: "casual", name: "Order + question in one message — both halves answered",
+    turns: ["an iconic meal please, and also are the loaded fries spicy?"],
+    expect: [/spic|حار|mild|kick|heat|kitchen/i, /which one|sandwich|full meal|combo|choices/i], forbid: [/O-[A-Z2-9]{4}/] },
   // Accepting a recommended dish IS ordering it — the chat agent must never fake-confirm
   // ("coming right up") and the accepted dish must survive into the real order draft
   // (a real guest lost her Double Caramelized exactly this way).

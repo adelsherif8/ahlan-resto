@@ -97,7 +97,8 @@ Return JSON only:
  "address": "<the delivery address EXACTLY as the guest wrote it, verbatim>"|null,
  "branch": "<exact branch NAME from this list if the guest names one, else null>",
  "edits": [{"op": "add"|"remove"|"set_qty"|"replace", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null}]|null,
- "reorder_ref": "<ONLY with intent repeat_last: if they point at a SPECIFIC past order — a weekday ('same as last Tuesday'), a dish ('the truffle one I got'), 'my first order' — put that phrase here; a plain 'the usual'/'same as last time' leaves this null>"|null}
+ "reorder_ref": "<ONLY with intent repeat_last: if they point at a SPECIFIC past order — a weekday ('same as last Tuesday'), a dish ('the truffle one I got'), 'my first order' — put that phrase here; a plain 'the usual'/'same as last time' leaves this null>"|null,
+ "question": "<people mix ordering and chatting in ONE message: 'add a J special, and is the jalapeno bites spicy?' — the NON-order part (a question, asking for a suggestion, chit-chat) goes here so it gets ANSWERED alongside the order step; null when the whole message is order actions. NEVER put it in notes. If the ENTIRE message is a question with no order content, use intent 'question' instead>"|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
 Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/GARBLED word (voice notes!) is SKIPPED, never guessed — but a CLEARLY named product we don't carry ("a cola zero", "red bull") goes into items AS THE GUEST SAID IT (code reports it as unavailable — silently dropping it loses part of the order); if the RECENT CONVERSATION shows the guest already AGREED to a specific dish we recommended ("thats nice i want this" after we pitched it) and it is NOT already in the draft, include that dish in items too — to the guest it's ALREADY on their order and dropping it loses it ("also I want X" means X in ADDITION to it); never duplicate a dish the draft already has; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item; an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel an order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
@@ -1100,6 +1101,21 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       }
     }
 
+    // MULTI-INTENT: people mix ordering and chatting in one breath ("add a J special —
+    // and is the jalapeno bites spicy?"). The order part was just handled above; the
+    // question part goes to the friendly brain (it has the full menu/FAQ facts, so no
+    // hallucinated answers) and its answer leads the reply, with the order's next step
+    // right under it. Both halves of the message get served, neither is dropped.
+    let sidePhotos = [];
+    const sideQ = String(e.question || "").trim();
+    if (sideQ.length >= 4) {
+      const side = await f.flow("friendly", { message: sideQ, diner, history: input.history, precheck: input.precheck, classification });
+      if (side?.reply) {
+        reply = `${side.reply}\n\n${reply}`;
+        sidePhotos = side.photos || [];
+      }
+    }
+
     return {
       reply,
       menuList: optionList,
@@ -1109,7 +1125,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // the menu / receipt PDF rides along as a WhatsApp document
       menuDoc: doc,
       quickReplies: (value.value?.quick_replies || []).map((q) => String(q).slice(0, 20)).slice(0, 3),
-      photos: [],
+      photos: sidePhotos,
     };
   },
 });
