@@ -35,6 +35,15 @@ Last full green baseline: **79/0** (routing-fix deploy, before the question-inte
 - [ ] Full-suite confirm the delivery gate didn't shift any other order case.
 - Luci'z zones (placeholders, founder to tune): Tagamoa/New Cairo 30 · Rehab 35 · Nasr City 45.
 
+## 🆕 New intents (BUILT + targeted-verified — confirm in final run)
+- [x] `lostfound` — reassure + branch team/phone, never claims found ✓
+- [x] `refundask` — refund treated as complaint + follow-up, never processed on WA ✓
+- [x] `careers` — jobs/CV/franchise politely declined (guest line only) ✓
+- [x] `loyaltyask` — balance answered from pos.loyalty config, never invented ✓
+- [x] reorder-specific — "same as last Tuesday"/"the truffle one" picks that order (repeatorder/usual/usualchip still green) ✓
+- [ ] Full-suite confirm none of these shifted other friendly/order cases.
+- NOT BUILT: promo CODES (typed discount codes on the chat bill) — real pricing feature, founder to green-light separately.
+
 ## 🆕 Regression cases to ADD before the final run
 - [ ] **Delivery in-zone**: "do you deliver to New Cairo and how much" → quotes the real
       zone fee (not a guess), for the covering branch.
