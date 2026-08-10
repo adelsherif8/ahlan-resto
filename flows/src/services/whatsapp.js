@@ -23,7 +23,11 @@ export function verifyHandshake(query) {
 }
 
 export function verifySignature(rawBody, signatureHeader) {
-  if (WA_SKIP_SIGNATURE || !WA_APP_SECRET) return true;
+  if (WA_SKIP_SIGNATURE) return true; // explicit dev opt-out ONLY (WA_SKIP_SIGNATURE=1)
+  // FAIL CLOSED: no app secret configured = no way to verify = drop the payload.
+  // (Returning true here would let anyone forge inbound "messages" — poisoned history,
+  // LLM spend, outbound sends to arbitrary numbers.)
+  if (!WA_APP_SECRET) { log("WA webhook: WA_APP_SECRET not set — dropping unverifiable payload"); return false; }
   if (!signatureHeader?.startsWith("sha256=")) return false;
   const expected = crypto.createHmac("sha256", WA_APP_SECRET).update(rawBody).digest("hex");
   try {

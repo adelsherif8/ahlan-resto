@@ -5,7 +5,7 @@ import { resolveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, reso
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
-import { metrics } from "./services/metrics.js";
+import { metrics, bump } from "./services/metrics.js";
 import { runRegression, regressionStatus } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
 import { getSession, logMessage } from "./services/chatlog.js";
@@ -26,7 +26,36 @@ import "./flows/buffering.js";
 import "./flows/janitor.js";
 
 const app = express();
-app.use(cors());
+const IS_PROD = process.env.RAILWAY_ENVIRONMENT === "production" || process.env.NODE_ENV === "production";
+import nodeCrypto from "node:crypto";
+
+// CORS allowlist — the driver/track/build pages and the dashboard live on PUBLIC_BASE
+// (Vercel); the ops console runs on localhost in dev. Requests with NO Origin header
+// (Meta's webhook, server-to-server, curl) are always allowed — CORS only gates browsers.
+const ALLOWED_ORIGINS = new Set([PUBLIC_BASE, "https://ahlan-resto.vercel.app"]);
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin || ALLOWED_ORIGINS.has(origin) || /^https?:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
+    cb(null, false); // unknown browser origin: no CORS headers -> browser blocks the response
+  },
+}));
+
+// Tiny in-memory rate limiter for the PUBLIC endpoints (webhook, driver, builder).
+// Fixed window per key; buckets swept each window. Not distributed — this service is a
+// single instance, and the goal is stopping abuse/floods, not precise quotas.
+const rlBuckets = new Map(); // key -> { n, resetAt }
+setInterval(() => { const now = Date.now(); for (const [k, b] of rlBuckets) if (b.resetAt < now) rlBuckets.delete(k); }, 60_000).unref?.();
+function rateLimit(name, max, windowMs, keyFn = (req) => req.ip) {
+  return (req, res, next) => {
+    const key = `${name}:${keyFn(req)}`;
+    const now = Date.now();
+    let b = rlBuckets.get(key);
+    if (!b || b.resetAt < now) { b = { n: 0, resetAt: now + windowMs }; rlBuckets.set(key, b); }
+    if (++b.n > max) { bump("rate_limited"); return res.status(429).json({ error: "too many requests — slow down" }); }
+    next();
+  };
+}
+
 // keep raw body for WhatsApp signature verification
 app.use(express.json({ limit: "4mb", verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
@@ -109,7 +138,7 @@ app.get("/api/wa/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
-app.post("/api/wa/webhook", async (req, res) => {
+app.post("/api/wa/webhook", rateLimit("wa", 600, 60_000), async (req, res) => {
   res.sendStatus(200); // ack fast — Meta retries slow webhooks
   try {
     if (!verifySignature(req.rawBody, req.headers["x-hub-signature-256"])) {
@@ -138,7 +167,7 @@ app.post("/api/wa/webhook", async (req, res) => {
 });
 
 // ================= web live chat (ops test chat + future guest widget) =================
-app.post("/api/web/send", async (req, res) => {
+app.post("/api/web/send", opsAuth, rateLimit("websend", 60, 60_000), async (req, res) => {
   try {
     const { sessionId, message } = req.body || {};
     if (!sessionId || !message) return res.status(400).json({ error: "sessionId and message required" });
@@ -154,7 +183,7 @@ app.post("/api/web/send", async (req, res) => {
   }
 });
 
-app.post("/api/web/typing", (req, res) => {
+app.post("/api/web/typing", opsAuth, (req, res) => {
   const { sessionId } = req.body || {};
   if (!sessionId) return res.status(400).json({ error: "sessionId required" });
   setTyping(sessionId);
@@ -395,7 +424,7 @@ app.get("/build/:token", async (req, res) => {
   }
 });
 
-app.post("/api/build/:token/submit", async (req, res) => {
+app.post("/api/build/:token/submit", rateLimit("bsubmit", 20, 60_000, (req) => req.params.token), async (req, res) => {
   try {
     const claim = verifyBuildToken(req.params.token);
     if (!claim) return res.status(401).json({ error: "link expired" });
@@ -584,7 +613,7 @@ app.post("/api/ops/build-link", opsAuth, async (req, res) => {
 // their phone number and their pending order, so a friend opening it would be ordering
 // as them. A fresh, anonymous token is minted instead: whoever opens it is treated as a
 // walk-up and asked for their own name and number.
-app.post("/api/build/:token/share", async (req, res) => {
+app.post("/api/build/:token/share", rateLimit("bshare", 10, 60_000, (req) => req.params.token), async (req, res) => {
   try {
     const claim = verifyBuildToken(req.params.token);
     if (!claim) return res.status(401).json({ error: "link expired" });
@@ -685,7 +714,7 @@ app.get("/driver/:token", async (req, res) => {
   }
 });
 
-app.post("/api/driver/:token/action", async (req, res) => {
+app.post("/api/driver/:token/action", rateLimit("dact", 30, 60_000, (req) => req.params.token), async (req, res) => {
   try {
     const hit = await driverOrder(req.params.token);
     if (!hit) return res.status(404).json({ error: "not found" });
@@ -743,7 +772,7 @@ app.post("/api/driver/:token/action", async (req, res) => {
   }
 });
 
-app.post("/api/driver/:token/loc", async (req, res) => {
+app.post("/api/driver/:token/loc", rateLimit("dloc", 240, 60_000, (req) => req.params.token), async (req, res) => {
   try {
     const hit = await driverOrder(req.params.token);
     if (!hit) return res.status(404).json({ error: "not found" });
@@ -761,8 +790,14 @@ app.post("/api/driver/:token/loc", async (req, res) => {
 // ================= ops console (internal — token locked) =================
 const OPS_TOKEN = process.env.OPS_TOKEN || "";
 function opsAuth(req, res, next) {
-  if (!OPS_TOKEN) return next(); // dev mode
-  if (req.headers["x-ops-token"] === OPS_TOKEN) return next();
+  // FAIL CLOSED in production: an unset OPS_TOKEN must never mean "everything open".
+  if (!OPS_TOKEN) {
+    if (IS_PROD) return res.status(401).json({ error: "ops token not configured" });
+    return next(); // local dev without a token
+  }
+  const given = Buffer.from(String(req.headers["x-ops-token"] || ""));
+  const want = Buffer.from(OPS_TOKEN);
+  if (given.length === want.length && nodeCrypto.timingSafeEqual(given, want)) return next();
   res.status(401).json({ error: "ops token required" });
 }
 app.get("/api/ops/verify", opsAuth, (_req, res) => res.json({ ok: true }));

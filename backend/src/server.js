@@ -19,7 +19,15 @@ import eventsRoutes from "./routes/eventsRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
 
 const app = express();
-app.use(cors());
+// CORS allowlist: the dashboard (Vercel) + localhost dev. No-Origin requests (server-to-
+// server, curl, health checks) pass — CORS only gates browsers.
+const ALLOWED_ORIGINS = new Set(["https://ahlan-resto.vercel.app"]);
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin || ALLOWED_ORIGINS.has(origin) || /^https?:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
+    cb(null, false);
+  },
+}));
 app.use(express.json({ limit: "5mb" }));
 app.use(morgan("tiny"));
 

@@ -28,6 +28,11 @@ export const MODEL_BASE =
 // that leaks later is already dead. Carries WHO and WHICH restaurant, so the
 // submit endpoint never has to trust the page for either.
 const SECRET = process.env.BUILD_TOKEN_SECRET || process.env.ENCRYPTION_KEY || "";
+// FAIL FAST in production: an empty HMAC secret would make every build/track/courier
+// token forgeable. Better a loud boot error than silently unsigned tokens.
+if (!SECRET && (process.env.RAILWAY_ENVIRONMENT === "production" || process.env.NODE_ENV === "production")) {
+  throw new Error("BUILD_TOKEN_SECRET / ENCRYPTION_KEY must be set in production (token signing)");
+}
 const b64u = (b) => Buffer.from(b).toString("base64url");
 const TTL_MS = 24 * 3600_000;
 
