@@ -183,6 +183,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // ---- build the order — CODE matches every item against the real menu and prices it ----
       let items = [];
       let unknown = [];
+      let ambiguous = [];
       let removedNames = null;
       const outcomeNotices = [];
       let typeHint = null;
@@ -215,12 +216,32 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         if (!items.length) return { kind: "no_history" };
         if (["pickup", "delivery"].includes(last.order_type)) typeHint = last.order_type; // dine-in table changes — always re-ask
       } else {
+        // A pending "which one did you mean?" — the answer names one candidate; the
+        // remembered qty ("3 chicken") rides onto the chosen dish.
+        const amb0 = loaded.pending?.ambiguous;
+        if (amb0?.candidates?.length) {
+          const said = normName(arOptionWords(input.message));
+          let pick = amb0.candidates.filter((c) => { const n = normName(c); return said === n || said.includes(n); });
+          if (!pick.length && said.length >= 4) pick = amb0.candidates.filter((c) => normName(c).includes(said));
+          if (!pick.length) pick = amb0.candidates.filter((c) => normName(c).split(" ").filter((t) => t.length >= 3).some((t) => said.includes(t)));
+          if (pick.length === 1) {
+            if (!(e.items || []).length) e.items = [{ name: pick[0], qty: amb0.qty || 1 }];
+            else if (e.items.length === 1 && (Number(e.items[0].qty) || 1) === 1 && (amb0.qty || 1) > 1) e.items[0].qty = amb0.qty;
+          }
+        }
         const wanted = (e.items || []).slice(0, 12);
         for (const w of wanted) {
           const n = normName(w.name);
-          const hit = loaded.menu.find((m) => normName(m.name) === n) ||
-                      loaded.menu.find((m) => normName(m.name).includes(n) || n.includes(normName(m.name)));
-          if (!hit) { unknown.push(w.name); continue; }
+          const exactHit = loaded.menu.find((m) => normName(m.name) === n);
+          const cands = exactHit ? [exactHit] : loaded.menu.filter((m) => normName(m.name).includes(n) || n.includes(normName(m.name)));
+          if (!cands.length) { unknown.push(w.name); continue; }
+          // "chicken" fits 4 dishes → ASK which one, never guess; exactly one fuzzy
+          // fit ("caramelized burger" → Double Caramelized Burger) auto-takes.
+          if (cands.length > 1) {
+            ambiguous.push({ said: String(w.name), qty: Math.min(Math.max(Math.round(Number(w.qty) || 1), 1), 20), candidates: cands.slice(0, 4).map((m) => m.name) });
+            continue;
+          }
+          const hit = cands[0];
           // a CHICKEN request may never silently land on a beef item — better to
           // ask than to serve the wrong animal
           const saidChicken = /chicken|تشيكن|فراخ|فرايد/i.test(`${w.name} ${w.notes || ""}`);
@@ -390,8 +411,11 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const findMenuItem = (want) => {
           const w = normName(want || "");
           if (!w) return null;
-          return loaded.menu.find((m) => normName(m.name) === w) ||
-                 loaded.menu.find((m) => normName(m.name).includes(w) || w.includes(normName(m.name))) || null;
+          const exact = loaded.menu.find((m) => normName(m.name) === w);
+          if (exact) return exact;
+          const cands = loaded.menu.filter((m) => normName(m.name).includes(w) || w.includes(normName(m.name)));
+          if (cands.length > 1) { ambiguous.push({ said: String(want), qty: 1, candidates: cands.slice(0, 4).map((m) => m.name) }); return null; }
+          return cands[0] || null;
         };
         // op "set_option": "no, the SLAW is the combo, the other one isn't" — reassigning
         // an option between items, applied by code against the item's real choice lists.
@@ -570,6 +594,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const pending_order = {
           ...(loaded.pending || {}),
           items, order_type: orderType, table_number: tableNumber, branch, address, map_link: mapLinkRaw,
+          ambiguous: extra.ambiguous || null,
           // payment said early ("pickup and pay cash" while a size question is still open)
           // is remembered — it used to be lost on every option re-ask
           ...(e.payment_method ? { payment_method: e.payment_method } : {}),
@@ -598,6 +623,12 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           await savePending({}); // keep type/branch/matched items — losing them re-asked everything
           return { kind: "sold_out_today", sold, items, running: runningOf(items) };
         }
+      }
+      // Multiple dishes fit what they said → one question beats one wrong guess.
+      if (ambiguous.length) {
+        const a = ambiguous[0];
+        await savePending({ ambiguous: a });
+        return { kind: "which_item", said: a.said, qty: a.qty, candidates: a.candidates, items, running: runningOf(items) };
       }
       // An unknown that's a same-kind cousin of something we DO sell ("a cola zero"
       // while the menu has a Soft Drink) becomes that item, with the guest's words as
@@ -1063,6 +1094,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       no_open_order: "No active order found — want to start one? 🍔",
       stuck_handoff: "I don't want to keep asking the same thing 😅 — a team member will jump in right here and finish your order with you 🙏",
       draft_cleared: "All cleared ✅ Want to start a fresh order?",
+      which_item: `You said *${outcome.said || "that"}*${(outcome.qty || 1) > 1 ? ` (×${outcome.qty})` : ""} — we've got a few like that 😄 Which one did you mean?`,
       delivery_paused: "Delivery's paused right now (kitchen's slammed 🙏) — but pickup's open! Want to switch to pickup?",
       delivery_closed: `Delivery runs ${outcome.hours?.open || ""}–${outcome.hours?.close || ""} 🙏 — we're outside those hours right now, but pickup works! Want pickup instead?`,
       no_delivery_area: `We don't deliver to that area yet 🙏 — but pickup's ready${outcome.branch ? ` at ${outcome.branch}` : ""}. Want pickup instead?`,
@@ -1113,6 +1145,12 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // on their genuine first ask) AND when turn 1 asks but saves no slot.
       if (outcome.notices?.length) noticeBlock = outcome.notices.join("\n");
       reply = outcome.first_fulfilment ? `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : qs.join("\n\n");
+    }
+
+    // Which-one candidates are STRUCTURE too — one lead line, code lists the dishes
+    if (outcome.kind === "which_item") {
+      const lead = reply.split("\n")[0];
+      reply = `${lead}\n\n${(outcome.candidates || []).map((c) => `• *${c}*`).join("\n")}`;
     }
 
     // Option questions are STRUCTURE, and structure is code's job — the model
@@ -1227,6 +1265,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_branch ? (outcome.branches || [])
       : outcome.kind === "ask_fulfillment" && outcome.need_address && (outcome.saved || []).length
         ? [...outcome.saved.slice(0, 2).map((a, i) => (i === 0 ? `🏠 ${String(a).slice(0, 16)}` : `📍 ${String(a).slice(0, 16)}`)), "Somewhere new"]
+      : outcome.kind === "which_item" ? (outcome.candidates || [])
       : outcome.kind === "confirm_order" ? ["Confirm ✅", "Change something"]
       : outcome.kind === "ask_payment" ? (outcome.methods || []).map((m) => m.split(" ")[0].replace(/^\w/, (c) => c.toUpperCase()))
       // NOW is the moment for "the usual" — they have said they're ordering but not
@@ -1237,7 +1276,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     let optionList = null;
     if (forced) {
       value.value = value.value || {};
-      if (["ask_choice", "ask_fulfillment"].includes(outcome.kind) && forced.length > 3) {
+      if (["ask_choice", "ask_fulfillment", "which_item"].includes(outcome.kind) && forced.length > 3) {
         // buttons cap at 3 on WhatsApp — a list holds 10, so every option is tappable
         const q0 = outcome.kind === "ask_fulfillment"
           ? { label: "Choose your branch 🏪" }
@@ -1318,7 +1357,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       menuList: optionList,
       // pipeline decision points keep their buttons even back-to-back — the
       // anti-spam pacing rule cost a guest their Confirm button and the order died
-      forceButtons: ["ask_choice", "ask_payment", "confirm_order", "ask_order_type"].includes(outcome.kind),
+      forceButtons: ["ask_choice", "ask_payment", "confirm_order", "ask_order_type", "which_item"].includes(outcome.kind),
       // the menu / receipt PDF rides along as a WhatsApp document
       menuDoc: doc,
       quickReplies: (value.value?.quick_replies || []).map((q) => String(q).slice(0, 20)).slice(0, 3),

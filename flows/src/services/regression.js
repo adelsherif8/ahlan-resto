@@ -210,6 +210,14 @@ const CASES = [
   { id: "colazeroitem", needs: "casual", name: "Unknown drink item maps to the same-kind menu item",
     turns: ["a classic burger sandwich and a cola zero for pickup from Maadi"],
     expect: [/closest we carry|✍️/i], forbid: [/couldn'?t find/i, /we don'?t have/i] },
+  // "an iconic" fits 4 dishes → ask WHICH ONE (candidates listed); the answer + the
+  // remembered qty land as the real item. One-fuzzy-fit auto-takes, no question.
+  { id: "whichitem", needs: "casual", name: "Ambiguous dish name asks which one; answer resolves it",
+    turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
+    expect: [/which one|قصدك/i, /iconic wrap/i], forbid: [/iconic sauce.*added|1×\s*\*?iconic sauce/i] },
+  { id: "uniquefuzzy", needs: "casual", name: "Single fuzzy fit auto-takes without asking",
+    turns: ["a mushroom meal for pickup from Maadi"],
+    expect: [/creamy mushroom|mushroom meal/i], forbid: [/which one did you mean/i] },
   // Ordering by dish names must NEVER trip the unmatched-option notice — a live guest
   // adding 3 dishes was told "We don't have The caramelised burger, The Nashville sl 🙏"
   // while all 3 landed on the bill correctly.
