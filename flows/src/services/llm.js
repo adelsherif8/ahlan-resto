@@ -59,7 +59,7 @@ async function chat(model, messages, opts = {}) {
         // a chat guest waits ~2s, not for a thinking budget. max_completion_tokens
         // replaced max_tokens there; older models keep the classic params.
         ...(useModel.startsWith("gpt-5")
-          ? { reasoning_effort: "minimal", max_completion_tokens: maxTokens }
+          ? { reasoning_effort: "none", max_completion_tokens: maxTokens }
           : { temperature, max_tokens: maxTokens }),
         ...(json ? { response_format: { type: "json_object" } } : {}),
         // background work (summaries, tidy, notes) rides the cheap slow lane;
