@@ -1300,6 +1300,12 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         .filter((l) => !/(total|subtotal|إجمالي|المجموع)\s*[:=]/i.test(l))
         .join("\n")
         .trim();
+      // Compact mode: the receipt PDF already shows the full bill — the placed text
+      // stays short (code + ETA ride below) so it fits the PDF caption and the whole
+      // confirmation ships as ONE message.
+      if (outcome.kind === "order_placed" && outcome.receipt_url && config.ai?.compact_messages === true) {
+        reply = `${reply}${outcome.eta_minutes ? `\nReady in ~${outcome.eta_minutes} min ⏱` : ""}`;
+      } else {
       // confirm reads like the paper receipt FIRST, then one clear ask under it
       const billFirst = outcome.kind === "confirm_order";
       const askLine = reply;
@@ -1320,8 +1326,8 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         slug: config.slug,
         when: new Date().toLocaleString("en-GB", { timeZone: config.basic_info?.timezone || "Africa/Cairo", hour12: true, day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }),
       })}${billFirst ? `\n\n${askLine}` : ""}`;
-    }
       }
+    }
     // the ticket code is the guest's receipt — never let a confirmation go out without it
     if (outcome.kind === "order_placed" && outcome.code && !reply.includes(outcome.code)) {
       reply = `${reply} (order ${outcome.code})`;
