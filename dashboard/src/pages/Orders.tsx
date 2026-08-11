@@ -504,9 +504,11 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
         )}
 
         <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-sm font-extrabold tabular-nums">
+          <span className="flex items-center gap-1.5 text-sm font-extrabold tabular-nums">
             EGP {money(o.total)}
-            {o.payment_method && (<span className="ml-1.5 text-[11px] font-normal uppercase text-neutral-500">{o.payment_method}</span>)}
+            {o.payment_method && (o.payment_method === "cash"
+              ? <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-800">💵 cash — collect</span>
+              : <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800">paid · {o.payment_method}</span>)}
           </span>
           <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
             {o.order_type === "delivery" && o.courier_token && (

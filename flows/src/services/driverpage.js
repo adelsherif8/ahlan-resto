@@ -145,7 +145,7 @@ export function renderDriverPage({ tenant, order, token, apiBase }) {
         <div class="row"><span>الباقي للعميل · Change to give back</span><b id="chgv">—</b></div>
         <button class="ghost" onclick="recordCod()">${icon("cash")} سجل الكاش · Record cash</button>
       </div>`
-        : `<div class="row"><span>Payment</span><b>${esc(String(order.payment_method || "paid").toUpperCase())}  — مدفوع، من غير تحصيل · nothing to collect</b></div>`}
+        : `<div class="cod" style="background:#e8f7ee;border-color:#9fdcba;color:#0a6b38">${icon("cash", 19)} مدفوع بالفعل (${esc(String(order.payment_method || "paid").toUpperCase())}) — ماتحصلش أي فلوس · ALREADY PAID — do NOT collect cash</div>`}
     </div>
 
     <div class="card">

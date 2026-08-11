@@ -64,7 +64,7 @@ export function printTicket(o: any, opts: { typeLabel?: string; branchName?: str
     <hr>${rows}<hr>
     <div class="r"><b>TOTAL</b><b>EGP ${money(o.total)}</b></div>
     ${o.discount ? `<div class="r"><span>DISCOUNT${o.discount_reason ? ` (${o.discount_reason})` : ""}</span><span>-EGP ${money(o.discount)}</span></div>` : ""}
-    ${o.payment_method ? `<div>PAYMENT: ${String(o.payment_method).toUpperCase()}</div>` : ""}
+    ${o.payment_method ? `<div><b>${String(o.payment_method) === "cash" ? `PAYMENT: CASH — COLLECT EGP ${money(o.total)}` : `PAID (${String(o.payment_method).toUpperCase()}) — DO NOT COLLECT`}</b></div>` : ""}
     ${o.address ? `<div>DELIVER TO: ${o.address}</div>` : ""}
     ${o.notes ? `<div>!! ${o.notes}</div>` : ""}
     ${waLink ? `<div class="track"><hr>TRACK YOUR ORDER ON WHATSAPP<br>${wa}<br>
