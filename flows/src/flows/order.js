@@ -653,6 +653,18 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         await savePending({ ambiguous: a });
         return { kind: "which_item", said: a.said, qty: a.qty, candidates: a.candidates, items, running: runningOf(items) };
       }
+      // The extractor sometimes folds a SEPARATE product into a dish's notes
+      // ("Soo Classic Meal, notes: cola zero"). A note with NO modification words
+      // that echoes menu-product words is a swallowed order line — code surfaces it
+      // through the same-kind mapping instead of silently losing the guest's drink.
+      const MODIFIER_SIG = /(?<![\p{L}])(no|not|without|less|more|extra|only|well|side|add|change|بدون|من غير|زياد|سادة|سبايسي|spicy|hot|mild|حار|بارد)(?![\p{L}])/iu;
+      for (const it of items) {
+        const nt = String(it.notes || "").trim();
+        if (!nt || MODIFIER_SIG.test(nt)) continue;
+        const ntN = normName(nt);
+        const productish = loaded.menu.some((m) => normName(m.name).split(" ").some((t) => t.length >= 4 && ntN.includes(t)));
+        if (productish && !unknown.includes(nt)) { unknown.push(nt); it.notes = null; }
+      }
       // An unknown that's a same-kind cousin of something we DO sell ("a cola zero"
       // while the menu has a Soft Drink) becomes that item, with the guest's words as
       // the kitchen note — announced, one word to switch. Dynamic per menu, no lists.
