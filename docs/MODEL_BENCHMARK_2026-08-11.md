@@ -16,7 +16,13 @@ branchask + fulfillcombo (skips the branch ask), bundle4x4 (order never placed �
 no 999 total), colazeroitem (drops the ✍️ substitution notice), pepsidiet (asks "would you
 like…" — banned), optnotaddress, runningsub (subtotal missing), waitlist.
 
-## Verdict — STAY ON gpt-4.1 family
+## FINAL DECISION (founder, 2026-08-11): STAY ON gpt-4.1 — migration cancelled
+Founder's rule: don't pursue 5.4 if it costs more. It does — every tier is pricier
+(smart +41%, mini +96%, nano +134%, suite +63%). The 2× mini speed doesn't buy its way
+past that. Revisit only if OpenAI reprices or a cheaper tier appears (check the models
+list + pricing first, benchmark second).
+
+## Original analysis — STAY ON gpt-4.1 family
 - 5.4 is a big latency win on the mini tier (guest-facing snappiness, 2.2s → 1.0s)…
 - …but 63% MORE expensive (newer ≠ cheaper here) and 8 real behavior regressions:
   our prompts are tuned on 4.1; 5.4 follows them differently at exactly the
