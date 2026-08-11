@@ -637,13 +637,20 @@ QUESTIONS:\n${lists}
 Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "equivalent": {"asked": "<what they said>", "used": "<the list choice you mapped it to>", "different_product": <true ONLY when the mapped choice is a genuinely DIFFERENT product/brand (pepsi→Coca-Cola, cola→V Cola); false when it's the same thing worded differently (coke→Coca-Cola, cola zero→the sugar-free cola we carry)>}|null, "unmatched": "<an attempted ANSWER to the questions with NO reasonable equivalent in any list; null if nothing>"}. The guest's message may be ORDERING dishes — dish/item names are handled elsewhere and are NEVER "unmatched" and never an attempted answer; when the message just names dishes to order, equivalent=null and unmatched=null.
 RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent". "used" and every answer MUST be an EXACT string from the lists — NEVER a product that isn't listed (never invent "Coca-Cola Zero" when the list has "Coca - Cola Diet"). Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent.`;
           const rr = await f.node("resolve_options", async () =>
-            chatJSON(MODEL_NANO, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
+            chatJSON(MODEL_FAST, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
             { input: { open_groups: openGroups.map((g) => g.label || g.key), message: input.message } });
           const answers = rr.value?.answers || {};
           // The guest asked for something we don't carry ("cola zero") — SAY so instead
           // of silently re-printing the list, which reads as the bot being stuck.
-          const unmatchedOpt = typeof rr.value?.unmatched === "string" && rr.value.unmatched.trim()
+          let unmatchedOpt = typeof rr.value?.unmatched === "string" && rr.value.unmatched.trim()
             ? rr.value.unmatched.trim().slice(0, 40) : null;
+          // a confused resolver sometimes echoes the WHOLE message — an "unmatched"
+          // containing a choice that's already applied on the item is garbage, not feedback
+          if (unmatchedOpt) {
+            const un = normName(unmatchedOpt);
+            const appliedNow = Object.values(askedItem.options || {}).filter((v) => typeof v === "string");
+            if (appliedNow.some((v) => v && un.includes(normName(v)))) unmatchedOpt = null;
+          }
           // feedback belongs to pass 0 only — pass 1 re-reads the SAME message against
           // leftover groups and would re-report an already-applied answer as missing
           if (pass === 0 && unmatchedOpt && !e.items?.length && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
