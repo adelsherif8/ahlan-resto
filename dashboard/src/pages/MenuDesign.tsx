@@ -3,7 +3,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { Check, Send, RotateCcw } from "lucide-react";
 import { api } from "../config/api";
-import { Card, PageHeader, Btn, Empty } from "../components/ui";
+import { Card, PageHeader, Btn, Empty, ArmButton } from "../components/ui";
 import { MenuTemplate, TEMPLATES, type MenuData, type Section } from "../menu-templates";
 
 // Build the template data from live menu items: group by category (menu sort order),
@@ -95,7 +95,6 @@ export default function MenuDesign() {
   }
 
   async function revert() {
-    if (!confirm("Revert to the auto-generated menu?")) return;
     await api.delete("/api/menu/pdf").catch(() => {});
     setCurrent(null);
     setMsg("Reverted to the auto-generated menu.");
@@ -110,7 +109,7 @@ export default function MenuDesign() {
         subtitle="Pick a design — it's rendered from your live menu and photos, then sent to guests on WhatsApp as a PDF"
         actions={
           <div className="flex items-center gap-2">
-            {current && <Btn variant="ghost" onClick={revert}><RotateCcw size={15} /> Revert</Btn>}
+            {current && <ArmButton armedLabel="Revert to auto-generated?" className="flex items-center gap-1 rounded-xl border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800" onConfirm={revert}><RotateCcw size={15} /> Revert</ArmButton>}
             <Btn onClick={publish} disabled={publishing}><Send size={15} /> {publishing ? "Publishing…" : "Publish to WhatsApp"}</Btn>
           </div>
         }

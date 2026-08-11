@@ -599,6 +599,26 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           return { kind: "sold_out_today", sold, items, running: runningOf(items) };
         }
       }
+      // An unknown that's a same-kind cousin of something we DO sell ("a cola zero"
+      // while the menu has a Soft Drink) becomes that item, with the guest's words as
+      // the kitchen note — announced, one word to switch. Dynamic per menu, no lists.
+      if (unknown.length && loaded.menu?.length) {
+        const ru = await f.node("resolve_unknowns", async () =>
+          chatJSON(MODEL_FAST, `A restaurant guest asked for things that aren't menu item names. MENU: [${loaded.menu.map((m) => `"${m.name}"`).join(", ")}]\nMap each request to the closest SAME-KIND menu item (a soda request → the menu's soft drink; a juice flavor we lack → the juice we have) or null when nothing on the menu is the same kind of thing. Output ONLY exact strings from the MENU list. Return JSON {"map": {"<requested>": "<menu item name or null>"}}.`,
+            JSON.stringify(unknown), { temperature: 0, maxTokens: 150 }),
+          { input: { unknown } }).catch(() => null);
+        const map = ru?.value?.map || {};
+        const still = [];
+        for (const u of unknown) {
+          const target = typeof map[u] === "string" ? loaded.menu.find((m) => normName(m.name) === normName(map[u])) : null;
+          if (target && !items.some((it) => it.id === target.id && (it.notes || "") === u)) {
+            items.push({ id: target.id, name: target.name, qty: 1, price: Number(target.price), notes: u, options: {}, option_defs: target.options || [] });
+            outcomeNotices.push(`${u} → closest we carry is *${target.name}* ✍️ (say the word to switch)`);
+          } else if (!target) still.push(u);
+        }
+        unknown = still;
+        running = runningOf(items);
+      }
       if (!items.length) {
         await savePending({}); // marks the session as ordering — "loaded fries" next turn stays here
         return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
@@ -635,7 +655,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const rsys = `A restaurant guest is answering menu questions. Their message may be Arabic, Franco-Arabic, misspelled, or a garbled voice transcript — understand accents and translations ("ديابلو"→"Diablo fries", "في كولا"→"V Cola", "برتقان"→the orange drink).
 QUESTIONS:\n${lists}
 Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "equivalent": {"asked": "<what they said>", "used": "<the list choice you mapped it to>", "different_product": <true ONLY when the mapped choice is a genuinely DIFFERENT product/brand (pepsi→Coca-Cola, cola→V Cola); false when it's the same thing worded differently (coke→Coca-Cola, cola zero→the sugar-free cola we carry)>}|null, "unmatched": "<an attempted ANSWER to the questions with NO reasonable equivalent in any list; null if nothing>"}. The guest's message may be ORDERING dishes — dish/item names are handled elsewhere and are NEVER "unmatched" and never an attempted answer; when the message just names dishes to order, equivalent=null and unmatched=null.
-RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent". "used" and every answer MUST be an EXACT string from the lists — NEVER a product that isn't listed (never invent "Coca-Cola Zero" when the list has "Coca - Cola Diet"). Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent.`;
+RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent". "used" and every answer MUST be an EXACT string from the lists — NEVER a product that isn't listed (never invent "Coca-Cola Zero" when the list has "Coca - Cola Diet"). Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent. The examples in these instructions ("V Cola", "Diablo fries", "7up"→"Sprite") are ILLUSTRATIONS — never output any string that is not literally in THIS request's lists.`;
           const rr = await f.node("resolve_options", async () =>
             chatJSON(MODEL_FAST, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
             { input: { open_groups: openGroups.map((g) => g.label || g.key), message: input.message } });
@@ -653,7 +673,8 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           }
           // feedback belongs to pass 0 only — pass 1 re-reads the SAME message against
           // leftover groups and would re-report an already-applied answer as missing
-          if (pass === 0 && unmatchedOpt && !e.items?.length && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
+          const addedThisTurn = !!(e.items?.length || (e.edits || []).some((d) => d?.op === "add"));
+          if (pass === 0 && unmatchedOpt && !addedThisTurn && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
           // Equivalents are AUTO-APPLIED, never asked about — and only ever a real list
           // string. The nano once invented "Coca-Cola Zero" (not on the menu) and the
           // notice claimed it was applied while nothing landed. Code verifies both.
@@ -670,7 +691,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
             }
             if (!canonUsed) {
               // invented product — discard the mapping, tell the guest honestly instead
-              if (pass === 0 && !unmatchedOpt && !e.items?.length && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${eq.asked} 🙏 — the options we've got are below.`);
+              if (pass === 0 && !unmatchedOpt && !addedThisTurn && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${eq.asked} 🙏 — the options we've got are below.`);
               eq = null;
             } else {
               eq.used = canonUsed;

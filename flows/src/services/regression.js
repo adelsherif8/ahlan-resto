@@ -205,6 +205,11 @@ const CASES = [
   { id: "pepsi2pass", needs: "casual", name: "Answer that opens a follow-up group still consumes the whole message",
     turns: ["an iconic meal for pickup from Maadi", "full meal pepsi"],
     expect: [/coca/i], forbid: [/1×\s*\*?soft/i] },
+  // "add a cola zero" as an ITEM: maps to the same-kind menu item (Soft Drink) with the
+  // guest's words as the kitchen note — never "Couldn't find" + a false "We don't have".
+  { id: "colazeroitem", needs: "casual", name: "Unknown drink item maps to the same-kind menu item",
+    turns: ["a classic burger sandwich and a cola zero for pickup from Maadi"],
+    expect: [/closest we carry|✍️/i], forbid: [/couldn'?t find/i, /we don'?t have/i] },
   // Ordering by dish names must NEVER trip the unmatched-option notice — a live guest
   // adding 3 dishes was told "We don't have The caramelised burger, The Nashville sl 🙏"
   // while all 3 landed on the bill correctly.

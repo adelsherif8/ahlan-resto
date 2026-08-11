@@ -3,7 +3,7 @@ import {
   Users, Star, CalendarClock, X, Plus, Store, Clock, Ban, Trash2, Info,
 } from "lucide-react";
 import { api, session } from "../config/api";
-import { Card, PageHeader, Empty, Btn, Input } from "../components/ui";
+import { Card, PageHeader, Empty, Btn, Input, ArmButton } from "../components/ui";
 
 const STATES = ["free", "reserved", "seated", "bill", "cleaning", "blocked"];
 const CLEANING_AUTO_CLEAR_MIN = 15;
@@ -337,11 +337,10 @@ function TablePanel({ table, reservation, waitlist, branches, onClose, onState, 
               <input type="checkbox" checked={f.vip} onChange={(e) => setF({ ...f, vip: e.target.checked })} /> VIP table
             </label>
             <div className="flex justify-between">
-              <button onClick={async () => {
-                if (!confirm(`Delete ${table.table_number}?`)) return;
+              <ArmButton armedLabel={`Delete ${table.table_number}?`} onConfirm={async () => {
                 await api.delete(`/api/tables/${table.id}`).catch(() => {});
                 onSaved();
-              }} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"><Trash2 size={12} /> delete</button>
+              }} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300"><Trash2 size={12} /> delete</ArmButton>
               <Btn className="px-3 py-1.5 text-xs" onClick={async () => {
                 await api.patch(`/api/tables/${table.id}`, {
                   table_number: f.table_number.trim(), section: f.section.trim(),

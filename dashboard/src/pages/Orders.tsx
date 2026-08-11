@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Inbox, Flame, CheckCircle2, Flag, Utensils, ShoppingBag, Clock, Bike, Receipt,
   Bell, BellOff, Monitor, Printer, Phone, MapPin, Store, X, AlertTriangle,
@@ -341,7 +341,7 @@ export default function Orders() {
                           showBranch={branch === "all"}
                           readOnly={!isToday}
                           onAdvance={advance}
-                          onCancel={() => setCancelTarget(o)}
+                          onCancel={setCancelTarget}
                           onPrint={printTicket}
                           onFire={fireLine}
                           onOpen={setViewOrder}
@@ -420,7 +420,7 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount, onOpen }: any) {
 }
 
 const BACK: Record<string, string> = { preparing: "pending", ready: "preparing", out_for_delivery: "ready", served: "ready", delivered: "out_for_delivery" };
-function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint, onFire, onOpen }: any) {
+const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint, onFire, onOpen }: any) {
   const step = nextFor(o, col);
   const [copied, setCopied] = useState(false);
   const road = col.key === "road";
@@ -522,7 +522,7 @@ function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, on
             <button title="Print ticket" onClick={() => onPrint(o, branchName)}
               className="rounded-sm border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100"><Printer size={13} /></button>
             {!readOnly && col.key === "new" && (
-              <button title="Cancel order" onClick={onCancel}
+              <button title="Cancel order" onClick={() => onCancel(o)}
                 className="rounded-sm border border-red-300 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50"><X size={13} /></button>
             )}
             {!readOnly && BACK[o.status] && (
@@ -540,7 +540,7 @@ function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, on
       <div className="h-2" style={TEAR} />
     </div>
   );
-}
+});
 
 
 // Full ticket view for any order — search hits and handed-over tickets open

@@ -4,7 +4,7 @@ import {
   AlertTriangle, BadgeCheck, Banknote,
 } from "lucide-react";
 import { api, session } from "../config/api";
-import { Card, PageHeader, Empty, Btn, Input } from "../components/ui";
+import { Card, PageHeader, Empty, Btn, Input, ArmButton } from "../components/ui";
 import { mins } from "../lib/format";
 
 const DRIVER_BASE = "https://ahlan-resto.vercel.app/driver";
@@ -333,8 +333,8 @@ export default function Delivery() {
                       className="text-zinc-500 hover:text-zinc-300">
                       <BadgeCheck size={13} className={c.active === false ? "" : "text-emerald-400"} />
                     </button>
-                    <button title="Remove" onClick={async () => { if (confirm(`Remove ${c.name}?`)) { await api.delete(`/api/couriers/${c.id}`).catch(() => {}); load(); } }}
-                      className="text-zinc-600 hover:text-red-400"><X size={13} /></button>
+                    <ArmButton title="Remove" armedLabel={`Remove ${c.name}?`} className="text-zinc-600 hover:text-red-400"
+                      onConfirm={async () => { await api.delete(`/api/couriers/${c.id}`).catch(() => {}); load(); }}><X size={13} /></ArmButton>
                   </div>
                 </div>
                 {editCourier?.id === c.id && (

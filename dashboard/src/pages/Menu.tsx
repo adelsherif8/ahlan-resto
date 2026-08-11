@@ -4,7 +4,7 @@ import {
   AlertTriangle, Clock, Flame, GripVertical, TrendingUp, X, Leaf, WheatOff, Copy, BarChart3,
 } from "lucide-react";
 import { api } from "../config/api";
-import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
+import { Card, PageHeader, Btn, Input, Empty, ArmButton } from "../components/ui";
 import OptionsEditor from "./OptionsEditor";
 
 const TAG_ICON: Record<string, any> = { vegan: Leaf, vegetarian: Leaf, gf: WheatOff };
@@ -431,17 +431,16 @@ function DetailsEditor({ item, onSaved }: { item: any; onSaved: () => void }) {
           </button>
         ))}
         <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              if (!confirm(`Delete "${item.name}" from the menu permanently? The bot stops knowing it exists.`)) return;
+          <ArmButton
+            armedLabel="Sure? The bot stops knowing it exists"
+            onConfirm={async () => {
               await api.delete(`/api/menu/${item.id}`).catch((e: any) => alert(e.response?.data?.error || "Delete failed"));
               onSaved();
             }}
             className="flex items-center gap-1 rounded-xl border border-red-500/40 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
           >
             <X size={12} /> Delete item
-          </button>
+          </ArmButton>
           <Btn
             className="px-4 py-1.5 text-xs"
             onClick={async () => {

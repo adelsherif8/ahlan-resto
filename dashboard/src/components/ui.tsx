@@ -1,4 +1,24 @@
 import type { ReactNode } from "react";
+import { useRef, useState } from "react";
+
+// Two-step destructive button: first click arms ("Sure?"), second within 4s executes.
+// Replaces confirm() everywhere — the sync dialog blocked the main thread (533-872ms INP).
+export function ArmButton({ onConfirm, armedLabel = "Sure?", className = "", title, children }:
+  { onConfirm: () => void; armedLabel?: ReactNode; className?: string; title?: string; children: ReactNode }) {
+  const [armed, setArmed] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  return (
+    <button type="button" title={title}
+      onClick={() => {
+        if (timer.current) clearTimeout(timer.current);
+        if (!armed) { setArmed(true); timer.current = setTimeout(() => setArmed(false), 4000); return; }
+        setArmed(false); onConfirm();
+      }}
+      className={armed ? "flex items-center gap-1 rounded-lg bg-red-600 px-2 py-1 text-xs font-semibold text-white" : className}>
+      {armed ? armedLabel : children}
+    </button>
+  );
+}
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
