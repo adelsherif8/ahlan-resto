@@ -690,6 +690,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         // Fulfillment-first restaurants (per-restaurant toggle): the dine-in/pickup/
         // delivery question OPENS the order; the menu follows once the type is set.
         if (config.ai?.ask_type_first === true && !orderType && !unknown.length) {
+          await savePending({ menu_shown: true }); // the opener carries the menu — don't resend next turn
           return { kind: "ask_fulfillment", type_first: true, first_fulfilment: true, need_type: true, delivery: deliveryOn, notices: outcomeNotices, items: [] };
         }
         return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
@@ -1353,7 +1354,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       ? [outcome.need_type, outcome.need_branch, outcome.need_table, outcome.need_address, outcome.need_pickup_time].filter(Boolean).length : 0;
     const forced =
       outcome.kind === "ask_choice" && outcome.questions?.length === 1 ? (outcome.questions[0].names || [])
-      : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_type ? ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])]
+      : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_type ? (outcome.type_first && config.ai?.compact_messages === true ? null : ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])])
       : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_branch ? (outcome.branches || [])
       : outcome.kind === "ask_fulfillment" && outcome.need_address && (outcome.saved || []).length
         ? [...outcome.saved.slice(0, 2).map((a, i) => (i === 0 ? `🏠 ${String(a).slice(0, 16)}` : `📍 ${String(a).slice(0, 16)}`)), "Somewhere new"]
@@ -1392,11 +1393,16 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       }
     }
 
+    // The type-first opener carries the menu too — guests answer "pickup, classic
+    // burger" in one breath and skip a whole round. (Compact merges it as the caption.)
     const NEEDS_MENU = ["ask_items", "nothing_matched", "no_history"];
+    if (outcome.kind === "ask_fulfillment" && outcome.type_first) NEEDS_MENU.push("ask_fulfillment");
+    // the opener already delivered the menu this session — don't attach it again
+    const menuAlreadyShown = !!loaded.pending?.menu_shown && !outcome.type_first;
     let doc = null;
     if (outcome.kind === "order_placed" && outcome.receipt_url) {
       doc = { url: outcome.receipt_url, caption: `Receipt ${outcome.code}`, filename: `${outcome.code}.pdf` };
-    } else if (NEEDS_MENU.includes(outcome.kind)) {
+    } else if (!menuAlreadyShown && NEEDS_MENU.includes(outcome.kind)) {
       const mc = config.menu_config || {};
       const pdf = mc.pdf_url
         ? { url: mc.pdf_url, filename: "menu.pdf" }
