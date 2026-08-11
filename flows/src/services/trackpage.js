@@ -92,6 +92,7 @@ export function renderTrackPage({ config, brand, order, courier, apiBase, token 
 </style></head><body>
   <div class="top">${logo ? `<img src="${logo}" alt="">` : ""}<b>${esc(config.name)}</b></div>
   <div class="wrap">
+    ${Number(order.eta_extra_min) > 0 ? `<div class="card" style="border-color:#e8b93f66;background:${light ? "#fdf6e3" : "#2a2413"}"><div class="lbl">${icon("clock", 13)} Heads up</div><div style="font-size:13px">Your rider is running ~${Number(order.eta_extra_min)} min behind 🙏 — the ETA below includes it.</div></div>` : ""}
     <div class="card">
       <div class="code">${esc(order.code)}</div>
       <div class="state">${delivered ? "Delivered" : esc(String(order.status || "").replace(/_/g, " "))}</div>
@@ -127,6 +128,7 @@ export function renderTrackPage({ config, brand, order, courier, apiBase, token 
   var DEST  = ${dest ? JSON.stringify(dest) : "null"};
   var DONE  = ${delivered ? "true" : "false"};
   var KMH = 18;   // a scooter in Cairo traffic, not a straight-line car speed
+  var EXTRA = ${Number(order.eta_extra_min) || 0};   // rider-reported delay, minutes
 
   function km(a, b){
     var R = 6371, rad = function(d){ return d * Math.PI / 180; };
@@ -140,7 +142,7 @@ export function renderTrackPage({ config, brand, order, courier, apiBase, token 
     var el = document.getElementById('eta');
     if (RIDER && DEST) {
       var d = km(RIDER, DEST);
-      var mins = Math.max(1, Math.round((d / KMH) * 60));
+      var mins = Math.max(1, Math.round((d / KMH) * 60)) + EXTRA;
       el.innerHTML = '<b>~' + mins + ' min away</b><span class="est">\\u00b7 ' + d.toFixed(1) + ' km \\u00b7 estimated</span>';
     } else {
       // no fresh rider position — say so rather than invent a countdown

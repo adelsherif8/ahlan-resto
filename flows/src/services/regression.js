@@ -218,6 +218,11 @@ const CASES = [
   { id: "whichitem", needs: "casual", name: "The which-one answer + remembered qty land as the real item",
     turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
     expect: [/iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
+  // Payment rides the fulfillment message ("branch? and how will you pay?") — one
+  // message, and a missed answer still gets the classic payment ask later.
+  { id: "payfold", needs: "casual", name: "Payment question folds into the fulfillment ask",
+    turns: ["1 loaded fries", "pickup"],
+    expect: [/branch/i, /pay|كاش|cash/i], forbid: [/O-[A-Z2-9]{4}/] },
   // First-timer greeting carries the restaurant's chosen signature dishes (⭐, ≤3, toggleable)
   { id: "firstsuggest", needs: "casual", name: "First-timer greeting suggests the configured signature dish",
     msg: "hi", expect: [/⭐/, /american truck/i] },

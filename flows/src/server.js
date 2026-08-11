@@ -317,6 +317,14 @@ app.post("/api/order/status", (req, res, next) => opsAuth(req, res, next), async
     if (!order) return res.status(404).json({ error: "order not found" });
     if (!order.phone_number || String(order.phone_number).startsWith("walkin:")) return res.json({ skipped: "no guest channel" });
     if (order.notified_status === status) return res.json({ skipped: "already notified" });
+    // Founder rule (2026-08-12): NO proactive status messages — the tracking page is
+    // the single source of progress. Exceptions that still send: a cancellation
+    // (guest must know) and pickup-READY (the guest is literally waiting on it).
+    const critical = status === "cancelled" || (status === "ready" && order.order_type === "pickup");
+    if (tenant.config.ai?.status_updates !== "messages" && !critical) {
+      await tenant.db.from("orders").update({ notified_status: status }).eq("id", order.id).then(() => {}, () => {});
+      return res.json({ skipped: "silent mode — the tracking page carries status" });
+    }
 
     const branches = (tenant.config.basic_info?.branches || []).filter((b) => b?.key);
     const br = branches.find((b) => b.key === order.branch) || null;
@@ -741,8 +749,8 @@ app.post("/api/driver/:token/action", rateLimit("dact", 30, 60_000, (req) => req
     if (action === "delay") {
       const extra = (Number(order.eta_extra_min) || 0) + 10;
       await db.from("orders").update({ eta_extra_min: extra }).eq("id", order.id).then(() => {}, () => {});
-      await pushGuest(tenant, order, riderCopy.delay(order, 10));
-      return res.json({ ok: true, note: "Customer told about the delay" });
+      // silent by design: the guest's track page shows the delay — no WhatsApp message
+      return res.json({ ok: true, note: "Delay shown on the guest's tracking page" });
     }
     if (action === "pod") {
       // Proof of delivery: the rider snaps a photo at the door (page downscales it to

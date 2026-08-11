@@ -850,6 +850,15 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       const tablesOn = config.basic_info?.services?.table_numbers !== false && loaded.tableNumbers.length > 0;
       const needTable = orderType === "dine_in" && tablesOn && !tableNumber;
       const needAddress = orderType === "delivery" && !address && !mapLink && !sharedPin;
+      // Payment folds INTO the fulfillment message ("Address? And how are you
+      // paying?") — one message instead of two. Only when the type is known (the
+      // method list depends on it); missed answers get the normal payment ask later.
+      const payKnown = !!(e.payment_method || loaded.pending?.payment_method);
+      const foldPay = !payKnown && !!orderType
+        ? (orderType === "dine_in" ? ["cash at the cashier", "card at the cashier"]
+          : orderType === "pickup" ? ["cash at the counter", "card", "instapay"]
+          : ["cash on delivery", "card", "instapay"])
+        : null;
       if (needType || needBranch || needTable || needAddress || needPickupTime) {
         // The lead-in ("Almost done…") shows on the FIRST fulfilment ask only. The real
         // "first" signal is whether we've ASKED before, not whether a slot was saved —
@@ -862,6 +871,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         return {
           kind: "ask_fulfillment", items, running, first_fulfilment: firstFulfilment, notices: outcomeNotices,
           need_type: needType, delivery: deliveryOn, need_pickup_time: needPickupTime, prep_min: prepMin,
+          need_payment: !!foldPay, pay_methods: foldPay || [],
           need_branch: needBranch, branches: branches.map((b) => b.name), nearest: near,
           usual: branches.find((b) => b.key === usualKey)?.name || null,
           need_table: needTable, tables: loaded.tableNumbers.slice(0, 12),
@@ -1207,6 +1217,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       }
       if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
       if (outcome.need_pickup_time) qs.push(`When are you passing by? 🕐 Your order takes ~${outcome.prep_min || 10} min — say "now", "in 30 min", or a time`);
+      if (outcome.need_payment && outcome.pay_methods?.length) qs.push(`And how will you pay? 💳\n${outcome.pay_methods.map((m) => `• ${m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}\n(you can answer everything in one message 😄)`);
       if (outcome.need_address) qs.push((outcome.saved || []).length
         ? `Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`
         : ADDRESS_TEMPLATE_EN);
