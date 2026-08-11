@@ -212,9 +212,12 @@ const CASES = [
     expect: [/closest we carry|✍️/i], forbid: [/couldn'?t find/i, /we don'?t have/i] },
   // "an iconic" fits 4 dishes → ask WHICH ONE (candidates listed); the answer + the
   // remembered qty land as the real item. One-fuzzy-fit auto-takes, no question.
-  { id: "whichitem", needs: "casual", name: "Ambiguous dish name asks which one; answer + qty resolve it",
+  { id: "whichask", needs: "casual", name: "Ambiguous dish name asks which one (candidates listed)",
+    turns: ["3 iconic for pickup from Maadi"],
+    expect: [/which one did you mean/i, /iconic meal/i, /iconic wrap/i], forbid: [/1×\s*\*?iconic sauce/i] },
+  { id: "whichitem", needs: "casual", name: "The which-one answer + remembered qty land as the real item",
     turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
-    expect: [/which one did you mean/i, /iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
+    expect: [/iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
   // First-timer greeting carries the restaurant's chosen signature dishes (⭐, ≤3, toggleable)
   { id: "firstsuggest", needs: "casual", name: "First-timer greeting suggests the configured signature dish",
     msg: "hi", expect: [/⭐/, /american truck/i] },

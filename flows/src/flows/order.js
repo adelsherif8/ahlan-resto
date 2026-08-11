@@ -616,6 +616,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           // payment said early ("pickup and pay cash" while a size question is still open)
           // is remembered — it used to be lost on every option re-ask
           ...(e.payment_method ? { payment_method: e.payment_method } : {}),
+          ...(e.pickup_time ? { pickup_time: e.pickup_time } : {}),
           ...(dq?.covered ? { delivery_fee: dq.fee } : {}),
           at: new Date().toISOString(),
           ...extra,
@@ -670,6 +671,11 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       }
       if (!items.length) {
         await savePending({}); // marks the session as ordering — "loaded fries" next turn stays here
+        // Fulfillment-first restaurants (per-restaurant toggle): the dine-in/pickup/
+        // delivery question OPENS the order; the menu follows once the type is set.
+        if (config.ai?.ask_type_first === true && !orderType && !unknown.length) {
+          return { kind: "ask_fulfillment", type_first: true, first_fulfilment: true, need_type: true, delivery: deliveryOn, notices: outcomeNotices, items: [] };
+        }
         return unknown.length ? { kind: "nothing_matched", unknown } : { kind: "ask_items" };
       }
 
@@ -818,12 +824,17 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // 3) FULFILLMENT — type + branch + table/address, everything still missing
       // asked in ONE message; each answer shrinks the next round's question
       const needType = !orderType;
+      // Smart pickup timing (per-restaurant): ask WHEN they're passing by, so the
+      // kitchen fires at T-minus-prep and the food lands fresh, not cold on a shelf.
+      const prepMin = Number(config.ai?.pickup_prep_min) || 10;
+      const needPickupTime = orderType === "pickup" && config.ai?.pickup_smart_timing === true
+        && !e.pickup_time && !loaded.pending?.pickup_time;
       // branch is a pickup/dine-in question only — delivery gets it assigned from the address
       const needBranch = branches.length > 1 && !branch && orderType !== "delivery";
       const tablesOn = config.basic_info?.services?.table_numbers !== false && loaded.tableNumbers.length > 0;
       const needTable = orderType === "dine_in" && tablesOn && !tableNumber;
       const needAddress = orderType === "delivery" && !address && !mapLink && !sharedPin;
-      if (needType || needBranch || needTable || needAddress) {
+      if (needType || needBranch || needTable || needAddress || needPickupTime) {
         // The lead-in ("Almost done…") shows on the FIRST fulfilment ask only. The real
         // "first" signal is whether we've ASKED before, not whether a slot was saved —
         // turn 1 asks the type but saves no slot, so a saved-slot check wrongly repeats
@@ -834,7 +845,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         const near = loc ? nearestBranches(branches, loc.lat, loc.lng, 3).map((b) => `${b.name} (${b.km} km)`) : null;
         return {
           kind: "ask_fulfillment", items, running, first_fulfilment: firstFulfilment, notices: outcomeNotices,
-          need_type: needType, delivery: deliveryOn,
+          need_type: needType, delivery: deliveryOn, need_pickup_time: needPickupTime, prep_min: prepMin,
           need_branch: needBranch, branches: branches.map((b) => b.name), nearest: near,
           usual: branches.find((b) => b.key === usualKey)?.name || null,
           need_table: needTable, tables: loaded.tableNumbers.slice(0, 12),
@@ -925,6 +936,25 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // order-code style is the restaurant's call (Settings → POS) — shared with
       // every other front that opens a ticket, so all of them agree.
       const code = await nextOrderCode(db, config);
+      // "in 30 min" / "بعد نص ساعة" / "now" → a real timestamp the kitchen can plan on.
+      // Clock times ("at 8pm") stay in notes for humans — timezones are not worth a
+      // wrong auto-fire. Scheduling only when they're far enough out to matter.
+      const parsePickupMin = (t) => {
+        const s2 = String(t || "").toLowerCase();
+        if (!s2) return null;
+        if (/now|on my way|omw|حالا|دلوقتي|جاي/.test(s2)) return 0;
+        const half = s2.match(/نص ساعة|نصف ساعة|half an? hour/);
+        if (half) return 30;
+        const hr = s2.match(/(\d{1,2})\s*(hour|hr|ساعة|ساعه)/);
+        if (hr) return Number(hr[1]) * 60;
+        const rel = s2.match(/(\d{1,3})\s*(min|m\b|دقيقة|دقايق|د\b)/);
+        if (rel) return Number(rel[1]);
+        return null;
+      };
+      const pickupSaid = e.pickup_time || loaded.pending?.pickup_time || null;
+      const pkMin = orderType === "pickup" && config.ai?.pickup_smart_timing === true ? parsePickupMin(pickupSaid) : null;
+      const prepMin2 = Number(config.ai?.pickup_prep_min) || 10;
+      const pickupEtaAt = pkMin != null && pkMin > prepMin2 + 5 ? new Date(Date.now() + pkMin * 60000).toISOString() : null;
       const row = {
         code, phone_number: ctx.sessionId, diner_name: name,
         order_type: orderType, table_number: tableNumber, branch,
@@ -938,9 +968,16 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         lng: mapLink?.lng ?? (orderType === "delivery" ? sharedPin?.lng ?? null : null),
         payment_method: payment,
         status: "pending", payment_status: payment === "cash" ? "unpaid" : "pending",
-        notes: [e.notes, e.pickup_time ? `pickup: ${e.pickup_time}` : null].filter(Boolean).join(" · ") || null,
+        notes: [e.notes, pickupSaid ? `pickup: ${pickupSaid}` : null].filter(Boolean).join(" · ") || null,
+        ...(pickupEtaAt ? { pickup_eta_at: pickupEtaAt } : {}),
       };
       let { error } = await db.from("orders").insert(row);
+      if (error && pickupEtaAt) {
+        // migration 029 not run yet — the ticket still lands, timing rides in notes
+        console.log("order insert with pickup_eta_at failed, retrying without:", error.message);
+        const { pickup_eta_at: _pe, ...noEta } = row;
+        ({ error } = await db.from("orders").insert(noEta));
+      }
       if (error && branch) {
         // branch column missing (migration 006 not run) — the ticket still must reach the kitchen
         console.log("order insert with branch failed, retrying without:", error.message);
@@ -1153,6 +1190,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         qs.push(`${head}${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
       }
       if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
+      if (outcome.need_pickup_time) qs.push(`When are you passing by? 🕐 Your order takes ~${outcome.prep_min || 10} min — say "now", "in 30 min", or a time`);
       if (outcome.need_address) qs.push((outcome.saved || []).length
         ? `Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`
         : ADDRESS_TEMPLATE_EN);
@@ -1162,7 +1200,9 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // is right even when the guest states the type up front (need_type would be false
       // on their genuine first ask) AND when turn 1 asks but saves no slot.
       if (outcome.notices?.length) noticeBlock = outcome.notices.join("\n");
-      reply = outcome.first_fulfilment ? `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : qs.join("\n\n");
+      reply = outcome.type_first
+        ? `${classification?.language === "ar" ? "أهلاً! 😄 تحب طلبك يكون إزاي؟ 👇" : "Let's get you fed 😄 How would you like your order? 👇"}\n\n${qs.join("\n\n")}`
+        : outcome.first_fulfilment ? `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : qs.join("\n\n");
     }
 
     // Which-one candidates are STRUCTURE too — one lead line, code lists the dishes
@@ -1276,7 +1316,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // buttons/lists ONLY when this message asks exactly ONE question — tapping an
     // answer to question 1 while questions 2-3 hang unanswered just confuses
     const fulfillNeeds = outcome.kind === "ask_fulfillment"
-      ? [outcome.need_type, outcome.need_branch, outcome.need_table, outcome.need_address].filter(Boolean).length : 0;
+      ? [outcome.need_type, outcome.need_branch, outcome.need_table, outcome.need_address, outcome.need_pickup_time].filter(Boolean).length : 0;
     const forced =
       outcome.kind === "ask_choice" && outcome.questions?.length === 1 ? (outcome.questions[0].names || [])
       : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_type ? ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])]

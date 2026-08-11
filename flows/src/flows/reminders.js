@@ -5,7 +5,7 @@
 // every tick until the window opens or the slot passes).
 import { defineFlow } from "../engine/flow.js";
 import { sendButtons, sendText, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
-import { logMessage } from "../services/chatlog.js";
+import { logMessage, notifyDashboard } from "../services/chatlog.js";
 import { appendHistory } from "../services/history.js";
 import { todayISO } from "../services/availability.js";
 
@@ -20,6 +20,7 @@ defineFlow({
     { id: "find_due", label: "Find Due Reservations", icon: "database" },
     { id: "send", label: "Send Reminders", icon: "send" },
     { id: "recover_drafts", label: "Abandoned-Order Recovery", icon: "history" },
+    { id: "pickup_fresh_start", label: "Pickup Fresh-Start Nudge", icon: "timer" },
     { id: "upsell_ping", label: "Post-Order Upsell", icon: "sparkles" },
     { id: "review_ask", label: "Review Ask", icon: "star" },
   ],
@@ -67,6 +68,36 @@ defineFlow({
     // ---- abandoned-order recovery (0-LLM; the draft IS the guest's own recent
     // message, so the 24h window is open by construction) ----
     const rec = config.ai?.automations?.recovery;
+    // Scheduled pickups: at T-minus-prep the guest gets the fresh-start nudge and the
+    // kitchen gets a start-now notification — food comes off the pass as they walk in.
+    await f.node("pickup_fresh_start", async () => {
+      if (config.ai?.pickup_smart_timing !== true) return { skipped: "disabled" };
+      const prep = Number(config.ai?.pickup_prep_min) || 10;
+      const horizon = new Date(Date.now() + (prep + 2) * 60000).toISOString();
+      const { data: due2, error } = await db.from("orders")
+        .select("id,code,phone_number,diner_name,pickup_eta_at,pickup_nudge_at,status")
+        .eq("order_type", "pickup").eq("status", "pending")
+        .not("pickup_eta_at", "is", null).is("pickup_nudge_at", null)
+        .lte("pickup_eta_at", horizon).limit(20);
+      if (error) return { skipped: `migration 029 pending: ${error.message.slice(0, 60)}` };
+      let nudges = 0;
+      for (const o of due2 || []) {
+        const phone = String(o.phone_number || "");
+        if (phone.startsWith("web:") || phone.startsWith("walkin")) continue;
+        const txt = `You close? 🔥 We're starting your order ${o.code} now so it's fresh off the pass when you arrive — see you soon!`;
+        try {
+          if (WA_PHONE_NUMBER_ID) await sendText(WA_PHONE_NUMBER_ID, phone.replace(/^\+/, ""), txt);
+          await logMessage(db, phone, "ai", txt, "whatsapp");
+          await appendHistory(db, phone, "ai", txt);
+          await notifyDashboard(db, "order", `Start ${o.code} now 🔥`,
+            `${o.diner_name || phone} arrives ~${new Date(o.pickup_eta_at).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" })} — fire it so it's fresh`, phone).catch(() => {});
+          await db.from("orders").update({ pickup_nudge_at: new Date().toISOString() }).eq("id", o.id);
+          nudges++;
+        } catch { /* retried next tick */ }
+      }
+      return { nudges, due: (due2 || []).length };
+    }, { input: { enabled: config.ai?.pickup_smart_timing === true } });
+
     await f.node("recover_drafts", async () => {
       if (rec?.enabled === false) return { skipped: "disabled in Settings" };
       const delayMin = Number(rec?.delay_min) || 45;
