@@ -294,8 +294,11 @@ defineFlow({
     await f.node("deliver", async () => {
       // A flow that composed its own bubbles (order asks: [side answer][notices][ask])
       // controls the split — the 400-char heuristic once cut the "👇" lead off its choices.
-      const parts = Array.isArray(routed?.parts) && routed.parts.length
+      let parts = Array.isArray(routed?.parts) && routed.parts.length
         ? routed.parts.filter(Boolean) : splitReply(reply);
+      // Meta bills every SENT message from Oct 2026 — compact mode (per-restaurant
+      // toggle) merges a turn's bubbles into one message. Flip it when rates apply.
+      if (config.ai?.compact_messages === true && parts.length > 1) parts = [parts.join("\n\n")];
       const isWa = (sessionRoutes.get(bufKey(ctx))?.channel || ctx.channel) === "whatsapp";
       const writes = []; // DB logging — fired now, awaited together at the end
       let qrs = routed?.quickReplies || [];

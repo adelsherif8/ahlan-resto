@@ -183,6 +183,18 @@ export default function Settings() {
           <Field label="Reservations via bot">
             <Toggle on={!!ai.reservations_enabled} onClick={() => upd("ai", { reservations_enabled: !ai.reservations_enabled })} />
           </Field>
+          <Field label="Compact messages (one bubble per reply — cuts Meta's Oct-2026 per-message fees ~2×)">
+            <Toggle on={!!ai.compact_messages} onClick={() => upd("ai", { compact_messages: !ai.compact_messages })} />
+          </Field>
+          <Field label="First-timer suggestions (⭐ up to 3 dishes, comma-separated)">
+            <Input value={(ai.suggest_dishes || []).join(", ")} onChange={(e) => upd("ai", { suggest_dishes: e.target.value.split(",").map((x: string) => x.trim()).filter(Boolean).slice(0, 3) })} />
+          </Field>
+          <Field label="Ask dine-in/pickup/delivery FIRST (before the menu)">
+            <Toggle on={!!ai.ask_type_first} onClick={() => upd("ai", { ask_type_first: !ai.ask_type_first })} />
+          </Field>
+          <Field label="Smart pickup timing (asks when they're coming; fresh-start nudge)">
+            <Toggle on={!!ai.pickup_smart_timing} onClick={() => upd("ai", { pickup_smart_timing: !ai.pickup_smart_timing })} />
+          </Field>
           <Field label="Orders via bot">
             <Toggle on={!!ai.orders_enabled} onClick={() => upd("ai", { orders_enabled: !ai.orders_enabled })} />
           </Field>
