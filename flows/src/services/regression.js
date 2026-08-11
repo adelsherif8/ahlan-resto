@@ -207,9 +207,9 @@ const CASES = [
     expect: [/coca/i], forbid: [/1×\s*\*?soft/i] },
   // "add a cola zero" as an ITEM: maps to the same-kind menu item (Soft Drink) with the
   // guest's words as the kitchen note — never "Couldn't find" + a false "We don't have".
-  { id: "colazeroitem", needs: "casual", name: "Unknown drink item maps to the same-kind menu item",
+  { id: "colazeroitem", needs: "casual", name: "cola zero lands as the diet cola — silently as an option OR announced as an item",
     turns: ["a classic burger sandwich and a cola zero for pickup from Maadi"],
-    expect: [/closest we carry|✍️/i], forbid: [/couldn'?t find/i, /we don'?t have/i] },
+    expect: [/closest we carry|✍️|coca[ -]*cola diet|diet/i], forbid: [/couldn'?t find/i, /we don'?t have/i] },
   // "an iconic" fits 4 dishes → ask WHICH ONE (candidates listed); the answer + the
   // remembered qty land as the real item. One-fuzzy-fit auto-takes, no question.
   { id: "whichask", needs: "casual", name: "Ambiguous dish name asks which one (candidates listed)",

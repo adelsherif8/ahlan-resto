@@ -238,6 +238,9 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           // "chicken" fits 4 dishes → ASK which one, never guess; exactly one fuzzy
           // fit ("caramelized burger" → Double Caramelized Burger) auto-takes.
           if (cands.length > 1) {
+            // mid-ask, an ambiguous word is almost always an ANSWER fragment ("full
+            // meal pepsi") — the options resolver owns it; never interrupt with which-one
+            if (loaded.pending?.awaiting_option) continue;
             ambiguous.push({ said: String(w.name), qty: Math.min(Math.max(Math.round(Number(w.qty) || 1), 1), 20), candidates: cands.slice(0, 4).map((m) => m.name) });
             continue;
           }
@@ -260,6 +263,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               if (fragToks.length) {
                 const fragHits = loaded.menu.filter((m) => { const n2 = normName(m.name); return fragToks.every((t) => n2.includes(t)); });
                 if (fragHits.length > 1) {
+                  if (loaded.pending?.awaiting_option) continue; // answer fragment, not a dish
                   ambiguous.push({ said: fragToks.join(" "), qty, candidates: fragHits.slice(0, 4).map((m) => m.name) });
                   continue;
                 }
