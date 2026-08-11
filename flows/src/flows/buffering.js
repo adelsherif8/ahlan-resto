@@ -319,7 +319,12 @@ defineFlow({
       // then let the PDF follow a moment later. Two notifications, but the guest gets an
       // immediate answer instead of staring at silence.
       const md = routed?.menuDoc || null;
-      const mergeDoc = false; // text-first: never wait on the document to show the reply
+      // Compact mode: the document CARRIES the reply as its caption — one billable
+      // message instead of two (menu ask + PDF, or receipt + confirmation). Only when
+      // the text fits WhatsApp's 1024-char caption cap and no buttons ride this turn;
+      // otherwise text-first stands (never truncate, never lose a button).
+      const mergeDoc = !!md && config.ai?.compact_messages === true && !list && !qrs.length
+        && parts.join("\n\n").length <= 1000;
 
       for (let i = 0; i < parts.length; i++) {
         const last = i === parts.length - 1;

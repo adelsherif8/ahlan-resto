@@ -1321,6 +1321,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         when: new Date().toLocaleString("en-GB", { timeZone: config.basic_info?.timezone || "Africa/Cairo", hour12: true, day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }),
       })}${billFirst ? `\n\n${askLine}` : ""}`;
     }
+      }
     // the ticket code is the guest's receipt — never let a confirmation go out without it
     if (outcome.kind === "order_placed" && outcome.code && !reply.includes(outcome.code)) {
       reply = `${reply} (order ${outcome.code})`;
