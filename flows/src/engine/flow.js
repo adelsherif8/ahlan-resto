@@ -149,6 +149,7 @@ export async function runFlow(name, ctx, input, parentExec = null) {
     exec.status = "error";
     exec.error = String(err.message || err).slice(0, 800);
     log(`flow ${name} ERROR:`, exec.error);
+    if (process.env.DEBUG_STACKS) log(err.stack);
     return { result: null, exec, error: err };
   } finally {
     exec.finished_at = new Date().toISOString();
