@@ -644,7 +644,9 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           // of silently re-printing the list, which reads as the bot being stuck.
           const unmatchedOpt = typeof rr.value?.unmatched === "string" && rr.value.unmatched.trim()
             ? rr.value.unmatched.trim().slice(0, 40) : null;
-          if (unmatchedOpt && !e.items?.length && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
+          // feedback belongs to pass 0 only — pass 1 re-reads the SAME message against
+          // leftover groups and would re-report an already-applied answer as missing
+          if (pass === 0 && unmatchedOpt && !e.items?.length && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
           // Equivalents are AUTO-APPLIED, never asked about — and only ever a real list
           // string. The nano once invented "Coca-Cola Zero" (not on the menu) and the
           // notice claimed it was applied while nothing landed. Code verifies both.
@@ -661,7 +663,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
             }
             if (!canonUsed) {
               // invented product — discard the mapping, tell the guest honestly instead
-              if (!unmatchedOpt && !e.items?.length && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${eq.asked} 🙏 — the options we've got are below.`);
+              if (pass === 0 && !unmatchedOpt && !e.items?.length && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${eq.asked} 🙏 — the options we've got are below.`);
               eq = null;
             } else {
               eq.used = canonUsed;
