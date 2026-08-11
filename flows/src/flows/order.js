@@ -248,6 +248,24 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const isChickenItem = /chicken|wrap|تشيكن|فراخ/i.test(`${hit.name} ${hit.category || ""}`);
           if (saidChicken && !isChickenItem) { unknown.push(String(w.name)); continue; }
           const qty = Math.min(Math.max(Math.round(Number(w.qty) || 1), 1), 20);
+          // The extractor over-specifies ("iconic" quietly becomes "Iconic Meal").
+          // If the guest's OWN words fit several dishes and don't pin this one, ask —
+          // a fragment pinning exactly one dish ("caramelised burger") still auto-takes.
+          {
+            const msgN2 = normName(arOptionWords(input.message));
+            const hitN = normName(hit.name);
+            if (!msgN2.includes(hitN)) {
+              const near = (t) => msgN2.includes(t) || (t.length >= 5 && msgN2.includes(t.slice(0, 5)));
+              const fragToks = hitN.split(" ").filter((t) => t.length >= 3 && near(t));
+              if (fragToks.length) {
+                const fragHits = loaded.menu.filter((m) => { const n2 = normName(m.name); return fragToks.every((t) => n2.includes(t)); });
+                if (fragHits.length > 1) {
+                  ambiguous.push({ said: fragToks.join(" "), qty, candidates: fragHits.slice(0, 4).map((m) => m.name) });
+                  continue;
+                }
+              }
+            }
+          }
           // "no onion", "extra sauce" ride WITH the item so the kitchen sees them on the line
           items.push({ id: hit.id, name: hit.name, qty, price: Number(hit.price), notes: (w.notes || "").trim() || null, options: {}, option_defs: hit.options || [] });
         }
@@ -1319,6 +1337,16 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       if (pdf) {
         doc = { url: pdf.url, caption: `${config.name} — full menu 📄`, filename: pdf.filename };
         reply = `${reply}\n\n📄 ${publicLink("/menu.pdf", config.slug)}`;
+      }
+      // First-timer? The restaurant's chosen signatures (up to 3, per-restaurant,
+      // toggleable) ride with the menu — a nudge, phrased by code, never invented.
+      const sug = (config.ai?.suggest_dishes || []).filter(Boolean).slice(0, 3);
+      const firstTimer0 = !diner?.name && !(diner?.visit_count > 0) && !diner?.last_visit_at;
+      if (sug.length && config.ai?.suggest_enabled !== false && firstTimer0) {
+        const names = sug.map((d) => `*${d}*`).join(" · ");
+        reply = /[\u0600-\u06FF]/.test(reply)
+          ? `${reply}\n\n⭐ أول مرة؟ جرب ${names} — أكتر حاجة الناس بتحبها!`
+          : `${reply}\n\n⭐ First time here? Try ${names} — the crowd favourite${sug.length > 1 ? "s" : ""}!`;
       }
     }
 

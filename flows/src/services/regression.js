@@ -215,6 +215,9 @@ const CASES = [
   { id: "whichitem", needs: "casual", name: "Ambiguous dish name asks which one; answer + qty resolve it",
     turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
     expect: [/which one did you mean/i, /iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
+  // First-timer greeting carries the restaurant's chosen signature dishes (⭐, ≤3, toggleable)
+  { id: "firstsuggest", needs: "casual", name: "First-timer greeting suggests the configured signature dish",
+    msg: "hi", expect: [/⭐/, /american truck/i] },
   // An Arabic bare greeting gets the ARABIC canned welcome — never the English line
   { id: "argreet", needs: "casual", name: "Arabic greeting → Arabic canned welcome",
     msg: "اهلا", expect: [new RegExp(AR)], forbid: [/welcome to|craving|what can i get/i] },

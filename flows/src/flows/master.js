@@ -92,7 +92,12 @@ defineFlow({
           const isAr = /[\u0600-\u06FF]/.test(message);
           const cfgPool = isAr ? ctx.tenant.config.ai?.greetings_ar : ctx.tenant.config.ai?.greetings;
           const pool = cfgPool?.length ? cfgPool : (isAr ? DEFAULT_GREETINGS_AR : DEFAULT_GREETINGS);
-          const reply = String(pool[greetIdx++ % pool.length]).replace(/\{name\}/g, rname);
+          let reply = String(pool[greetIdx++ % pool.length]).replace(/\{name\}/g, rname);
+          const sug = (ctx.tenant.config.ai?.suggest_dishes || []).filter(Boolean).slice(0, 3);
+          if (sug.length && ctx.tenant.config.ai?.suggest_enabled !== false) {
+            const names = sug.map((d) => `*${d}*`).join(" · ");
+            reply += isAr ? `\n\n⭐ أول مرة؟ جرب ${names}!` : `\n\n⭐ First time here? Try ${names}!`;
+          }
           return { kind: "greeting", reply, language: isAr ? "ar" : (sticky || undefined) };
         }
       }
