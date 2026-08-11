@@ -4,23 +4,26 @@
 import { OPENAI_API_KEY, llmReady, MODEL_SMART, MODEL_FAST } from "../config.js";
 
 // USD per 1M tokens (input, output)
+// [input $/1M, output $/1M, cached-input multiplier]
 const PRICES = {
-  "gpt-4.1": [2.0, 8.0],
-  "gpt-4.1-mini": [0.4, 1.6],
-  "gpt-4.1-nano": [0.1, 0.4],
-  "gpt-4o-mini": [0.15, 0.6],
-  "deepseek-chat": [0.27, 1.1],
+  "gpt-4.1": [2.0, 8.0, 0.25],
+  "gpt-4.1-mini": [0.4, 1.6, 0.25],
+  "gpt-4.1-nano": [0.1, 0.4, 0.25],
+  "gpt-4o-mini": [0.15, 0.6, 0.5],
+  "gpt-5.4": [2.5, 15.0, 0.1],
+  "gpt-5.4-mini": [0.75, 4.5, 0.1],
+  "gpt-5.4-nano": [0.2, 1.25, 0.1],
+  "deepseek-chat": [0.27, 1.1, 0.5],
 };
 
 // OpenAI automatically caches identical prompt prefixes over ~1024 tokens and
 // bills those at half price. Our system prompts are a stable per-restaurant block
 // (persona, facts, menu) followed by the volatile guest part, so most of the input
 // is cached — pricing it at full rate would overstate spend and hide the win.
-const CACHED_DISCOUNT = 0.5;
 function cost(model, tin, tout, cached = 0) {
-  const [pi, po] = PRICES[model] || [1, 4];
+  const [pi, po, cm = 0.5] = PRICES[model] || [1, 4, 0.5];
   const fresh = Math.max(0, tin - cached);
-  return (fresh * pi + cached * pi * CACHED_DISCOUNT + tout * po) / 1e6;
+  return (fresh * pi + cached * pi * cm + tout * po) / 1e6;
 }
 
 const RETRYABLE = new Set([429, 500, 502, 503, 529]);
