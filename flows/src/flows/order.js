@@ -832,7 +832,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           }
         }
         await savePending({ address, map_link: mapLinkRaw, upsell_offered: true });
-        return { kind: "ask_payment", items, bill, currency, methods: payMethods, upsell, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, order_type: orderType, address, table_number: tableNumber };
+        return { kind: "ask_payment", notices: outcomeNotices, items, bill, currency, methods: payMethods, upsell, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, order_type: orderType, address, table_number: tableNumber };
       }
 
       // Loyalty is CODE: the rule lives in Settings (pos.loyalty_every / reward),
@@ -853,7 +853,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       if (!confirmed) {
         await savePending({ address, map_link: mapLinkRaw, payment_method: payment, awaiting_confirm: true });
         return {
-          kind: "confirm_order", items, bill, currency, payment,
+          kind: "confirm_order", notices: outcomeNotices, items, bill, currency, payment,
           branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null,
           branch: branchInfo?.name || null, order_type: orderType, table_number: tableNumber, address,
         };
@@ -991,7 +991,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         `🍔 New ${orderType.replace("_", "-")} order ${code}${branchInfo ? ` — ${branchInfo.name}` : ""}`,
         `${name || ctx.sessionId}${tableNumber ? ` · table ${tableNumber}` : ""}${address ? ` · 📍 ${address}` : ""} — ${items.map((i) => `${i.qty}× ${i.name}${i.notes ? ` (${i.notes})` : ""}${modifiers(i).length ? ` [${modifiers(i).join(" · ")}]` : ""}`).join(", ")} · ${fmtAmount(bill.total)} ${currency}`,
         ctx.sessionId, branch);
-      return { kind: "order_placed", loyalty, code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, track_url: trackUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
+      return { kind: "order_placed", notices: outcomeNotices, loyalty, code, eta_minutes: etaMinutes, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, track_url: trackUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
     }, { input: { intent: e.intent, items: (e.items || []).length, order_type: e.order_type, table: e.table_number } });
 
     // The message wasn't about the order — answer it with the normal brain and return.
@@ -1304,6 +1304,9 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       }
     }
 
+    // Notices on non-ask outcomes (a substitution note riding into the payment ask or
+    // the receipt) still surface — silence there would hide what we swapped.
+    if (!noticeBlock && outcome.notices?.length) noticeBlock = outcome.notices.join("\n");
     // Explicit bubbles: [friendly's side answer] [notices] [the ask/bill — never split].
     // The deliverer sends these as separate messages instead of guessing a split point.
     const bubbles = [sideText, noticeBlock, reply].filter(Boolean);
