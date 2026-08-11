@@ -1338,9 +1338,11 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         // buttons cap at 3 on WhatsApp — a list holds 10, so every option is tappable
         const q0 = outcome.kind === "ask_fulfillment"
           ? { label: "Choose your branch 🏪" }
-          : outcome.questions[0];
+          : outcome.kind === "which_item"
+            ? { label: "Which one did you mean?" }
+            : outcome.questions?.[0] || { label: "Options" };
         optionList = {
-          button: outcome.kind === "ask_fulfillment" ? "Choose branch 🏪" : "View options 🍽",
+          button: outcome.kind === "ask_fulfillment" ? "Choose branch 🏪" : outcome.kind === "which_item" ? "Pick your dish 🍔" : "View options 🍽",
           sections: [{
             title: String(q0.label || "Options").slice(0, 24),
             rows: forced.slice(0, 10).map((name2) => ({
