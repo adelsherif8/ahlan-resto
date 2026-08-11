@@ -55,8 +55,12 @@ async function chat(model, messages, opts = {}) {
       body: JSON.stringify({
         model: useModel,
         messages,
-        temperature,
-        max_tokens: maxTokens,
+        // gpt-5.x: temperature is rejected and reasoning must be pinned to minimal —
+        // a chat guest waits ~2s, not for a thinking budget. max_completion_tokens
+        // replaced max_tokens there; older models keep the classic params.
+        ...(useModel.startsWith("gpt-5")
+          ? { reasoning_effort: "minimal", max_completion_tokens: maxTokens }
+          : { temperature, max_tokens: maxTokens }),
         ...(json ? { response_format: { type: "json_object" } } : {}),
         // background work (summaries, tidy, notes) rides the cheap slow lane;
         // unsupported-model errors retry without it below
