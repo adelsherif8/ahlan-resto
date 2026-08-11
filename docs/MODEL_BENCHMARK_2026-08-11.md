@@ -37,3 +37,10 @@ list + pricing first, benchmark second).
   suite's NO-REPLY wall caught it, env reverted in ~2 min, zero real guests in window.)
 - Benchmark procedure that worked: baseline full suite → env swap → 1-case probe
   (fail-fast) → full suite → cost pull from flow_executions nodes by model → revert.
+
+## CORRECTION (2026-08-12): 5.4-mini/nano prices in the table were ~2× list
+Real list: 5.4-mini $0.375/$2.25, 5.4-nano $0.10/$0.625 (verified vs published pricing).
+Recomputed suite legs: 5.4-mini ≈ $0.20 (PARITY with 4.1-mini, at 2× the speed);
+5.4-nano ≈ $0.005 (parity). gpt-5.4 smart is genuinely +41%. Full-5.4 verdict unchanged
+(smart cost + 8 behavior failures), but a HYBRID — smart=4.1, fast=5.4-mini — is speed
+for free once the 8-failure prompt tune passes. Parked as the follow-up.
