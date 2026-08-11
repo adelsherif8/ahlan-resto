@@ -212,9 +212,12 @@ const CASES = [
     expect: [/closest we carry|✍️/i], forbid: [/couldn'?t find/i, /we don'?t have/i] },
   // "an iconic" fits 4 dishes → ask WHICH ONE (candidates listed); the answer + the
   // remembered qty land as the real item. One-fuzzy-fit auto-takes, no question.
-  { id: "whichitem", needs: "casual", name: "Ambiguous dish name asks which one; answer resolves it",
+  { id: "whichitem", needs: "casual", name: "Ambiguous dish name asks which one; answer + qty resolve it",
     turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
-    expect: [/which one|قصدك/i, /iconic wrap/i], forbid: [/iconic sauce.*added|1×\s*\*?iconic sauce/i] },
+    expect: [/which one did you mean/i, /iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
+  // An Arabic bare greeting gets the ARABIC canned welcome — never the English line
+  { id: "argreet", needs: "casual", name: "Arabic greeting → Arabic canned welcome",
+    msg: "اهلا", expect: [new RegExp(AR)], forbid: [/welcome to|craving|what can i get/i] },
   { id: "uniquefuzzy", needs: "casual", name: "Single fuzzy fit auto-takes without asking",
     turns: ["a mushroom meal for pickup from Maadi"],
     expect: [/creamy mushroom|mushroom meal/i], forbid: [/which one did you mean/i] },

@@ -1037,7 +1037,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // A handoff is a PROMISE ("a team member will jump in") — it must be verbatim,
       // never model-phrased: the model once wrote "Almost done — just the last
       // details 👇" over a handoff and stranded the guest mid-air. Code speaks here.
-      if (outcome.kind === "stuck_handoff") return { value: { reply: null, quick_replies: null } };
+      if (["stuck_handoff", "which_item"].includes(outcome.kind)) return { value: { reply: null, quick_replies: null } };
       const lang = classification?.language || "en";
       // Static persona first, the per-turn language last: an identical prefix is
       // what the model can cache (cheaper prompt, faster first token). ${lang}

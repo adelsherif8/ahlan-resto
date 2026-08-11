@@ -23,6 +23,12 @@ const DEFAULT_GREETINGS = [
   "Hi there! 😊 Welcome to {name}. What can I get you?",
   "Ahlan! 🙌 Ready when you are — what would you like today?",
 ];
+// An Arabic "اهلا" must never get an English canned line — same rotation, mirrored.
+const DEFAULT_GREETINGS_AR = [
+  "أهلاً بيك في {name}! 👋 نفسك في إيه النهارده؟ 🍔",
+  "أهلاً وسهلاً! 😊 منورنا في {name} — تحب تطلب إيه؟",
+  "يا هلا! 🙌 جاهزين لطلبك — تحب تاكل إيه النهارده؟",
+];
 let greetIdx = 0; // rotates the canned line so it isn't identical every time
 
 import { getMenu } from "../services/menucache.js";
@@ -83,9 +89,11 @@ defineFlow({
         if (firstTimer) {
           bump("greeting_hits");
           const rname = ctx.tenant.config.basic_info?.name || ctx.tenant.config.name || "us";
-          const pool = ctx.tenant.config.ai?.greetings?.length ? ctx.tenant.config.ai.greetings : DEFAULT_GREETINGS;
+          const isAr = /[\u0600-\u06FF]/.test(message);
+          const cfgPool = isAr ? ctx.tenant.config.ai?.greetings_ar : ctx.tenant.config.ai?.greetings;
+          const pool = cfgPool?.length ? cfgPool : (isAr ? DEFAULT_GREETINGS_AR : DEFAULT_GREETINGS);
           const reply = String(pool[greetIdx++ % pool.length]).replace(/\{name\}/g, rname);
-          return { kind: "greeting", reply, language: sticky || undefined };
+          return { kind: "greeting", reply, language: isAr ? "ar" : (sticky || undefined) };
         }
       }
       // "build my own" hands over a signed one-guest link instead of an answer.
@@ -163,7 +171,13 @@ defineFlow({
       return { kind: "none — needs classification + LLM" };
     }, { input: { message, sticky_language: input.stickyLanguage || null } });
 
-    if (fast.reply) {
+    // Language mirror is a hard rule even for canned answers: an Arabic message must
+    // never get an English cached reply (and vice versa) — mismatches fall through to
+    // the LLM, which answers from the same facts in the guest's language.
+    const guestAr = /[\u0600-\u06FF]/.test(message);
+    const replyAr = fast.reply ? /[\u0600-\u06FF]/.test(fast.reply) : false;
+    const langMismatch = fast.reply && !fast.media && ((guestAr && !replyAr) || (!guestAr && replyAr));
+    if (fast.reply && !langMismatch) {
       return { reply: fast.reply, fast_path: fast.kind, language: fast.language, bucket: "fast_path" };
     }
 
