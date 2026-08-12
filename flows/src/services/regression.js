@@ -421,8 +421,11 @@ async function runCase(tenant, c, runId) {
   const failures = [];
   if (!reply) failures.push("NO REPLY in 50s");
   else {
+    // expect: the guarantee may be delivered at ANY turn (bill at confirm, ✍️ at the ask).
+    // forbid: judged on the FINAL reply — "2× Truck" rightly existed before the edit;
+    // what must never survive is it still being there at the end.
     for (const rx of c.expect || []) if (!rx.test(transcript)) failures.push(`missing ${rx}`);
-    for (const rx of c.forbid || []) if (rx.test(transcript)) failures.push(`forbidden ${rx}`);
+    for (const rx of c.forbid || []) if (rx.test(reply)) failures.push(`forbidden ${rx}`);
     if (c.expect_media) {
       // the attachment row lands moments AFTER the text reply (deliver logs the
       // doc/photo last) — retry briefly so a millisecond race isn't a red suite
