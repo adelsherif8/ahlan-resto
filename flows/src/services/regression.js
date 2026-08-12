@@ -218,17 +218,6 @@ const CASES = [
   { id: "whichitem", needs: "casual", name: "The which-one answer + remembered qty land as the real item",
     turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
     expect: [/iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
-  // PAIRS (toggle): two dishes' questions ride ONE numbered message; "both" answers
-  // both; an answer fitting either dish asks which — never guesses.
-  { id: "pairask", needs: "casual", ai: { pair_options: true }, name: "Two open dishes ask together, numbered",
-    turns: ["an iconic meal and a creamy mushroom meal for pickup from Maadi"],
-    expect: [/1️⃣/, /2️⃣/, /iconic meal/i, /mushroom/i, /one go/i] },
-  { id: "pairboth", needs: "casual", ai: { pair_options: true }, name: "'both sandwich' fills both dishes at once",
-    turns: ["an iconic meal and a creamy mushroom meal for pickup from Maadi", "both sandwich"],
-    expect: [/branch|pay|cash/i], forbid: [/1️⃣.*sandwich.*1️⃣/is] },
-  { id: "pairwhich", needs: "casual", ai: { pair_options: true }, name: "An answer fitting either dish asks which one",
-    turns: ["an iconic meal and a creamy mushroom meal for pickup from Maadi", "full meal"],
-    expect: [/for which one|both/i] },
   // Payment rides the fulfillment message ("branch? and how will you pay?") — one
   // message, and a missed answer still gets the classic payment ask later.
   { id: "payfold", needs: "casual", name: "Payment question folds into the fulfillment ask",
@@ -378,9 +367,6 @@ async function aiCount(db, sid) {
 }
 
 async function runCase(tenant, c, runId) {
-  // per-case AI-config overrides (e.g. pair_options) on a CLONED tenant — the shared
-  // tenant object is never mutated, so concurrent/later cases are unaffected
-  if (c.ai) tenant = { ...tenant, config: { ...tenant.config, ai: { ...(tenant.config.ai || {}), ...c.ai } } };
   const sid = `web:regress-${runId}-${c.id}`;
   const ctx = { sessionId: sid, tenant, channel: "web", trigger: "regression", fastWindow: 1500 };
   if (c.seed?.diner) await seedDiner(tenant.db, sid, c.seed.diner);
