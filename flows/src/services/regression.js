@@ -412,11 +412,17 @@ async function runCase(tenant, c, runId) {
     if (reply) break;
     await new Promise((r) => setTimeout(r, 2500));
   }
+  // expectations run over the FULL conversation: a bill shown at the confirm turn
+  // counts, and a forbidden phrase is forbidden ANYWHERE, not just at the end
+  const { data: allRows } = await tenant.db.from("chat_messages")
+    .select("message,sender").eq("session_id", sid).eq("sender", "ai")
+    .order("created_at", { ascending: true }).limit(60);
+  const transcript = (allRows || []).map((m) => m.message).join("\n\n") || reply || "";
   const failures = [];
   if (!reply) failures.push("NO REPLY in 50s");
   else {
-    for (const rx of c.expect || []) if (!rx.test(reply)) failures.push(`missing ${rx}`);
-    for (const rx of c.forbid || []) if (rx.test(reply)) failures.push(`forbidden ${rx}`);
+    for (const rx of c.expect || []) if (!rx.test(transcript)) failures.push(`missing ${rx}`);
+    for (const rx of c.forbid || []) if (rx.test(transcript)) failures.push(`forbidden ${rx}`);
     if (c.expect_media) {
       // the attachment row lands moments AFTER the text reply (deliver logs the
       // doc/photo last) — retry briefly so a millisecond race isn't a red suite
