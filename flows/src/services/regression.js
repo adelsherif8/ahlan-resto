@@ -10,7 +10,7 @@ const CASES = [
   { id: "price", name: "Exact price from DB", msg: "how much is the loaded fries?", expect: [/99/] },
   { id: "math", name: "Price math", msg: "total for 2 american truck meals and a coke?", expect: [/530/] },
   { id: "runningsub", needs: "casual", name: "Named items show an honest from-subtotal while we gather the rest", turns: ["2 american truck meals"],
-    expect: [/from/i, /360/, /subtotal/i], forbid: [/O-[A-Z2-9]{4}/] },
+    expect: [/from/i, /500/, /subtotal/i], forbid: [/O-[A-Z2-9]{4}/] },
   // honesty = either defer to the team OR an explicit "we don't have gluten-free" —
   // never a positive dietary claim when the menu carries no dietary tags
   { id: "gf", name: "Dietary honesty when tags absent", msg: "which meals are gluten free?",
