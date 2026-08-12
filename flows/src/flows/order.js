@@ -710,7 +710,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // the ask moved on to item B, the same message must NOT also answer B's questions:
       // the guest hasn't seen them yet. (One 'Full Meal, Small…' configured BOTH meals.)
       const aw0 = loaded.pending?.awaiting_option;
-      const askIsWhatGuestSaw = !aw0 || (step.ask && step.ask.index === aw0.index);
+      const askIsWhatGuestSaw = !aw0 || (step.ask && (step.ask.index === aw0.index || step.ask.index === aw0.pair_index));
       // One applied answer can OPEN a follow-up group in the same breath ("pepsi"
       // infers Combo, which opens the combo-drink list the same word was meant to
       // answer — the drink then got re-asked cold). Resolution runs up to twice,
@@ -719,14 +719,28 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       for (let pass = 0; pass < 2 && step.ask && guestSaidSomething; pass++) {
         if (pass === 0 ? !askIsWhatGuestSaw : step.ask.index !== resolveIndex) break;
         const askedItem = step.items[step.ask.index];
-        const openGroups = (askedItem?.option_defs || []).filter((g) =>
-          g.key !== "slots" && step.ask.keys?.includes(g.key) && groupApplies(g, askedItem.options) && !askedItem.options[g.key]);
+        // A pair ask showed TWO dishes — the guest's answer may address either or both,
+        // so both dishes' still-open groups go to the resolver, each tagged with its dish.
+        const pairHostIdx = pass === 0 && aw0?.pair_index != null && aw0.pair_index !== step.ask.index ? aw0.pair_index : null;
+        const hostsList = [askedItem, ...(pairHostIdx != null && step.items[pairHostIdx] ? [step.items[pairHostIdx]] : [])];
+        const openGroups = [];
+        const hostFor = [];
+        for (const host of hostsList) {
+          const own = host === askedItem;
+          for (const g of host?.option_defs || []) {
+            if (g.key === "slots" || !groupApplies(g, host.options) || host.options[g.key]) continue;
+            if (own && !step.ask.keys?.includes(g.key) && hostsList.length === 1) continue;
+            openGroups.push(g); hostFor.push(host);
+          }
+        }
         if (openGroups.length) {
+          const multiHost = new Set(hostFor).size > 1;
           const lists = openGroups.map((g, i) =>
-            `${i + 1}. "${g.label || g.key}": [${groupChoices(g, loaded.menu).map((c) => `"${c.name}"`).join(", ")}]`).join("\n");
+            `${i + 1}. ${multiHost ? `[${hostFor[i].name}] ` : ""}"${g.label || g.key}": [${groupChoices(g, loaded.menu).map((c) => `"${c.name}"`).join(", ")}]`).join("\n");
           const rsys = `A restaurant guest is answering menu questions. Their message may be Arabic, Franco-Arabic, misspelled, or a garbled voice transcript — understand accents and translations ("ديابلو"→"Diablo fries", "برتقان"→the orange drink).
 QUESTIONS:\n${lists}
-Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "equivalent": {"asked": "<what they said>", "used": "<the list choice you mapped it to>", "different_product": <true ONLY when the mapped choice is a genuinely DIFFERENT product/brand (pepsi→Coca-Cola, cola→V Cola); false when it's the same thing worded differently (coke→Coca-Cola, cola zero→the sugar-free cola we carry)>}|null, "unmatched": "<an attempted ANSWER to the questions with NO reasonable equivalent in any list; null if nothing>"}. The guest's message may be ORDERING dishes — dish/item names are handled elsewhere and are NEVER "unmatched" and never an attempted answer; when the message just names dishes to order, equivalent=null and unmatched=null.
+Questions may belong to DIFFERENT dishes — a [dish name] tag says which. "both"/"الاتنين" fills the SAME choice for both dishes' matching questions. If an answer fits either dish and the guest didn't say which dish, leave those answers null and set "which_dish" to what they said.
+Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "which_dish": string|null, "equivalent": {"asked": "<what they said>", "used": "<the list choice you mapped it to>", "different_product": <true ONLY when the mapped choice is a genuinely DIFFERENT product/brand (pepsi→Coca-Cola, cola→V Cola); false when it's the same thing worded differently (coke→Coca-Cola, cola zero→the sugar-free cola we carry)>}|null, "unmatched": "<an attempted ANSWER to the questions with NO reasonable equivalent in any list; null if nothing>"}. The guest's message may be ORDERING dishes — dish/item names are handled elsewhere and are NEVER "unmatched" and never an attempted answer; when the message just names dishes to order, equivalent=null and unmatched=null.
 RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent". "used" and every answer MUST be an EXACT string from the lists — NEVER a product that isn't listed (never invent "Coca-Cola Zero" when the list has "Coca - Cola Diet"). Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent. The examples in these instructions ("V Cola", "Diablo fries", "7up"→"Sprite") are ILLUSTRATIONS — never output any string that is not literally in THIS request's lists.`;
           const rr = await f.node("resolve_options", async () =>
             chatJSON(MODEL_FAST, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
@@ -780,9 +794,17 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           openGroups.forEach((g, i) => {
             const a = answers[String(i + 1)];
             if (!a || typeof a !== "string") return;
+            const host = hostFor[i];
             const valid = groupChoices(g, loaded.menu).find((c) => c.name === a.trim() || normName(c.name) === normName(a));
-            if (valid && !askedItem.options[g.key]) { askedItem.options[g.key] = valid.name; appliedAny = true; appliedVals.add(valid.name); }
+            if (valid && !host.options[g.key]) { host.options[g.key] = valid.name; appliedAny = true; appliedVals.add(valid.name); }
           });
+          // an answer that fits EITHER dish without saying which → ask, never guess
+          const whichDish = typeof rr.value?.which_dish === "string" && rr.value.which_dish.trim() && new Set(hostFor).size > 1
+            ? rr.value.which_dish.trim().slice(0, 30) : null;
+          if (whichDish && pass === 0 && !outcomeNotices.some((x) => x.includes("for which one"))) {
+            const names = [...new Set(hostFor.map((h) => h.name))];
+            outcomeNotices.push(`"${whichDish}" — for which one: *${names[0]}* or *${names[1]}*? (or say "both" 😄)`);
+          }
           // the substitution notice may only state what ACTUALLY landed on the draft
           if (eq && eq.different && appliedVals.has(eq.used)) outcomeNotices.push(`${eq.asked} → closest we carry is *${eq.used.slice(0, 40)}*, put that in ✍️ (say the word to switch)`);
           if (!appliedAny) break;
@@ -825,10 +847,25 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           await setSessionFlags(db, ctx.sessionId, { needs_attention: true, handoff_reason: "order question missed 3×" }).catch(() => {});
           return { kind: "stuck_handoff", items };
         }
-        await savePending({ awaiting_option: { index: step.ask.index, keys: step.ask.keys, tries } });
+        // PAIRS (per-restaurant toggle): a second dish with open questions rides the
+        // SAME message, numbered 1️⃣/2️⃣ — one round instead of two. Max two dishes;
+        // more queue for the next round. The second ask is derived by fake-filling
+        // the first dish's open groups and re-walking (structure only, never applied).
+        let pair = null;
+        if (config.ai?.pair_options === true && step.ask.questions?.length) {
+          const masked = items.map((it, i2) => i2 !== step.ask.index ? it : {
+            ...it,
+            options: { ...(it.options || {}), ...Object.fromEntries((step.ask.keys || []).map((k) => [k, "·"])) },
+          });
+          const step2 = nextQuestion(masked, loaded.menu, "", null, currency);
+          if (step2.ask?.questions?.length && step2.ask.index !== step.ask.index) {
+            pair = { index: step2.ask.index, item: step2.ask.item, keys: step2.ask.keys, questions: step2.ask.questions };
+          }
+        }
+        await savePending({ awaiting_option: { index: step.ask.index, keys: step.ask.keys, tries, ...(pair ? { pair_index: pair.index, pair_keys: pair.keys } : {}) } });
         // recompute the bill AFTER this turn's answer — showing the pre-answer
         // state made prices look like they jumped a turn late
-        return { kind: "ask_choice", items, running, ...step.ask, notices: [...(step.ask.notices || []), ...outcomeNotices] };
+        return { kind: "ask_choice", items, running, ...step.ask, pair, notices: [...(step.ask.notices || []), ...outcomeNotices] };
       }
       if (loaded.pending?.awaiting_option) {
         // savePending MERGES now, so the answered question must be closed
@@ -1239,6 +1276,12 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       reply = `${lead}\n\n${(outcome.candidates || []).map((c) => `• *${c}*`).join("\n")}`;
     }
 
+    // A PAIR ask is fully code-composed: two numbered dishes, one message.
+    if (outcome.kind === "ask_choice" && outcome.pair && outcome.questions?.length) {
+      const blockOf = (qs2) => qs2.map((q) => `${q.label}${q.of > 1 ? ` — ${q.remaining} to pick` : ""}:\n${q.options.map((o) => `• ${o}`).join("\n")}`).join("\n\n");
+      reply = `Quick choices for your dishes — you can answer both in one go 👇\n\n1️⃣ *${outcome.item}*\n${blockOf(outcome.questions)}\n\n2️⃣ *${outcome.pair.item}*\n${blockOf(outcome.pair.questions)}`;
+      if (value.value) value.value.quick_replies = [];
+    } else
     // Option questions are STRUCTURE, and structure is code's job — the model
     // once crammed two items and six comma-runs into one paragraph. It writes a
     // single lead-in line; the formatted questions are appended verbatim.
@@ -1353,7 +1396,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     const fulfillNeeds = outcome.kind === "ask_fulfillment"
       ? [outcome.need_type, outcome.need_branch, outcome.need_table, outcome.need_address, outcome.need_pickup_time].filter(Boolean).length : 0;
     const forced =
-      outcome.kind === "ask_choice" && outcome.questions?.length === 1 ? (outcome.questions[0].names || [])
+      outcome.kind === "ask_choice" && outcome.questions?.length === 1 && !outcome.pair ? (outcome.questions[0].names || [])
       : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_type ? (outcome.type_first && config.ai?.compact_messages === true ? null : ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])])
       : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_branch ? (outcome.branches || [])
       : outcome.kind === "ask_fulfillment" && outcome.need_address && (outcome.saved || []).length
