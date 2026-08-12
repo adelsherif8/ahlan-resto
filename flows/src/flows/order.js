@@ -1507,6 +1507,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     return {
       reply,
       parts: bubbles,
+      wantLocation: outcome.kind === "ask_fulfillment" && !!outcome.need_address,
       menuList: optionList,
       // pipeline decision points keep their buttons even back-to-back — the
       // anti-spam pacing rule cost a guest their Confirm button and the order died

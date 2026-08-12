@@ -8,7 +8,7 @@ import { logMessage, getSession, setSessionFlags, notifyDashboard } from "../ser
 import { appendHistory, getHistory } from "../services/history.js";
 import { sessionPrecheck, detectAffirmative, detectSelfCorrection } from "../services/precheck.js";
 import { processWaMedia } from "../services/media.js";
-import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction, sendDocument, markReadWithTyping, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
+import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction, sendDocument, markReadWithTyping, WA_PHONE_NUMBER_ID, sendLocationRequest } from "../services/whatsapp.js";
 import { bump } from "../services/metrics.js";
 import { log } from "../config.js";
 
@@ -329,7 +329,13 @@ defineFlow({
       for (let i = 0; i < parts.length; i++) {
         const last = i === parts.length - 1;
         if (mergeDoc) break; // delivered below, as the document's caption
-        if (last && isWa && list) await deliverList(ctx, parts[i], list);
+        if (last && isWa && routed?.wantLocation && !list && !qrs.length) {
+          // address ask ships as WhatsApp's native location-request — one tap, no typos
+          const pnid = sessionRoutes.get(bufKey(ctx))?.phoneNumberId || ctx.tenant?.record?.wpid || WA_PHONE_NUMBER_ID;
+          const ok = pnid ? await sendLocationRequest(pnid, ctx.sessionId.replace(/^\+/, ""), parts[i]).then(() => true).catch(() => false) : false;
+          if (!ok) await deliverToChannel(ctx, parts[i]);
+        }
+        else if (last && isWa && list) await deliverList(ctx, parts[i], list);
         else if (last && isWa && qrs.length) await deliverButtons(ctx, parts[i], qrs);
         else await deliverToChannel(ctx, parts[i]);
         // the log mirrors what the guest sees (buttons/list rows as ▸ lines; also the web fallback)

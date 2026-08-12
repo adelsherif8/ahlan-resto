@@ -109,6 +109,15 @@ export async function sendImage(phoneNumberId, to, imageUrl, caption = "") {
 
 // Quick-reply buttons (max 3, 20-char titles). Tapping one sends its title back
 // as a normal message — ingest already parses interactive button replies.
+// Native location-request: the guest gets WhatsApp's one-tap location picker —
+// no typed addresses, no typos. Counts as ONE interactive message.
+export async function sendLocationRequest(phoneNumberId, to, bodyText) {
+  return graphPost(phoneNumberId, {
+    to, type: "interactive",
+    interactive: { type: "location_request_message", body: { text: String(bodyText).slice(0, 1024) }, action: { name: "send_location" } },
+  });
+}
+
 export async function sendButtons(phoneNumberId, to, bodyText, labels) {
   const buttons = labels.slice(0, 3).map((l, i) => ({
     type: "reply",
