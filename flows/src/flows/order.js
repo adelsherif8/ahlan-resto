@@ -1347,6 +1347,13 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       reply = `${reply}\n\n${RULE}\n${lines.join("\n")}\nSubtotal: ${anyOpen ? "from " : ""}${money(outcome.running.subtotal)}\n${RULE}`;
     }
 
+    // Upsell is CODE-PLACED: top of the payment message, dish name in bold —
+    // trailing model-woven mentions kept burying it.
+    if (outcome.kind === "ask_payment" && outcome.upsell?.length) {
+      const bold = outcome.upsell.map((u) => `*${String(u).replace(/\s*\(/, "* (")}`).join(" · ");
+      reply = `🍟 Add ${bold}?\n\n${reply}`;
+    }
+
     // The bill is rendered by CODE and appended — the model never writes a number.
     // A model that ignored the money rule anyway gets its stray totals dropped here.
     if (outcome.bill && ["ask_payment", "confirm_order", "order_placed"].includes(outcome.kind)) {
