@@ -218,6 +218,15 @@ const CASES = [
   { id: "whichitem", needs: "casual", name: "The which-one answer + remembered qty land as the real item",
     turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
     expect: [/iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
+  // A bare menu request wins even mid-question — a live guest asked 3 times and got
+  // the same options ask reprinted; the draft and the open ask must survive it.
+  { id: "menureq", needs: "casual", name: "Mid-order menu request sends the menu, keeps the draft",
+    turns: ["1 loaded fries", "عايز المنيو"],
+    expect: [/منيو|menu/i, /loaded fries/i], expect_media: "document" },
+  // Generic/foreign drink words map with QTY carried — 3 pepsi never vanishes
+  { id: "pepsimap", needs: "casual", name: "3 pepsi maps to the cola we carry, qty intact",
+    turns: ["3 pepsi and a mushroom meal for pickup from Maadi"],
+    expect: [/3×\s*\*?(coke|coca)/i] },
   // Payment rides the fulfillment message ("branch? and how will you pay?") — one
   // message, and a missed answer still gets the classic payment ask later.
   { id: "payfold", needs: "casual", name: "Payment question folds into the fulfillment ask",

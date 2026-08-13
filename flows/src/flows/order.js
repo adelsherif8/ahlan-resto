@@ -90,7 +90,7 @@ Recent conversation may add context: ${JSON.stringify((input.history || []).slic
 Return JSON only:
 {"intent": "order"|"repeat_last"|"confirm"|"cancel_order"|"status"|"question"|"other",
  "payment_method": "cash"|"card"|"instapay"|null,
- "items": [{"name": "<closest MENU name>", "qty": number, "notes": "<modifiers for THIS item, e.g. 'no onion', 'extra cheese', 'well done'>"|null}]|null — a requested DRINK or SIDE is its OWN items entry, NEVER another dish's notes ("a burger and a cola zero" = TWO items, even when the drink isn't on the menu; notes only modify the dish they ride on),
+ "items": [{"name": "<closest MENU name>", "qty": number, "notes": "<modifiers for THIS item, e.g. 'no onion', 'extra cheese', 'well done'>"|null}]|null — a GENERIC category word without a specific dish (برجر/"a burger", تشيكن/"chicken", ساندوتش, بيتزا) stays the guest's LITERAL word as the item name — NEVER silently pick a specific dish for it; a requested DRINK or SIDE is its OWN items entry, NEVER another dish's notes ("a burger and a cola zero" = TWO items, even when the drink isn't on the menu; notes only modify the dish they ride on),
  "order_type": "pickup"|"delivery"|"dine_in"|null (dine_in when they mention a table / being inside),
  "table_number": string|null ("t3"/"table 3" → "T3"),
  "pickup_time": string|null, "notes": string|null (sauce prefs, no onions, etc. — ALSO cash-change requests: "change for 500"/"معايا ٥٠٠ طلع الباقي" → "change for 500"),
@@ -106,9 +106,18 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
     const e = ex.value || {};
     // was an option question open when this turn STARTED? (act mutates pending later)
     const awaitingAtTurnStart = !!loaded.pending?.awaiting_option;
+    // "أنا بقولك عايز المنيو مش عايز أختار" got the same ask three times — a bare
+    // menu request ALWAYS wins, mid-question or not. Draft and open ask stay put.
+    const bareMsg = String(input.message || "").replace(/^\[voice\]\s*/i, "").trim();
+    const menuAsked = /(منيو|مينيو|menu)/i.test(bareMsg) && bareMsg.length <= 45 && !(e.items?.length || e.edits?.length);
 
     const outcome = await f.node("act", async () => {
       const name = diner?.name || diner?.wa_profile_name || null;
+      if (menuAsked) {
+        const pi = loaded.pending?.items || [];
+        return { kind: "menu_request", items: pi,
+          running: pi.length ? { items: pi, subtotal: pi.reduce((s2, i2) => s2 + itemPrice(i2) * i2.qty, 0), currency } : null };
+      }
       // BRANCH: named in this message > their sticky branch. Every order belongs to ONE branch.
       const named = (e.branch
         ? branches.find((b) => normName(b.name) === normName(e.branch)) ||
@@ -183,6 +192,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // ---- build the order — CODE matches every item against the real menu and prices it ----
       let items = [];
       let unknown = [];
+      const unknownQty = {};
       let ambiguous = [];
       let removedNames = null;
       const outcomeNotices = [];
@@ -232,9 +242,12 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const wanted = (e.items || []).slice(0, 12);
         for (const w of wanted) {
           const n = normName(w.name);
+          // Arabic-only names normalize to "" — empty containment matches the WHOLE
+          // menu (a real guest's بيبسي got burger candidates). Unknown path owns it.
+          if (!n) { unknown.push(String(w.name)); unknownQty[String(w.name)] = Math.min(Math.max(Math.round(Number(w.qty) || 1), 1), 20); continue; }
           const exactHit = loaded.menu.find((m) => normName(m.name) === n);
           const cands = exactHit ? [exactHit] : loaded.menu.filter((m) => normName(m.name).includes(n) || n.includes(normName(m.name)));
-          if (!cands.length) { unknown.push(w.name); continue; }
+          if (!cands.length) { unknown.push(w.name); unknownQty[String(w.name)] = Math.min(Math.max(Math.round(Number(w.qty) || 1), 1), 20); continue; }
           // "chicken" fits 4 dishes → ASK which one, never guess; exactly one fuzzy
           // fit ("caramelized burger" → Double Caramelized Burger) auto-takes.
           if (cands.length > 1) {
@@ -647,12 +660,6 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           return { kind: "sold_out_today", sold, items, running: runningOf(items) };
         }
       }
-      // Multiple dishes fit what they said → one question beats one wrong guess.
-      if (ambiguous.length) {
-        const a = ambiguous[0];
-        await savePending({ ambiguous: a });
-        return { kind: "which_item", said: a.said, qty: a.qty, candidates: a.candidates, items, running: runningOf(items) };
-      }
       // The extractor sometimes folds a SEPARATE product into a dish's notes
       // ("Soo Classic Meal, notes: cola zero"). A note with NO modification words
       // that echoes menu-product words is a swallowed order line — code surfaces it
@@ -670,20 +677,35 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // the kitchen note — announced, one word to switch. Dynamic per menu, no lists.
       if (unknown.length && loaded.menu?.length) {
         const ru = await f.node("resolve_unknowns", async () =>
-          chatJSON(MODEL_FAST, `A restaurant guest asked for things that aren't menu item names. MENU: [${loaded.menu.map((m) => `"${m.name}"`).join(", ")}]\nMap each request to the closest SAME-KIND menu item (a soda request → the menu's soft drink; a juice flavor we lack → the juice we have) or null when nothing on the menu is the same kind of thing. Output ONLY exact strings from the MENU list. Return JSON {"map": {"<requested>": "<menu item name or null>"}}.`,
-            JSON.stringify(unknown), { temperature: 0, maxTokens: 150 }),
+          chatJSON(MODEL_FAST, `A restaurant guest asked for things (possibly Arabic/Franco) that aren't exact menu item names. MENU: [${loaded.menu.map((m) => `"${m.name}"`).join(", ")}]\nFor each request return the closest SAME-KIND menu item; if SEVERAL are equally plausible (a generic word like "برجر"/"burger", "تشيكن"/"chicken"), return an ARRAY of those candidates (max 4); null when nothing is the same kind. A chicken request may ONLY map to chicken dishes; a drink request only to drinks. Output ONLY exact strings from the MENU list. Return JSON {"map": {"<requested>": "<name>"|["<name>", ...]|null}}.`,
+            JSON.stringify(unknown), { temperature: 0, maxTokens: 220 }),
           { input: { unknown } }).catch(() => null);
         const map = ru?.value?.map || {};
         const still = [];
         for (const u of unknown) {
-          const target = typeof map[u] === "string" ? loaded.menu.find((m) => normName(m.name) === normName(map[u])) : null;
-          if (target && !items.some((it) => it.id === target.id && (it.notes || "") === u)) {
-            items.push({ id: target.id, name: target.name, qty: 1, price: Number(target.price), notes: u, options: {}, option_defs: target.options || [] });
-            outcomeNotices.push(`${u} → closest we carry is *${target.name}* ✍️ (say the word to switch)`);
+          const v = map[u];
+          const q = unknownQty[u] || 1;
+          if (Array.isArray(v) && v.length > 1) {
+            const cands = v.map((x) => loaded.menu.find((m) => normName(m.name) === normName(x))).filter(Boolean);
+            if (cands.length > 1) { ambiguous.push({ said: String(u), qty: q, candidates: cands.slice(0, 4).map((m) => m.name) }); continue; }
+          }
+          const one = Array.isArray(v) ? v[0] : v;
+          const target = typeof one === "string" ? loaded.menu.find((m) => normName(m.name) === normName(one)) : null;
+          if (target && !items.some((it) => it.id === target.id)) {
+            items.push({ id: target.id, name: target.name, qty: q, price: Number(target.price), notes: null, options: {}, option_defs: target.options || [] });
+            outcomeNotices.push(`${u} → *${target.name}* ✍️ (say the word to switch)`);
           } else if (!target) still.push(u);
         }
         unknown = still;
         running = runningOf(items);
+      }
+      // Multiple dishes fit what they said → one question beats one wrong guess.
+      // (After the mapping, so a generic word's candidates come from the mapper and
+      // nothing else in the message gets lost behind the question.)
+      if (ambiguous.length) {
+        const a = ambiguous[0];
+        await savePending({ ambiguous: a });
+        return { kind: "which_item", said: a.said, qty: a.qty, candidates: a.candidates, items, running: runningOf(items), notices: outcomeNotices };
       }
       if (!items.length) {
         await savePending({}); // marks the session as ordering — "loaded fries" next turn stays here
@@ -1119,7 +1141,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // A handoff is a PROMISE ("a team member will jump in") — it must be verbatim,
       // never model-phrased: the model once wrote "Almost done — just the last
       // details 👇" over a handoff and stranded the guest mid-air. Code speaks here.
-      if (["stuck_handoff", "which_item"].includes(outcome.kind)) return { value: { reply: null, quick_replies: null } };
+      if (["stuck_handoff", "which_item", "menu_request"].includes(outcome.kind)) return { value: { reply: null, quick_replies: null } };
       const lang = classification?.language || "en";
       // Static persona first, the per-turn language last: an identical prefix is
       // what the model can cache (cheaper prompt, faster first token). ${lang}
@@ -1158,7 +1180,8 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // quarter of the cost, and these are most of an order's turns.
       const VOICE_MATTERS = ["order_placed", "order_cancelled", "too_late_to_cancel", "no_delivery", "no_history", "nothing_matched", "order_status", "bad_table", "sold_out_today"];
       const model = VOICE_MATTERS.includes(outcome.kind) ? MODEL_SMART : MODEL_FAST;
-      return chatJSON(model, sys, `OUTCOME: ${JSON.stringify(outcome)}\nGuest: ${input.message}`, { temperature: 0.5, maxTokens: 240 });
+      const { upsell: _u, ...outcomeForModel } = outcome;
+      return chatJSON(model, sys, `OUTCOME: ${JSON.stringify(outcomeForModel)}\nGuest: ${input.message}`, { temperature: 0.5, maxTokens: 240 });
     }, { input: { outcome_kind: outcome.kind } });
 
     const fallback = {
@@ -1176,6 +1199,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       no_open_order: "No active order found — want to start one? 🍔",
       stuck_handoff: "I don't want to keep asking the same thing 😅 — a team member will jump in right here and finish your order with you 🙏",
       draft_cleared: "All cleared ✅ Want to start a fresh order?",
+      menu_request: "اتفضل المنيو 📄 — قولّي تحب تضيف إيه!\nHere's the menu — tell me what to add!",
       which_item: `You said *${outcome.said || "that"}*${(outcome.qty || 1) > 1 ? ` (×${outcome.qty})` : ""} — we've got a few like that 😄 Which one did you mean?`,
       delivery_paused: "Delivery's paused right now (kitchen's slammed 🙏) — but pickup's open! Want to switch to pickup?",
       delivery_closed: `Delivery runs ${outcome.hours?.open || ""}–${outcome.hours?.close || ""} 🙏 — we're outside those hours right now, but pickup works! Want pickup instead?`,
@@ -1323,7 +1347,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // stays short (code + ETA ride below) so it fits the PDF caption and the whole
       // confirmation ships as ONE message.
       if (outcome.kind === "order_placed" && outcome.receipt_url && config.ai?.compact_messages === true) {
-        reply = `${reply}${outcome.eta_minutes ? `\nReady in ~${outcome.eta_minutes} min ⏱` : ""}`;
+        reply = `${reply}${outcome.eta_minutes && !/min|دقيقة|دقايق/i.test(reply) ? `\nReady in ~${outcome.eta_minutes} min ⏱` : ""}`;
       } else {
       // confirm reads like the paper receipt FIRST, then one clear ask under it
       const billFirst = outcome.kind === "confirm_order";
@@ -1402,10 +1426,10 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
 
     // The type-first opener carries the menu too — guests answer "pickup, classic
     // burger" in one breath and skip a whole round. (Compact merges it as the caption.)
-    const NEEDS_MENU = ["ask_items", "nothing_matched", "no_history"];
+    const NEEDS_MENU = ["ask_items", "nothing_matched", "no_history", "menu_request"];
     if (outcome.kind === "ask_fulfillment" && outcome.type_first) NEEDS_MENU.push("ask_fulfillment");
     // the opener already delivered the menu this session — don't attach it again
-    const menuAlreadyShown = !!loaded.pending?.menu_shown && !outcome.type_first;
+    const menuAlreadyShown = !!loaded.pending?.menu_shown && !outcome.type_first && outcome.kind !== "menu_request";
     let doc = null;
     if (outcome.kind === "order_placed" && outcome.receipt_url) {
       doc = { url: outcome.receipt_url, caption: `Receipt ${outcome.code}`, filename: `${outcome.code}.pdf` };
