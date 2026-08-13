@@ -1,0 +1,79 @@
+---
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section id="pricing" class="border-y border-ink/10 bg-semna">
+  <div class="mx-auto max-w-5xl px-5 py-16 sm:py-24">
+    <h2 class="max-w-[var(--measure)] text-[1.7rem] sm:text-[var(--step-2)]" data-reveal>
+      {t.pricing.h2}
+    </h2>
+
+    <div class="mt-10 grid gap-5 lg:grid-cols-3">
+      {t.pricing.plans.map((p, i) => (
+        <article
+          class:list={[
+            'rounded-[var(--radius-lg)] border bg-[#FBF8F2] p-6',
+            p.name === 'Grow' ? 'border-[1.5px] border-karkadeh' : 'border-ink/15',
+          ]}
+          data-reveal
+          style={`transition-delay:${i * 80}ms`}
+        >
+          <h3 class="text-[1.1rem] font-semibold" dir="ltr">{p.name}</h3>
+          <p class="mt-3 flex items-baseline gap-2">
+            <span class="num text-[2rem] font-medium leading-none">{p.monthly}</span>
+            <span class="text-[0.95rem] text-ink/70">{t.pricing.perMonth}</span>
+          </p>
+          <dl class="mt-5 space-y-2.5 border-t border-ink/10 pt-4 text-[0.98rem]">
+            <div class="flex justify-between gap-3">
+              <dt class="text-ink/70">{t.pricing.rows.included}</dt>
+              <dd class="num font-medium">{p.included}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-ink/70">{t.pricing.rows.overage}</dt>
+              <dd class="font-medium">{p.overage}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-ink/70">{t.pricing.rows.fits}</dt>
+              <dd class="font-medium">{p.fits}</dd>
+            </div>
+          </dl>
+        </article>
+      ))}
+    </div>
+
+    <p class="mt-8 max-w-[var(--measure)]" data-reveal>{t.pricing.includesAll}</p>
+    <p class="mt-2 max-w-[var(--measure)] text-ink/80" data-reveal>{t.pricing.setup}</p>
+
+    <!-- The arithmetic — the numbers do the pushing -->
+    <div class="mt-14 max-w-[var(--measure)]" data-reveal>
+      <h3 class="text-[1.3rem]">{t.pricing.mathH3}</h3>
+      <p class="mt-4">{t.pricing.mathLines[0]}</p>
+      <p class="mt-1.5">{t.pricing.mathLines[1]}</p>
+
+      <div class="mt-8 grid grid-cols-2 gap-5">
+        <div class="rounded-[var(--radius-md)] border border-ink/10 bg-[#FBF8F2] p-5">
+          <p class="text-[var(--step--1)] text-ink/70">{t.pricing.appTake.label}</p>
+          <p class="mt-2 flex items-baseline gap-2 text-karkadeh">
+            <span class="num text-[2.6rem] font-medium leading-none" data-count-to={t.pricing.appTake.value}>
+              {t.pricing.appTake.value}
+            </span>
+            <span class="text-[1rem]">{t.pricing.appTake.suffix}</span>
+          </p>
+        </div>
+        <div class="rounded-[var(--radius-md)] border border-ink/10 bg-[#FBF8F2] p-5">
+          <p class="text-[var(--step--1)] text-ink/70">{t.pricing.ourCost.label}</p>
+          <p class="mt-2 flex items-baseline gap-2 text-ink">
+            <span class="num text-[2.6rem] font-medium leading-none" data-count-to={t.pricing.ourCost.value}>
+              {t.pricing.ourCost.value}
+            </span>
+            <span class="text-[1rem]">{t.pricing.ourCost.suffix}</span>
+          </p>
+        </div>
+      </div>
+
+      <p class="mt-8 text-[1.15rem] font-semibold" data-reveal>{t.pricing.mathClose}</p>
+    </div>
+  </div>
+</section>

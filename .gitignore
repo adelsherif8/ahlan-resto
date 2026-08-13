@@ -19,3 +19,8 @@ CREDENTIALS.md
 
 # brand + marketing working files stay local
 branding/
+
+# site
+site/node_modules/
+site/dist/
+site/.astro/

@@ -1,0 +1,74 @@
+/* Self-hosted subset fonts — Egyptian connection speeds make CDNs a real
+   cost (BRAND-SPEC §2). All SIL OFL. woff2 only; system fallbacks cover
+   the gap while loading (font-display: swap). */
+
+/* Display, Arabic — h1/h2 on /ar */
+@font-face {
+  font-family: 'Amiri';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/amiri-v30-arabic-700.woff2') format('woff2');
+}
+
+/* Display, Latin — h1/h2 on /en; the wordmark register */
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/cinzel-v26-latin-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Cinzel';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/cinzel-v26-latin-600.woff2') format('woff2');
+}
+
+/* Body & UI — both scripts, one voice */
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-arabic-v15-arabic_latin-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-arabic-v15-arabic_latin-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-arabic-v15-arabic_latin-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-arabic-v15-arabic_latin-700.woff2') format('woff2');
+}
+
+/* Numerals & IDs — order numbers, prices, the phone number */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-v20-latin-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-v20-latin-500.woff2') format('woff2');
+}

@@ -1,0 +1,35 @@
+---
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { ar as t } from '../../content/ar';
+import { CONTACT_EMAIL } from '../../lib/const';
+---
+
+<Base lang="ar" title="الخصوصية — منادم" description="سياسة الخصوصية لموقع منادم." path="/privacy">
+  <Header t={t} lang="ar" />
+  <main class="mx-auto max-w-5xl px-5 py-16">
+    <div class="max-w-[var(--measure)]">
+      <h1 class="text-[1.9rem]">الخصوصية</h1>
+
+      <h2 class="mt-10 text-[1.3rem]">الموقع ده</h2>
+      <p class="mt-3">
+        munadim.com مبيجمعش بيانات شخصية. مفيش حسابات، مفيش نماذج تسجيل، ومفيش أدوات تتبع إعلانية.
+        لو ضغطت على زرار الواتساب، بتفتح محادثة معانا على واتساب — وساعتها بينطبق عليها سياسة خصوصية واتساب.
+      </p>
+
+      <h2 class="mt-10 text-[1.3rem]">بيانات مطعمك وزباينك</h2>
+      <p class="mt-3">
+        قاعدة بيانات الزباين ملك المطعم. إحنا مش بنراسل زباين مطعمك لصالحنا، ومش بنشارك بيانات مطعم مع مطعم
+        تاني. لو حابب تسيب الخدمة، بياناتك بتتسلّم ليك.
+      </p>
+
+      <h2 class="mt-10 text-[1.3rem]">تواصل</h2>
+      <p class="mt-3">
+        لأي سؤال عن الخصوصية:
+        <a href={`mailto:${CONTACT_EMAIL}`} class="font-medium text-karkadeh underline" dir="ltr">{CONTACT_EMAIL}</a>
+      </p>
+    </div>
+  </main>
+  <Footer t={t} lang="ar" />
+</Base>

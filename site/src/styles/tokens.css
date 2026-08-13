@@ -1,0 +1,118 @@
+/* ==========================================================================
+   Munadim — design tokens
+   Arabic is the primary language. Design and build RTL first, then mirror.
+   ========================================================================== */
+
+:root {
+  /* ---- Colour ---------------------------------------------------------- */
+  --ink:            #141110;  /* primary dark ground, and body text on light */
+  --semna:          #F5EFE7;  /* light ground, and text on dark              */
+  --brass:          #B98432;  /* brand colour — ONLY on dark grounds         */
+  --brass-light:    #D9A94E;  /* hover / active state of brass on dark       */
+  --brass-deep:     #8A601E;  /* brass for LIGHT grounds — passes 4.87:1     */
+  --karkadeh:       #8C1D2F;  /* secondary — light grounds and print only    */
+  --neel:           #24405C;  /* charts, links in dense data views           */
+
+  --success:        #2F6B45;
+  --warning:        #8A5A00;  /* darkened from #A66A00 to pass 4.5:1         */
+  --error:          #A32319;
+
+  /* Tints — for surfaces, never for text */
+  --ink-80:         rgba(20, 17, 16, 0.80);
+  --semna-60:       rgba(245, 239, 231, 0.60);
+  --brass-15:       rgba(185, 132, 50, 0.15);   /* active nav, selected row */
+  --karkadeh-10:    rgba(140, 29, 47, 0.10);
+
+  /* ---- Type ------------------------------------------------------------ */
+  --font-display-latin:  "Cinzel", Georgia, serif;
+  --font-display-ar:     "Amiri", "Times New Roman", serif;
+  --font-body:           "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-mono:           "IBM Plex Mono", ui-monospace, monospace;
+
+  --step--1: 0.875rem;  /* 14px — labels, captions            */
+  --step-0:  1.0625rem; /* 17px — body. Never below this.      */
+  --step-1:  1.375rem;  /* 22px — h3                           */
+  --step-2:  1.875rem;  /* 30px — h2                           */
+  --step-3:  2.75rem;   /* 44px — h1 Arabic                    */
+  --step-3-latin: 2.5rem; /* 40px — h1 Latin, optically matched */
+
+  --lh-body-ar: 1.75;   /* Arabic needs this. Never 1.4.       */
+  --lh-body-en: 1.6;
+  --lh-display: 1.15;
+
+  --track-latin-display: -0.015em;
+  --track-latin-caps:     0.10em;   /* Cinzel caps in the wordmark */
+  --track-arabic:         0;        /* Arabic takes no tracking, ever */
+
+  /* ---- Space ----------------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+  --space-6: 4rem;
+  --space-7: 6rem;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+
+  --tap-min: 44px;      /* minimum touch target */
+  --measure: 68ch;      /* max line length for body copy */
+}
+
+/* ---- Base ------------------------------------------------------------- */
+html[dir="rtl"] { direction: rtl; }
+
+body {
+  background: var(--semna);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: var(--lh-body-ar);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2 { font-family: var(--font-display-ar); line-height: var(--lh-display); font-weight: 700; }
+html[lang="en"] h1, html[lang="en"] h2 { font-family: var(--font-display-latin); }
+h3 { font-family: var(--font-body); font-weight: 600; font-size: var(--step-1); }
+
+/* Numbers are ALWAYS Western digits (1234), in both languages. */
+.num, .price, .order-id { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---- Dark sections ----------------------------------------------------- */
+.on-ink {
+  background: var(--ink);
+  color: var(--semna);
+}
+.on-ink a { color: var(--brass); }
+.on-ink a:hover { color: var(--brass-light); }
+
+/* ---- Buttons ----------------------------------------------------------- */
+.btn-primary {
+  background: var(--karkadeh);
+  color: var(--semna);
+  min-height: var(--tap-min);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-5);
+}
+.btn-primary:hover { background: #74172704; background: #741727; }
+
+.on-ink .btn-primary { background: var(--brass); color: var(--ink); }
+.on-ink .btn-primary:hover { background: var(--brass-light); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+}
+
+/* Brass is NEVER a primary button on a light ground — it fails contrast. */
+
+/* ---- Fonts ------------------------------------------------------------- */
+/*
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+Self-host these for Egyptian connection speeds. All four are free
+(SIL OFL). Subset the Arabic faces — the full Amiri file is large.
+*/

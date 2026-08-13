@@ -1,0 +1,35 @@
+---
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t, lang } = Astro.props;
+const lockup = '/brand/20-lockup-horizontal-dark-nobg.svg';
+---
+
+<header class="on-ink bg-ink">
+  <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4">
+    <a href={`/${lang}`} class="flex min-h-[44px] items-center" aria-label="Munadim">
+      <img src={lockup} alt="Munadim" width="166" height="50" class="h-9 w-auto sm:h-10" />
+    </a>
+
+    <nav class="flex items-center gap-2 sm:gap-5">
+      <a
+        href="#pricing"
+        class="hidden min-h-[44px] items-center px-2 font-medium text-semna hover:text-brass-light sm:flex"
+      >{t.nav.pricing}</a>
+
+      <a
+        href={t.nav.toggle.href}
+        class="flex min-h-[44px] items-center px-2 font-medium text-semna/80 hover:text-brass-light"
+        lang={lang === 'ar' ? 'en' : 'ar'}
+        dir={lang === 'ar' ? 'ltr' : 'rtl'}
+      >{t.nav.toggle.label}</a>
+
+      <a
+        href={WA_LINK}
+        class="btn-primary flex items-center justify-center text-[0.95rem] !py-2.5 !px-4 sm:!px-5"
+      >{t.nav.cta}</a>
+    </nav>
+  </div>
+</header>

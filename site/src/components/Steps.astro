@@ -1,0 +1,29 @@
+---
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="border-y border-ink/10 bg-semna">
+  <div class="mx-auto max-w-5xl px-5 py-16 sm:py-24">
+    <h2 class="text-[1.7rem] sm:text-[var(--step-2)]" data-reveal>{t.steps.h2}</h2>
+
+    <ol class="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-8">
+      {t.steps.items.map((s, i) => (
+        <li class="relative" data-reveal style={`transition-delay:${i * 90}ms`}>
+          <div class="flex items-center gap-3">
+            <span class="num flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink text-[1.05rem] font-medium text-brass">
+              {i + 1}
+            </span>
+            <!-- hairline connecting rule (desktop only, decorative) -->
+            {i < t.steps.items.length - 1 && (
+              <span class="hidden h-px flex-1 bg-ink/15 sm:block" aria-hidden="true"></span>
+            )}
+          </div>
+          <h3 class="mt-4 text-[1.15rem]">{s.title}</h3>
+          <p class="mt-2 text-[1rem] leading-relaxed text-ink/80">{s.body}</p>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>

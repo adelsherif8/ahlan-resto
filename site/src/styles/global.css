@@ -1,0 +1,107 @@
+/* ==========================================================================
+   Munadim site — global styles
+   Arabic is the original, Latin is the translation. RTL first.
+   Brand source of truth: ../styles/tokens.css (copied from branding/).
+   ========================================================================== */
+
+@import './tokens.css';
+@import './fonts.css';
+@import 'tailwindcss';
+
+/* Map brand tokens into Tailwind's theme so utilities like bg-ink,
+   text-semna, font-display-ar work everywhere. `inline` lets us
+   reference the :root variables tokens.css already defines. */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-semna: var(--semna);
+  --color-brass: var(--brass);
+  --color-brass-light: var(--brass-light);
+  --color-brass-deep: var(--brass-deep);
+  --color-karkadeh: var(--karkadeh);
+  --color-neel: var(--neel);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+
+  --font-display-ar: var(--font-display-ar);
+  --font-display-latin: var(--font-display-latin);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+}
+
+/* ---- Base ------------------------------------------------------------- */
+
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+body {
+  background: var(--semna);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0); /* 17px floor — never below */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Arabic needs the leading; Latin gets its own. */
+html[lang='ar'] body { line-height: var(--lh-body-ar); }
+html[lang='en'] body { line-height: var(--lh-body-en); }
+
+h1, h2 {
+  line-height: var(--lh-display);
+  font-weight: 700;
+}
+html[lang='ar'] :is(h1, h2) { font-family: var(--font-display-ar); letter-spacing: 0; }
+html[lang='en'] :is(h1, h2) {
+  font-family: var(--font-display-latin);
+  letter-spacing: var(--track-latin-display);
+  font-weight: 600; /* Cinzel ships 400/600 — never synthesize a 700 */
+}
+
+h3 { font-family: var(--font-body); font-weight: 600; font-size: var(--step-1); }
+
+/* Numbers are ALWAYS Western digits, in both languages. */
+.num, .price, .order-id {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Arabic takes no tracking, ever — belt and braces. */
+html[lang='ar'] * { letter-spacing: 0 !important; }
+
+::selection {
+  background: var(--brass-15);
+}
+
+/* ---- Scroll reveals — progressive enhancement only ---------------------
+   Elements are visible by default (no-JS never hides content). The inline
+   head script adds .js; only then do reveals start hidden. Reduced motion
+   gets the final state immediately. */
+@media (prefers-reduced-motion: no-preference) {
+  html.js [data-reveal] {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.55s ease-out, transform 0.55s ease-out;
+  }
+  html.js [data-reveal].revealed {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- Focus — visible, brand-coloured, never removed -------------------- */
+:focus-visible {
+  outline: 2px solid var(--brass-deep);
+  outline-offset: 2px;
+}
+.on-ink :focus-visible {
+  outline-color: var(--brass);
+}

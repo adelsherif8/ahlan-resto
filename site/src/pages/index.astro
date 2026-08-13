@@ -1,0 +1,27 @@
+---
+/**
+ * Static fallback for `/`. In production the Cloudflare Pages Function
+ * (functions/index.js) intercepts `/` and 302s by cookie → Accept-Language.
+ * This page only exists for local dev and as a belt-and-braces fallback:
+ * meta refresh → /ar (Arabic is the default per hreflang x-default).
+ */
+---
+
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="refresh" content="0; url=/ar" />
+    <link rel="canonical" href="https://munadim.com/ar" />
+    <title>منادم</title>
+    <script is:inline>
+      const saved = localStorage.getItem('munadim-lang');
+      const lang = saved === 'en' || saved === 'ar'
+        ? saved
+        : (navigator.language || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
+      location.replace('/' + lang);
+    </script>
+  </head>
+  <body></body>
+</html>

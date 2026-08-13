@@ -1,0 +1,111 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  /** Page language — sets lang + dir and picks the display face. */
+  lang: 'ar' | 'en';
+  title: string;
+  description: string;
+  /** Path of this page without the language prefix, e.g. '' for home. */
+  path?: string;
+  /** Fonts to preload (above-the-fold faces only). */
+  preloadFonts?: string[];
+}
+
+const { lang, title, description, path = '', preloadFonts = [] } = Astro.props;
+const dir = lang === 'ar' ? 'rtl' : 'ltr';
+const site = 'https://munadim.com';
+---
+
+<!doctype html>
+<html lang={lang} dir={dir}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <link rel="icon" type="image/svg+xml" href="/brand/08-favicon.svg" />
+    <link rel="canonical" href={`${site}/${lang}${path}`} />
+    <link rel="alternate" hreflang="ar" href={`${site}/ar${path}`} />
+    <link rel="alternate" hreflang="en" href={`${site}/en${path}`} />
+    <link rel="alternate" hreflang="x-default" href={`${site}/ar${path}`} />
+
+    {preloadFonts.map((f) => (
+      <link rel="preload" href={`/fonts/${f}`} as="font" type="font/woff2" crossorigin />
+    ))}
+
+    <!-- Must run before paint: gates reveal-hiding on JS actually being present -->
+    <script is:inline>document.documentElement.classList.add('js');</script>
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={`${site}/${lang}${path}`} />
+    <meta property="og:image" content={`${site}/brand/og.png`} />
+    <meta property="og:locale" content={lang === 'ar' ? 'ar_EG' : 'en_US'} />
+  </head>
+  <body>
+    <slot />
+
+    <script>
+      // Persist the language choice — decision 5: the user's choice sticks.
+      // localStorage drives the static fallback; the cookie drives the CF Pages
+      // Function that handles `/` in production.
+      const lang = document.documentElement.lang;
+      try {
+        localStorage.setItem('munadim-lang', lang);
+        document.cookie = `munadim-lang=${lang};path=/;max-age=31536000;SameSite=Lax`;
+      } catch {}
+
+      // Scroll reveals + count-ups. Tiny on purpose — Framer Motion is reserved
+      // for the chat island; everything else is CSS + IntersectionObserver.
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (!reduced && 'IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) {
+              if (e.isIntersecting) {
+                e.target.classList.add('revealed');
+                io.unobserve(e.target);
+              }
+            }
+          },
+          { rootMargin: '0px 0px -8% 0px' },
+        );
+        document.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
+      } else {
+        document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('revealed'));
+      }
+
+      // Count-ups — the arithmetic does the pushing, literally.
+      const counters = document.querySelectorAll<HTMLElement>('[data-count-to]');
+      if (counters.length && !reduced && 'IntersectionObserver' in window) {
+        const cio = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) {
+              if (!e.isIntersecting) continue;
+              cio.unobserve(e.target);
+              const el = e.target as HTMLElement;
+              const to = parseFloat(el.dataset.countTo || '0');
+              const decimals = (el.dataset.countTo || '').includes('.') ? 1 : 0;
+              const t0 = performance.now();
+              const dur = 900;
+              const tick = (now: number) => {
+                const p = Math.min((now - t0) / dur, 1);
+                const eased = 1 - Math.pow(1 - p, 3);
+                el.textContent = (to * eased).toFixed(decimals);
+                if (p < 1) requestAnimationFrame(tick);
+              };
+              requestAnimationFrame(tick);
+            }
+          },
+          { threshold: 0.6 },
+        );
+        counters.forEach((el) => cio.observe(el));
+      }
+    </script>
+  </body>
+</html>

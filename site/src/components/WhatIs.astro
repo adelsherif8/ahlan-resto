@@ -1,0 +1,26 @@
+---
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="border-y border-ink/10 bg-semna">
+  <div class="mx-auto max-w-5xl px-5 py-16 sm:py-24">
+    <div class="max-w-[var(--measure)]" data-reveal>
+      <h2 class="text-[1.7rem] sm:text-[var(--step-2)]">{t.whatIs.h2}</h2>
+      <p class="mt-5">{t.whatIs.p1}</p>
+    </div>
+
+    <!-- The three channels — the dot device doing its one job -->
+    <ul class="mt-8 flex flex-wrap gap-x-8 gap-y-3" data-reveal>
+      {t.whatIs.channels.map((c) => (
+        <li class="flex items-center gap-2.5 text-[1.15rem] font-semibold">
+          <span class="h-2.5 w-2.5 rounded-full bg-brass-deep" aria-hidden="true"></span>
+          {c}
+        </li>
+      ))}
+    </ul>
+
+    <p class="mt-8 max-w-[var(--measure)] font-medium" data-reveal>{t.whatIs.p2}</p>
+  </div>
+</section>

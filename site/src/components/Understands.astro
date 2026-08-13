@@ -1,0 +1,60 @@
+---
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+
+/** Static waveform for the voice-note fragment — decorative. */
+const WAVE = [4, 8, 12, 7, 10, 14, 8, 5, 10, 13, 7, 4, 7, 11, 15, 9, 6, 8, 12, 6];
+---
+
+<section class="mx-auto max-w-5xl px-5 py-16 sm:py-24">
+  <h2 class="max-w-[var(--measure)] text-[1.7rem] sm:text-[var(--step-2)]" data-reveal>
+    {t.understands.h2}
+  </h2>
+
+  <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    {t.understands.fragments.map((f, i) => (
+      <article
+        class="flex flex-col rounded-[var(--radius-lg)] border border-ink/10 bg-[#FBF8F2] p-5"
+        data-reveal
+        style={`transition-delay:${(i % 3) * 80}ms`}
+      >
+        <h3 class="flex items-center gap-2.5 text-[1.1rem]">
+          <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+          {f.head}
+        </h3>
+        <p class="mt-2 text-[0.98rem] leading-relaxed text-ink/80">{f.body}</p>
+
+        <!-- Mini WhatsApp fragment — the customer's environment showing through -->
+        <div class="relative mt-auto pt-4">
+          <div class="flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-[#EFEAE2] p-3" dir="rtl">
+            {f.demo.inVoice ? (
+              <div class="flex w-fit max-w-[92%] items-center gap-2 self-start rounded-lg rounded-ss-none bg-white px-2.5 py-2 shadow-sm">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 fill-[#54656F]" aria-hidden="true">
+                  <path d="M8 5.5v13l10-6.5-10-6.5Z" />
+                </svg>
+                <span class="flex h-4 items-center gap-[2px]" aria-hidden="true">
+                  {WAVE.map((h) => (
+                    <span class="w-[2px] rounded-full bg-[#8696A0]" style={`height:${h}px`}></span>
+                  ))}
+                </span>
+                <span class="num text-[10px] text-[#667781]">{f.demo.inVoice}</span>
+              </div>
+            ) : (
+              <p dir="auto" class="w-fit max-w-[92%] self-start rounded-lg rounded-ss-none bg-white px-2.5 py-1.5 text-[12.5px] leading-[1.5] text-[#111B21] shadow-sm">
+                {f.demo.in}
+              </p>
+            )}
+            <p dir="auto" class="w-fit max-w-[92%] self-end rounded-lg rounded-es-none bg-[#D9FDD3] px-2.5 py-1.5 text-[12.5px] leading-[1.5] text-[#111B21] shadow-sm">
+              {f.demo.out}
+            </p>
+          </div>
+          <!-- every fragment is labelled -->
+          <span class="pointer-events-none absolute bottom-1.5 start-2 text-[9px] font-medium text-[#667781]">
+            {t.hero.demoLabel}
+          </span>
+        </div>
+      </article>
+    ))}
+  </div>
+</section>

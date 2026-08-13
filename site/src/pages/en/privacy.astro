@@ -1,0 +1,37 @@
+---
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { en as t } from '../../content/en';
+import { CONTACT_EMAIL } from '../../lib/const';
+---
+
+<Base lang="en" title="Privacy — Munadim" description="Privacy policy for the Munadim website." path="/privacy">
+  <Header t={t} lang="en" />
+  <main class="mx-auto max-w-5xl px-5 py-16">
+    <div class="max-w-[var(--measure)]">
+      <h1 class="text-[1.9rem]">Privacy</h1>
+
+      <h2 class="mt-10 text-[1.3rem]">This website</h2>
+      <p class="mt-3">
+        munadim.com collects no personal data. There are no accounts, no signup forms, and no advertising
+        trackers. If you tap the WhatsApp button, you open a chat with us on WhatsApp — WhatsApp's own
+        privacy policy applies there.
+      </p>
+
+      <h2 class="mt-10 text-[1.3rem]">Your restaurant's data, and your customers'</h2>
+      <p class="mt-3">
+        The customer database belongs to the restaurant. We never message a restaurant's customers for our
+        own benefit, and we never share one restaurant's data with another. If you leave the service, your
+        data is handed to you.
+      </p>
+
+      <h2 class="mt-10 text-[1.3rem]">Contact</h2>
+      <p class="mt-3">
+        For any privacy question:
+        <a href={`mailto:${CONTACT_EMAIL}`} class="font-medium text-karkadeh underline">{CONTACT_EMAIL}</a>
+      </p>
+    </div>
+  </main>
+  <Footer t={t} lang="en" />
+</Base>
