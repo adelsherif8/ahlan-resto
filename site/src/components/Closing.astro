@@ -7,21 +7,24 @@ const { t } = Astro.props;
 ---
 
 <section class="on-ink bg-ink">
-  <div class="mx-auto max-w-5xl px-5 py-16 sm:py-24">
-    <div class="max-w-[var(--measure)]" data-reveal>
-      <h2 class="text-[1.7rem] text-semna sm:text-[var(--step-2)]">{t.closing.h2}</h2>
-      <p class="mt-5 text-semna/85">{t.closing.p}</p>
+  <div class="container-page section">
+    <div class="container-text text-center" data-reveal>
+      <h2 class="h-rule rule-center text-semna">{t.closing.h2}</h2>
+      <p class="mt-7 text-[1.1rem] text-semna/85">{t.closing.p}</p>
 
-      <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
-        <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center">
+      <div class="mt-11 flex flex-col items-center gap-5">
+        <a
+          href={WA_LINK}
+          class="btn-primary inline-flex items-center justify-center !px-10 !py-4 text-[1.1rem]"
+        >
           {t.closing.cta}
         </a>
         <a
           href={WA_LINK}
-          class="flex min-h-[44px] items-center gap-2 text-semna/85 hover:text-brass-light"
+          class="flex min-h-[44px] items-center gap-2 text-semna/85 transition-colors hover:text-brass-light"
         >
           <span>{t.closing.waLabel.split(':')[0]}:</span>
-          <span class="num font-medium" dir="ltr">{WA_NUMBER_DISPLAY}</span>
+          <span class="num text-[1.1rem] font-medium" dir="ltr">{WA_NUMBER_DISPLAY}</span>
         </a>
       </div>
     </div>

@@ -4,26 +4,30 @@ interface Props { t: SiteContent }
 const { t } = Astro.props;
 ---
 
-<section class="mx-auto max-w-5xl px-5 py-16 sm:py-24">
-  <div class="max-w-[var(--measure)]" data-reveal>
-    <h2 class="text-[1.7rem] sm:text-[var(--step-2)]">{t.problem.h2}</h2>
-    <p class="mt-5">{t.problem.p1}</p>
-    <p class="mt-4 font-medium">{t.problem.p2}</p>
-  </div>
-
-  <!-- The fifth, drawn: 150 with 30 taken out. Labels carry the meaning, not colour alone. -->
-  <div class="mt-10 max-w-[var(--measure)]" data-reveal aria-hidden="false">
-    <div class="flex h-11 w-full overflow-hidden rounded-[var(--radius-sm)]">
-      <div class="flex w-4/5 items-center bg-ink/85 px-4">
-        <span class="num text-[0.85rem] font-medium text-semna">120</span>
-      </div>
-      <div class="flex w-1/5 items-center justify-center bg-karkadeh px-2">
-        <span class="num text-[0.85rem] font-medium text-semna">30</span>
-      </div>
+<section class="section">
+  <div class="container-page">
+    <div class="container-text" data-reveal>
+      <h2 class="h-rule">{t.problem.h2}</h2>
+      <p class="mt-7 text-[1.1rem]">{t.problem.p1}</p>
+      <p class="mt-4 text-[1.1rem] font-medium">{t.problem.p2}</p>
     </div>
-    <div class="mt-2 flex justify-between gap-4 text-[var(--step--1)] text-ink/70">
-      <span>{t.problem.bar.order}</span>
-      <span class="font-medium text-karkadeh">{t.problem.bar.app}</span>
+
+    <!-- The fifth, drawn — a receipt-sized fact, not a chart -->
+    <div class="container-text mt-12" data-reveal>
+      <div class="card overflow-hidden">
+        <div class="flex h-14">
+          <div class="flex w-4/5 items-center bg-ink px-5">
+            <span class="num text-[1rem] font-medium text-semna">120</span>
+          </div>
+          <div class="flex w-1/5 items-center justify-center bg-karkadeh px-2">
+            <span class="num text-[1rem] font-medium text-semna">30</span>
+          </div>
+        </div>
+        <div class="flex items-center justify-between gap-4 px-5 py-3.5">
+          <span class="text-[0.95rem] text-ink/75">{t.problem.bar.order}</span>
+          <span class="text-[0.95rem] font-semibold text-karkadeh">{t.problem.bar.app}</span>
+        </div>
+      </div>
     </div>
   </div>
 </section>

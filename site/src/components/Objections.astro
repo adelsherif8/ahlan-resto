@@ -4,18 +4,20 @@ interface Props { t: SiteContent }
 const { t } = Astro.props;
 ---
 
-<section class="mx-auto max-w-5xl px-5 py-16 sm:py-24">
-  <h2 class="max-w-[var(--measure)] text-[1.7rem] sm:text-[var(--step-2)]" data-reveal>
-    {t.objections.h2}
-  </h2>
+<section class="section">
+  <div class="container-page">
+    <div class="container-text">
+      <h2 class="h-rule" data-reveal>{t.objections.h2}</h2>
 
-  <!-- Fully expanded — the buyer between shifts shouldn't tap to read -->
-  <dl class="mt-8 max-w-[var(--measure)] divide-y divide-ink/10">
-    {t.objections.items.map((o) => (
-      <div class="py-6 first:pt-2 last:pb-0" data-reveal>
-        <dt class="font-semibold">{o.q}</dt>
-        <dd class="mt-2 text-ink/85">{o.a}</dd>
-      </div>
-    ))}
-  </dl>
+      <!-- Fully expanded — the buyer between shifts shouldn't tap to read -->
+      <dl class="mt-6 divide-y divide-ink/10">
+        {t.objections.items.map((o) => (
+          <div class="py-7" data-reveal>
+            <dt class="text-[1.15rem] font-semibold">{o.q}</dt>
+            <dd class="mt-2.5 text-[1.05rem] text-ink/85">{o.a}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </div>
 </section>
