@@ -32,7 +32,7 @@ import nodeCrypto from "node:crypto";
 // CORS allowlist — the driver/track/build pages and the dashboard live on PUBLIC_BASE
 // (Vercel); the ops console runs on localhost in dev. Requests with NO Origin header
 // (Meta's webhook, server-to-server, curl) are always allowed — CORS only gates browsers.
-const ALLOWED_ORIGINS = new Set([PUBLIC_BASE, "https://ahlan-resto.vercel.app"]);
+const ALLOWED_ORIGINS = new Set([PUBLIC_BASE, "https://ahlan-resto.vercel.app", "https://app.munadim.com", "https://munadim-dashboard.pages.dev"]);
 app.use(cors({
   origin(origin, cb) {
     if (!origin || ALLOWED_ORIGINS.has(origin) || /^https?:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
