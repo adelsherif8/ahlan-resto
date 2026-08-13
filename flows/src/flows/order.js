@@ -1248,8 +1248,9 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // is right even when the guest states the type up front (need_type would be false
       // on their genuine first ask) AND when turn 1 asks but saves no slot.
       if (outcome.notices?.length) noticeBlock = outcome.notices.join("\n");
+      // type-first lead is a greeting only — the type QUESTION lives in qs, once.
       reply = outcome.type_first
-        ? `${classification?.language === "ar" ? "أهلاً! 😄 تحب طلبك يكون إزاي؟ 👇" : "Let's get you fed 😄 How would you like your order? 👇"}\n\n${qs.join("\n\n")}`
+        ? `${L2("Let's get you fed 😄👇", "أهلاً بيك! 😄👇", "Yalla notlob 😄👇")}\n\n${qs.join("\n\n")}`
         : outcome.first_fulfilment ? `${reply.split("\n")[0]}\n\n${qs.join("\n\n")}` : qs.join("\n\n");
     }
 
