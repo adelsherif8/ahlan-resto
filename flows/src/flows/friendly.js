@@ -529,7 +529,11 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     const greetingOpener = /^(hi+|hey+|hello+|yo|hala|ahlan|salam|اهلا|أهلا|هلا|السلام عليكم|صباح|مساء|ازيك|عامل ايه|good (morning|evening|afternoon))/iu
       .test(String(input.message || "").trim()) && String(input.message || "").trim().length <= 40;
     if (context.isNewConversation && config.basic_info?.restaurant_type === "casual" && greetingOpener) {
-      const entry = [label(config, "browse_menu"), label(config, "order_now")];
+      // ask_type_first restaurants lead with ORDER (one tap → the type question);
+      // menu-first restaurants keep the browse-first order.
+      const entry = config.ai?.ask_type_first === true
+        ? [label(config, "order_now"), label(config, "browse_menu")]
+        : [label(config, "browse_menu"), label(config, "order_now")];
       if (builderConfig(config).enabled) entry.push(label(config, "build_your_own"));
       quickReplies = entry.slice(0, 3);
     }
@@ -560,7 +564,11 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
             });
         if (pdf) {
           menuDoc = { url: pdf.url, caption: `${config.name} — full menu 📄`, filename: pdf.filename };
-          reply = `${reply}\n\n📄 Full menu: ${publicLink("/menu.pdf", config.slug)}\nJust tell me what you'd like and I'll take it from there.`.slice(0, 3900);
+          {
+            const lv = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
+            const l2 = (en, ar, fr) => (lv === "ar" ? ar : lv === "fr" ? fr : en);
+            reply = `${reply}\n\n📄 ${l2("Full menu", "المنيو الكامل", "El menu el kamel")}: ${publicLink("/menu.pdf", config.slug)}\n${l2("Just tell me what you'd like and I'll take it from there.", "قولّي تحب تطلب إيه وأنا أكمّل معاك.", "2oly te7eb totlob eh w ana akamel ma3ak.")}`.slice(0, 3900);
+          }
         } else {
           // menu exists but the PDF couldn't be made — never leave the guest empty-handed
           reply = `${reply}\n\n${fullMenuText(context.menu, currency)}`.slice(0, 3900);

@@ -1451,8 +1451,8 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
             logoUrl: config.basic_info?.brand?.logo_url || null,
           });
       if (pdf) {
-        doc = { url: pdf.url, caption: `${config.name} — full menu 📄`, filename: pdf.filename };
-        reply = `${reply}\n\n📄 ${publicLink("/menu.pdf", config.slug)}`;
+        doc = { url: pdf.url, caption: L2(`${config.name} — full menu 📄`, `${config.name} — المنيو الكامل 📄`, `${config.name} — el menu el kamel 📄`), filename: pdf.filename };
+        reply = `${reply}\n\n📄 ${L2("Full menu", "المنيو الكامل", "El menu el kamel")}: ${publicLink("/menu.pdf", config.slug)}`;
       }
       // First-timer? The restaurant's chosen signatures (up to 3, per-restaurant,
       // toggleable) ride with the menu — a nudge, phrased by code, never invented.
