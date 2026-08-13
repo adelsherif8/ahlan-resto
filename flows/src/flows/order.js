@@ -165,23 +165,14 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           await db.from("diners").update({ preferences: restp }).eq("id", diner.id).then(() => {}, () => {});
           loaded.pending = null;
         };
-        if (!loaded.openOrder) {
-          // nothing placed — but a draft in progress IS their "order"; clear it
-          if (loaded.pending?.items?.length) { await clearDraft(); return { kind: "draft_cleared" }; }
-          return { kind: "no_open_order" };
-        }
-        if (["ready"].includes(loaded.openOrder.status)) return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder) };
-        await db.from("orders").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", loaded.openOrder.id);
-        if (diner?.id && loaded.openOrder.status !== "cancelled") {
-          // cancellation reverses the CRM bump the placement made
-          await db.from("diners").update({
-            total_spend: Math.max(0, Math.round(((Number(diner.total_spend) || 0) - Number(loaded.openOrder.total || 0)) * 100) / 100),
-            visit_count: Math.max(0, (Number(diner.visit_count) || 0) - 1),
-          }).eq("id", diner.id);
-        }
-        await clearDraft();
-        await notifyDashboard(db, "order", `❌ Order ${loaded.openOrder.code} cancelled`, `${name || ctx.sessionId} cancelled via chat`, ctx.sessionId);
-        return { kind: "order_cancelled", order: publicOrder(loaded.openOrder) };
+        // A DRAFT in progress is what "cancel" means mid-conversation — a stale placed
+        // order (yesterday's, already READY) must never hijack the answer.
+        if (loaded.pending?.items?.length) { await clearDraft(); return { kind: "draft_cleared" }; }
+        if (!loaded.openOrder) return { kind: "no_open_order" };
+        // Founder rule: CONFIRMED = receipt sent = the kitchen owns it — the bot never
+        // cancels a placed order. Staff get pinged and decide at the counter.
+        await notifyDashboard(db, "order", `⚠️ ${loaded.openOrder.code}: guest asked to CANCEL`, `${name || ctx.sessionId} asked to cancel after confirmation — your call`, ctx.sessionId).catch(() => {});
+        return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder) };
       }
 
       if (e.intent === "status") {
@@ -1164,7 +1155,7 @@ OUTCOMES:
 - order_status: ONE short warm line only ("on it — here's where your order is 👇"). A progress ladder with real timestamps is appended by code below your line — never restate steps, times or the code yourself.
 - order_cancelled: cancelled ✅, no charge, door's open.
 - draft_cleared: they removed everything from the order being built — confirm it's wiped, offer to start fresh.
-- too_late_to_cancel: it's already READY — can't cancel now; the team can help at the counter.
+- too_late_to_cancel: the order is confirmed and with the kitchen 👨‍🍳 — it can't be cancelled from chat; the team has been pinged and can help at the counter or on the phone.
 - no_open_order: no active order found — want to start one?
 - stuck_handoff: the same question did not land three times — warmly say you do not want to keep repeating yourself and a TEAM MEMBER will jump in right here to finish the order with them. NEVER blame the guest, never re-ask the question.
 - no_delivery: we don't do delivery — pickup or dine-in works great though.

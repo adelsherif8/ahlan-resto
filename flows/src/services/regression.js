@@ -218,6 +218,12 @@ const CASES = [
   { id: "whichitem", needs: "casual", name: "The which-one answer + remembered qty land as the real item",
     turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
     expect: [/iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
+  // "cancel all" with a live DRAFT clears the draft — a stale placed order (already
+  // READY) must never hijack the answer with "can't cancel" (live bug, 13 Aug).
+  { id: "cancelnothijack", needs: "casual", name: "Cancel clears the draft even when an old placed order exists",
+    seed: { diner: { name: "Selim", visit_count: 2 }, order: { items: [{ name: "Iconic Meal", qty: 1, price: 265 }], order_type: "pickup", total: 265, status: "ready" } },
+    turns: ["1 loaded fries", "cancel all"],
+    expect: [/cleared|fresh order/i], forbid: [/can'?t be cancelled|counter|kitchen 👨‍🍳/i] },
   // "just the burger" during sandwich-vs-meal = the sandwich-only choice — serving-style
   // words answer format questions (a live guest's "Burger" got a silent reprint).
   { id: "fmtburger", needs: "casual", name: "'just the burger' answers the format question as sandwich",
