@@ -749,7 +749,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const rsys = `A restaurant guest is answering menu questions. Their message may be Arabic, Franco-Arabic, misspelled, or a garbled voice transcript — understand accents and translations ("ديابلو"→"Diablo fries", "برتقان"→the orange drink).
 QUESTIONS:\n${lists}
 Return JSON {"answers": {"1": "<EXACT string from list 1 or null>", ...}, "equivalent": {"asked": "<what they said>", "used": "<the list choice you mapped it to>", "different_product": <true ONLY when the mapped choice is a genuinely DIFFERENT product/brand (pepsi→Coca-Cola, cola→V Cola); false when it's the same thing worded differently (coke→Coca-Cola, cola zero→the sugar-free cola we carry)>}|null, "unmatched": "<an attempted ANSWER to the questions with NO reasonable equivalent in any list; null if nothing>"}. The guest's message may be ORDERING dishes — dish/item names are handled elsewhere and are NEVER "unmatched" and never an attempted answer; when the message just names dishes to order, equivalent=null and unmatched=null.
-RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; the DISH's own name answers nothing ("iconic meal" names the dish — it does NOT choose "Full Meal"); a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent". "used" and every answer MUST be an EXACT string from the lists — NEVER a product that isn't listed (never invent "Coca-Cola Zero" when the list has "Coca - Cola Diet"). Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent. The examples in these instructions ("V Cola", "Diablo fries", "7up"→"Sprite") are ILLUSTRATIONS — never output any string that is not literally in THIS request's lists.`;
+RULES: only exact strings from the lists; null when the message doesn't clearly answer that question; FORMAT questions (sandwich-vs-combo/meal): the guest describing the SERVING STYLE answers it — a bare "burger"/"just the burger"/"just a sandwich"/"لوحده"/"بس ساندوتش"/"not a combo"/"من غير وجبة" → the sandwich-only choice (even when the dish name contains "burger"); "combo"/"meal"/"full meal"/"وجبة"/"كومبو"/"with fries and a drink/cola" → the combo/meal choice (and any named drink/side in the same breath answers those questions too); BUT the dish's FULL name alone when ORDERING ("iconic meal" as a new order) does not choose a format; a variant/brand we don't carry maps to its closest REAL EQUIVALENT in the list — like a sharp cashier: "cola zero"/"coke zero" → the diet/sugar-free cola in the list; "pepsi" → the cola we carry; "7up" → "Sprite"; "بيبسي دايت" → the diet cola — put the LIST string in answers AND report it in "equivalent". "used" and every answer MUST be an EXACT string from the lists — NEVER a product that isn't listed (never invent "Coca-Cola Zero" when the list has "Coca - Cola Diet"). Only when NOTHING in the list is a reasonable equivalent (e.g. they asked for a milkshake and the list is sodas): answers null + "unmatched". Equivalence is about the same KIND of thing — never map across kinds; never invent. The examples in these instructions ("V Cola", "Diablo fries", "7up"→"Sprite") are ILLUSTRATIONS — never output any string that is not literally in THIS request's lists.`;
           const rr = await f.node("resolve_options", async () =>
             chatJSON(MODEL_FAST, rsys, String(input.message), { temperature: 0, maxTokens: 150 }),
             { input: { open_groups: openGroups.map((g) => g.label || g.key), message: input.message } });
@@ -848,6 +848,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           return { kind: "stuck_handoff", items };
         }
         await savePending({ awaiting_option: { index: step.ask.index, keys: step.ask.keys, tries } });
+        step.ask.tries = tries;
         // recompute the bill AFTER this turn's answer — showing the pre-answer
         // state made prices look like they jumped a turn late
         return { kind: "ask_choice", items, running, ...step.ask, notices: [...(step.ask.notices || []), ...outcomeNotices] };
@@ -1291,6 +1292,11 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         lead = /[\u0600-\u06FF]/.test(lead)
           ? `دلوقتي اختيارات *${outcome.item}* 👇`
           : `Now for your *${outcome.item}* 👇`;
+      }
+      // a re-ask must SAY it didn't understand — the silent identical reprint read
+      // as the bot being stuck (a real guest answered "Burger" and got a wall twice)
+      if ((outcome.tries || 1) >= 2) {
+        lead = `${/[\u0600-\u06FF]/.test(lead) ? "معلش مش فاهم قصدك 😅 اختار من دول:" : "Sorry — didn't catch that 😅 Pick from these:"}\n${lead}`;
       }
       if (outcome.notices?.length) noticeBlock = outcome.notices.join("\n");
       // The dish being configured pops in WhatsApp bold — the guest's eye finds WHICH

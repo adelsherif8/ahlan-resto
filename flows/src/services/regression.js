@@ -218,6 +218,11 @@ const CASES = [
   { id: "whichitem", needs: "casual", name: "The which-one answer + remembered qty land as the real item",
     turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
     expect: [/iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
+  // "just the burger" during sandwich-vs-meal = the sandwich-only choice — serving-style
+  // words answer format questions (a live guest's "Burger" got a silent reprint).
+  { id: "fmtburger", needs: "casual", name: "'just the burger' answers the format question as sandwich",
+    turns: ["an iconic meal for pickup from Maadi", "just the burger"],
+    expect: [/branch|pay|cash|when are you/i], forbid: [/which one[\s\S]*sandwich/i] },
   // A bare menu request wins even mid-question — a live guest asked 3 times and got
   // the same options ask reprinted; the draft and the open ask must survive it.
   { id: "menureq", needs: "casual", name: "Mid-order menu request sends the menu, keeps the draft",
