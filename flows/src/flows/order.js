@@ -1181,26 +1181,26 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     }, { input: { outcome_kind: outcome.kind } });
 
     const fallback = {
-      order_placed: `🎫 Order ${outcome.code} is in — about ${outcome.eta_minutes} min!`,
-      ask_items: "Here's the full menu 📄 — tell me what you'd like and I'll get it going 🍔",
-      nothing_matched: `Couldn't find ${(outcome.unknown || []).join(", ")} on the menu — here it is 📄, pick anything off it.`,
-      sold_out_today: `${(outcome.sold || []).join(", ")} is sold out today 🙏 — back soon! Anything else from the menu?`,
-      no_history: "No past orders on this number yet — here's the menu 📄, let's make your first one 🍔",
-      ask_fulfillment: "Almost done — just the last details 👇",
+      order_placed: L2(`🎫 Order ${outcome.code} is in — about ${outcome.eta_minutes} min!`, `🎫 طلبك ${outcome.code} اتسجل — حوالي ${outcome.eta_minutes} دقيقة!`, `🎫 Orderak ${outcome.code} etsagel — 7awaly ${outcome.eta_minutes} d2ee2a!`),
+      ask_items: L2("Here's the full menu 📄 — tell me what you'd like and I'll get it going 🍔", "اتفضل المنيو الكامل 📄 — قولّي تحب إيه وأنا أظبطها 🍔", "Etfadal el menu 📄 — 2oly te7eb eh w ana azabatha 🍔"),
+      nothing_matched: L2(`Couldn't find ${(outcome.unknown || []).join(", ")} on the menu — here it is 📄, pick anything off it.`, `ملقناش ${(outcome.unknown || []).join("، ")} في المنيو — اتفضله 📄 واختار أي حاجة منه.`, `Mala2enash ${(outcome.unknown || []).join(", ")} fel menu — etfadalo 📄 w ekhtar ay 7aga.`),
+      sold_out_today: L2(`${(outcome.sold || []).join(", ")} is sold out today 🙏 — back soon! Anything else from the menu?`, `${(outcome.sold || []).join("، ")} خلص النهارده 🙏 — هيرجع قريب! تحب حاجة تانية من المنيو؟`, `${(outcome.sold || []).join(", ")} kheles el naharda 🙏 — te7eb 7aga tanya?`),
+      no_history: L2("No past orders on this number yet — here's the menu 📄, let's make your first one 🍔", "مفيش طلبات قديمة على الرقم ده — اتفضل المنيو 📄 ونعمل أول طلب 🍔", "Mafeesh orders 2adima 3al ra2am dah — etfadal el menu 📄 wn3mel awel order 🍔"),
+      ask_fulfillment: L2("Almost done — just the last details 👇", "قربنا نخلص — آخر تفاصيل بس 👇", "2arabna nekhlas — akher tafaseel bas 👇"),
       ask_choice: `For your ${outcome.item}:\n${(outcome.questions || []).map((q) => `${q.label}${q.of > 1 ? ` (${q.remaining} to pick)` : ""}:\n${q.options.map((o) => `• ${o}`).join("\n")}`).join("\n\n")}`,
-      ask_payment: `How would you like to pay?\n${(outcome.methods || []).map((m) => `• ${m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}`,
-      confirm_order: "All set — confirm and I'll send it to the kitchen ✅",
-      ask_table: `Which table are you at? The number's printed on it${(outcome.tables || []).length ? ` — they look like ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`,
-      bad_table: `I can't find table ${outcome.given} — ours are ${(outcome.tables || []).slice(0, 8).join(", ")}. Which one are you at?`,
-      no_open_order: "No active order found — want to start one? 🍔",
+      ask_payment: `${L2("How would you like to pay?", "تحب تدفع إزاي؟", "Te7eb tedfa3 ezay?")}\n${(outcome.methods || []).map((m) => `• ${LANGV === "ar" ? arPay(m) : m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}`,
+      confirm_order: L2("All set — confirm and I'll send it to the kitchen ✅", "كله تمام — أكد وهيروح للمطبخ على طول ✅", "Kolo tamam — akked w hayro7 lel kitchen ✅"),
+      ask_table: L2(`Which table are you at? The number's printed on it${(outcome.tables || []).length ? ` — they look like ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`, `انت على أنهي ترابيزة؟ الرقم مكتوب عليها${(outcome.tables || []).length ? ` — زي ${outcome.tables.slice(0, 3).join("، ")}` : ""} 😄`, `Enta 3ala anhy tarabeza? El ra2am maktoob${(outcome.tables || []).length ? ` — zay ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`),
+      bad_table: L2(`I can't find table ${outcome.given} — ours are ${(outcome.tables || []).slice(0, 8).join(", ")}. Which one are you at?`, `مش لاقي ترابيزة ${outcome.given} — عندنا ${(outcome.tables || []).slice(0, 8).join("، ")}. انت على أنهي واحدة؟`, `Mesh la2y tarabeza ${outcome.given} — 3andena ${(outcome.tables || []).slice(0, 8).join(", ")}.`),
+      no_open_order: L2("No active order found — want to start one? 🍔", "مفيش طلب شغال دلوقتي — تحب تبدأ واحد؟ 🍔", "Mafeesh order sha3'al — te7eb tebda2 wa7ed? 🍔"),
       stuck_handoff: L2("I don't want to keep asking the same thing 😅 — a team member will jump in right here and finish your order with you 🙏", "مش عايز أفضل أسأل نفس السؤال 😅 — حد من الفريق هيدخل معاك هنا يكمّل طلبك 🙏", "Mesh 3ayez afdal as2al nafs el so2al 😅 — 7ad men el team haydkhol ykamel ma3ak el order 🙏"),
       draft_cleared: L2("All cleared ✅ Want to start a fresh order?", "اتلغى كله ✅ تحب تبدأ طلب جديد؟", "Etlagha kolo ✅ te7eb tebda2 order gedid?"),
       menu_request: L2("Here's the menu 📄 — tell me what to add!", "اتفضل المنيو 📄 — قولّي تحب تضيف إيه!", "Etfadal el menu 📄 — 2oly te7eb tedif eh!"),
       which_item: L2(`You said *${outcome.said || "that"}*${(outcome.qty || 1) > 1 ? ` (×${outcome.qty})` : ""} — we've got a few like that 😄 Which one did you mean?`, `قولت *${outcome.said || "كده"}*${(outcome.qty || 1) > 1 ? ` (×${outcome.qty})` : ""} — عندنا كذا واحد شبهه 😄 تقصد أنهي واحد؟`, `2olt *${outcome.said || "keda"}*${(outcome.qty || 1) > 1 ? ` (×${outcome.qty})` : ""} — 3andena kaza wa7ed shabaho 😄 te2sod anhy?`),
-      delivery_paused: "Delivery's paused right now (kitchen's slammed 🙏) — but pickup's open! Want to switch to pickup?",
-      delivery_closed: `Delivery runs ${outcome.hours?.open || ""}–${outcome.hours?.close || ""} 🙏 — we're outside those hours right now, but pickup works! Want pickup instead?`,
-      no_delivery_area: `We don't deliver to that area yet 🙏 — but pickup's ready${outcome.branch ? ` at ${outcome.branch}` : ""}. Want pickup instead?`,
-      below_min_order: `Delivery needs a minimum of ${outcome.min_order} EGP 🙏 — add a bit more, or pickup has no minimum. Which works?`,
+      delivery_paused: L2("Delivery's paused right now (kitchen's slammed 🙏) — but pickup's open! Want to switch to pickup?", "الدليفري واقف دلوقتي (المطبخ ضغط 🙏) — بس التيك أواي شغال! تحب تحولها تيك أواي؟", "El delivery wa2ef delwa2ty 🙏 — bas el pickup shaghal! Te7awelha pickup?"),
+      delivery_closed: L2(`Delivery runs ${outcome.hours?.open || ""}–${outcome.hours?.close || ""} 🙏 — we're outside those hours right now, but pickup works! Want pickup instead?`, `الدليفري شغال من ${outcome.hours?.open || ""} لـ${outcome.hours?.close || ""} 🙏 — إحنا برة المواعيد دلوقتي، بس التيك أواي ينفع! تحب تيك أواي؟`, `El delivery men ${outcome.hours?.open || ""} le ${outcome.hours?.close || ""} 🙏 — bas el pickup yenfa3!`),
+      no_delivery_area: L2(`We don't deliver to that area yet 🙏 — but pickup's ready${outcome.branch ? ` at ${outcome.branch}` : ""}. Want pickup instead?`, `لسه مبنوصلش المنطقة دي 🙏 — بس التيك أواي جاهز${outcome.branch ? ` من ${outcome.branch}` : ""}. تحب تيك أواي؟`, `Lesa mabnwaselsh el mante2a de 🙏 — bas el pickup gahez${outcome.branch ? ` men ${outcome.branch}` : ""}.`),
+      below_min_order: L2(`Delivery needs a minimum of ${outcome.min_order} EGP 🙏 — add a bit more, or pickup has no minimum. Which works?`, `الدليفري أقل طلب ${outcome.min_order} جنيه 🙏 — زوّد حاجة صغيرة، أو التيك أواي من غير حد أدنى. إيه رأيك؟`, `El delivery a2al order ${outcome.min_order} EGP 🙏 — zawed 7aga so3'ayara, aw pickup men gheir minimum.`),
     };
     let reply = value.value?.reply || fallback[outcome.kind] || fallback.ask_items;
     // Notices ("Noted — pickup ✅", equivalence swaps) render as their OWN WhatsApp bubble,
@@ -1238,7 +1238,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       }
       if (outcome.need_table) qs.push(L2(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`, `انت على أنهي ترابيزة؟ (الرقم مكتوب عليها — زي ${(outcome.tables || []).slice(0, 3).join("، ")})`, `Enta 3ala anhy tarabeza? (el ra2am maktoob 3aleha — zay ${(outcome.tables || []).slice(0, 3).join(", ")})`));
       if (outcome.need_pickup_time) qs.push(L2(`When are you passing by? 🕐 Your order takes ~${outcome.prep_min || 10} min — say "now", "in 30 min", or a time`, `هتعدي علينا امتى؟ 🕐 طلبك بياخد حوالي ${outcome.prep_min || 10} دقيقة — قول "دلوقتي" أو "بعد نص ساعة" أو معاد`, `Hat3ady emta? 🕐 El order byakhod ~${outcome.prep_min || 10} d2ay2 — 2ol "delwa2ty" aw "ba3d nos sa3a"`));
-      if (outcome.need_payment && outcome.pay_methods?.length) qs.push(`${L2("And how will you pay? 💳", "وهتدفع إزاي؟ 💳", "W hatedfa3 ezay? 💳")}\n${outcome.pay_methods.map((m) => `• ${m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}\n${L2("(you can answer everything in one message 😄)", "(ممكن تجاوب على كله في رسالة واحدة 😄)", "(momken tegaweb 3ala kolo f message wa7da 😄)")}`);
+      if (outcome.need_payment && outcome.pay_methods?.length) qs.push(`${L2("And how will you pay? 💳", "وهتدفع إزاي؟ 💳", "W hatedfa3 ezay? 💳")}\n${outcome.pay_methods.map((m) => `• ${LANGV === "ar" ? arPay(m) : m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}\n${L2("(you can answer everything in one message 😄)", "(ممكن تجاوب على كله في رسالة واحدة 😄)", "(momken tegaweb 3ala kolo f message wa7da 😄)")}`);
       if (outcome.need_address) qs.push((outcome.saved || []).length
         ? L2(`Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`, `عنوان التوصيل — نفس المرة اللي فاتت (${outcome.saved[0]})، ولا مكان جديد؟`, `El 3enwan — nafs el mara elly fatet (${outcome.saved[0]}), wala makan gedid?`)
         : (LANGV === "ar" ? ADDRESS_TEMPLATE_AR : ADDRESS_TEMPLATE_EN));
@@ -2126,6 +2126,8 @@ const AR_MENU_WORDS = [
   [/^fanta orange$/i, "فانتا برتقال"], [/^water$/i, "مية"],
 ];
 const arWord = (w) => { for (const [rx, ar] of AR_MENU_WORDS) if (rx.test(String(w).trim())) return ar; return w; };
+const AR_PAY = { "cash on delivery": "كاش عند الاستلام", "cash at the counter": "كاش في الكاونتر", "cash at the cashier": "كاش عند الكاشير", "card": "كارت", "card at the cashier": "كارت عند الكاشير", "instapay": "انستاباي", "online link": "لينك أونلاين" };
+const arPay = (m) => AR_PAY[String(m).toLowerCase().trim()] || m;
 const arLabel = (l) => String(l).replace(/^If (.+?) — (.+)$/i, (m, cond, rest) => `لو ${arWord(cond)} — ${arWord(rest)}`)
   .replace(/^(?!لو )(.*)$/s, (m, x) => arWord(x));
 
