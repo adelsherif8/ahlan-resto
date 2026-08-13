@@ -16,3 +16,6 @@ flows/reg.tmp.mjs
 
 # local-only secrets — never commit
 CREDENTIALS.md
+
+# brand + marketing working files stay local
+branding/
