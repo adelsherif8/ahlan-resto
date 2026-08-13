@@ -3,7 +3,7 @@
 //   trigger: { icon, label }   e.g. { icon: "whatsapp", label: "WhatsApp message" }
 //   nodes:   [{ id, label, icon }]
 // runFlow records every node's INPUT and OUTPUT (full JSON, truncated), status, ms,
-// tokens and cost — served to the Ahlan Ops console for the n8n-style canvas.
+// tokens and cost — served to the Munadim Ops console for the n8n-style canvas.
 import { log } from "../config.js";
 
 const registry = new Map();

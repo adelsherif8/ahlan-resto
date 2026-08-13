@@ -60,7 +60,7 @@ function rateLimit(name, max, windowMs, keyFn = (req) => req.ip) {
 app.use(express.json({ limit: "4mb", verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
 // Branded short links — the guest-facing URL is pretty; the storage URL stays
-// hidden behind a redirect. ahlan-resto.vercel.app proxies /menu.pdf and
+// hidden behind a redirect. the dashboard host used to proxy /menu.pdf and
 // /receipt/:code here via vercel.json rewrites.
 // ?r=<slug> says WHICH restaurant's menu. Without it these links resolved the
 // default restaurant, so a guest of any other one was handed a competitor's menu —
@@ -1076,4 +1076,4 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
   });
 }
 
-app.listen(PORT, () => log(`ahlan-resto flows on :${PORT} (llm: ${llmReady ? "ready" : "MISSING KEY"})`));
+app.listen(PORT, () => log(`munadim flows on :${PORT} (llm: ${llmReady ? "ready" : "MISSING KEY"})`));

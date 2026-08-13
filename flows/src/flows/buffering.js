@@ -401,7 +401,7 @@ function tenantSummary(ctx) {
   return {
     restaurant: r.name,
     slug: r.slug,
-    control_plane: "restaurants row (Ahlan Supabase)",
+    control_plane: "restaurants row (Munadim Supabase)",
     tenant_supabase_url: creds.url || "(memory mode)",
     tenant_supabase_key: creds.key ? creds.key.slice(0, 14) + "…(masked)" : null,
     writes_to: "chat_sessions / chat_messages / diners / notifications → restaurant dashboard",

@@ -41,7 +41,7 @@ export default function App() {
           <div className="mb-8 flex items-center justify-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500 text-zinc-950"><Flame size={22} /></div>
             <div>
-              <div className="text-xl font-bold">Ahlan Ops</div>
+              <div className="text-xl font-bold">Munadim Ops</div>
               <div className="text-xs text-zinc-400">Internal — agents control room</div>
             </div>
           </div>
@@ -59,7 +59,7 @@ export default function App() {
       <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-zinc-950"><Flame size={16} /></div>
-          <div className="text-sm font-bold">Ahlan Ops</div>
+          <div className="text-sm font-bold">Munadim Ops</div>
           <nav className="ml-6 flex gap-1">
             <TabBtn active={tab === "flows"} onClick={() => setTab("flows")} icon={<Workflow size={14} />} label="Flows & Executions" />
             <TabBtn active={tab === "chat"} onClick={() => setTab("chat")} icon={<MessageCircle size={14} />} label="Test Chat" />

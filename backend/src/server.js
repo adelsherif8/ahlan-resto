@@ -54,5 +54,5 @@ app.use((err, _req, res, _next) => {
 });
 
 app.listen(PORT, () => {
-  log(`ahlan-resto backend on :${PORT} ${DEMO_MODE ? "(DEMO MODE — in-memory data)" : "(real mode)"}`);
+  log(`munadim backend on :${PORT} ${DEMO_MODE ? "(DEMO MODE — in-memory data)" : "(real mode)"}`);
 });
