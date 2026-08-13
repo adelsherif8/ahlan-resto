@@ -515,7 +515,7 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
               <button
                 title="Copy the driver link — send it to the courier on WhatsApp"
                 onClick={() => {
-                  navigator.clipboard?.writeText(`https://flows-production-e528.up.railway.app/driver/${o.courier_token}`).catch(() => {});
+                  navigator.clipboard?.writeText(`https://flows.munadim.com/driver/${o.courier_token}`).catch(() => {});
                   setCopied(true); setTimeout(() => setCopied(false), 1500);
                 }}
                 className={`rounded-sm border px-2 py-1 text-xs font-bold ${copied ? "border-emerald-400 text-emerald-600" : "border-neutral-300 hover:bg-neutral-100"}`}
@@ -586,7 +586,7 @@ function TicketModal({ o, branches, onClose, onPrint }: any) {
         </div>
         <div className="mt-3 flex gap-2">
           {o.courier_token && (
-            <a href={`https://flows-production-e528.up.railway.app/driver/${o.courier_token}`} target="_blank" rel="noreferrer"
+            <a href={`https://flows.munadim.com/driver/${o.courier_token}`} target="_blank" rel="noreferrer"
               className="flex-1 rounded-xl border border-zinc-700 py-2 text-center text-xs text-zinc-300 hover:bg-zinc-800">Driver page</a>
           )}
           <button onClick={() => onPrint(o)} className="flex-1 rounded-xl py-2 text-xs font-bold" style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>

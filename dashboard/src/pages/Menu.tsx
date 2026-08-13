@@ -11,7 +11,7 @@ const TAG_ICON: Record<string, any> = { vegan: Leaf, vegetarian: Leaf, gf: Wheat
 
 // the PDF endpoint resolves the restaurant from ?r= — without it, a multi-restaurant
 // deployment has no way to know whose menu to render
-const PDF_BASE = "https://flows-production-e528.up.railway.app/pdf/menu";
+const PDF_BASE = "https://flows.munadim.com/pdf/menu";
 
 import { money } from "../lib/format";
 
