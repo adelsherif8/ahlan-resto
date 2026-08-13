@@ -13,7 +13,7 @@ import { makeReceipt } from "../services/receipt.js";
 import { menuPdfUrl } from "../services/menupdf.js";
 import { nextOrderCode } from "../services/ordercode.js";
 import { itemMods } from "../services/orderline.js";
-import { parseAddress, formatAddress, ADDRESS_TEMPLATE_EN } from "../services/address.js";
+import { parseAddress, formatAddress, ADDRESS_TEMPLATE_EN, ADDRESS_TEMPLATE_AR } from "../services/address.js";
 import { signTrackToken } from "../services/builder.js";
 
 
@@ -1229,19 +1229,19 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       const qs = [];
       if (outcome.need_type) qs.push(L2(`How would you like it?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`, `تحب طلبك يكون إزاي؟\n• في المطعم (Dine-in)\n• تيك أواي (Pickup)${outcome.delivery === false ? "" : "\n• دليفري (Delivery)"}`, `Te7eb el order ezay?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`));
       if (outcome.need_branch) {
-        const near = outcome.nearest?.length ? `\nClosest to you: ${outcome.nearest[0]} 📍`
-          : outcome.usual ? `\nYour usual: ${outcome.usual} ⭐` : "";
+        const near = outcome.nearest?.length ? `\n${L2("Closest to you", "أقرب فرع ليك", "A2rab far3 leek")}: ${outcome.nearest[0]} 📍`
+          : outcome.usual ? `\n${L2("Your usual", "فرعك المعتاد", "Far3ak el mo3tad")}: ${outcome.usual} ⭐` : "";
         const head = outcome.need_type
-          ? "If Pickup or Dine-in — please choose which branch, or send your location on Google Maps and we'll pick the nearest one for you 📍"
-          : "Please choose which branch, or send your location on Google Maps and we'll pick the nearest one for you 📍";
+          ? L2("If Pickup or Dine-in — please choose which branch, or send your location on Google Maps and we'll pick the nearest one for you 📍", "لو تيك أواي أو في المطعم — اختار الفرع، أو ابعت لوكيشنك على جوجل مابس وهنختارلك الأقرب 📍", "Law pickup aw dine-in — ekhtar el far3, aw eb3at location 3ala Google Maps w hanekhtarlak el a2rab 📍")
+          : L2("Please choose which branch, or send your location on Google Maps and we'll pick the nearest one for you 📍", "اختار الفرع، أو ابعت لوكيشنك على جوجل مابس وهنختارلك الأقرب 📍", "Ekhtar el far3, aw eb3at location 3ala Google Maps w hanekhtarlak el a2rab 📍");
         qs.push(`${head}${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
       }
-      if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
+      if (outcome.need_table) qs.push(L2(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`, `انت على أنهي ترابيزة؟ (الرقم مكتوب عليها — زي ${(outcome.tables || []).slice(0, 3).join("، ")})`, `Enta 3ala anhy tarabeza? (el ra2am maktoob 3aleha — zay ${(outcome.tables || []).slice(0, 3).join(", ")})`));
       if (outcome.need_pickup_time) qs.push(L2(`When are you passing by? 🕐 Your order takes ~${outcome.prep_min || 10} min — say "now", "in 30 min", or a time`, `هتعدي علينا امتى؟ 🕐 طلبك بياخد حوالي ${outcome.prep_min || 10} دقيقة — قول "دلوقتي" أو "بعد نص ساعة" أو معاد`, `Hat3ady emta? 🕐 El order byakhod ~${outcome.prep_min || 10} d2ay2 — 2ol "delwa2ty" aw "ba3d nos sa3a"`));
       if (outcome.need_payment && outcome.pay_methods?.length) qs.push(`${L2("And how will you pay? 💳", "وهتدفع إزاي؟ 💳", "W hatedfa3 ezay? 💳")}\n${outcome.pay_methods.map((m) => `• ${m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}\n${L2("(you can answer everything in one message 😄)", "(ممكن تجاوب على كله في رسالة واحدة 😄)", "(momken tegaweb 3ala kolo f message wa7da 😄)")}`);
       if (outcome.need_address) qs.push((outcome.saved || []).length
-        ? `Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`
-        : ADDRESS_TEMPLATE_EN);
+        ? L2(`Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`, `عنوان التوصيل — نفس المرة اللي فاتت (${outcome.saved[0]})، ولا مكان جديد؟`, `El 3enwan — nafs el mara elly fatet (${outcome.saved[0]}), wala makan gedid?`)
+        : (LANGV === "ar" ? ADDRESS_TEMPLATE_AR : ADDRESS_TEMPLATE_EN));
       // The lead-in ("Almost done — just the last details") belongs on the FIRST
       // fulfilment ask only; repeated every turn it reads as a stuck loop. The act node
       // computes this from whether we'd already asked (persisted leadin_shown) — which
@@ -1263,9 +1263,10 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // once crammed two items and six comma-runs into one paragraph. It writes a
     // single lead-in line; the formatted questions are appended verbatim.
     if (outcome.kind === "ask_choice" && outcome.questions?.length) {
+      const AW = LANGV === "ar";
       const qBlock = outcome.questions.map((q) => {
-        const head = `${q.label}${q.of > 1 ? ` — ${q.remaining} to pick` : ""}${q.mixable ? ` (you can mix across your ${q.mixable})` : ""}`;
-        return `${head}:\n${q.options.map((o) => `• ${o}`).join("\n")}`;
+        const head = `${AW ? arLabel(q.label) : q.label}${q.of > 1 ? (AW ? ` — اختار ${q.remaining}` : ` — ${q.remaining} to pick`) : ""}${q.mixable ? (AW ? ` (ممكن تنوّع بين الـ${q.mixable})` : ` (you can mix across your ${q.mixable})`) : ""}`;
+        return `${head}:\n${q.options.map((o) => `• ${AW ? arWord(o) : o}`).join("\n")}`;
       }).join("\n\n");
       let lead = reply.split("\n")[0];
       // zero-hallucination guard: no choice exists until the guest answers the
@@ -1356,6 +1357,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       const billFirst = outcome.kind === "confirm_order";
       const askLine = reply;
       reply = `${billFirst ? "" : `${reply}\n\n`}${renderBill({
+        lang: LANGV,
         branchPin: outcome.branch_pin || null,
         items: outcome.items || [],
         bill: outcome.bill,
@@ -1388,12 +1390,12 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       ? [outcome.need_type, outcome.need_branch, outcome.need_table, outcome.need_address, outcome.need_pickup_time].filter(Boolean).length : 0;
     const forced =
       outcome.kind === "ask_choice" && outcome.questions?.length === 1 ? (outcome.questions[0].names || [])
-      : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_type ? (outcome.type_first && config.ai?.compact_messages === true ? null : ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])])
+      : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_type ? (outcome.type_first && config.ai?.compact_messages === true ? null : (LANGV === "ar" ? ["في المطعم", "تيك أواي", ...(outcome.delivery === false ? [] : ["دليفري"])] : ["Dine-in", "Pickup", ...(outcome.delivery === false ? [] : ["Delivery"])]))
       : outcome.kind === "ask_fulfillment" && fulfillNeeds === 1 && outcome.need_branch ? (outcome.branches || [])
       : outcome.kind === "ask_fulfillment" && outcome.need_address && (outcome.saved || []).length
-        ? [...outcome.saved.slice(0, 2).map((a, i) => (i === 0 ? `🏠 ${String(a).slice(0, 16)}` : `📍 ${String(a).slice(0, 16)}`)), "Somewhere new"]
+        ? [...outcome.saved.slice(0, 2).map((a, i) => (i === 0 ? `🏠 ${String(a).slice(0, 16)}` : `📍 ${String(a).slice(0, 16)}`)), L2("Somewhere new", "مكان جديد", "Makan gedid")]
       : outcome.kind === "which_item" ? (outcome.candidates || [])
-      : outcome.kind === "confirm_order" ? ["Confirm ✅", "Change something"]
+      : outcome.kind === "confirm_order" ? (LANGV === "ar" ? ["تأكيد ✅", "عدّل حاجة"] : ["Confirm ✅", "Change something"])
       : outcome.kind === "ask_payment" ? (outcome.methods || []).map((m) => m.split(" ")[0].replace(/^\w/, (c) => c.toUpperCase()))
       // NOW is the moment for "the usual" — they have said they're ordering but not
       // yet what. Offering it in the greeting spent a button before anyone had decided
@@ -2105,39 +2107,63 @@ function priceOrder(items, config, orderType) {
 // or a currency symbol — it phrases around this block, it doesn't compose it.
 const fmtAmount = fmtMoney;
 
-function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, trackUrl, restaurant, slug, when, branchPin }) {
+
+// ---- Arabic DISPLAY translation for generic menu vocabulary ----
+// Labels and generic choice words render in Arabic for Arabic guests; DISH NAMES
+// stay as authored (house rule). Matching is unaffected: the resolver is semantic
+// and arOptionWords maps the Arabic answers back.
+const AR_MENU_WORDS = [
+  [/^which one$/i, "تحب تاخده إزاي؟"], [/^combo drink$/i, "مشروب الكومبو"],
+  [/^combo size$/i, "حجم الكومبو"], [/^size$/i, "الحجم"], [/^which fries$/i, "البطاطس"],
+  [/^drink$/i, "المشروب"], [/^side$/i, "الجانب"], [/^spice level$/i, "مستوى الحرارة"],
+  [/^sandwich$/i, "ساندوتش"], [/^combo \(fries \+ drink\)$/i, "كومبو (بطاطس + مشروب)"],
+  [/^full meal$/i, "وجبة كاملة"], [/^meal$/i, "وجبة"], [/^small$/i, "صغير"],
+  [/^medium$/i, "وسط"], [/^large$/i, "كبير"], [/^mild$/i, "خفيف"],
+  [/^medium spicy$/i, "وسط حراقة"], [/^hot 🔥$/i, "حار 🔥"], [/^hot$/i, "حار"],
+  [/^french fries$/i, "بطاطس"], [/^coca - cola$/i, "كوكاكولا"],
+  [/^coca - cola diet$/i, "كوكاكولا دايت"], [/^sprite$/i, "سبرايت"], [/^fanta$/i, "فانتا"],
+  [/^fanta orange$/i, "فانتا برتقال"], [/^water$/i, "مية"],
+];
+const arWord = (w) => { for (const [rx, ar] of AR_MENU_WORDS) if (rx.test(String(w).trim())) return ar; return w; };
+const arLabel = (l) => String(l).replace(/^If (.+?) — (.+)$/i, (m, cond, rest) => `لو ${arWord(cond)} — ${arWord(rest)}`)
+  .replace(/^(?!لو )(.*)$/s, (m, x) => arWord(x));
+
+function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, trackUrl, restaurant, slug, when, branchPin, lang }) {
+  // The bill mirrors the guest's language (Arabic gets full Arabic labels; Franco
+  // keeps the Latin/EN labels — transliterated accounting words read as noise).
+  const AR = lang === "ar";
   const money = (n) => `${fmtAmount(n)} ${currency}`;
   const lines = items.map((it) => {
     const mods = modifiers(it);
     return `• ${it.qty}× *${it.name}*${mods.length ? ` (${mods.join(" · ")})` : ""} — ${money(itemPrice(it) * Number(it.qty))}`;
   });
 
-  const totals = [`Subtotal: ${money(bill.subtotal)}`];
+  const totals = [`${AR ? "الإجمالي الجزئي" : "Subtotal"}: ${money(bill.subtotal)}`];
   for (const x of bill.extras) totals.push(`${x.label}: ${money(x.amount)}`);
   // VAT-inclusive breakdown — same wording and math as the printed receipt
   if (bill.vat_inclusive) {
-    totals.push(`Net Amount: ${money(bill.net)}`);
-    totals.push(`VAT Amount: ${money(bill.vat)}`);
+    totals.push(`${AR ? "الصافي" : "Net Amount"}: ${money(bill.net)}`);
+    totals.push(`${AR ? "الضريبة" : "VAT Amount"}: ${money(bill.vat)}`);
   }
-  totals.push(`*Total Due: ${money(bill.total)}*`);
-  if (bill.vat_inclusive) totals.push("_Prices are VAT inclusive._");
+  totals.push(`*${AR ? "الإجمالي المطلوب" : "Total Due"}: ${money(bill.total)}*`);
+  if (bill.vat_inclusive) totals.push(AR ? "_الأسعار شاملة الضريبة._" : "_Prices are VAT inclusive._");
 
-  const where = orderType === "dine_in" ? `Dine-in${tableNumber ? ` · table ${tableNumber}` : ""}${!tableNumber && branchName ? ` · ${branchName}` : ""}`
-    : orderType === "pickup" ? `Pickup${branchName ? ` · ${branchName}` : ""}${branchPin?.address ? `\n📍 ${branchPin.address}` : ""}${branchPin?.lat && branchPin?.lng ? `\n🗺 maps.google.com/?q=${branchPin.lat},${branchPin.lng}` : ""}`
-    : `Delivery${branchName ? ` · from ${branchName}` : ""}`;
+  const where = orderType === "dine_in" ? `${AR ? "في المطعم" : "Dine-in"}${tableNumber ? ` · ${AR ? "ترابيزة" : "table"} ${tableNumber}` : ""}${!tableNumber && branchName ? ` · ${branchName}` : ""}`
+    : orderType === "pickup" ? `${AR ? "تيك أواي" : "Pickup"}${branchName ? ` · ${branchName}` : ""}${branchPin?.address ? `\n📍 ${branchPin.address}` : ""}${branchPin?.lat && branchPin?.lng ? `\n🗺 maps.google.com/?q=${branchPin.lat},${branchPin.lng}` : ""}`
+    : `${AR ? "دليفري" : "Delivery"}${branchName ? ` · ${AR ? "من" : "from"} ${branchName}` : ""}`;
 
   const RULE = "―".repeat(24);
   // placed orders read like the paper receipt: header with the code and where/when,
   // items, totals, then payment + destination + ETA + the branded receipt link
   const header = code
-    ? [`🧾 *RECEIPT ${code}*`, restaurant ? `${restaurant}${branchName ? ` — ${branchName}` : ""}` : null, `${when || ""} · ${where}`.trim()]
-    : ["🧾 *YOUR ORDER*"];
+    ? [`🧾 *${AR ? "إيصال" : "RECEIPT"} ${code}*`, restaurant ? `${restaurant}${branchName ? ` — ${branchName}` : ""}` : null, `${when || ""} · ${where}`.trim()]
+    : [`🧾 *${AR ? "طلبك" : "YOUR ORDER"}*`];
   const footer = [
-    payment ? `💳 ${payment === "cash" ? "Cash" : payment === "card" ? "Card" : "InstaPay"}` : null,
+    payment ? `💳 ${payment === "cash" ? (AR ? "كاش" : "Cash") : payment === "card" ? (AR ? "كارت" : "Card") : (AR ? "انستاباي" : "InstaPay")}` : null,
     orderType === "delivery" && address ? `📍 ${address}` : null,
-    code && eta ? `⏱ about ${eta} min` : null,
+    code && eta ? `⏱ ${AR ? `حوالي ${eta} دقيقة` : `about ${eta} min`}` : null,
     code ? `📄 ${publicLink(`/receipt/${code}`, slug)}` : null,
-    trackUrl ? `📍 Track live: ${trackUrl}` : null,
+    trackUrl ? `📍 ${AR ? "تابع طلبك لايف" : "Track live"}: ${trackUrl}` : null,
   ].filter(Boolean);
   return [
     ...header.filter(Boolean),

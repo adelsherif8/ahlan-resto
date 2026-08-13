@@ -11,7 +11,7 @@ import { label, isLabel } from "../services/labels.js";
 import { PUBLIC_BASE } from "../config.js";
 import { bump } from "../services/metrics.js";
 
-const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm)\W*$/i;
+const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm|تأكيد|اكد|أكد|تمام)\W*$/i;
 // a bare greeting (nothing else) — used both for the 0-LLM first-timer welcome and the
 // classify shortcut so the two never disagree on what counts as "just a greeting"
 const GREETING = /^(hi+|hey+|hello+|yo|hala|ahlan|اهلا|أهلا|هلا|السلام عليكم|صباح الخير|مساء الخير|good (morning|evening))[\s!.😊👋🙏]*$/i;
