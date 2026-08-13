@@ -241,7 +241,7 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
    - their birthday or anniversary → detected_preferences.occasion = {"type":"birthday"|"anniversary","date":"MM-DD"} (compute MM-DD from TODAY IS if they say "next Friday")
    - other durable personal facts (kids, works nearby, hates cilantro) → detected_facts: short third-person snippets, max 8 words each.
    NEVER capture sensitive info (health conditions, religion, politics, private drama). ONLY the guest's OWN preferences — a friend's or family member's taste ("my friend Sara loves your pasta") is NEVER captured as this guest's favorite.
-12. QUICK REPLIES: buttons are for real DECISION POINTS only (booking next step, menu, yes/no choices) — set quick_replies to 2-3 SHORT labels (1-3 words, max 20 chars, guest's language). NO buttons during: emotional moments, apologies, empathy, flowing chit-chat, INFORMATIONAL ANSWERS (hours, location, delivery areas/fees, policies, prices — the answer IS the reply, don't funnel them anywhere), or when your reply already ends the topic. Most replies should have NO buttons — think one in every few replies, not every reply.
+12. QUICK REPLIES: buttons are for real DECISION POINTS only (booking next step, menu, yes/no choices) — set quick_replies to 2-3 SHORT labels (1-3 words, max 20 chars, guest's language). NO buttons during: emotional moments, apologies, empathy, flowing chit-chat, INFORMATIONAL ANSWERS (hours, location, delivery areas/fees, policies, prices — the answer IS the reply, don't funnel them anywhere), or when your reply already ends the topic. Most replies should have NO buttons — think one in every few replies, not every reply. NEVER meta labels about the conversation itself ("Ask me a question", "اسألني سؤال") — every button is a concrete guest action with a real outcome.
 13. If they ask to SEE THE MENU / "what do you have" / tap an order button: reply with a 1-line appetizing teaser and set send_menu_list=true — the menu PDF and its link are attached automatically. NEVER paste the menu as text and NEVER ask "what would you like?" without sending it. BUT a question about a CATEGORY ("what burgers do you have?", "عندكم برجر ايه") is NOT a menu request — NAME the items of that category in your reply (COMPLETE ANSWERS rule); never deflect to the PDF instead of answering.
 14. WAITLIST: if the guest asks to join tonight's waitlist (or wants a table right now and accepts waiting) AND gave a party size, set add_to_waitlist = {"party_size": n, "name": <their name if known>}. When you set it you MAY tell them they're on the list (we really add them). Never invent wait times.
 15. FEEDBACK: if they describe a PAST visit experience — praise or complaint — OR reply to our "rate 1–5" ask with a number/stars, set detected_feedback = {"sentiment": "positive"|"negative", "text": "<their words, short>", "rating": <1–5 if they gave a number/stars, else null>}. A bare number 1–5 right after we asked them to rate IS a rating (4–5 positive, 1–2 negative, 3 neutral→use positive). For PRAISE: react like a warm human FIRST — thank them and reference what they liked ("so glad the smash burger hit the spot! 🧡"). Do NOT pivot to pushing an order or listing items; a Google-review invite is appended automatically for you, so DON'T write a review link yourself. For complaints: apologize once, genuinely; serious ones also get needs_handoff=true.
@@ -309,7 +309,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         const PITCH = /\b(is|are) (a|the) (beast|legend|must[- ]try)|you gotta try|don'?t miss|craving (that|our)/i;
         // name/restaurant enforcement ONLY when the guest actually just said hi —
         // a first-message QUESTION must keep its ANSWER, never become a greeting
-        const BARE_GREETING = /^(hi+|hey+|hello+|yo+|hala|ahlan|ezayak|ezayek|ezay|salam|هاي|اهلا|أهلا|اهلين|هلا|السلام عليكم|ازيك|ازيكم|مرحبا|صباح الخير|مساء الخير|good (morning|evening|afternoon))[\s!.😊👋🙌❤️🔥]*$/i;
+        const BARE_GREETING = /^(hi+|hey+|hello+|yo+|hala|ahlan|ezayak|ezayek|ezay|salam( 3alek(o|om|um))?|هاي|اهلا|أهلا|اهلين|هلا|(ال)?سلام( عليكو?م?)?|وعليكم السلام|ازيك|ازيكم|مرحبا|صباح الخير|مساء الخير|good (morning|evening|afternoon))[\s!.😊👋🙌❤️🔥]*$/i;
         const bareGreeting = message.trim().length <= 25 && BARE_GREETING.test(message.trim());
         const firstName = (context.greetName || "").split(" ")[0];
         const missName = bareGreeting && firstName && context.situation !== "first_timer" && !draft.toLowerCase().includes(firstName.toLowerCase());
@@ -516,7 +516,11 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       if (photos.length === 3) break;
     }
 
-    let quickReplies = (out.quick_replies || []).map(trimLabel).filter(Boolean).slice(0, 3);
+    // Buttons must be concrete guest actions (menu, order, book…). The model sometimes
+    // invents meta chips like "اسألني سؤال" / "Ask me a question" — a button that tells
+    // the guest to talk to the bot is noise, so those are dropped in code, always.
+    const META_CHIP = /سؤال|اسألني|اسالني|question|ask me|as2al|so2al/i;
+    let quickReplies = (out.quick_replies || []).map(trimLabel).filter(Boolean).filter((q) => !META_CHIP.test(q)).slice(0, 3);
 
     // The FIRST buttons of a conversation are the ways IN, not a reorder prompt.
     // Three buttons is all WhatsApp allows, and spending one of them on "same as last
@@ -526,15 +530,17 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     // ONLY on a greeting-style opener though: someone who OPENS with a question
     // ("بتوصلوا المعادي؟ وبكام") wants their answer, not a menu funnel — forcing the
     // entry chips onto every first message buried real answers under button spam.
-    const greetingOpener = /^(hi+|hey+|hello+|yo|hala|ahlan|salam|اهلا|أهلا|هلا|السلام عليكم|صباح|مساء|ازيك|عامل ايه|good (morning|evening|afternoon))/iu
+    const greetingOpener = /^(hi+|hey+|hello+|yo|hala|ahlan|salam|اهلا|أهلا|هلا|(ال)?سلام|وعليكم السلام|صباح|مساء|ازيك|عامل ايه|good (morning|evening|afternoon))/iu
       .test(String(input.message || "").trim()) && String(input.message || "").trim().length <= 40;
     if (context.isNewConversation && config.basic_info?.restaurant_type === "casual" && greetingOpener) {
       // ask_type_first restaurants lead with ORDER (one tap → the type question);
-      // menu-first restaurants keep the browse-first order.
+      // menu-first restaurants keep the browse-first order. Chips render in the
+      // guest's language — an Arabic سلام never gets an "Order now" button.
+      const chipLang = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
       const entry = config.ai?.ask_type_first === true
-        ? [label(config, "order_now"), label(config, "browse_menu")]
-        : [label(config, "browse_menu"), label(config, "order_now")];
-      if (builderConfig(config).enabled) entry.push(label(config, "build_your_own"));
+        ? [label(config, "order_now", chipLang), label(config, "browse_menu", chipLang)]
+        : [label(config, "browse_menu", chipLang), label(config, "order_now", chipLang)];
+      if (builderConfig(config).enabled) entry.push(label(config, "build_your_own", chipLang));
       quickReplies = entry.slice(0, 3);
     }
     // menu display mode is per-restaurant: PDF document + link (default) | full text | tappable list
@@ -563,12 +569,13 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
               logoUrl: config.basic_info?.brand?.logo_url || null,
             });
         if (pdf) {
-          menuDoc = { url: pdf.url, caption: `${config.name} — full menu 📄`, filename: pdf.filename };
-          {
-            const lv = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
-            const l2 = (en, ar, fr) => (lv === "ar" ? ar : lv === "fr" ? fr : en);
-            reply = `${reply}\n\n📄 ${l2("Full menu", "المنيو الكامل", "El menu el kamel")}: ${publicLink("/menu.pdf", config.slug)}\n${l2("Just tell me what you'd like and I'll take it from there.", "قولّي تحب تطلب إيه وأنا أكمّل معاك.", "2oly te7eb totlob eh w ana akamel ma3ak.")}`.slice(0, 3900);
-          }
+          // The PDF itself is attached — a raw URL to the same menu next to it is
+          // noise (and an ugly long link until the pretty domain is live), so the
+          // text only nudges them to order.
+          const lv = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
+          const l2 = (en, ar, fr) => (lv === "ar" ? ar : lv === "fr" ? fr : en);
+          menuDoc = { url: pdf.url, caption: l2(`${config.name} — full menu 📄`, `${config.name} — المنيو الكامل 📄`, `${config.name} — el menu el kamel 📄`), filename: pdf.filename };
+          reply = `${reply}\n\n${l2("Just tell me what you'd like and I'll take it from there.", "قولّي تحب تطلب إيه وأنا أكمّل معاك.", "2oly te7eb totlob eh w ana akamel ma3ak.")}`.slice(0, 3900);
         } else {
           // menu exists but the PDF couldn't be made — never leave the guest empty-handed
           reply = `${reply}\n\n${fullMenuText(context.menu, currency)}`.slice(0, 3900);

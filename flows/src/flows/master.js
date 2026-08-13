@@ -7,14 +7,14 @@ import { MODEL_FAST, MODEL_NANO } from "../config.js";
 import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath } from "../services/fastpaths.js";
 import { wantsBuilder } from "../services/fastpaths.js";
 import { signBuildToken, builderConfig, priceBuild, describeBuild, LAYERS as BUILDER_LAYERS } from "../services/builder.js";
-import { label, isLabel } from "../services/labels.js";
+import { label, isLabel, isLabelKey } from "../services/labels.js";
 import { PUBLIC_BASE } from "../config.js";
 import { bump } from "../services/metrics.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm|تأكيد|اكد|أكد|تمام)\W*$/i;
 // a bare greeting (nothing else) — used both for the 0-LLM first-timer welcome and the
 // classify shortcut so the two never disagree on what counts as "just a greeting"
-const GREETING = /^(hi+|hey+|hello+|yo|hala|ahlan|اهلا|أهلا|هلا|السلام عليكم|صباح الخير|مساء الخير|good (morning|evening))[\s!.😊👋🙏]*$/i;
+const GREETING = /^(hi+|hey+|hello+|yo|hala|ahlan|salam( 3alek(o|om|um))?|اهلا|أهلا|هلا|(ال)?سلام( عليكو?م?)?|وعليكم السلام|صباح الخير|مساء الخير|good (morning|evening))[\s!.😊👋🙏]*$/i;
 // warm, assumption-free fallbacks when the restaurant hasn't set config.ai.greetings.
 // {name} = restaurant name (filled in below). Returning guests never see these — they
 // get the context-rich LLM greeting (their usual, birthday, welcome-back).
@@ -154,7 +154,7 @@ defineFlow({
         }
       }
 
-      if ((wantsBuilder(message) || isLabel(message, label(ctx.tenant.config, "build_your_own"))) && builderConfig(ctx.tenant.config).enabled) {
+      if ((wantsBuilder(message) || isLabelKey(ctx.tenant.config, message, "build_your_own")) && builderConfig(ctx.tenant.config).enabled) {
         bump("builder_hits");
         const token = signBuildToken({ sessionId: ctx.sessionId, slug: ctx.tenant.config.slug });
         return {
