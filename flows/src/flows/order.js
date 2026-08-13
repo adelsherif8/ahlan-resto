@@ -1285,6 +1285,11 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       if (outcome.item && !lead.includes(outcome.item)) {
         lead = L2(`Now for your *${outcome.item}* 👇`, `دلوقتي اختيارات *${outcome.item}* 👇`, `Dilwa2ty *${outcome.item}* 👇`);
       }
+      // Non-English guests get the CODE lead — the model writes English for Franco
+      // (Latin script passes its mirror rule) and the ask must feel native.
+      if (LANGV !== "en") {
+        lead = L2(lead, `اختيارات سريعة لـ *${outcome.item}* — ممكن تجاوب كلها مرة واحدة 👇`, `Quick choices 3ashan *${outcome.item}* — momken tegaweb kolaha mara wa7da 👇`);
+      }
       // a re-ask must SAY it didn't understand — the silent identical reprint read
       // as the bot being stuck (a real guest answered "Burger" and got a wall twice)
       if ((outcome.tries || 1) >= 2) {

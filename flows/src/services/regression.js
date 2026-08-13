@@ -222,7 +222,7 @@ const CASES = [
   // notices, and fulfillment questions mirror the guest's language.
   { id: "arstructure", needs: "casual", name: "Arabic order gets Arabic structural strings",
     turns: ["عايز اتنين لودد فرايز تيك اواي من فرع المعادي"],
-    expect: [new RegExp("الإجمالي الجزئي|تمام —|تحب طلبك")] },
+    expect: [new RegExp("الإجمالي الجزئي|تمام —|تحب طلبك|تقصد أنهي|اختيارات")] },
   // "cancel all" with a live DRAFT clears the draft — a stale placed order (already
   // READY) must never hijack the answer with "can't cancel" (live bug, 13 Aug).
   { id: "cancelnothijack", needs: "casual", name: "Cancel clears the draft even when an old placed order exists",
