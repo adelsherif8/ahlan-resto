@@ -24,6 +24,11 @@ const DEFAULT_GREETINGS = [
   "Ahlan! 🙌 Ready when you are — what would you like today?",
 ];
 // An Arabic "اهلا" must never get an English canned line — same rotation, mirrored.
+const DEFAULT_GREETINGS_FR = [
+  "Ahlan beek fe {name}! 👋 Nefsak fe eh el naharda? 🍔",
+  "Heyy! 😊 Menawarna fe {name} — te7eb totlob eh?",
+  "Ya hala! 🙌 Gahzeen le orderak — te7eb takol eh?",
+];
 const DEFAULT_GREETINGS_AR = [
   "أهلاً بيك في {name}! 👋 نفسك في إيه النهارده؟ 🍔",
   "أهلاً وسهلاً! 😊 منورنا في {name} — تحب تطلب إيه؟",
@@ -90,8 +95,9 @@ defineFlow({
           bump("greeting_hits");
           const rname = ctx.tenant.config.basic_info?.name || ctx.tenant.config.name || "us";
           const isAr = /[\u0600-\u06FF]/.test(message);
+          const isFr = !isAr && sticky === "franco";
           const cfgPool = isAr ? ctx.tenant.config.ai?.greetings_ar : ctx.tenant.config.ai?.greetings;
-          const pool = cfgPool?.length ? cfgPool : (isAr ? DEFAULT_GREETINGS_AR : DEFAULT_GREETINGS);
+          const pool = cfgPool?.length ? cfgPool : (isAr ? DEFAULT_GREETINGS_AR : isFr ? DEFAULT_GREETINGS_FR : DEFAULT_GREETINGS);
           let reply = String(pool[greetIdx++ % pool.length]).replace(/\{name\}/g, rname);
           const sug = (ctx.tenant.config.ai?.suggest_dishes || []).filter(Boolean).slice(0, 3);
           if (sug.length && ctx.tenant.config.ai?.suggest_enabled !== false) {

@@ -39,6 +39,10 @@ defineFlow({
     const { db, config } = ctx.tenant;
     const currency = config.payments?.currency || "EGP";
     const { diner, classification } = input;
+    // STRUCTURE SPEAKS THE GUEST'S LANGUAGE — Arabic and Franco variants of every
+    // code-built template. Deterministic strings: zero AI tokens, exactly like English.
+    const LANGV = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
+    const L2 = (en, ar, fr) => (LANGV === "ar" ? ar : LANGV === "fr" ? (fr || en) : en);
 
     const branches = (config.basic_info?.branches || []).filter((b) => b && typeof b === "object" && b.key);
 
@@ -684,7 +688,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const target = typeof one === "string" ? loaded.menu.find((m) => normName(m.name) === normName(one)) : null;
           if (target && !items.some((it) => it.id === target.id)) {
             items.push({ id: target.id, name: target.name, qty: q, price: Number(target.price), notes: null, options: {}, option_defs: target.options || [] });
-            outcomeNotices.push(`${u} → *${target.name}* ✍️ (say the word to switch)`);
+            outcomeNotices.push(L2(`${u} → *${target.name}* ✍️ (say the word to switch)`, `${u} → *${target.name}* ✍️ (قول لو عايز تغيّر)`, `${u} → *${target.name}* ✍️ (2ol law 3ayez teghayar)`));
           } else if (!target) still.push(u);
         }
         unknown = still;
@@ -759,7 +763,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           // feedback belongs to pass 0 only — pass 1 re-reads the SAME message against
           // leftover groups and would re-report an already-applied answer as missing
           const addedThisTurn = !!(e.items?.length || (e.edits || []).some((d) => d?.op === "add"));
-          if (pass === 0 && unmatchedOpt && !addedThisTurn && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`);
+          if (pass === 0 && unmatchedOpt && !addedThisTurn && !outcomeNotices.some((x) => x.startsWith("We don't have") || x.startsWith("معندناش"))) outcomeNotices.push(L2(`We don't have ${unmatchedOpt} 🙏 — the options we've got are below.`, `معندناش ${unmatchedOpt} 🙏 — الاختيارات اللي عندنا تحت.`, `Ma3andenash ${unmatchedOpt} 🙏 — el options elly 3andena taht.`));
           // Equivalents are AUTO-APPLIED, never asked about — and only ever a real list
           // string. The nano once invented "Coca-Cola Zero" (not on the menu) and the
           // notice claimed it was applied while nothing landed. Code verifies both.
@@ -776,7 +780,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
             }
             if (!canonUsed) {
               // invented product — discard the mapping, tell the guest honestly instead
-              if (pass === 0 && !unmatchedOpt && !addedThisTurn && !outcomeNotices.some((x) => x.startsWith("We don't have"))) outcomeNotices.push(`We don't have ${eq.asked} 🙏 — the options we've got are below.`);
+              if (pass === 0 && !unmatchedOpt && !addedThisTurn && !outcomeNotices.some((x) => x.startsWith("We don't have") || x.startsWith("معندناش"))) outcomeNotices.push(L2(`We don't have ${eq.asked} 🙏 — the options we've got are below.`, `معندناش ${eq.asked} 🙏 — الاختيارات اللي عندنا تحت.`, `Ma3andenash ${eq.asked} 🙏 — el options elly 3andena taht.`));
               eq = null;
             } else {
               eq.used = canonUsed;
@@ -797,7 +801,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
             if (valid && !askedItem.options[g.key]) { askedItem.options[g.key] = valid.name; appliedAny = true; appliedVals.add(valid.name); }
           });
           // the substitution notice may only state what ACTUALLY landed on the draft
-          if (eq && eq.different && appliedVals.has(eq.used)) outcomeNotices.push(`${eq.asked} → closest we carry is *${eq.used.slice(0, 40)}*, put that in ✍️ (say the word to switch)`);
+          if (eq && eq.different && appliedVals.has(eq.used)) outcomeNotices.push(L2(`${eq.asked} → closest we carry is *${eq.used.slice(0, 40)}*, put that in ✍️ (say the word to switch)`, `${eq.asked} → أقرب حاجة عندنا *${eq.used.slice(0, 40)}*، حطيتها ✍️ (قول لو عايز تغيّر)`, `${eq.asked} → a2rab 7aga 3andena *${eq.used.slice(0, 40)}*, 7atetha ✍️ (2ol law 3ayez teghayar)`));
           if (!appliedAny) break;
           items = step.items;
           step = nextQuestion(items, loaded.menu, "", loaded.pending, currency);
@@ -811,7 +815,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       running = runningOf(items); // this turn's answers are in — never echo the stale bill
       // Anything the guest named that we DON'T carry is said out loud mid-gather —
       // silently dropping "a cola zero" loses part of the order and erodes trust.
-      if (unknown.length) outcomeNotices.push(`Couldn't find ${unknown.join(", ")} on the menu 🙏`);
+      if (unknown.length) outcomeNotices.push(L2(`Couldn't find ${unknown.join(", ")} on the menu 🙏`, `ملقناش ${unknown.join("، ")} في المنيو 🙏`, `Mala2enash ${unknown.join(", ")} fel menu 🙏`));
       if (step.ask) {
         // Info said alongside an unanswered option ("pickup and pay cash" while the size
         // is still open) IS captured (savePending) — acknowledge it so the re-ask doesn't
@@ -820,7 +824,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           e.order_type ? e.order_type.replace("_", "-") : null,
           e.payment_method || null,
         ].filter(Boolean);
-        if (noted.length) outcomeNotices.push(`Noted — ${noted.join(" + ")} ✅`);
+        if (noted.length) outcomeNotices.push(L2(`Noted — ${noted.join(" + ")} ✅`, `تمام — ${noted.join(" + ")} ✅`, `Tamam — ${noted.join(" + ")} ✅`));
         // RE-ASK CIRCUIT BREAKER: the SAME question issued a 4th time means three
         // answers in a row didn't land — asking again is a loop, not persistence.
         // Hand them to a human instead of grinding (the last unguarded loop class).
@@ -1155,7 +1159,7 @@ OUTCOMES:
 - order_status: ONE short warm line only ("on it — here's where your order is 👇"). A progress ladder with real timestamps is appended by code below your line — never restate steps, times or the code yourself.
 - order_cancelled: cancelled ✅, no charge, door's open.
 - draft_cleared: they removed everything from the order being built — confirm it's wiped, offer to start fresh.
-- too_late_to_cancel: the order is confirmed and with the kitchen 👨‍🍳 — it can't be cancelled from chat; the team has been pinged and can help at the counter or on the phone.
+- too_late_to_cancel: ${L2("the order is confirmed and with the kitchen 👨‍🍳 — it can't be cancelled from chat; the team has been pinged and can help at the counter or on the phone.", "الطلب متأكد وفي المطبخ 👨‍🍳 — مش هينفع يتلغي من الشات؛ بلغنا الفريق وهيساعدوك على الكاونتر أو التليفون.", "El order met2aked w fel kitchen 👨‍🍳 — mesh hayenfa3 yetlghy men el chat; balaghna el team.")}
 - no_open_order: no active order found — want to start one?
 - stuck_handoff: the same question did not land three times — warmly say you do not want to keep repeating yourself and a TEAM MEMBER will jump in right here to finish the order with them. NEVER blame the guest, never re-ask the question.
 - no_delivery: we don't do delivery — pickup or dine-in works great though.
@@ -1189,10 +1193,10 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       ask_table: `Which table are you at? The number's printed on it${(outcome.tables || []).length ? ` — they look like ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`,
       bad_table: `I can't find table ${outcome.given} — ours are ${(outcome.tables || []).slice(0, 8).join(", ")}. Which one are you at?`,
       no_open_order: "No active order found — want to start one? 🍔",
-      stuck_handoff: "I don't want to keep asking the same thing 😅 — a team member will jump in right here and finish your order with you 🙏",
-      draft_cleared: "All cleared ✅ Want to start a fresh order?",
-      menu_request: "اتفضل المنيو 📄 — قولّي تحب تضيف إيه!\nHere's the menu — tell me what to add!",
-      which_item: `You said *${outcome.said || "that"}*${(outcome.qty || 1) > 1 ? ` (×${outcome.qty})` : ""} — we've got a few like that 😄 Which one did you mean?`,
+      stuck_handoff: L2("I don't want to keep asking the same thing 😅 — a team member will jump in right here and finish your order with you 🙏", "مش عايز أفضل أسأل نفس السؤال 😅 — حد من الفريق هيدخل معاك هنا يكمّل طلبك 🙏", "Mesh 3ayez afdal as2al nafs el so2al 😅 — 7ad men el team haydkhol ykamel ma3ak el order 🙏"),
+      draft_cleared: L2("All cleared ✅ Want to start a fresh order?", "اتلغى كله ✅ تحب تبدأ طلب جديد؟", "Etlagha kolo ✅ te7eb tebda2 order gedid?"),
+      menu_request: L2("Here's the menu 📄 — tell me what to add!", "اتفضل المنيو 📄 — قولّي تحب تضيف إيه!", "Etfadal el menu 📄 — 2oly te7eb tedif eh!"),
+      which_item: L2(`You said *${outcome.said || "that"}*${(outcome.qty || 1) > 1 ? ` (×${outcome.qty})` : ""} — we've got a few like that 😄 Which one did you mean?`, `قولت *${outcome.said || "كده"}*${(outcome.qty || 1) > 1 ? ` (×${outcome.qty})` : ""} — عندنا كذا واحد شبهه 😄 تقصد أنهي واحد؟`, `2olt *${outcome.said || "keda"}*${(outcome.qty || 1) > 1 ? ` (×${outcome.qty})` : ""} — 3andena kaza wa7ed shabaho 😄 te2sod anhy?`),
       delivery_paused: "Delivery's paused right now (kitchen's slammed 🙏) — but pickup's open! Want to switch to pickup?",
       delivery_closed: `Delivery runs ${outcome.hours?.open || ""}–${outcome.hours?.close || ""} 🙏 — we're outside those hours right now, but pickup works! Want pickup instead?`,
       no_delivery_area: `We don't deliver to that area yet 🙏 — but pickup's ready${outcome.branch ? ` at ${outcome.branch}` : ""}. Want pickup instead?`,
@@ -1223,7 +1227,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // Fulfillment questions are STRUCTURE too — model writes one lead-in line
     if (outcome.kind === "ask_fulfillment") {
       const qs = [];
-      if (outcome.need_type) qs.push(`How would you like it?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`);
+      if (outcome.need_type) qs.push(L2(`How would you like it?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`, `تحب طلبك يكون إزاي؟\n• في المطعم (Dine-in)\n• تيك أواي (Pickup)${outcome.delivery === false ? "" : "\n• دليفري (Delivery)"}`, `Te7eb el order ezay?\n• Dine-in\n• Pickup${outcome.delivery === false ? "" : "\n• Delivery"}`));
       if (outcome.need_branch) {
         const near = outcome.nearest?.length ? `\nClosest to you: ${outcome.nearest[0]} 📍`
           : outcome.usual ? `\nYour usual: ${outcome.usual} ⭐` : "";
@@ -1233,8 +1237,8 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         qs.push(`${head}${near}\n${(outcome.branches || []).map((b) => `• ${b}`).join("\n")}`);
       }
       if (outcome.need_table) qs.push(`Which table are you at? (the number's on it — like ${(outcome.tables || []).slice(0, 3).join(", ")})`);
-      if (outcome.need_pickup_time) qs.push(`When are you passing by? 🕐 Your order takes ~${outcome.prep_min || 10} min — say "now", "in 30 min", or a time`);
-      if (outcome.need_payment && outcome.pay_methods?.length) qs.push(`And how will you pay? 💳\n${outcome.pay_methods.map((m) => `• ${m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}\n(you can answer everything in one message 😄)`);
+      if (outcome.need_pickup_time) qs.push(L2(`When are you passing by? 🕐 Your order takes ~${outcome.prep_min || 10} min — say "now", "in 30 min", or a time`, `هتعدي علينا امتى؟ 🕐 طلبك بياخد حوالي ${outcome.prep_min || 10} دقيقة — قول "دلوقتي" أو "بعد نص ساعة" أو معاد`, `Hat3ady emta? 🕐 El order byakhod ~${outcome.prep_min || 10} d2ay2 — 2ol "delwa2ty" aw "ba3d nos sa3a"`));
+      if (outcome.need_payment && outcome.pay_methods?.length) qs.push(`${L2("And how will you pay? 💳", "وهتدفع إزاي؟ 💳", "W hatedfa3 ezay? 💳")}\n${outcome.pay_methods.map((m) => `• ${m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}\n${L2("(you can answer everything in one message 😄)", "(ممكن تجاوب على كله في رسالة واحدة 😄)", "(momken tegaweb 3ala kolo f message wa7da 😄)")}`);
       if (outcome.need_address) qs.push((outcome.saved || []).length
         ? `Delivery address — same as before (${outcome.saved[0]}), or somewhere new?`
         : ADDRESS_TEMPLATE_EN);
@@ -1270,24 +1274,21 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // notice must never trip its own guard.)
       const CLAIMS = /تؤكد|تأكيد|أكد الطلب|اخترت|اخترتي|اختارت|سجلت|confirm|you (chose|picked|selected)|chosen|noted|got it|recorded|✍️|closest|would you like|instead|rather|بدل|هل تحب/i;
       if (CLAIMS.test(lead)) {
-        const ar = /[\u0600-\u06FF]/.test(lead);
-        lead = ar
-          ? `اختيارات سريعة لـ ${outcome.item} — ممكن تجاوب كلها مرة واحدة 👇`
-          : `Quick choices for your *${outcome.item}* — you can answer in one go 👇`;
+        lead = L2(`Quick choices for your *${outcome.item}* — you can answer in one go 👇`,
+          `اختيارات سريعة لـ *${outcome.item}* — ممكن تجاوب كلها مرة واحدة 👇`,
+          `Quick choices 3ashan *${outcome.item}* — momken tegaweb kolaha mara wa7da 👇`);
         if (value.value) value.value.quick_replies = [];
       }
       // The lead MUST name the dish being configured — "Next up!" with a bare drink
       // list read as being stuck on the FIRST sandwich. If the model's lead doesn't
       // carry the name, code writes one that does.
       if (outcome.item && !lead.includes(outcome.item)) {
-        lead = /[\u0600-\u06FF]/.test(lead)
-          ? `دلوقتي اختيارات *${outcome.item}* 👇`
-          : `Now for your *${outcome.item}* 👇`;
+        lead = L2(`Now for your *${outcome.item}* 👇`, `دلوقتي اختيارات *${outcome.item}* 👇`, `Dilwa2ty *${outcome.item}* 👇`);
       }
       // a re-ask must SAY it didn't understand — the silent identical reprint read
       // as the bot being stuck (a real guest answered "Burger" and got a wall twice)
       if ((outcome.tries || 1) >= 2) {
-        lead = `${/[\u0600-\u06FF]/.test(lead) ? "معلش مش فاهم قصدك 😅 اختار من دول:" : "Sorry — didn't catch that 😅 Pick from these:"}\n${lead}`;
+        lead = `${L2("Sorry — didn't catch that 😅 Pick from these:", "معلش مش فاهم قصدك 😅 اختار من دول:", "Ma3lesh mesh fahem 2asdak 😅 ekhtar men dol:")}\n${lead}`;
       }
       if (outcome.notices?.length) noticeBlock = outcome.notices.join("\n");
       // The dish being configured pops in WhatsApp bold — the guest's eye finds WHICH
@@ -1322,7 +1323,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         return `• ${it.qty}× *${it.name}*${mods.length ? ` (${mods.join(" · ")})` : ""} — ${open_(it) ? "from " : ""}${money(itemPrice(it) * it.qty)}`;
       });
       const RULE = "―".repeat(24);
-      reply = `${reply}\n\n${RULE}\n${lines.join("\n")}\nSubtotal: ${anyOpen ? "from " : ""}${money(outcome.running.subtotal)}\n${RULE}`;
+      reply = `${reply}\n\n${RULE}\n${lines.join("\n")}\n${L2("Subtotal", "الإجمالي الجزئي", "Subtotal")}: ${anyOpen ? L2("from ", "من ", "from ") : ""}${money(outcome.running.subtotal)}\n${RULE}`;
     }
 
     // Upsell is CODE-PLACED: top of the payment message, dish name in bold —

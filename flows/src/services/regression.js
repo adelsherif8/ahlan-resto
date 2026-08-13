@@ -218,6 +218,11 @@ const CASES = [
   { id: "whichitem", needs: "casual", name: "The which-one answer + remembered qty land as the real item",
     turns: ["3 iconic for pickup from Maadi", "the iconic wrap meal"],
     expect: [/iconic wrap/i, /your 3|3×|×3/i], forbid: [/1×\s*\*?iconic sauce/i] },
+  // Arabic guests get ARABIC structure (code-built, zero AI) — the bill words,
+  // notices, and fulfillment questions mirror the guest's language.
+  { id: "arstructure", needs: "casual", name: "Arabic order gets Arabic structural strings",
+    turns: ["عايز اتنين لودد فرايز تيك اواي من فرع المعادي"],
+    expect: [new RegExp("الإجمالي الجزئي|تمام —|تحب طلبك")] },
   // "cancel all" with a live DRAFT clears the draft — a stale placed order (already
   // READY) must never hijack the answer with "can't cancel" (live bug, 13 Aug).
   { id: "cancelnothijack", needs: "casual", name: "Cancel clears the draft even when an old placed order exists",
