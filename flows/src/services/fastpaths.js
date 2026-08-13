@@ -164,8 +164,11 @@ function findItem(data, message) {
   const norm = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
   const probe = ` ${norm(message)} `;
   const items = (data || []).filter((m) => m.available);
+  // Arabic guests name dishes by their Arabic menu name — match both scripts.
   return items.find((m) => probe.includes(` ${norm(m.name)} `))
+    || items.find((m) => m.name_ar && probe.includes(` ${norm(m.name_ar)} `))
     || items.find((m) => { const t = norm(m.name).split(" ")[0]; return t.length >= 4 && probe.includes(` ${t} `); })
+    || items.find((m) => { const t = norm(m.name_ar || "").split(" ")[0]; return t.length >= 4 && probe.includes(` ${t} `); })
     || null;
 }
 export async function matchItemInfo(db, message, sticky = null) {
@@ -177,13 +180,17 @@ export async function matchItemInfo(db, message, sticky = null) {
   const item = findItem(data, message);
   if (!item) { nearMiss("item_info", message); return null; }
   const l = lang(message, sticky);
+  // Arabic guests get the Arabic dish name; ingredient text comes from the DB in
+  // the guest's language when it exists (ingredients_ar), never invented.
+  const dnAr = item.name_ar || item.name;
   if (wantsIngredients) {
-    const src = item.ingredients || item.description;
-    if (!src) return null; // nothing real in the DB → the LLM stays honest instead
+    const srcEn = item.ingredients || item.description;
+    const srcAr = item.ingredients_ar || null;
+    if (!srcEn && !srcAr) return null; // nothing real in the DB → the LLM stays honest instead
     const replies = {
-      en: `${item.name}: ${src}`,
-      ar: `${item.name}: ${src}`,
-      franco: `${item.name}: ${src}`,
+      en: `${item.name}: ${srcEn || srcAr}`,
+      ar: `${dnAr}: ${srcAr || srcEn}`,
+      franco: `${item.name}: ${srcEn || srcAr}`,
     };
     return { reply: replies[l] || replies.en, kind: "item_info", language: l };
   }
@@ -192,7 +199,7 @@ export async function matchItemInfo(db, message, sticky = null) {
     const level = Number(item.spice_level);
     const replies = {
       en: level === 0 ? `${item.name} isn't spicy at all 👌` : `${item.name} is ${["not spicy", "mildly spicy 🌶", "medium spicy 🌶🌶", "properly hot 🌶🌶🌶"][level] || "spicy"}`,
-      ar: level === 0 ? `${item.name} مش حار خالص 👌` : `${item.name} ${["مش حار", "حار خفيف 🌶", "حار متوسط 🌶🌶", "حار جامد 🌶🌶🌶"][level] || "حار"}`,
+      ar: level === 0 ? `${dnAr} مش حار خالص 👌` : `${dnAr} ${["مش حار", "حار خفيف 🌶", "حار متوسط 🌶🌶", "حار جامد 🌶🌶🌶"][level] || "حار"}`,
       franco: level === 0 ? `${item.name} mesh 7ar khales 👌` : `${item.name} ${["mesh 7ar", "7ar khafif 🌶", "7ar metwaset 🌶🌶", "7ar gamed 🌶🌶🌶"][level] || "7ar"}`,
     };
     return { reply: replies[l] || replies.en, kind: "item_spice", language: l };
@@ -338,4 +345,36 @@ export async function matchItemPrice(db, message, currency = "EGP", sticky = nul
     franco: `${m.name} be ${m.price} ${currency} 🙂`,
   };
   return { reply: replies[l] || replies.en, kind: "faq_item_price", language: l };
+}
+
+// ---- fuzzy greeting: catches misspelled greetings the regexes miss ("سلام عليكو",
+// "helo", "ezayk") — one edit of distance per ~4 chars, so real words like "menu"
+// or dish names can never drift into a greeting. Pure code, zero LLM.
+const GREETING_WORDS = [
+  "hi", "hey", "hello", "yo", "hala", "ahlan", "salam", "salam 3alekom", "salam 3aleko",
+  "ezayak", "ezayek", "ezayk", "good morning", "good evening", "good afternoon",
+  "هاي", "اهلا", "اهلين", "هلا", "سلام", "سلام عليكم", "سلام عليكو", "السلام عليكم",
+  "وعليكم السلام", "مرحبا", "ازيك", "ازيكم", "صباح الخير", "مساء الخير", "عامل ايه",
+];
+function editDistance(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 99;
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return dp[a.length][b.length];
+}
+export function isGreetingish(message) {
+  const raw = String(message || "").trim();
+  if (!raw || raw.length > 40) return false;
+  const norm = raw
+    .toLowerCase()
+    .replace(/[ً-ْـ]/g, "")        // diacritics + tatweel
+    .replace(/[أإآ]/g, "ا").replace(/ة/g, "ه")     // hamza/teh-marbuta variants
+    .replace(/(.)\1{2,}/g, "$1$1")                 // heyyyy → heyy
+    .replace(/^(ال)/, "")                          // definite article
+    .replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+  if (!norm || norm.length < 2) return false;
+  return GREETING_WORDS.some((w) => editDistance(norm, w) <= (w.length <= 4 ? 1 : 2));
 }

@@ -4,7 +4,7 @@
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_FAST, MODEL_NANO } from "../config.js";
-import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath } from "../services/fastpaths.js";
+import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath, isGreetingish } from "../services/fastpaths.js";
 import { wantsBuilder } from "../services/fastpaths.js";
 import { signBuildToken, builderConfig, priceBuild, describeBuild, LAYERS as BUILDER_LAYERS } from "../services/builder.js";
 import { label, isLabel, isLabelKey } from "../services/labels.js";
@@ -88,7 +88,7 @@ defineFlow({
       // A4: a brand-new guest saying only "hi" → warm canned welcome, 0 LLM (~instant).
       // Returning/known guests fall through to the LLM greeting (usual/birthday/welcome-back
       // — enforced by the suite), and anyone who says more than a bare greeting also falls through.
-      if (GREETING.test(message.trim())) {
+      if (GREETING.test(message.trim()) || isGreetingish(message)) {
         const firstTimer = !diner?.name && !(diner?.visit_count > 0) && !diner?.last_visit_at
           && !diner?.preferences?.occasions?.birthday && !diner?.preferences?.pending_order;
         if (firstTimer) {
@@ -208,7 +208,7 @@ defineFlow({
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare affirmative)" } };
       }
       // a bare greeting is friendly, full stop — no model needed to know that
-      if (GREETING.test(message.trim())) {
+      if (GREETING.test(message.trim()) || isGreetingish(message)) {
         return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare greeting)" } };
       }
       // A live order session tells us where a short message belongs. Bare answers to our

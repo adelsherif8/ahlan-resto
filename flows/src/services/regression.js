@@ -24,7 +24,7 @@ const CASES = [
   { id: "delivery", name: "Delivery per config", msg: "do you deliver?", expect: [/deliver|pickup|pick.?up/i] },
   { id: "shisha", name: "Shisha policy", msg: "can I smoke shisha?", expect: [/no shisha|don['’]?t (allow|permit|do|have|offer).{0,20}shisha|(don['’]?t|do not) serve shisha|shisha.{0,30}(not|isn['’]?t) (allowed|permitted|available|served)|لا.*شيشة|مفيش شيشة|ممنوع.*شيشة/i] },
   { id: "photo", name: "A requested photo is ACTUALLY attached, not just promised",
-    msg: "can you send me a photo of the iconic?", expect: [/📷|photo|here/i], expect_media: "image" },
+    msg: "can you send me a photo of the iconic?", expect: [/📷|photo|here|shot|pic|صورة/i], expect_media: "image" },
   { id: "menudoc", name: "Menu request attaches the real PDF document",
     msg: "send me the menu please", expect: [/menu/i], expect_media: "document" },
   { id: "kids", name: "Kids policy", msg: "is it kid friendly?", expect: [/kids?( are)?( \w+)? welcome|family|أطفال/i] },

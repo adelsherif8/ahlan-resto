@@ -72,8 +72,17 @@ defineFlow({
       };
     }, { input: { sessionId: ctx.sessionId } });
 
+    // Official Arabic menu names (menu_items.name_ar) — Arabic guests hear dishes
+    // by their Arabic menu name everywhere code writes one. English stays canonical
+    // internally (ids, matching, kitchen tickets).
+    const arNameOf = (n) => {
+      const m = (loaded?.menu || []).find((x) => x.name === n) || (loaded?.menu || []).find((x) => normName(x.name) === normName(n));
+      return m?.name_ar || n;
+    };
+    const dishDisp = (n) => (LANGV === "ar" ? arNameOf(n) : n);
+
     const ex = await f.node("extract", async () => {
-      const menuNames = loaded.menu.map((m) => `${m.name} (${m.category})`).join(" | ");
+      const menuNames = loaded.menu.map((m) => `${m.name}${m.name_ar ? ` / ${m.name_ar}` : ""} (${m.category})`).join(" | ");
       // Grounding the model in the ACTUAL current state beats asking it to infer intent
       // from phrasing alone. Earlier this only had a paragraph of trigger phrases for
       // "replace" ("no I want X", "actually X") and the model just never used it — a
@@ -104,7 +113,7 @@ Return JSON only:
  "reorder_ref": "<ONLY with intent repeat_last: if they point at a SPECIFIC past order — a weekday ('same as last Tuesday'), a dish ('the truffle one I got'), 'my first order' — put that phrase here; a plain 'the usual'/'same as last time' leaves this null>"|null,
  "question": "<people mix ordering and chatting in ONE message: 'add a J special, and is the jalapeno bites spicy?' — the NON-order part (a question, asking for a suggestion, chit-chat) goes here so it gets ANSWERED alongside the order step; null when the whole message is order actions. NEVER put it in notes. If the ENTIRE message is a question with no order content, use intent 'question' instead>"|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/GARBLED word (voice notes!) is SKIPPED, never guessed — but a CLEARLY named product we don't carry ("a cola zero", "red bull") goes into items AS THE GUEST SAID IT (code reports it as unavailable — silently dropping it loses part of the order); if the RECENT CONVERSATION shows the guest already AGREED to a specific dish we recommended ("thats nice i want this" after we pitched it) and it is NOT already in the draft, include that dish in items too — to the guest it's ALREADY on their order and dropping it loses it ("also I want X" means X in ADDITION to it); never duplicate a dish the draft already has; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item — BUT a bare "no" + item + OPTION word ("no, nashville slaw combo, the other is not") is NEVER removal: it's correcting WHICH item has that option → edits op "set_option" per item. DIRECTION MATTERS: the item NAMED WITH the option RECEIVES it — "no, nashville slaw combo, the other is not" = Nashville Slaw GETS combo ([{op:"set_option", item:"Nashville Slaw", option:"combo"}]) and "the other" (the other draft item) gets the opposite ({op:"set_option", item:"<the other item>", option:"sandwich"}); NEVER swap them; removal needs remove-words (remove/take off/شيل/didn't order); an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel/scrap the WHOLE order or start over ("cancel it all", "cancel this order", "start over", "forget the whole thing", "الغي الاوردر", "بلاش كله", "من الأول") — removing ONE item is edits op "remove", never cancel_order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
+Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); menu entries read "English name / Arabic name" — BOTH refer to the SAME dish and you ALWAYS return the ENGLISH name; match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/GARBLED word (voice notes!) is SKIPPED, never guessed — but a CLEARLY named product we don't carry ("a cola zero", "red bull") goes into items AS THE GUEST SAID IT (code reports it as unavailable — silently dropping it loses part of the order); if the RECENT CONVERSATION shows the guest already AGREED to a specific dish we recommended ("thats nice i want this" after we pitched it) and it is NOT already in the draft, include that dish in items too — to the guest it's ALREADY on their order and dropping it loses it ("also I want X" means X in ADDITION to it); never duplicate a dish the draft already has; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item — BUT a bare "no" + item + OPTION word ("no, nashville slaw combo, the other is not") is NEVER removal: it's correcting WHICH item has that option → edits op "set_option" per item. DIRECTION MATTERS: the item NAMED WITH the option RECEIVES it — "no, nashville slaw combo, the other is not" = Nashville Slaw GETS combo ([{op:"set_option", item:"Nashville Slaw", option:"combo"}]) and "the other" (the other draft item) gets the opposite ({op:"set_option", item:"<the other item>", option:"sandwich"}); NEVER swap them; removal needs remove-words (remove/take off/شيل/didn't order); an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel/scrap the WHOLE order or start over ("cancel it all", "cancel this order", "start over", "forget the whole thing", "الغي الاوردر", "بلاش كله", "من الأول") — removing ONE item is edits op "remove", never cancel_order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -812,6 +821,44 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         outcomeNotices.push(`Removed: ${removedNames.join(", ")} ✂️`);
       }
       items = step.items;
+      // "no onion" on a dish that never had onion: the note is impossible — the
+      // guest is guarding against something that isn't there. Checked by CODE
+      // against the dish's real ingredient text (DB), never guessed: the phantom
+      // removal is stripped from the kitchen note and the guest is told the dish
+      // already comes without it.
+      {
+        const AR2EN_ING = [
+          [/بصل/u, "onion"], [/جبن/u, "cheese"], [/مخلل/u, "pickle"], [/طماطم|قوط/u, "tomato"],
+          [/خس/u, "lettuce"], [/مايو/u, "mayo"], [/هالبينو|هالابينو/u, "jalapeno"], [/بيكون|مقدد/u, "bacon"],
+          [/مشروم|فطر/u, "mushroom"], [/كاتشب/u, "ketchup"], [/مسطردة|مستردة/u, "mustard"], [/خيار/u, "cucumber"],
+        ];
+        const REMOVE_NOTE = /(?:no|without|hold the|بدون|من غير|بلاش|مفيش)\s+([\p{L}][\p{L} ]{1,23})/giu;
+        for (const it of items || []) {
+          if (!it.notes) continue;
+          const row = loaded.menu.find((m) => m.id === it.id) || loaded.menu.find((m) => normName(m.name) === normName(it.name));
+          const hay = `${row?.ingredients || ""} ${row?.description || ""}`.toLowerCase();
+          if (!hay.trim()) continue; // no real ingredient data → never claim anything
+          let changed = false;
+          const cleaned = String(it.notes).replace(REMOVE_NOTE, (full, what) => {
+            const said = String(what).trim();
+            let en = said.toLowerCase();
+            for (const [rx, e2] of AR2EN_ING) if (rx.test(said)) { en = e2; break; }
+            en = en.replace(/e?s$/, "");
+            // generic words (sauce, bread…) match too many things — only clear-cut
+            // single ingredients are judged; anything else stays a kitchen note
+            if (en.length < 3 || /sauce|صوص|صلصة|bread|bun|خبز/.test(en)) return full;
+            if (hay.includes(en)) return full; // the dish HAS it — real removal, keep
+            changed = true;
+            outcomeNotices.push(L2(
+              `Good news — the ${it.name} already comes without ${said} 👌`,
+              `على فكرة — الـ${dishDisp(it.name)} أصلاً مفيهوش ${said} 👌`,
+              `3ala fekra — el ${it.name} aslan mafihoosh ${said} 👌`,
+            ));
+            return "";
+          }).replace(/\s{2,}/g, " ").replace(/^[\s,·،-]+|[\s,·،-]+$/g, "");
+          if (changed) it.notes = cleaned || null;
+        }
+      }
       running = runningOf(items); // this turn's answers are in — never echo the stale bill
       // Anything the guest named that we DON'T carry is said out loud mid-gather —
       // silently dropping "a cola zero" loses part of the order and erodes trust.
@@ -1257,7 +1304,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // Which-one candidates are STRUCTURE too — one lead line, code lists the dishes
     if (outcome.kind === "which_item") {
       const lead = reply.split("\n")[0];
-      reply = `${lead}\n\n${(outcome.candidates || []).map((c) => `• *${c}*`).join("\n")}`;
+      reply = `${lead}\n\n${(outcome.candidates || []).map((c) => `• *${dishDisp(c)}*`).join("\n")}`;
     }
 
     // Option questions are STRUCTURE, and structure is code's job — the model
@@ -1277,7 +1324,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       const CLAIMS = /تؤكد|تأكيد|أكد الطلب|اخترت|اخترتي|اختارت|سجلت|confirm|you (chose|picked|selected)|chosen|noted|got it|recorded|✍️|closest|would you like|instead|rather|بدل|هل تحب/i;
       if (CLAIMS.test(lead)) {
         lead = L2(`Quick choices for your *${outcome.item}* — you can answer in one go 👇`,
-          `اختيارات سريعة لـ *${outcome.item}* — ممكن تجاوب كلها مرة واحدة 👇`,
+          `اختيارات سريعة لـ *${dishDisp(outcome.item)}* — ممكن تجاوب كلها مرة واحدة 👇`,
           `Quick choices 3ashan *${outcome.item}* — momken tegaweb kolaha mara wa7da 👇`);
         if (value.value) value.value.quick_replies = [];
       }
@@ -1285,12 +1332,12 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // list read as being stuck on the FIRST sandwich. If the model's lead doesn't
       // carry the name, code writes one that does.
       if (outcome.item && !lead.includes(outcome.item)) {
-        lead = L2(`Now for your *${outcome.item}* 👇`, `دلوقتي اختيارات *${outcome.item}* 👇`, `Dilwa2ty *${outcome.item}* 👇`);
+        lead = L2(`Now for your *${outcome.item}* 👇`, `دلوقتي اختيارات *${dishDisp(outcome.item)}* 👇`, `Dilwa2ty *${outcome.item}* 👇`);
       }
       // Non-English guests get the CODE lead — the model writes English for Franco
       // (Latin script passes its mirror rule) and the ask must feel native.
       if (LANGV !== "en") {
-        lead = L2(lead, `اختيارات سريعة لـ *${outcome.item}* — ممكن تجاوب كلها مرة واحدة 👇`, `Quick choices 3ashan *${outcome.item}* — momken tegaweb kolaha mara wa7da 👇`);
+        lead = L2(lead, `اختيارات سريعة لـ *${dishDisp(outcome.item)}* — ممكن تجاوب كلها مرة واحدة 👇`, `Quick choices 3ashan *${outcome.item}* — momken tegaweb kolaha mara wa7da 👇`);
       }
       // a re-ask must SAY it didn't understand — the silent identical reprint read
       // as the bot being stuck (a real guest answered "Burger" and got a wall twice)
@@ -1326,8 +1373,8 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
         !(Array.isArray(it.options?.[g.key]) ? it.options[g.key].length : it.options?.[g.key]));
       const anyOpen = outcome.running.items.some(open_);
       const lines = outcome.running.items.map((it) => {
-        const mods = modifiers(it);
-        return `• ${it.qty}× *${it.name}*${mods.length ? ` (${mods.join(" · ")})` : ""} — ${open_(it) ? "from " : ""}${money(itemPrice(it) * it.qty)}`;
+        const mods = modifiers(it).map((m) => (LANGV === "ar" ? arWord(m) : m));
+        return `• ${it.qty}× *${dishDisp(it.name)}*${mods.length ? ` (${mods.join(" · ")})` : ""} — ${open_(it) ? (LANGV === "ar" ? "من " : "from ") : ""}${money(itemPrice(it) * it.qty)}`;
       });
       const RULE = "―".repeat(24);
       reply = `${reply}\n\n${RULE}\n${lines.join("\n")}\n${L2("Subtotal", "الإجمالي الجزئي", "Subtotal")}: ${anyOpen ? L2("from ", "من ", "from ") : ""}${money(outcome.running.subtotal)}\n${RULE}`;
@@ -1336,8 +1383,12 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // Upsell is CODE-PLACED: top of the payment message, dish name in bold —
     // trailing model-woven mentions kept burying it.
     if (outcome.kind === "ask_payment" && outcome.upsell?.length) {
-      const bold = outcome.upsell.map((u) => `*${String(u).replace(/\s*\(/, "* (")}`).join(" · ");
-      reply = `🍟 Add ${bold}?\n\n${reply}`;
+      const bold = outcome.upsell.map((u) => {
+        const m = String(u).match(/^(.*?)\s*\((.*)\)\s*$/);
+        const nm = m ? dishDisp(m[1].trim()) : dishDisp(String(u));
+        return m ? `*${nm}* (${m[2]})` : `*${nm}*`;
+      }).join(" · ");
+      reply = `${L2(`🍟 Add ${bold}?`, `🍟 تحب تضيف ${bold}؟`, `🍟 Tedif ${bold}?`)}\n\n${reply}`;
     }
 
     // The bill is rendered by CODE and appended — the model never writes a number.
@@ -1359,6 +1410,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       const askLine = reply;
       reply = `${billFirst ? "" : `${reply}\n\n`}${renderBill({
         lang: LANGV,
+        arName: arNameOf,
         branchPin: outcome.branch_pin || null,
         items: outcome.items || [],
         bill: outcome.bill,
@@ -2132,14 +2184,15 @@ const arPay = (m) => AR_PAY[String(m).toLowerCase().trim()] || m;
 const arLabel = (l) => String(l).replace(/^If (.+?) — (.+)$/i, (m, cond, rest) => `لو ${arWord(cond)} — ${arWord(rest)}`)
   .replace(/^(?!لو )(.*)$/s, (m, x) => arWord(x));
 
-function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, trackUrl, restaurant, slug, when, branchPin, lang }) {
+function renderBill({ items, bill, currency, orderType, tableNumber, branchName, address, payment, code, eta, trackUrl, restaurant, slug, when, branchPin, lang, arName }) {
   // The bill mirrors the guest's language (Arabic gets full Arabic labels; Franco
   // keeps the Latin/EN labels — transliterated accounting words read as noise).
   const AR = lang === "ar";
   const money = (n) => `${fmtAmount(n)} ${currency}`;
   const lines = items.map((it) => {
-    const mods = modifiers(it);
-    return `• ${it.qty}× *${it.name}*${mods.length ? ` (${mods.join(" · ")})` : ""} — ${money(itemPrice(it) * Number(it.qty))}`;
+    const mods = modifiers(it).map((m) => (AR ? arWord(m) : m));
+    const nm = AR && arName ? arName(it.name) : it.name;
+    return `• ${it.qty}× *${nm}*${mods.length ? ` (${mods.join(" · ")})` : ""} — ${money(itemPrice(it) * Number(it.qty))}`;
   });
 
   const totals = [`${AR ? "الإجمالي الجزئي" : "Subtotal"}: ${money(bill.subtotal)}`];

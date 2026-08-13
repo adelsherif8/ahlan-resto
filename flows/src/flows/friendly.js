@@ -2,6 +2,7 @@
 // Ported logic: hotel friendly.json context builder + persona prompt, restaurant domain.
 import { defineFlow } from "../engine/flow.js";
 import { getMenu } from "../services/menucache.js";
+import { isGreetingish } from "../services/fastpaths.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, publicLink } from "../config.js";
 import { hoursToday } from "../services/tenant.js";
@@ -222,7 +223,7 @@ ${context.summary ? `- Earlier in this relationship (summary of older chats): ${
 ${memoryBlock(context, diner)}
 
 ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been notified about this guest. If they follow up, reassure them the team is on it and will reply here shortly — do NOT restart cheerful small talk or re-pitch the menu.\n" : ""}RULES:
-0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. Your reply language = the language of the guest's LAST message (detected: ${classification?.language || "detect it yourself"}). English message → reply 100% in ENGLISH (a single local flavor word is allowed ONLY if it fits this restaurant's own personality). The Arabic/Franco snippets in these instructions are EXAMPLES for those languages only — never copy them into an English reply.
+0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. Your reply language = the language of the guest's LAST message (detected: ${classification?.language || "detect it yourself"}). English message → reply 100% in ENGLISH (a single local flavor word is allowed ONLY if it fits this restaurant's own personality). The Arabic/Franco snippets in these instructions are EXAMPLES for those languages only — never copy them into an English reply. DISH NAMES: menu facts may carry [ar: …] — the dish's official Arabic menu name. In an ARABIC reply, call dishes by that Arabic name. English and Franco replies use the English name. Never invent your own translation of a dish name — no [ar:] means keep the English name even in Arabic.
 1. عربي → عربي مصري. Franco-Arabizi → reply FULLY in Franco, Latin letters ONLY (e.g. "lazem tegarrab el Mushroom Shawarma, ta3mo gamed"). NEVER answer Franco with Arabic script. ALWAYS keep menu item names in English. THE SCRIPT RULE: your reply's SCRIPT must match the guest's last message — Latin letters in → Latin letters out, Arabic script in → Arabic script out. This applies to EVERY line: greetings, EMPATHY lines, identity answers, everything. A sad Franco message gets Franco comfort, never Arabic script.
 2. 1–3 short sentences. WhatsApp tone, warm, ${ai.personality ? "on-personality" : "friendly"}. Emojis welcome but max 2.
 3. NEVER invent menu items, prices, events, or policies. Item not in the menu list = "not available tonight".
@@ -310,7 +311,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         // name/restaurant enforcement ONLY when the guest actually just said hi —
         // a first-message QUESTION must keep its ANSWER, never become a greeting
         const BARE_GREETING = /^(hi+|hey+|hello+|yo+|hala|ahlan|ezayak|ezayek|ezay|salam( 3alek(o|om|um))?|هاي|اهلا|أهلا|اهلين|هلا|(ال)?سلام( عليكو?م?)?|وعليكم السلام|ازيك|ازيكم|مرحبا|صباح الخير|مساء الخير|good (morning|evening|afternoon))[\s!.😊👋🙌❤️🔥]*$/i;
-        const bareGreeting = message.trim().length <= 25 && BARE_GREETING.test(message.trim());
+        const bareGreeting = message.trim().length <= 25 && (BARE_GREETING.test(message.trim()) || isGreetingish(message));
         const firstName = (context.greetName || "").split(" ")[0];
         const missName = bareGreeting && firstName && context.situation !== "first_timer" && !draft.toLowerCase().includes(firstName.toLowerCase());
         const missRest = bareGreeting && context.situation === "first_timer" && !draft.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase());
@@ -531,7 +532,8 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     // ("بتوصلوا المعادي؟ وبكام") wants their answer, not a menu funnel — forcing the
     // entry chips onto every first message buried real answers under button spam.
     const greetingOpener = /^(hi+|hey+|hello+|yo|hala|ahlan|salam|اهلا|أهلا|هلا|(ال)?سلام|وعليكم السلام|صباح|مساء|ازيك|عامل ايه|good (morning|evening|afternoon))/iu
-      .test(String(input.message || "").trim()) && String(input.message || "").trim().length <= 40;
+      .test(String(input.message || "").trim()) && String(input.message || "").trim().length <= 40
+      || isGreetingish(input.message);
     if (context.isNewConversation && config.basic_info?.restaurant_type === "casual" && greetingOpener) {
       // ask_type_first restaurants lead with ORDER (one tap → the type question);
       // menu-first restaurants keep the browse-first order. Chips render in the
@@ -869,7 +871,7 @@ function buildMenuText(menu, message, history, currency) {
     const star = m.bestseller ? " ⭐bestseller" : "";
     const spice = m.spice_level ? ` 🌶${m.spice_level}/3` : "";
     const extra = full
-      ? `${m.ingredients ? ` [ingredients: ${m.ingredients}]` : ""}${m.pairs_with ? ` [pairs well with: ${m.pairs_with}]` : ""}`
+      ? `${m.name_ar ? ` [ar: ${m.name_ar}]` : ""}${m.ingredients ? ` [ingredients: ${m.ingredients}]` : ""}${m.ingredients_ar ? ` [ingredients_ar: ${m.ingredients_ar}]` : ""}${m.pairs_with ? ` [pairs well with: ${m.pairs_with}]` : ""}`
       : "";
     return full
       ? `${m.name} (${m.category}, ${priceOf(m, currency)}${tags}${photo})${star}${spice}${m.description ? " — " + m.description : ""}${extra}`
