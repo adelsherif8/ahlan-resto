@@ -123,7 +123,7 @@ export default function DashboardLayout() {
           )}
           <div className="min-w-0 flex-1">
             <div className="max-w-[120px] truncate text-sm font-bold leading-tight">{brand.name || restaurant || "Dashboard"}</div>
-            <div className="max-w-[120px] truncate text-[10px] text-zinc-500">powered by Ahlan</div>
+            <div className="max-w-[120px] truncate text-[10px] text-zinc-500">powered by Munadim</div>
           </div>
           <NotificationBell />
         </div>

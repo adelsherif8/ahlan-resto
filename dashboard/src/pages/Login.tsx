@@ -39,7 +39,7 @@ export default function Login() {
             <Flame size={22} />
           </div>
           <div>
-            <div className="text-xl font-bold">Ahlan Resto</div>
+            <div className="text-xl font-bold">Munadim</div>
             <div className="text-xs text-zinc-400">Restaurant dashboard</div>
           </div>
         </div>
