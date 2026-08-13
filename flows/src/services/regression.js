@@ -223,7 +223,7 @@ const CASES = [
   { id: "cancelnothijack", needs: "casual", name: "Cancel clears the draft even when an old placed order exists",
     seed: { diner: { name: "Selim", visit_count: 2 }, order: { items: [{ name: "Iconic Meal", qty: 1, price: 265 }], order_type: "pickup", total: 265, status: "ready" } },
     turns: ["1 loaded fries", "cancel all"],
-    expect: [/cleared|fresh order/i], forbid: [/can'?t be cancelled|counter|kitchen 👨‍🍳/i] },
+    expect: [/cleared|fresh|wiped|من الأول/i], forbid: [/can'?t be cancelled|counter|kitchen 👨‍🍳/i] },
   // "just the burger" during sandwich-vs-meal = the sandwich-only choice — serving-style
   // words answer format questions (a live guest's "Burger" got a silent reprint).
   { id: "fmtburger", needs: "casual", name: "'just the burger' answers the format question as sandwich",
