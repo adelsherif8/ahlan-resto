@@ -77,6 +77,29 @@ The founder's instinct is the lower-risk read and it matches the evidence: Luna 
 
 **Benchmark gates, unchanged:** the same 8 behaviours the 5.4 benchmark used, then the full 110-case suite **twice**, before anything reaches Luci'z.
 
+### What the switch is actually worth — measured, 14 Aug 2026
+
+Computed from `flow_executions` node-level token counts (1,808 real guest turns, cached tokens included at each model's real cached rate). USD converted at 49.6 EGP.
+
+**Per guest turn:** $0.00220 today · $0.00171 with Luna on FAST · **$0.00065 with Luna on FAST+SMART**
+
+| | Now | Luna on FAST only | Luna on FAST + SMART |
+|---|---|---|---|
+| A 7-turn order | 0.76 EGP | 0.59 EGP | **0.23 EGP** |
+| A 4-turn reorder | 0.44 EGP | 0.34 EGP | 0.13 EGP |
+| 1 restaurant / 300 orders / month | 229 EGP | 178 EGP | **68 EGP** |
+| 10 restaurants | 2,293 EGP | 1,778 EGP | **680 EGP** |
+| 100 restaurants | 22,927 EGP | 17,784 EGP | **6,804 EGP** |
+| 1,000 restaurants | 229,273 EGP | 177,841 EGP | **68,043 EGP** |
+
+**Saving: ~22% for FAST alone, ~70% for FAST+SMART.**
+
+**The uncomfortable shape of this:** the *safe* change (FAST — mechanical work, every value re-validated in code) saves only about a fifth, because the money is in the guest-facing tier. The *valuable* change is SMART, which is exactly the one that can hallucinate at a guest. There is no cheap win here that avoids the risky change.
+
+**Keep gpt-4.1-nano on the router.** Measured: routing on Luna would cost **more** ($0.0085 → $0.0184 on the same traffic) because nano's input is $0.10 against Luna's $0.20. Nano stays.
+
+**Is it worth doing now?** At today's two restaurants the whole saving is about **46 EGP a month** — nothing. The prize only exists at scale: ~1,600 EGP/month at 10 restaurants, ~161,000 at 1,000, roughly a **7% lift on the modelled profit at any scale**. But the cheapest time to *test* is now, while two clients means minimal exposure, and the suite runs against a cloned tenant so no real guest ever sees the candidate model. Benchmark cost is a few dollars of tokens.
+
 **Two risks the benchmarks won't tell us:** 5.x are reasoning models — we run them with `reasoning_effort: "none"` because a WhatsApp guest waits about two seconds, and the published scores are at *medium* effort, so our effective quality will be lower than the table. And no public benchmark measures Egyptian Arabic or Franco, which is exactly where our product lives.
 
 ---
