@@ -590,9 +590,9 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     // the same nudge the order flow gives, phrased by code, never invented, and named
     // in the guest's own language. It belongs here, not in the greeting.
     if (out.send_menu_list) {
-      const sugF = (ai.suggest_dishes || []).filter(Boolean).slice(0, 3);
+      const sugF = (config.ai?.suggest_dishes || []).filter(Boolean).slice(0, 3);
       const firstTimerF = !diner?.name && !(diner?.visit_count > 0) && !diner?.last_visit_at;
-      if (sugF.length && ai.suggest_enabled !== false && firstTimerF) {
+      if (sugF.length && config.ai?.suggest_enabled !== false && firstTimerF) {
         const arOf = (n) => (context.menu.find((m) => m.name === n)?.name_ar) || n;
         const names = sugF.map((d) => `*${LV === "ar" ? arOf(d) : d}*`).join(" · ");
         reply = `${reply}\n\n${L2F(

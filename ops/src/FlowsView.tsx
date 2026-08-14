@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, XCircle, CircleDashed, Workflow } from "lucide-react";
 import { ops } from "./config";
 import { Card, Empty } from "./ui";
@@ -19,6 +19,11 @@ export default function FlowsView() {
   const [execution, setExecution] = useState<Execution | null>(null);
   const [offline, setOffline] = useState(false);
   const [m, setM] = useState<Metrics | null>(null);
+  // Reading a trace must not be interrupted. Polling pauses the moment a run is open,
+  // and resumes when it's closed — otherwise the list reloaded under the cursor every
+  // few seconds and re-rendered the canvas mid-read.
+  const pausedRef = useRef(false);
+  useEffect(() => { pausedRef.current = !!execution; }, [execution]);
 
   useEffect(() => {
     const load = () =>
@@ -30,17 +35,19 @@ export default function FlowsView() {
     const loadMetrics = () => ops.get("/api/metrics").then((r) => setM(r.data)).catch(() => {});
     load();
     loadMetrics();
-    const t = setInterval(() => { load(); loadMetrics(); }, 10000);
+    const t = setInterval(() => { if (!pausedRef.current) { load(); loadMetrics(); } }, 10000);
     return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
     if (!selectedFlow) return;
-    setExecution(null);
+    // NOTE: deliberately does NOT clear the open execution. openExecution() switches
+    // the flow when a run belongs to a child flow, which re-ran this effect and wiped
+    // the very trace the user had just clicked.
     const load = () =>
       ops.get("/api/executions", { params: { flow: selectedFlow, limit: 30 } }).then((r) => setExecs(r.data)).catch(() => {});
     load();
-    const t = setInterval(load, 5000);
+    const t = setInterval(() => { if (!pausedRef.current) load(); }, 8000);
     return () => clearInterval(t);
   }, [selectedFlow]);
 
@@ -86,7 +93,7 @@ export default function FlowsView() {
         {flows.map((fl) => (
           <Card
             key={fl.name}
-            onClick={() => setSelectedFlow(fl.name)}
+            onClick={() => { setExecution(null); setSelectedFlow(fl.name); }}
             className={`cursor-pointer p-3 transition hover:border-zinc-600 ${selectedFlow === fl.name ? "border-amber-500/60" : ""}`}
           >
             <div className="flex items-center gap-2 text-sm font-semibold">

@@ -1,0 +1,15 @@
+[
+  { "name": "NEW guest, menu request that does NOT hit the fast path (exercises friendly)",
+    "phone": "+201555007701", "turns": ["can i see the menu"],
+    "expect": { "menu line": "menu", "first-timer nudge": "first time here" },
+    "forbid": { "crash / empty": "^$" } },
+  { "name": "NEW guest, franco phrasing that used to crash",
+    "phone": "+201555007702", "turns": ["ab3atli el menu"],
+    "expect": { "menu line": "etfadal el menu|here'?s the full menu" } },
+  { "name": "RETURNING guest through friendly — no nudge",
+    "phone": "+201555007703", "turns": ["whats on the menu"], "seed": { "name": "Tarek", "visit_count": 5 },
+    "forbid": { "nudge to a regular": "first time here" } },
+  { "name": "AR non-fast-path menu ask",
+    "phone": "+201555007704", "turns": ["ممكن اشوف المنيو بتاعكم"],
+    "expect": { "arabic reply": "[\\u0600-\\u06FF]" } }
+]
