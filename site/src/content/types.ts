@@ -51,6 +51,26 @@ export interface SiteContent {
   problem: { h2: string; p1: string; p2: string; bar: { order: string; app: string } };
   whatIs: {
     h2: string; p1: string; channels: string[]; p2: string;
+    /** The three real outputs of one order — content mirrors the live product. */
+    panels: {
+      p1: string; p2: string; p3: string;
+      receipt: {
+        headline: string; title: string; place: string; meta: string; item: string;
+        subtotal: string; net: string; tax: string; total: string; taxNote: string;
+        pay: string; eta: string; link: string; pdfName: string; pdfMeta: string;
+      };
+      ticket: {
+        head: string; code: string; customer: string; item: string; price: string;
+        mods: string[]; totalLabel: string; total: string; payment: string; track: string;
+      };
+      profile: {
+        name: string; badge: string; allergy: string; phone: string;
+        stats: { value: string; label: string }[];
+        rows: { icon: string; text: string }[];
+        favLabel: string; favs: string[];
+        notesLabel: string; notes: string[];
+      };
+    };
     /** Channel-stream labels — new UI strings, need Adel's Arabic review. */
     stream: {
       panelTitle: string; counter: string; counterOne: string; captured: string; replay: string;

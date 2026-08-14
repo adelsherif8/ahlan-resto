@@ -1,0 +1,65 @@
+---
+/** The printed kitchen ticket — thermal paper, English monospace, centred head,
+    modifiers with «»», track-on-WhatsApp QR. Matches the real print output.
+    Order codes carry no #, and the alphabet drops I/L/O/U (riders read them aloud). */
+interface Props {
+  head: string;      // e.g. "TAKEAWAY · T12"
+  code: string;      // e.g. "O-7K3M"
+  customer: string;  // e.g. "Ahmed · Maadi"
+  item: string;      // e.g. "1x Classic Burger"
+  price: string;     // e.g. "260.00"
+  mods: string[];
+  totalLabel: string;
+  total: string;     // e.g. "EGP 260.00"
+  payment: string;   // e.g. "PAYMENT: CASH — COLLECT EGP 260.00"
+  track: string;     // e.g. "TRACK YOUR ORDER ON WHATSAPP"
+  width?: number;
+}
+
+const { head, code, customer, item, price, mods, totalLabel, total, payment, track, width = 236 } = Astro.props;
+---
+
+<div
+  class="bg-white px-4 pb-6 pt-5 shadow-[0_2px_4px_rgba(20,17,16,0.06),0_18px_36px_-18px_rgba(20,17,16,0.3)] [clip-path:polygon(0_6px,4%_0,10%_6px,16%_0,22%_6px,28%_0,34%_6px,40%_0,46%_6px,52%_0,58%_6px,64%_0,70%_6px,76%_0,82%_6px,88%_0,94%_6px,100%_0,100%_calc(100%-6px),96%_100%,90%_calc(100%-6px),84%_100%,78%_calc(100%-6px),72%_100%,66%_calc(100%-6px),60%_100%,54%_calc(100%-6px),48%_100%,42%_calc(100%-6px),36%_100%,30%_calc(100%-6px),24%_100%,18%_calc(100%-6px),12%_100%,6%_calc(100%-6px),0_100%)]"
+  style={`width:${width}px`}
+  dir="ltr"
+>
+  <div class="num text-center text-[0.62rem] font-semibold tracking-[0.12em] text-[#3A3A38]">{head}</div>
+  <div class="num mt-1 text-center text-[1.15rem] font-bold tracking-[0.08em] text-[#111]">{code}</div>
+  <div class="num mt-0.5 text-center text-[0.62rem] text-[#6B6A66]">{customer}</div>
+
+  <div class="my-2.5 border-t border-dashed border-[#BFBDB6]"></div>
+
+  <div class="num flex items-baseline justify-between gap-2 text-[0.68rem] font-semibold text-[#111]">
+    <span>{item}</span>
+    <span>{price}</span>
+  </div>
+  {mods.map((m) => (
+    <p class="num ps-2.5 text-[0.63rem] leading-[1.5] text-[#5C5B57]">» {m}</p>
+  ))}
+
+  <div class="my-2.5 border-t border-dashed border-[#BFBDB6]"></div>
+
+  <div class="num flex items-baseline justify-between gap-2 text-[0.68rem] font-bold text-[#111]">
+    <span>{totalLabel}</span>
+    <span>{total}</span>
+  </div>
+  <p class="num mt-1 text-[0.6rem] leading-snug text-[#3A3A38]">{payment}</p>
+
+  <div class="my-2.5 border-t border-dashed border-[#BFBDB6]"></div>
+
+  <p class="num text-center text-[0.56rem] tracking-[0.08em] text-[#5C5B57]">{track}</p>
+  <svg viewBox="0 0 44 44" class="mx-auto mt-2 h-14 w-14" role="img" aria-label="QR">
+    <rect width="44" height="44" fill="#fff" />
+    <g fill="#111">
+      <path d="M3 3h12v12H3zM6 6v6h6V6z" fill-rule="evenodd" />
+      <path d="M29 3h12v12H29zM32 6v6h6V6z" fill-rule="evenodd" />
+      <path d="M3 29h12v12H3zM6 32v6h6V32z" fill-rule="evenodd" />
+      <rect x="20" y="4" width="4" height="4" /><rect x="20" y="12" width="4" height="4" />
+      <rect x="18" y="20" width="5" height="5" /><rect x="27" y="22" width="4" height="4" />
+      <rect x="35" y="20" width="4" height="4" /><rect x="6" y="20" width="4" height="4" />
+      <rect x="20" y="29" width="4" height="4" /><rect x="28" y="31" width="5" height="4" />
+      <rect x="22" y="37" width="4" height="4" /><rect x="36" y="36" width="5" height="5" />
+    </g>
+  </svg>
+</div>
