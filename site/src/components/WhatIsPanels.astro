@@ -1,7 +1,7 @@
 ---
-/** What it is — the three real outputs of one order, side by side:
-    the guest's WhatsApp receipt, the printed kitchen ticket, the customer record.
-    Asymmetric widths and no numbered beats, so it doesn't echo the dine-in scene. */
+/** What it is — the three real outputs of one order: the guest's WhatsApp
+    receipt, the printed kitchen ticket, the customer record.
+    One card system, equal weight, one demo label each. */
 import type { SiteContent } from '../content/types';
 import ThermalTicket from './ThermalTicket.astro';
 
@@ -25,66 +25,67 @@ const p = t.whatIs.panels;
       </ul>
     </div>
 
-    <div class="mx-auto mt-14 grid max-w-6xl items-start gap-6 lg:grid-cols-[1.05fr_0.8fr_1.15fr]">
-      <!-- 1 — the receipt the guest gets on WhatsApp -->
-      <div data-reveal>
-        <p class="mb-3 flex items-center gap-2.5 text-[0.95rem] font-semibold">
-          <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
-          {p.p1}
-        </p>
+    <div class="mx-auto mt-14 grid max-w-6xl items-stretch gap-5 lg:grid-cols-3">
+      <!-- 1 — the receipt the guest gets -->
+      <article class="card flex flex-col p-5" data-reveal>
+        <header class="mb-4 flex items-center justify-between gap-3">
+          <h3 class="flex items-center gap-2.5 text-[0.98rem]">
+            <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+            {p.p1}
+          </h3>
+          <span class="shrink-0 text-[0.68rem] text-ink/40">{t.hero.demoLabel}</span>
+        </header>
 
-        <div class="overflow-hidden rounded-[var(--radius-md)] bg-[#EFEAE2] p-3.5 shadow-[0_1px_2px_rgba(20,17,16,0.05),0_16px_36px_-20px_rgba(20,17,16,0.28)]" dir="rtl">
+        <div class="flex flex-1 items-start rounded-[var(--radius-md)] bg-[#EFEAE2] p-3" dir="rtl">
           <div class="w-full rounded-lg rounded-es-none bg-[#D9FDD3] px-3 py-2.5 shadow-sm">
-            <!-- the PDF attachment -->
-            <div class="mb-2 flex items-center gap-2.5 rounded-md bg-white/70 px-2.5 py-2">
-              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#E7463B] text-[0.6rem] font-bold text-white">PDF</span>
-              <div class="min-w-0 leading-tight">
-                <p class="num truncate text-[11px] font-semibold text-[#111B21]" dir="ltr">{p.receipt.pdfName}</p>
-                <p class="text-[10px] text-[#667781]">{p.receipt.pdfMeta}</p>
-              </div>
+            <!-- PDF attachment -->
+            <div class="mb-2.5 flex items-center gap-2.5 rounded-md bg-white/75 px-2.5 py-1.5">
+              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[#E7463B] text-[0.55rem] font-bold text-white">PDF</span>
+              <p class="num truncate text-[11px] font-semibold text-[#111B21]" dir="ltr">{p.receipt.pdfName}</p>
             </div>
 
-            <p class="text-[12px] font-medium leading-[1.65] text-[#111B21]">{p.receipt.headline}</p>
+            <p class="text-[11.5px] font-medium leading-[1.6] text-[#111B21]">{p.receipt.headline}</p>
 
-            <p class="mt-2.5 text-[12px] font-bold text-[#111B21]">{p.receipt.title}</p>
-            <p class="text-[11.5px] leading-[1.6] text-[#111B21]">{p.receipt.place}</p>
-            <p class="num text-[10.5px] leading-[1.6] text-[#5A6B72]">{p.receipt.meta}</p>
+            <div class="mt-2.5 leading-[1.6]">
+              <p class="text-[11.5px] font-bold text-[#111B21]">{p.receipt.title}</p>
+              <p class="text-[11px] text-[#111B21]">{p.receipt.place}</p>
+              <p class="num text-[10px] text-[#5A6B72]">{p.receipt.meta}</p>
+            </div>
 
-            <div class="my-1.5 border-t border-dashed border-[#111B21]/20"></div>
-            <p class="text-[11.5px] leading-[1.7] text-[#111B21]">{p.receipt.item}</p>
-            <div class="my-1.5 border-t border-dashed border-[#111B21]/20"></div>
+            <div class="my-2 border-t border-dashed border-[#111B21]/20"></div>
+            <p class="text-[11px] leading-[1.65] text-[#111B21]">{p.receipt.item}</p>
+            <div class="my-2 border-t border-dashed border-[#111B21]/20"></div>
 
-            <p class="text-[11px] leading-[1.7] text-[#111B21]">{p.receipt.subtotal}</p>
-            <p class="text-[11px] leading-[1.7] text-[#111B21]">{p.receipt.net}</p>
-            <p class="text-[11px] leading-[1.7] text-[#111B21]">{p.receipt.tax}</p>
-            <p class="text-[11.5px] font-bold leading-[1.7] text-[#111B21]">{p.receipt.total}</p>
-            <p class="text-[10.5px] italic leading-[1.6] text-[#5A6B72]">{p.receipt.taxNote}</p>
+            <p class="num text-[10px] leading-[1.6] text-[#5A6B72]">{p.receipt.breakdown}</p>
+            <p class="text-[11.5px] font-bold leading-[1.6] text-[#111B21]">{p.receipt.total}</p>
+            <p class="text-[10px] italic leading-[1.5] text-[#5A6B72]">{p.receipt.taxNote}</p>
 
-            <div class="my-1.5 border-t border-dashed border-[#111B21]/20"></div>
-            <p class="text-[11.5px] leading-[1.7] text-[#111B21]">{p.receipt.pay}</p>
-            <p class="text-[11.5px] leading-[1.7] text-[#111B21]">{p.receipt.eta}</p>
-            <p class="num truncate text-[10.5px] leading-[1.7] text-[#2B7FB8]" dir="ltr">{p.receipt.link}</p>
+            <div class="my-2 border-t border-dashed border-[#111B21]/20"></div>
+            <p class="text-[11px] leading-[1.6] text-[#111B21]">{p.receipt.payEta}</p>
+            <p class="num truncate text-[10px] leading-[1.6] text-[#2B7FB8]" dir="ltr">{p.receipt.link}</p>
 
             <div class="mt-1.5 flex items-center justify-end gap-1">
-              <span class="num text-[9.5px] text-[#667781]">9:41</span>
-              <svg viewBox="0 0 18 12" class="h-2.5 w-[16px]" aria-hidden="true">
+              <span class="num text-[9px] text-[#667781]">9:41</span>
+              <svg viewBox="0 0 18 12" class="h-2.5 w-4" aria-hidden="true">
                 <path d="M1 6.5 4 9.5 10 2.5" fill="none" stroke="#53BDEB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
                 <path d="M7 6.5 10 9.5 16 2.5" fill="none" stroke="#53BDEB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </div>
           </div>
-
-          <p class="mt-2 text-center text-[9.5px] font-medium text-[#667781]">{t.hero.demoLabel}</p>
         </div>
-      </div>
+      </article>
 
-      <!-- 2 — the printed kitchen ticket -->
-      <div data-reveal style="transition-delay:90ms">
-        <p class="mb-3 flex items-center gap-2.5 text-[0.95rem] font-semibold">
-          <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
-          {p.p2}
-        </p>
-        <div class="flex justify-center lg:justify-start">
+      <!-- 2 — the printed ticket -->
+      <article class="card flex flex-col p-5" data-reveal style="transition-delay:80ms">
+        <header class="mb-4 flex items-center justify-between gap-3">
+          <h3 class="flex items-center gap-2.5 text-[0.98rem]">
+            <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+            {p.p2}
+          </h3>
+          <span class="shrink-0 text-[0.68rem] text-ink/40">{t.hero.demoLabel}</span>
+        </header>
+
+        <div class="flex flex-1 items-start justify-center">
           <ThermalTicket
             head={p.ticket.head}
             code={p.ticket.code}
@@ -96,73 +97,70 @@ const p = t.whatIs.panels;
             total={p.ticket.total}
             payment={p.ticket.payment}
             track={p.ticket.track}
+            width={228}
           />
         </div>
-      </div>
+      </article>
 
       <!-- 3 — the customer, saved -->
-      <div data-reveal style="transition-delay:180ms">
-        <p class="mb-3 flex items-center gap-2.5 text-[0.95rem] font-semibold">
-          <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
-          {p.p3}
-        </p>
+      <article class="card flex flex-col !border-[1.5px] !border-brass-deep/40 p-5" data-reveal style="transition-delay:160ms">
+        <header class="mb-4 flex items-center justify-between gap-3">
+          <h3 class="flex items-center gap-2.5 text-[0.98rem]">
+            <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+            {p.p3}
+          </h3>
+          <span class="shrink-0 text-[0.68rem] text-ink/40">{t.hero.demoLabel}</span>
+        </header>
 
-        <div class="card !border-[1.5px] !border-brass-deep/40 p-5">
-          <!-- identity -->
-          <div class="flex items-start gap-3">
-            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[1.05rem] font-bold text-karkadeh">
-              {p.profile.name.trim().charAt(0)}
-            </span>
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="text-[1.05rem] font-semibold">{p.profile.name}</p>
-                <span class="rounded-full bg-brass-15 px-2 py-0.5 text-[0.72rem] font-medium text-ink/75">{p.profile.badge}</span>
-              </div>
-              <p class="num mt-0.5 text-[0.88rem] text-ink/70" dir="ltr">{p.profile.phone}</p>
-            </div>
+        <!-- identity -->
+        <div class="flex items-center gap-3">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[1.05rem] font-bold text-karkadeh">
+            {p.profile.name.trim().charAt(0)}
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="text-[1.02rem] font-semibold">{p.profile.name}</p>
+            <p class="num text-[0.85rem] text-ink/65" dir="ltr">{p.profile.phone}</p>
           </div>
-
-          <!-- the allergy the bot must respect -->
-          <p class="mt-3 rounded-[var(--radius-sm)] bg-karkadeh-10 px-3 py-1.5 text-[0.85rem] font-medium text-karkadeh">
-            {p.profile.allergy}
-          </p>
-
-          <!-- the three numbers -->
-          <div class="mt-4 grid grid-cols-3 gap-2">
-            {p.profile.stats.map((s) => (
-              <div class="rounded-[var(--radius-sm)] bg-ink/[0.04] px-2 py-2 text-center">
-                <p class="num text-[1.05rem] font-semibold leading-none">{s.value}</p>
-                <p class="mt-1 text-[0.62rem] leading-tight text-ink/55">{s.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <!-- what it remembers -->
-          <dl class="mt-4 space-y-1.5 border-t border-ink/10 pt-3.5 text-[0.85rem] text-ink/80">
-            {p.profile.rows.map((r) => (
-              <div class="flex items-start gap-2">
-                <span aria-hidden="true">{r.icon}</span>
-                <span>{r.text}</span>
-              </div>
-            ))}
-          </dl>
-
-          <div class="mt-3.5 space-y-2 border-t border-ink/10 pt-3.5">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="text-[0.8rem] text-ink/55">{p.profile.favLabel}:</span>
-              {p.profile.favs.map((f) => (
-                <span class="num rounded-full border border-ink/12 bg-semna px-2.5 py-0.5 text-[0.78rem]" dir="ltr">{f}</span>
-              ))}
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="text-[0.8rem] text-ink/55">{p.profile.notesLabel}:</span>
-              {p.profile.notes.map((n) => (
-                <span class="rounded-full border border-ink/12 bg-semna px-2.5 py-0.5 text-[0.78rem]">{n}</span>
-              ))}
-            </div>
-          </div>
+          <span class="shrink-0 rounded-full bg-brass-15 px-2.5 py-0.5 text-[0.72rem] font-medium text-ink/75">{p.profile.badge}</span>
         </div>
-      </div>
+
+        <!-- the three numbers -->
+        <div class="mt-4 grid grid-cols-3 divide-x divide-ink/10 rounded-[var(--radius-sm)] bg-ink/[0.035] py-3 rtl:divide-x-reverse">
+          {p.profile.stats.map((s) => (
+            <div class="px-1 text-center">
+              <p class="num text-[1.05rem] font-semibold leading-none">{s.value}</p>
+              <p class="mt-1 text-[0.62rem] leading-tight text-ink/55">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        <!-- what it remembers -->
+        <dl class="mt-4 space-y-2 text-[0.85rem] text-ink/80">
+          {p.profile.rows.map((r) => (
+            <div class="flex items-baseline gap-2.5">
+              <dt class="w-16 shrink-0 text-[0.78rem] text-ink/45">{r.label}</dt>
+              <dd class="min-w-0">{r.text}</dd>
+            </div>
+          ))}
+          <div class="flex items-baseline gap-2.5">
+            <dt class="w-16 shrink-0 text-[0.78rem] text-ink/45">{p.profile.favLabel}</dt>
+            <dd class="flex flex-wrap gap-1.5">
+              {p.profile.favs.map((f) => (
+                <span class="num rounded-full border border-ink/12 bg-semna px-2.5 py-0.5 text-[0.76rem]" dir="ltr">{f}</span>
+              ))}
+            </dd>
+          </div>
+          <div class="flex items-baseline gap-2.5">
+            <dt class="w-16 shrink-0 text-[0.78rem] text-ink/45">{p.profile.notesLabel}</dt>
+            <dd class="flex flex-wrap gap-1.5">
+              {p.profile.notes.map((n) => (
+                <span class="rounded-full border border-ink/12 bg-semna px-2.5 py-0.5 text-[0.76rem]">{n}</span>
+              ))}
+              <span class="rounded-full bg-karkadeh-10 px-2.5 py-0.5 text-[0.76rem] font-medium text-karkadeh">{p.profile.allergy}</span>
+            </dd>
+          </div>
+        </dl>
+      </article>
     </div>
 
     <p class="mx-auto mt-12 max-w-3xl text-[1.15rem] font-medium" data-reveal>{t.whatIs.p2}</p>

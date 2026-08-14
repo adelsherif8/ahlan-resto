@@ -79,7 +79,7 @@ export const ar: SiteContent = {
     // The three real outputs of one order. Content mirrors the live product;
     // restaurant + customer are fictional (decision 4).
     panels: {
-      p1: 'الإيصال بيوصل لزبونك على الواتساب',
+      p1: 'إيصال الزبون على الواتساب',
       p2: 'التذكرة بتطلع للمطبخ',
       p3: 'والزبون بيتسجل عندك',
       receipt: {
@@ -88,13 +88,10 @@ export const ar: SiteContent = {
         place: 'برجر تحت البيت — فرع المعادي',
         meta: '14/08/2026, 9:41 م · تيك أواي · المعادي',
         item: '• 1× كلاسيك برجر (كومبو (بطاطس + مشروب) · كوكاكولا) — 260 EGP',
-        subtotal: 'الإجمالي الجزئي: 260 EGP',
-        net: 'الصافي: 228.07 EGP',
-        tax: 'الضريبة: 31.93 EGP',
+        breakdown: 'الصافي 228.07 · الضريبة 31.93',
         total: 'الإجمالي المطلوب: 260 EGP',
         taxNote: 'الأسعار شاملة الضريبة.',
-        pay: '💳 كاش',
-        eta: '⏱ حوالي 20 دقيقة',
+        payEta: '💳 كاش · ⏱ حوالي 20 دقيقة',
         link: '📄 flows.munadim.com/receipt/O-7K3M',
         pdfName: 'O-7K3M.pdf',
         pdfMeta: 'إيصال · PDF',
@@ -114,7 +111,7 @@ export const ar: SiteContent = {
       profile: {
         name: 'أحمد محمود',
         badge: 'راجع',
-        allergy: '⚠ حساسية: مكسرات',
+        allergy: '⚠ حساسية مكسرات',
         phone: '0100 000 4437',
         stats: [
           { value: '8', label: 'زيارات' },
@@ -122,9 +119,9 @@ export const ar: SiteContent = {
           { value: '267', label: 'متوسط الأوردر EGP' },
         ],
         rows: [
-          { icon: '🕘', text: 'آخر أوردر من 3 أيام' },
-          { icon: '🏪', text: 'الفرع المفضل: المعادي' },
-          { icon: '📍', text: 'شارع 9، المعادي — الدور 3، شقة 7' },
+          { label: 'آخر أوردر', text: 'من 3 أيام' },
+          { label: 'الفرع', text: 'المعادي' },
+          { label: 'العنوان', text: 'شارع 9، المعادي — الدور 3، شقة 7' },
         ],
         favLabel: 'أكلاته المفضلة',
         favs: ['Classic Burger', 'Loaded Fries'],

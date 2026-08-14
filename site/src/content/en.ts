@@ -51,7 +51,7 @@ export const en: SiteContent = {
     channels: ['Delivery', 'Pickup', 'Dine-in'],
     p2: 'Every order leaves you a phone number and an order history, in a dashboard that belongs to you.',
     panels: {
-      p1: "The receipt reaches your customer on WhatsApp",
+      p1: 'The receipt on WhatsApp',
       p2: 'The ticket prints in the kitchen',
       p3: 'And the customer is recorded for you',
       receipt: {
@@ -60,13 +60,10 @@ export const en: SiteContent = {
         place: 'برجر تحت البيت — فرع المعادي',
         meta: '14/08/2026, 9:41 م · تيك أواي · المعادي',
         item: '• 1× كلاسيك برجر (كومبو (بطاطس + مشروب) · كوكاكولا) — 260 EGP',
-        subtotal: 'الإجمالي الجزئي: 260 EGP',
-        net: 'الصافي: 228.07 EGP',
-        tax: 'الضريبة: 31.93 EGP',
+        breakdown: 'الصافي 228.07 · الضريبة 31.93',
         total: 'الإجمالي المطلوب: 260 EGP',
         taxNote: 'الأسعار شاملة الضريبة.',
-        pay: '💳 كاش',
-        eta: '⏱ حوالي 20 دقيقة',
+        payEta: '💳 كاش · ⏱ حوالي 20 دقيقة',
         link: '📄 flows.munadim.com/receipt/O-7K3M',
         pdfName: 'O-7K3M.pdf',
         pdfMeta: 'Receipt · PDF',
@@ -86,7 +83,7 @@ export const en: SiteContent = {
       profile: {
         name: 'أحمد محمود',
         badge: 'returning',
-        allergy: '⚠ Allergy: nuts',
+        allergy: '⚠ Nut allergy',
         phone: '0100 000 4437',
         stats: [
           { value: '8', label: 'VISITS' },
@@ -94,9 +91,9 @@ export const en: SiteContent = {
           { value: '267', label: 'AVG TICKET' },
         ],
         rows: [
-          { icon: '🕘', text: 'Last order 3 days ago' },
-          { icon: '🏪', text: 'Favourite branch: Maadi' },
-          { icon: '📍', text: 'Street 9, Maadi — floor 3, apt 7' },
+          { label: 'Last order', text: '3 days ago' },
+          { label: 'Branch', text: 'Maadi' },
+          { label: 'Address', text: 'Street 9, Maadi — floor 3, apt 7' },
         ],
         favLabel: 'Favourites',
         favs: ['Classic Burger', 'Loaded Fries'],

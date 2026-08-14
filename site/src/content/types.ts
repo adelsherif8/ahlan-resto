@@ -56,8 +56,8 @@ export interface SiteContent {
       p1: string; p2: string; p3: string;
       receipt: {
         headline: string; title: string; place: string; meta: string; item: string;
-        subtotal: string; net: string; tax: string; total: string; taxNote: string;
-        pay: string; eta: string; link: string; pdfName: string; pdfMeta: string;
+        breakdown: string; total: string; taxNote: string;
+        payEta: string; link: string; pdfName: string; pdfMeta: string;
       };
       ticket: {
         head: string; code: string; customer: string; item: string; price: string;
@@ -66,7 +66,7 @@ export interface SiteContent {
       profile: {
         name: string; badge: string; allergy: string; phone: string;
         stats: { value: string; label: string }[];
-        rows: { icon: string; text: string }[];
+        rows: { label: string; text: string }[];
         favLabel: string; favs: string[];
         notesLabel: string; notes: string[];
       };
