@@ -87,6 +87,13 @@ const CASES = [
   { id: "perunit", needs: "casual", name: "2 meals can mix drinks — line splits per unit",
     turns: ["2 iconic meals for pickup from Maadi", "Full Meal", "Small", "French fries", "one coca cola and one sprite", "cash", "yes confirm"],
     expect: [/O-[A-Z2-9]{4}/, /coca/i, /sprite/i] },
+  // Positional mixing across a multi-unit line. Live 14 Aug: "hot for the first 2 and
+  // the third one medium" applied ONE spice to all three, even though we had printed
+  // "you can mix across your 3". Counts must come from position words, not just digits.
+  { id: "perunitpos", needs: "casual", name: "'first 2 ... the third' splits the line per unit",
+    turns: ["3 american truck meals for pickup from Maadi", "Full Meal", "Small", "French fries",
+            "coca cola for the first 2 and sprite for the third", "cash", "yes confirm"],
+    expect: [/O-[A-Z2-9]{4}/, /2×/, /1×/, /coca/i, /sprite/i] },
   // pairs_with cross-sell — the suggestion must be the item's OWN pairing and
   // must never be something already in the order
   { id: "crosssell", needs: "casual", name: "Cross-sell offers the item's own pairing, once, priced by code",

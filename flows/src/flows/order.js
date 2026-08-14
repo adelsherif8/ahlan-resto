@@ -1770,6 +1770,31 @@ function modifiers(it) {
 //
 // choice.price = absolute (replaces the item's base price) · choice.delta = added
 // group.count  = ask for that many picks · group.from_category = read the live menu
+// How many UNITS of a multi-unit line does this choice cover? People mix choices
+// with position words, not just counts: "hot for the first 2 and the third one
+// medium", "coke for the first, sprite for the second", "واحد حار والتاني ميديام".
+// Only a count that hugs the choice name is trusted; anything unclear returns null
+// so the caller leaves the question open instead of guessing.
+const UNIT_WORDS = { one: 1, two: 2, three: 3, four: 4, "١": 1, "٢": 2, "٣": 3, "٤": 4,
+  "واحد": 1, "اتنين": 2, "تنين": 2, "تلاتة": 3, "تلاته": 3, "اربعة": 4, "أربعة": 4 };
+const ORDINAL_ONE = /(second|third|fourth|last|other|remaining|التاني|الثاني|التالت|الثالث|الاخير|الأخير|الباقي)/i;
+function unitsForChoice(said, at, len) {
+  const before = said.slice(Math.max(0, at - 18), at);
+  const after = said.slice(at + len, at + len + 24);
+  const win = `${before} | ${after}`;
+  // "for the first 2" / "أول اتنين" — the count that follows or precedes "first"
+  const firstN = /(?:first|أول|اول)\s*(\d+|two|three|four|اتنين|تلاتة|تلاته)/i.exec(win);
+  if (firstN) return Math.min(UNIT_WORDS[firstN[1].toLowerCase()] ?? Number(firstN[1]) ?? 1, 8);
+  // a bare count hugging the name: "2 hot", "hot x2", "٢ حار"
+  const digits = /(\d+)\s*x?\s*$/.exec(before) || /^\s*x\s*(\d+)/.exec(after);
+  if (digits) return Math.min(Number(digits[1]) || 1, 8);
+  const w = /([\p{L}\p{N}]+)\s*$/u.exec(before);
+  if (w && UNIT_WORDS[w[1].toLowerCase()] != null) return UNIT_WORDS[w[1].toLowerCase()];
+  // "the third one", "the other one", "التاني" — one unit
+  if (ORDINAL_ONE.test(win)) return 1;
+  return null;
+}
+
 function groupChoices(group, menu) {
   if (group.from_category) {
     // staff type this free-form in the dashboard — treat it as a literal
@@ -2134,9 +2159,9 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
       // written just before it (default 1)
       const picked = [];
       for (const h of hits) {
-        const idx = said.indexOf(normName(h.name).split(" ")[0]);
-        const before = idx > 0 ? said.slice(Math.max(0, idx - 6), idx) : "";
-        const q = Math.min(Number((before.match(/(\d+)\s*x?\s*$/) || [])[1]) || 1, 8);
+        const key = normName(h.name).split(" ")[0];
+        const idx = said.indexOf(key);
+        const q = (idx >= 0 ? unitsForChoice(said, idx, key.length) : null) ?? 1;
         for (let k = 0; k < q; k++) picked.push(h.name);
       }
 
