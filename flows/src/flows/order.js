@@ -269,8 +269,18 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           }
           if (pick.length === 1) {
             answeredAmbiguity = pick[0];
-            if (!(e.items || []).length) e.items = [{ name: pick[0], qty: amb0.qty || 1 }];
-            else if (e.items.length === 1 && (Number(e.items[0].qty) || 1) === 1 && (amb0.qty || 1) > 1) e.items[0].qty = amb0.qty;
+            // The guest picked from the list WE printed — that BEATS whatever the
+            // extractor guessed. Live 14 Aug: he answered our Classic-or-Nashville
+            // TENDERS question with "nashvile", the model guessed "Nashville Slaw",
+            // the guess won, and he was walked through options for a dish he never
+            // asked for. Anything else he named in the same breath ("and a coke")
+            // is genuinely additional and stays.
+            const qty = Math.min(Math.max(Math.round(Number(amb0.qty || e.items?.[0]?.qty) || 1), 1), 20);
+            const others = (e.items || []).filter((it) => {
+              const n = normName(it.name);
+              return n && n !== normName(pick[0]) && !amb0.candidates.some((c) => normName(c) === n);
+            });
+            e.items = [{ name: pick[0], qty, notes: e.items?.[0]?.notes || null }, ...others];
           }
         }
         const wanted = (e.items || []).slice(0, 12);
