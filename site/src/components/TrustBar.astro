@@ -1,0 +1,22 @@
+---
+/** Trust variant — the fact bar: three verified facts, no claims. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<aside class="border-y border-ink/[0.07] bg-semna">
+  <div class="container-page py-10">
+    <ul class="mx-auto grid max-w-4xl gap-6 sm:grid-cols-3 sm:gap-8">
+      {t.trust.facts.map((f, i) => (
+        <li class="flex gap-3" data-reveal style={`transition-delay:${i * 80}ms`}>
+          <span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+          <div>
+            <p class="text-[1.02rem] font-semibold">{f.head}</p>
+            <p class="mt-1 text-[0.92rem] leading-relaxed text-ink/70">{f.body}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </div>
+</aside>

@@ -1,0 +1,40 @@
+---
+/** Closing variant — the CTA *is* the message: a WhatsApp composer holding the
+    prefilled line, send button as the button. Single focus (CTA research). */
+import type { SiteContent } from '../content/types';
+import { WA_LINK, WA_NUMBER_DISPLAY } from '../lib/const';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="on-ink bg-ink">
+  <div class="container-page section">
+    <div class="container-text text-center" data-reveal>
+      <h2 class="h-rule rule-center text-semna">{t.closing.h2}</h2>
+      <p class="mt-7 text-[1.1rem] text-semna/85">{t.closing.p}</p>
+    </div>
+
+    <!-- the composer -->
+    <a
+      href={WA_LINK}
+      class="group mx-auto mt-11 flex max-w-xl items-center gap-3 rounded-full bg-[#F0F2F5] p-2 ps-6 shadow-[0_20px_44px_-24px_rgba(0,0,0,0.6)]"
+      data-reveal
+      dir="rtl"
+    >
+      <span class="flex-1 truncate py-2 text-start text-[1.02rem] text-[#111B21]">{t.closing.prefill}</span>
+      <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-karkadeh transition-colors group-hover:bg-[#741727]">
+        <svg viewBox="0 0 24 24" class="h-[22px] w-[22px] rtl:-scale-x-100" aria-hidden="true">
+          <path
+            d="M3.4 20.4 21 12 3.4 3.6l0 6.5L15 12 3.4 13.9z"
+            fill="var(--semna)"
+          />
+        </svg>
+      </span>
+    </a>
+
+    <p class="mt-5 text-center text-[0.95rem] text-semna/60" data-reveal>{t.closing.micro}</p>
+    <p class="mt-2 text-center" data-reveal>
+      <a href={WA_LINK} class="num text-[1.05rem] font-medium text-brass hover:text-brass-light" dir="ltr">{WA_NUMBER_DISPLAY}</a>
+    </p>
+  </div>
+</section>

@@ -1,0 +1,19 @@
+---
+/** Trust variant — three quiet cards on ink; the number leads the first. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="on-ink bg-ink">
+  <div class="container-page py-16">
+    <ul class="mx-auto grid max-w-4xl gap-4 sm:grid-cols-3">
+      {t.trust.facts.map((f, i) => (
+        <li class="rounded-[var(--radius-lg)] border border-semna/12 p-6" data-reveal style={`transition-delay:${i * 80}ms`}>
+          <p class="text-[1.05rem] font-semibold text-brass">{f.head}</p>
+          <p class="mt-2 text-[0.95rem] leading-relaxed text-semna/75">{f.body}</p>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>

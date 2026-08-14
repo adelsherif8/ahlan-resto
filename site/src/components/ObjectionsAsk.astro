@@ -1,0 +1,34 @@
+---
+/** Objections variant — scannable Q&A with the escape hatch at the end
+    (FAQ research: always give a way to ask the question that isn't listed). */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="section">
+  <div class="container-page">
+    <div class="mx-auto max-w-3xl">
+      <h2 class="h-rule" data-reveal>{t.objections.h2}</h2>
+
+      <dl class="mt-10 space-y-7">
+        {t.objections.items.map((o, i) => (
+          <div class="grid gap-1.5" data-reveal style={`transition-delay:${i * 60}ms`}>
+            <dt class="text-[1.2rem] font-semibold leading-snug">{o.q}</dt>
+            <dd class="text-[1.05rem] leading-relaxed text-ink/75">{o.a}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <a
+        href={WA_LINK}
+        class="mt-10 flex min-h-[56px] items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-ink/15 bg-[#FFFDF8] px-6 transition-colors hover:border-karkadeh"
+        data-reveal
+      >
+        <span class="text-[1.02rem] font-medium">{t.closing.askMore}</span>
+        <span aria-hidden="true" class="text-[1.2rem] text-karkadeh rtl:-scale-x-100">←</span>
+      </a>
+    </div>
+  </div>
+</section>

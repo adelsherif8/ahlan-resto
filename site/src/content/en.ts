@@ -286,6 +286,11 @@ export const en: SiteContent = {
       ],
       replay: 'Replay',
     },
+    facts: [
+      { head: '110 scenarios', body: 'Every release is tested against them before it reaches you.' },
+      { head: 'Official WhatsApp Business', body: "On your restaurant's number, in your restaurant's name." },
+      { head: 'Your data is yours', body: "The customer database belongs to the restaurant." },
+    ],
   },
 
   objections: {
@@ -316,6 +321,9 @@ export const en: SiteContent = {
     p: "A 15-minute demo, on WhatsApp or at your restaurant. We'll send an order by voice note in front of you and show you where it lands.",
     cta: 'Book a demo',
     waLabel: `WhatsApp: ${WA_NUMBER_DISPLAY}`,
+    micro: '15 minutes on WhatsApp. No commitment.',
+    prefill: 'عايز أشوف عرض توضيحي',
+    askMore: 'Still have a question? Ask us on WhatsApp.',
   },
 
   footer: {

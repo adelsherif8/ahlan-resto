@@ -1,0 +1,22 @@
+---
+/** Closing variant — the karkadeh band, single focus: one line, one button,
+    one reassurance under it. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK, WA_NUMBER_DISPLAY } from '../lib/const';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="bg-karkadeh">
+  <div class="container-page py-20 text-center sm:py-24">
+    <h2 class="mx-auto max-w-[18ch] text-semna" data-reveal>{t.closing.h2}</h2>
+    <div class="mt-9 flex flex-col items-center gap-4" data-reveal>
+      <a
+        href={WA_LINK}
+        class="inline-flex min-h-[56px] items-center justify-center rounded-full bg-semna px-12 text-[1.15rem] font-semibold text-karkadeh transition-colors hover:bg-white"
+      >{t.closing.cta}</a>
+      <p class="text-[0.95rem] text-semna/80">{t.closing.micro}</p>
+      <a href={WA_LINK} class="num mt-1 flex min-h-[44px] items-center text-[1.05rem] font-medium text-semna/85 hover:text-white" dir="ltr">{WA_NUMBER_DISPLAY}</a>
+    </div>
+  </div>
+</section>

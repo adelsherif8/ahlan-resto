@@ -140,8 +140,14 @@ export interface SiteContent {
     pre: string; num: string; post: string;
     /** Suite-run panel — new UI strings, need Adel's Arabic review. */
     run: { title: string; sentence: string; ofLabel: string; passing: string; cases: string[]; replay: string };
+    /** Compact fact bar — every item verified in feature-truth §6. */
+    facts: { head: string; body: string }[];
   };
   objections: { h2: string; items: { q: string; a: string }[] };
-  closing: { h2: string; p: string; cta: string; waLabel: string };
+  closing: {
+    h2: string; p: string; cta: string; waLabel: string;
+    /** New UI strings — need Adel's Arabic review. */
+    micro: string; prefill: string; askMore: string;
+  };
   footer: { tagline: string; email: string; privacy: string; rights: string; colSite: string; colContact: string };
 }
