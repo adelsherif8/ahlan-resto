@@ -49,13 +49,35 @@ That benchmark tested **gpt-5.4**, found it **+63% more expensive** than gpt-4.1
 
 Also missing entirely: the whole gpt-5.6 family. Harmless today (we run none of them), but it silently corrupts any future benchmark — which is exactly what we're about to do. **Fix before benchmarking.**
 
-### Recommendation
-1. Fix the price table first (small, zero risk).
-2. Benchmark **gpt-5.6-luna as MODEL_SMART** against gpt-4.1 on the same 8 behaviours the 5.4 benchmark used, then the full 110-case suite twice.
-3. If it holds, consider Luna for MODEL_FAST too — it's cheaper than gpt-4.1-mini.
-4. Keep gpt-4.1-nano for the router unless Luna wins there as well.
+### How new is it, and is it actually any good?
 
-**Do not switch on price alone.** The last two model experiments (nano flaked, mini hallucinated a dessert menu) both failed on behaviour, not cost.
+**Released 9 July 2026** — GA across ChatGPT, Codex and the API. About five weeks old. The family is three "capability tiers": **Sol** (flagship), **Terra** (mid), **Luna** (fastest and cheapest).
+
+**Luna is the cheap tier of its family, not a flagship at a discount.** That framing matters — this is not "the same quality for 10× less". What the measured data says:
+
+| Signal | Reading |
+|---|---|
+| Artificial Analysis intelligence index | Luna (medium) **38** vs gpt-5.4-mini (xhigh) **40** — roughly mini-class |
+| Price for that | Luna is ~4× cheaper than gpt-5.4-mini |
+| Generation | Luna clears **GPT-5.5** on Agents' Last Exam, HealthBench Professional, DeepSWE — i.e. newer-generation than our 2025-era gpt-4.1 |
+| Context | 1.05M tokens |
+| Speed | ~166 tok/s, comparable to gpt-5.4-mini |
+| Cluster behaviour | Terra and Luna reportedly sit close behind Sol on most evals except computer-use/browsing |
+
+**Why the price looks strange:** Luna launched at $1.00/$6.00, then on **30 July OpenAI cut it by ~80%**, landing at today's $0.20/$1.20. Most blog posts still quote the launch price. The pricing page is the truth.
+
+### Revised recommendation — try the FAST tier first, not SMART
+
+The founder's instinct is the lower-risk read and it matches the evidence: Luna is mini-class in measured intelligence, so it belongs where our *mini* runs, not automatically where gpt-4.1 runs.
+
+1. **Fix the stale price table** (zero risk, must precede any benchmark or the numbers lie).
+2. **Try Luna as MODEL_FAST first** — extraction, classification, summarisation. This is the safest place to test a new model because the work is mechanical, every returned value is re-validated in code, and a bad answer is caught rather than spoken to a guest. It's also cheaper than gpt-4.1-mini on both axes, so the saving is real even if we never touch SMART.
+3. **Only then consider SMART.** Guest-facing replies are where hallucination and tone failures actually cost us, and where both previous experiments died — nano flaked, mini invented a dessert menu, gpt-5.4 failed 8 behaviours.
+4. **Keep gpt-4.1-nano on the router** unless Luna clearly wins there too; nano's job is tiny and structural.
+
+**Benchmark gates, unchanged:** the same 8 behaviours the 5.4 benchmark used, then the full 110-case suite **twice**, before anything reaches Luci'z.
+
+**Two risks the benchmarks won't tell us:** 5.x are reasoning models — we run them with `reasoning_effort: "none"` because a WhatsApp guest waits about two seconds, and the published scores are at *medium* effort, so our effective quality will be lower than the table. And no public benchmark measures Egyptian Arabic or Franco, which is exactly where our product lives.
 
 ---
 
