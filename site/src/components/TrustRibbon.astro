@@ -1,0 +1,18 @@
+---
+/** Trust variant C — the ink ribbon: a thin dark band, reads like a maker's stamp. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<aside class="on-ink bg-ink">
+  <div class="container-page flex items-center justify-center gap-4 py-7" data-reveal>
+    <span class="h-2 w-2 shrink-0 rounded-full bg-brass" aria-hidden="true"></span>
+    <p class="text-center text-[1.02rem] text-semna/90">
+      {t.trust.pre}
+      <span class="num font-medium text-brass">{t.trust.num}</span>
+      {t.trust.post}
+    </p>
+    <span class="h-2 w-2 shrink-0 rounded-full bg-brass" aria-hidden="true"></span>
+  </div>
+</aside>

@@ -1,0 +1,33 @@
+---
+/** Header variant C — minimal masthead: wordmark only, text links, no bar.
+    Sits seamlessly on the light hero like a print masthead. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t, lang } = Astro.props;
+---
+
+<header class="bg-semna">
+  <div class="container-page flex items-center justify-between gap-4 pt-6 pb-2">
+    <a href={`/${lang}`} class="flex min-h-[44px] items-center" aria-label="Munadim">
+      <img src="/brand/11-wordmark-latin-ink-nobg.svg" alt="MUNADIM" width="551" height="190" class="h-6 w-auto sm:h-7" />
+    </a>
+
+    <nav class="flex items-center gap-5 sm:gap-7">
+      <a href="#pricing" class="hidden min-h-[44px] items-center font-medium text-ink/75 hover:text-karkadeh sm:flex">
+        {t.nav.pricing}
+      </a>
+      <a
+        href={t.nav.toggle.href}
+        class="flex min-h-[44px] items-center font-medium text-ink/60 hover:text-karkadeh"
+        lang={lang === 'ar' ? 'en' : 'ar'}
+        dir={lang === 'ar' ? 'ltr' : 'rtl'}
+      >{t.nav.toggle.label}</a>
+      <a href={WA_LINK} class="flex min-h-[44px] items-center gap-2 font-semibold text-karkadeh hover:text-[#741727]">
+        {t.nav.cta}
+        <span aria-hidden="true" class="text-[1.1em] rtl:-scale-x-100">←</span>
+      </a>
+    </nav>
+  </div>
+</header>

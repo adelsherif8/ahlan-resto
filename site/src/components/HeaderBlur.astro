@@ -1,0 +1,37 @@
+---
+/** Header — slim sticky glass bar (Stripe register): full-width, frosted,
+    hairline underline, content stays wide open. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t, lang } = Astro.props;
+---
+
+<header class="sticky top-0 z-50 border-b border-ink/[0.07] bg-[#F5EFE7]/70 backdrop-blur-md">
+  <div class="container-page flex items-center justify-between gap-4 py-2.5">
+    <a href={`/${lang}`} class="flex min-h-[44px] items-center" aria-label="Munadim">
+      <img src="/brand/21-lockup-horizontal-light-nobg.svg" alt="Munadim" width="166" height="50" class="h-8 w-auto sm:h-9" />
+    </a>
+
+    <nav class="flex items-center gap-1 sm:gap-4">
+      <a href="#pricing" class="group relative hidden min-h-[44px] items-center px-2 font-medium text-ink/75 transition-colors hover:text-ink sm:flex">
+        {t.nav.pricing}
+        <span class="absolute inset-x-2 bottom-2 h-px origin-center scale-x-0 bg-karkadeh transition-transform duration-200 group-hover:scale-x-100" aria-hidden="true"></span>
+      </a>
+      <a
+        href={t.nav.toggle.href}
+        class="group relative flex min-h-[44px] items-center px-2 font-medium text-ink/60 transition-colors hover:text-ink"
+        lang={lang === 'ar' ? 'en' : 'ar'}
+        dir={lang === 'ar' ? 'ltr' : 'rtl'}
+      >
+        {t.nav.toggle.label}
+        <span class="absolute inset-x-2 bottom-2 h-px origin-center scale-x-0 bg-karkadeh transition-transform duration-200 group-hover:scale-x-100" aria-hidden="true"></span>
+      </a>
+      <a
+        href={WA_LINK}
+        class="flex min-h-[42px] items-center justify-center rounded-full bg-karkadeh px-5 text-[0.95rem] font-semibold text-semna transition-colors hover:bg-[#741727]"
+      >{t.nav.cta}</a>
+    </nav>
+  </div>
+</header>

@@ -1,0 +1,45 @@
+---
+/** Footer — giant wordmark, Arabic: منادم across the page in Amiri brass.
+    The more distinctive twin — nobody else's footer can say this word. */
+import type { SiteContent } from '../content/types';
+import { CONTACT_EMAIL } from '../lib/const';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t, lang } = Astro.props;
+---
+
+<footer class="on-ink bg-ink">
+  <div class="container-page pt-14">
+    <div class="flex flex-col items-center justify-between gap-6 border-b border-semna/10 pb-10 sm:flex-row">
+      <p class="text-[1.25rem] text-brass" style="font-family: var(--font-display-ar)" lang="ar" dir="rtl">
+        {t.footer.tagline}
+      </p>
+      <nav class="flex flex-wrap items-center gap-x-7 gap-y-2 text-[0.95rem]">
+        <a href={`mailto:${CONTACT_EMAIL}`} class="flex min-h-[44px] items-center text-semna/75 hover:text-brass-light" dir="ltr">{CONTACT_EMAIL}</a>
+        <a href={`/${lang}/privacy`} class="flex min-h-[44px] items-center text-semna/75 hover:text-brass-light">{t.footer.privacy}</a>
+        <a
+          href={t.nav.toggle.href}
+          class="flex min-h-[44px] items-center text-semna/75 hover:text-brass-light"
+          lang={lang === 'ar' ? 'en' : 'ar'}
+          dir={lang === 'ar' ? 'ltr' : 'rtl'}
+        >{t.nav.toggle.label}</a>
+      </nav>
+    </div>
+
+    <!-- the statement — منادم -->
+    <div class="flex justify-center py-8 sm:py-10">
+      <img
+        src="/brand/12-wordmark-arabic-brass-nobg.svg"
+        alt="منادم"
+        width="281" height="250"
+        class="w-full max-w-md sm:max-w-lg"
+        loading="lazy"
+      />
+    </div>
+
+    <div class="flex items-center justify-between gap-4 border-t border-semna/10 py-5">
+      <p class="text-[var(--step--1)] text-semna/55">{t.footer.rights}</p>
+      <img src="/brand/10-wordmark-latin-brass-nobg.svg" alt="MUNADIM" width="166" height="57" class="h-5 w-auto opacity-70" loading="lazy" />
+    </div>
+  </div>
+</footer>

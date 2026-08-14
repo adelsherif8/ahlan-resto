@@ -1,0 +1,30 @@
+---
+/** Footer variant B — light colophon: the page ends on paper, print-style. */
+import type { SiteContent } from '../content/types';
+import { CONTACT_EMAIL } from '../lib/const';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t, lang } = Astro.props;
+---
+
+<footer class="border-t border-ink/10 bg-semna">
+  <div class="container-page flex flex-col items-center gap-6 py-12 text-center">
+    <img src="/brand/21-lockup-horizontal-light-nobg.svg" alt="Munadim" width="166" height="50" class="h-10 w-auto" loading="lazy" />
+    <p class="text-[1.2rem] text-brass-deep" style="font-family: var(--font-display-ar)" lang="ar" dir="rtl">
+      {t.footer.tagline}
+    </p>
+
+    <nav class="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-[0.95rem]">
+      <a href={`mailto:${CONTACT_EMAIL}`} class="flex min-h-[44px] items-center text-ink/70 hover:text-karkadeh" dir="ltr">{CONTACT_EMAIL}</a>
+      <a href={`/${lang}/privacy`} class="flex min-h-[44px] items-center text-ink/70 hover:text-karkadeh">{t.footer.privacy}</a>
+      <a
+        href={t.nav.toggle.href}
+        class="flex min-h-[44px] items-center text-ink/70 hover:text-karkadeh"
+        lang={lang === 'ar' ? 'en' : 'ar'}
+        dir={lang === 'ar' ? 'ltr' : 'rtl'}
+      >{t.nav.toggle.label}</a>
+    </nav>
+
+    <p class="text-[var(--step--1)] text-ink/50">{t.footer.rights}</p>
+  </div>
+</footer>

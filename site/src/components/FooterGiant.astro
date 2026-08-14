@@ -1,0 +1,47 @@
+---
+/** Footer — the giant wordmark statement: slim rows above, the name itself as
+    the closing image, legal bar below. MUNADIM in brass across the page. */
+import type { SiteContent } from '../content/types';
+import { CONTACT_EMAIL } from '../lib/const';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t, lang } = Astro.props;
+---
+
+<footer class="on-ink bg-ink">
+  <div class="container-page pt-14">
+    <!-- slim row: tagline + links -->
+    <div class="flex flex-col items-center justify-between gap-6 border-b border-semna/10 pb-10 sm:flex-row">
+      <p class="text-[1.25rem] text-brass" style="font-family: var(--font-display-ar)" lang="ar" dir="rtl">
+        {t.footer.tagline}
+      </p>
+      <nav class="flex flex-wrap items-center gap-x-7 gap-y-2 text-[0.95rem]">
+        <a href={`mailto:${CONTACT_EMAIL}`} class="flex min-h-[44px] items-center text-semna/75 hover:text-brass-light" dir="ltr">{CONTACT_EMAIL}</a>
+        <a href={`/${lang}/privacy`} class="flex min-h-[44px] items-center text-semna/75 hover:text-brass-light">{t.footer.privacy}</a>
+        <a
+          href={t.nav.toggle.href}
+          class="flex min-h-[44px] items-center text-semna/75 hover:text-brass-light"
+          lang={lang === 'ar' ? 'en' : 'ar'}
+          dir={lang === 'ar' ? 'ltr' : 'rtl'}
+        >{t.nav.toggle.label}</a>
+      </nav>
+    </div>
+
+    <!-- the statement -->
+    <div class="py-10 sm:py-14">
+      <img
+        src="/brand/10-wordmark-latin-brass-nobg.svg"
+        alt="MUNADIM"
+        width="551" height="190"
+        class="mx-auto w-full max-w-4xl"
+        loading="lazy"
+      />
+    </div>
+
+    <!-- legal bar -->
+    <div class="flex items-center justify-between gap-4 border-t border-semna/10 py-5">
+      <p class="text-[var(--step--1)] text-semna/55">{t.footer.rights}</p>
+      <img src="/brand/01-mark-fine-brass-on-ink-nobg.svg" alt="" width="28" height="28" class="h-7 w-7 opacity-70" loading="lazy" aria-hidden="true" />
+    </div>
+  </div>
+</footer>

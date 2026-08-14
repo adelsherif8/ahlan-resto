@@ -1,0 +1,29 @@
+---
+// Premium header/footer round 2: glass pill + sticky blur (each above the hero),
+// then the giant-wordmark footers (Latin and Arabic).
+import Base from '../../layouts/Base.astro';
+import HeaderPill from '../../components/HeaderPill.astro';
+import HeaderBlur from '../../components/HeaderBlur.astro';
+import Hero from '../../components/Hero.astro';
+import FooterGiant from '../../components/FooterGiant.astro';
+import FooterGiantAr from '../../components/FooterGiantAr.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="معاينة الهيدر والفوتر ٢" description="Premium header and footer variants" path="/preview/chrome">
+  <main>
+    <div class="relative">
+      <HeaderPill t={t} lang="ar" />
+      <Hero t={t} lang="ar" />
+    </div>
+    <div class="h-14 bg-ink"></div>
+    <div class="relative">
+      <HeaderBlur t={t} lang="ar" />
+      <Hero t={t} lang="ar" />
+    </div>
+    <div class="h-14 bg-semna"></div>
+    <FooterGiant t={t} lang="ar" />
+    <div class="h-8 bg-semna"></div>
+    <FooterGiantAr t={t} lang="ar" />
+  </main>
+</Base>

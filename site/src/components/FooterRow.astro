@@ -1,0 +1,30 @@
+---
+/** Footer variant C — compact ink row: one thin band, everything on one line. */
+import type { SiteContent } from '../content/types';
+import { CONTACT_EMAIL } from '../lib/const';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t, lang } = Astro.props;
+---
+
+<footer class="on-ink border-t border-semna/10 bg-ink">
+  <div class="container-page flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-7">
+    <img src="/brand/20-lockup-horizontal-dark-nobg.svg" alt="Munadim" width="166" height="50" class="h-7 w-auto" loading="lazy" />
+
+    <p class="hidden text-[1.05rem] text-brass md:block" style="font-family: var(--font-display-ar)" lang="ar" dir="rtl">
+      {t.footer.tagline}
+    </p>
+
+    <nav class="flex flex-wrap items-center gap-x-6 gap-y-2 text-[0.9rem]">
+      <a href={`mailto:${CONTACT_EMAIL}`} class="flex min-h-[44px] items-center text-semna/75 hover:text-brass-light" dir="ltr">{CONTACT_EMAIL}</a>
+      <a href={`/${lang}/privacy`} class="flex min-h-[44px] items-center text-semna/75 hover:text-brass-light">{t.footer.privacy}</a>
+      <a
+        href={t.nav.toggle.href}
+        class="flex min-h-[44px] items-center text-semna/75 hover:text-brass-light"
+        lang={lang === 'ar' ? 'en' : 'ar'}
+        dir={lang === 'ar' ? 'ltr' : 'rtl'}
+      >{t.nav.toggle.label}</a>
+      <span class="text-[var(--step--1)] text-semna/50">{t.footer.rights}</span>
+    </nav>
+  </div>
+</footer>
