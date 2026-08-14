@@ -1,0 +1,58 @@
+---
+/** Preview index — every section and its variants, in one place.
+    Local review only; this route is deleted before deploy. */
+import Base from '../../layouts/Base.astro';
+
+const sections = [
+  { slug: 'headers', name: 'الهيدر', variants: 'pill · blur bar · centred · editorial rule · ink bar' },
+  { slug: 'problem', name: 'المشكلة', variants: 'mix · editorial · statement · repeat · dark · type · receipt' },
+  { slug: 'whatis', name: 'قناة الطلبات', variants: 'rail panels · stream · flow · record · pills' },
+  { slug: 'dinein', name: 'الصالة', variants: 'animated scene · before/after · table top · dark · tent card' },
+  { slug: 'steps', name: 'الخطوات', variants: 'journey · timeline · numerals · chat · cards' },
+  { slug: 'understands', name: 'بيفهم زباينك', variants: 'table · thread · bento · list · cards' },
+  { slug: 'trust', name: 'سطر الثقة', variants: 'suite run · seal · ribbon · numeral · strip' },
+  { slug: 'pricing', name: 'السعر', variants: 'picker · calculator · table · anchored · static' },
+  { slug: 'objections', name: 'الأسئلة', variants: 'dialogue · grid · numbered · columns · list' },
+  { slug: 'closing', name: 'الختام', variants: 'karkadeh+QR · ink split · card · big · current' },
+  { slug: 'footers', name: 'الفوتر', variants: 'columns · split · paper · giant منادم · giant MUNADIM' },
+];
+
+const pages = [
+  { href: '/preview/final', name: 'الصفحة المجمّعة', note: 'accepted picks assembled' },
+  { href: '/ar', name: 'الصفحة العربية', note: 'live page' },
+  { href: '/en', name: 'English page', note: 'live page' },
+];
+---
+
+<Base lang="ar" title="معاينة — كل الأقسام" description="Preview index" path="/preview">
+  <main class="container-page py-14">
+    <h1 class="text-[2rem]">معاينة الأقسام</h1>
+    <p class="mt-3 text-ink/70">كل قسم وكل النسخ بتاعته في صفحة واحدة.</p>
+
+    <h2 class="mt-12 text-[1.4rem]">الأقسام</h2>
+    <ul class="mt-5 divide-y divide-ink/10 border-y border-ink/10">
+      {sections.map((s) => (
+        <li>
+          <a href={`/preview/${s.slug}`} class="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-4 transition-colors hover:text-karkadeh">
+            <span class="w-32 shrink-0 text-[1.1rem] font-semibold">{s.name}</span>
+            <span class="num text-[0.85rem] text-ink/60" dir="ltr">/preview/{s.slug}</span>
+            <span class="text-[0.85rem] text-ink/60" dir="ltr">{s.variants}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <h2 class="mt-12 text-[1.4rem]">صفحات كاملة</h2>
+    <ul class="mt-5 divide-y divide-ink/10 border-y border-ink/10">
+      {pages.map((p) => (
+        <li>
+          <a href={p.href} class="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-4 transition-colors hover:text-karkadeh">
+            <span class="w-32 shrink-0 text-[1.1rem] font-semibold">{p.name}</span>
+            <span class="num text-[0.85rem] text-ink/60" dir="ltr">{p.href}</span>
+            <span class="text-[0.85rem] text-ink/60" dir="ltr">{p.note}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </main>
+</Base>
