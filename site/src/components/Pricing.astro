@@ -8,7 +8,7 @@ const { t } = Astro.props;
   <div class="container-page section">
     <h2 class="h-rule rule-center text-center" data-reveal>{t.pricing.h2}</h2>
 
-    <div class="mx-auto mt-12 grid max-w-5xl gap-5 lg:grid-cols-3">
+    <div class="mx-auto mt-12 grid max-w-6xl gap-5 lg:grid-cols-3">
       {t.pricing.plans.map((p, i) => (
         <article
           class:list={[

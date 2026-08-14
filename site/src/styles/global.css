@@ -47,14 +47,14 @@ html {
    the emptiness is intentional and symmetric, never a dead half-page. */
 .container-page {
   margin-inline: auto;
-  max-width: 72rem;
+  max-width: 82rem;
   padding-inline: 1.25rem;
 }
-@media (min-width: 640px) { .container-page { padding-inline: 2rem; } }
+@media (min-width: 640px) { .container-page { padding-inline: 2.5rem; } }
 
 .container-text {
   margin-inline: auto;
-  max-width: 44rem;
+  max-width: 46rem; /* still inside the 68ch measure — prose never widens */
 }
 
 .section { padding-block: 4.5rem; }

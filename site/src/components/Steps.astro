@@ -8,7 +8,7 @@ const { t } = Astro.props;
   <div class="container-page section">
     <h2 class="h-rule rule-center text-center" data-reveal>{t.steps.h2}</h2>
 
-    <ol class="mx-auto mt-12 grid max-w-5xl gap-5 sm:grid-cols-3">
+    <ol class="mx-auto mt-12 grid max-w-6xl gap-5 sm:grid-cols-3">
       {t.steps.items.map((s, i) => (
         <li class="card relative overflow-hidden p-7" data-reveal style={`transition-delay:${i * 90}ms`}>
           <!-- oversized numeral, brass, quiet -->
