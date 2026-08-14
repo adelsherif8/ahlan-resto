@@ -1,6 +1,12 @@
 ---
 /** Variant G — "Light editorial": semna ground, ink type, the phone tilted like
-    an object photographed on paper. Feels print, not app. */
+    an object photographed on paper. Feels print, not app.
+
+    Focal order is deliberate: headline → the confrontational line → the one
+    button → the conversation. The phone is evidence, not the hero, so its
+    frame and shadow are damped and it fades out at the bottom rather than
+    ending on a hard edge. On phones it sits upright and cropped — a tilted
+    object clipped by a 393px viewport reads as broken. */
 import type { SiteContent } from '../content/types';
 import { WA_LINK } from '../lib/const';
 import PhoneChat from './PhoneChat';
@@ -10,23 +16,28 @@ const { t } = Astro.props;
 ---
 
 <section class="relative overflow-hidden bg-semna">
-  <div class="container-page relative mx-auto grid max-w-[76rem] items-center gap-12 pt-16 pb-20 md:pt-20 md:pb-24 lg:grid-cols-[1.02fr_0.98fr] lg:gap-8">
+  <div class="container-page relative mx-auto grid max-w-[76rem] items-center gap-8 pt-10 pb-14 sm:pt-14 md:pt-20 md:pb-24 lg:grid-cols-[1.02fr_0.98fr] lg:gap-8">
     <div class="relative z-10 max-w-[40rem]">
       <h1 class="max-w-[17ch] text-ink">{t.hero.h1}</h1>
 
-      <div class="mt-8 border-s-2 border-karkadeh/60 ps-5">
-        <p class="max-w-[32rem] text-[1.25rem] font-medium leading-relaxed text-karkadeh sm:text-[1.4rem]">
+      <!-- supporting, not competing: lighter than the headline, quieter than the button -->
+      <div class="mt-6 border-s-2 border-karkadeh/50 ps-4 sm:mt-7 sm:ps-5">
+        <p class="max-w-[32rem] text-[1.1rem] font-medium leading-relaxed text-karkadeh sm:text-[1.25rem]">
           {t.hero.sub}
         </p>
       </div>
 
-      <div class="mt-11 flex flex-wrap items-center gap-4">
-        <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-8 !py-3.5 text-[1.05rem]">
+      <!-- the second stop for the eye -->
+      <div class="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 sm:mt-10">
+        <a
+          href={WA_LINK}
+          class="btn-primary inline-flex items-center justify-center !px-9 !py-4 text-[1.08rem] shadow-[0_10px_28px_-12px_rgba(140,29,47,0.7)]"
+        >
           {t.hero.ctaPrimary}
         </a>
         <a
           href="#pricing"
-          class="group inline-flex min-h-[52px] items-center gap-2 px-1 text-[1.02rem] font-medium text-ink/70 transition-colors hover:text-karkadeh"
+          class="group inline-flex min-h-[44px] items-center gap-2 px-1 text-[1rem] font-medium text-ink/65 transition-colors hover:text-karkadeh"
         >
           {t.hero.ctaSecondary}
           <span aria-hidden="true" class="transition-transform group-hover:-translate-x-1 rtl:-scale-x-100">←</span>
@@ -37,19 +48,26 @@ const { t } = Astro.props;
     <div class="relative justify-self-center lg:pe-4">
       <!-- brass-deep circle echo on light -->
       <div
-        class="pointer-events-none absolute start-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-brass-deep/25 rtl:translate-x-1/2"
+        class="pointer-events-none absolute start-1/2 top-1/2 hidden h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-brass-deep/25 sm:block rtl:translate-x-1/2"
         aria-hidden="true"
-      ></div>
-      <div class="rotate-[-4deg]">
-        <PhoneChat
-          client:visible
-          rtlChat={true}
-          restaurant={t.hero.restaurant}
-          status={t.hero.chatStatus}
-          demoLabel={t.hero.demoLabel}
-          replayLabel={t.hero.replay}
-          chat={t.hero.chat}
-        />
+      >
+      </div>
+
+      <!-- cropped on phones so the hero still fits a screen; upright, never tilted-and-clipped -->
+      <div
+        class="relative max-h-[42vh] overflow-hidden [mask-image:linear-gradient(to_bottom,black_58%,transparent_98%)] lg:max-h-none lg:overflow-visible lg:[mask-image:none]"
+      >
+        <div class="lg:rotate-[-4deg]">
+          <PhoneChat
+            client:visible
+            rtlChat={true}
+            restaurant={t.hero.restaurant}
+            status={t.hero.chatStatus}
+            demoLabel={t.hero.demoLabel}
+            replayLabel={t.hero.replay}
+            chat={t.hero.chat}
+          />
+        </div>
       </div>
     </div>
   </div>

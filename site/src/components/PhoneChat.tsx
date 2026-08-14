@@ -26,8 +26,8 @@ interface Props {
 /** Fixed waveform so SSR and client render identically. */
 const WAVE = [5, 9, 14, 8, 12, 17, 10, 6, 12, 16, 9, 5, 8, 13, 18, 11, 7, 10, 15, 8, 5, 9, 12, 6];
 
-const IN_DELAY = 1050;
-const TYPING_MS = 1200;
+const IN_DELAY = 820;
+const TYPING_MS = 850;
 
 export default function PhoneChat({ restaurant, status, demoLabel, replayLabel, chat, rtlChat = true }: Props) {
   const n = chat.length;
@@ -49,7 +49,7 @@ export default function PhoneChat({ restaurant, status, demoLabel, replayLabel, 
     clearTimers();
     setVisible(0);
     setTyping(false);
-    let at = 500;
+    let at = 220;
     chat.forEach((m, i) => {
       if (m.from === 'out') {
         timers.current.push(setTimeout(() => setTyping(true), at));
@@ -63,7 +63,7 @@ export default function PhoneChat({ restaurant, status, demoLabel, replayLabel, 
       } else {
         timers.current.push(setTimeout(() => setVisible(i + 1), at));
       }
-      at += m.from === 'in' ? IN_DELAY : 900;
+      at += m.from === 'in' ? IN_DELAY : 700;
     });
     timers.current.push(setTimeout(() => setPlayed(true), at));
   };
@@ -77,7 +77,7 @@ export default function PhoneChat({ restaurant, status, demoLabel, replayLabel, 
   return (
     <div ref={ref} className="w-[min(88vw,330px)]">
       {/* Phone frame */}
-      <div className="overflow-hidden rounded-[2.1rem] border-[7px] border-[#26211f] bg-[#26211f] shadow-[0_24px_60px_-24px_rgba(0,0,0,0.55)]">
+      <div className="overflow-hidden rounded-[2.1rem] border-[6px] border-[#2b2523] bg-[#2b2523] shadow-[0_18px_44px_-22px_rgba(20,17,16,0.42)]">
         <div className="relative flex h-[640px] flex-col overflow-hidden rounded-[1.65rem] bg-[#EFEAE2]" dir={rtlChat ? 'rtl' : 'ltr'}>
           {/* Chat header — the restaurant's identity, never ours */}
           <div className="flex items-center gap-3 bg-[#F0F2F5] px-4 pb-2.5 pt-3.5">
