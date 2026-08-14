@@ -1,0 +1,14 @@
+[
+  {
+    "name": "A — positional split: coke for the first 2, sprite for the third",
+    "phone": "+201555000301",
+    "turns": ["3 american truck meals for pickup from Maadi", "Full Meal", "Small", "French fries", "coca cola for the first 2 and sprite for the third"],
+    "expect": { "splits into 2 and 1": "2×[\\s\\S]*1×" }
+  },
+  {
+    "name": "B — plain per-unit that already worked: one coke and one sprite",
+    "phone": "+201555000302",
+    "turns": ["2 american truck meals for pickup from Maadi", "Full Meal", "Small", "French fries", "one coca cola and one sprite"],
+    "expect": { "splits into two lines": "1×[\\s\\S]*1×" }
+  }
+]

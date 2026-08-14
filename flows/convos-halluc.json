@@ -1,0 +1,14 @@
+[
+  {
+    "name": "H — Franco dish name with a typo must NOT invent dishes or prices",
+    "phone": "+201555000401",
+    "turns": ["etnen nashvile salw"],
+    "forbid": { "invented dish names": "nashville classic|nashville spicy" }
+  },
+  {
+    "name": "H2 — Arabic dish name only",
+    "phone": "+201555000402",
+    "turns": ["عايز ناشفيل"],
+    "forbid": { "invented prices": "19[0-9] EGP|20[0-9] EGP" }
+  }
+]

@@ -2,7 +2,7 @@
 // Ported logic: hotel friendly.json context builder + persona prompt, restaurant domain.
 import { defineFlow } from "../engine/flow.js";
 import { getMenu } from "../services/menucache.js";
-import { isGreetingish } from "../services/fastpaths.js";
+import { isGreetingish, editDistance } from "../services/fastpaths.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, publicLink } from "../config.js";
 import { hoursToday } from "../services/tenant.js";
@@ -374,6 +374,20 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     const LV = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
     const L2F = (en, ar, fr) => (LV === "ar" ? ar : LV === "fr" ? fr : en);
     let reply = (out.reply || L2F("One second! 🙌", "لحظة واحدة! 🙌", "Le7za wa7da! 🙌")).slice(0, 3500);
+
+    // NO MENU IN CONTEXT → THE MODEL MAY NOT NAME A PRICE. The prompt already says
+    // so and was ignored on 14 Aug: a Franco message slipped past the food detector,
+    // the menu was withheld, and the model invented "Nashville Classic — 195 EGP" and
+    // "Nashville Spicy — 205 EGP". Neither dish nor price exists. A prompt is a
+    // request; this is the guarantee. We send the real menu instead.
+    if (!foodTalk && /\d\s*(egp|جنيه|l\.?e\b)/i.test(reply)) {
+      reply = L2F(
+        "One sec — here's the menu 📄 so you're picking from the real thing.",
+        "ثانية واحدة — اتفضل المنيو 📄 عشان تختار من الحقيقي.",
+        "Sanya wa7da — etfadal el menu 📄 3ashan tekhtar mel 7a2i2i.",
+      );
+      out.send_menu_list = true;
+    }
 
     // THE PDF IS THE MENU — code guarantees it, the prompt only asks.
     // On 14 Aug the model answered "عايز منيو كامل" by typing all 47 items into the
@@ -874,11 +888,22 @@ function mentionsFood(message, history, menu) {
   const probe = ` ${[message, ...recentGuest].join(" ").toLowerCase()} `;
   if (GENERIC_FOOD.test(probe)) return true;
   if (GENERIC_FOOD_AR.some((w) => probe.includes(w))) return true;
+  // EVERY word of a dish name counts, in both scripts, and typos count too. This used
+  // to test only the FIRST word ("chicken" for Chicken Tenders), so "tenders", "slaw"
+  // and "عايز ناشفيل" all read as non-food — the menu was withheld and the model
+  // invented dishes and prices from nothing ("Nashville Classic — 195 EGP", 14 Aug).
+  const probeToks = probe.split(/[^\p{L}\p{N}]+/u).filter((t) => t.length >= 4);
   for (const m of menu) {
     const cat = String(m.category || "").toLowerCase();
     if (cat && probe.includes(cat)) return true;
-    const tok = String(m.name || "").toLowerCase().split(/\s+/)[0];
-    if (tok.length >= 4 && probe.includes(tok)) return true;
+    for (const nm of [m.name, m.name_ar].filter(Boolean)) {
+      for (const tok of String(nm).toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+        if (tok.length < 4) continue;
+        if (probe.includes(tok)) return true;
+        if (tok.length >= 5 && probeToks.some((pt) => Math.abs(pt.length - tok.length) <= 2
+          && editDistance(pt, tok) <= (tok.length >= 8 ? 2 : 1))) return true;
+      }
+    }
   }
   return false;
 }
