@@ -157,6 +157,13 @@ const CASES = [
     expect: [/pay|cash|card|instapay/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "confirmgate", needs: "casual", name: "Confirmation required before the kitchen sees it", turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "cash"],
     expect: [/confirm/i], forbid: [/O-[A-Z2-9]{4}/] },
+  // A guest answers the payment question with the LABEL WE PRINTED, not our internal key.
+  // Live 14 Aug: we offered "online link", he typed "Online", nothing matched, the turn
+  // fell through to chit-chat and the bot wished him a good meal for an order that was
+  // never placed. Any word of an offered method must land — typed or tapped.
+  { id: "paylabel", needs: "casual", name: "Payment answered with the printed label ('Online') is understood",
+    turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "Online"],
+    expect: [/confirm/i], forbid: [/enjoy your|بالهنا|ready at the counter/i] },
   // A QUESTION during an open order must be ANSWERED, never swallowed by the order flow
   // and answered with a menu dump (the "بتوصلوا المعادي؟ → here's the menu" loop bug).
   { id: "midorderq", needs: "casual", name: "A question mid-order is answered, not menu-dumped",

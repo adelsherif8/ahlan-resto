@@ -952,11 +952,36 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       const payMethods = orderType === "dine_in" ? ["cash at the cashier", "card at the cashier", "online link"]
         : orderType === "pickup" ? ["cash at the counter", "card", "instapay"]
         : ["cash on delivery", "card", "instapay"];
-      const PAY_WORD = { cash: "cash", كاش: "cash", card: "card", visa: "card", كارت: "card", فيزا: "card", instapay: "instapay", انستاباي: "instapay" };
+      const PAY_WORD = {
+        cash: "cash", كاش: "cash", card: "card", visa: "card", كارت: "card", فيزا: "card",
+        instapay: "instapay", انستاباي: "instapay",
+        online: "instapay", link: "instapay", اونلاين: "instapay", أونلاين: "instapay", لينك: "instapay",
+      };
       const bare = input.message.replace(/^\[voice\]\s*/i, "").trim().toLowerCase().replace(/[^\p{L}]/gu, "");
+      // The guest answers with what we PRINTED — "online link", "cash at the cashier" —
+      // not with our internal key, and a tapped quick-reply sends the label verbatim.
+      // Matching only bare keywords under a 14-char cap meant every multi-word label we
+      // offer (all of dine-in's) failed: on 14 Aug a guest answered "Online", nothing
+      // matched, the turn fell through to chit-chat and his order was never placed while
+      // the bot wished him a good meal. Match what we rendered — same rule as buttons.
+      // Key off the label's FIRST word, not a substring: "card at the cashier" contains
+      // "cash" inside "cashier", so substring matching silently books card as cash.
+      const payKeyOf = (label) => {
+        const first = String(label).trim().toLowerCase().split(/\s+/)[0].replace(/[^\p{L}]/gu, "");
+        return PAY_WORD[first] || (/card|visa|كارت|فيزا/i.test(label) ? "card" : /cash|كاش/i.test(label) ? "cash" : "instapay");
+      };
+      const offeredPay = (() => {
+        if (!bare || bare.length < 3) return null;
+        for (const label of payMethods) {
+          const norm = String(label).toLowerCase().replace(/[^\p{L}]/gu, "");
+          if (!norm) continue;
+          if (norm === bare || norm.startsWith(bare) || bare.startsWith(norm)) return payKeyOf(label);
+        }
+        return null;
+      })();
       const payment = ["cash", "card", "instapay"].includes(String(e.payment_method || "").toLowerCase())
         ? String(e.payment_method).toLowerCase()
-        : (input.message.trim().length <= 14 && PAY_WORD[bare]) || loaded.pending?.payment_method || null;
+        : offeredPay || (input.message.trim().length <= 14 && PAY_WORD[bare]) || loaded.pending?.payment_method || null;
       if (!payment) {
         // one casual add-on offer, riding on the payment question — never a gate of
         // its own, never invented: only names the restaurant listed, only once
