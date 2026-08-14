@@ -1,0 +1,88 @@
+---
+/** The kitchen ticket, drawn to match the real board: channel colour bar,
+    mono throughout, O-code, «»» modifiers, EGP total, payment chip, torn edge.
+    Timer is shown calm (a fresh order) — never the overdue red of a late ticket. */
+interface Item { qty: string; name: string; price?: number; mods?: string[] }
+
+interface Props {
+  channel: 'dinein' | 'delivery' | 'takeaway';
+  channelLabel: string;
+  code: string;
+  sub?: string;
+  items: Item[];
+  total: number;
+  payment: string;
+  paid?: boolean;
+  /** rough width in px */
+  width?: number;
+  startLabel?: string;
+}
+
+const {
+  channel, channelLabel, code, sub, items, total, payment,
+  paid = false, width = 260, startLabel = 'Start',
+} = Astro.props;
+
+const BAR = { dinein: '#3E9BE0', delivery: '#E8837E', takeaway: '#E9A23B' } as const;
+const ICON = {
+  dinein: 'M6 3v7m0 0v11m0-11h1.5M6 3H4.5M18 3v7a2 2 0 0 1-2 2h-1v9',
+  delivery: 'M5 17a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm14 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-11-3h8l-3-8H9',
+  takeaway: 'M5 8h14l-1 12H6L5 8Zm3 0V6a4 4 0 0 1 8 0v2',
+} as const;
+---
+
+<div
+  class="overflow-hidden bg-[#F6F5F1] shadow-[0_2px_4px_rgba(20,17,16,0.06),0_18px_36px_-18px_rgba(20,17,16,0.32)] [clip-path:polygon(0_0,100%_0,100%_calc(100%-7px),96%_100%,90%_calc(100%-7px),84%_100%,78%_calc(100%-7px),72%_100%,66%_calc(100%-7px),60%_100%,54%_calc(100%-7px),48%_100%,42%_calc(100%-7px),36%_100%,30%_calc(100%-7px),24%_100%,18%_calc(100%-7px),12%_100%,6%_calc(100%-7px),0_100%)]"
+  style={`width:${width}px`}
+  dir="ltr"
+>
+  <div class="h-1.5 w-full" style={`background:${BAR[channel]}`}></div>
+
+  <div class="px-3.5 pt-3">
+    <!-- channel + timer -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-1.5">
+        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 stroke-[#3A3A38]" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d={ICON[channel]} />
+        </svg>
+        <span class="num text-[0.68rem] font-semibold tracking-[0.14em] text-[#3A3A38]">{channelLabel}</span>
+      </div>
+      <span class="num rounded bg-[#E7E5DE] px-1.5 py-0.5 text-[0.62rem] font-medium text-[#6B6A66]">3'</span>
+    </div>
+
+    <!-- the code -->
+    <p class="num mt-2 text-center text-[1.55rem] font-bold tracking-[0.06em] text-[#1B1B19]">{code}</p>
+    {sub && <p class="num mt-0.5 text-center text-[0.62rem] tracking-[0.1em] text-[#8C8B86]">{sub}</p>}
+  </div>
+
+  <div class="mx-3.5 mt-2.5 border-t border-dashed border-[#C9C7BF]"></div>
+
+  <!-- items -->
+  <div class="space-y-1.5 px-3.5 py-2.5">
+    {items.map((it) => (
+      <div>
+        <div class="flex items-baseline justify-between gap-3">
+          <span class="num text-[0.72rem] font-semibold text-[#1B1B19]">{it.qty} {it.name}</span>
+          {it.price !== undefined && <span class="num text-[0.72rem] text-[#8C8B86]">{it.price}</span>}
+        </div>
+        {it.mods?.map((m) => (
+          <p class="num ps-2.5 text-[0.66rem] text-[#5C5B57]">» {m}</p>
+        ))}
+      </div>
+    ))}
+  </div>
+
+  <div class="mx-3.5 border-t border-dashed border-[#C9C7BF]"></div>
+
+  <!-- total + payment + action -->
+  <div class="flex items-center gap-2 px-3.5 pb-5 pt-2.5">
+    <span class="num text-[0.85rem] font-bold leading-tight text-[#1B1B19]">EGP<br />{total}</span>
+    <span
+      class:list={[
+        'num rounded px-2 py-1 text-[0.6rem] font-semibold leading-tight',
+        paid ? 'bg-[#DCEFE0] text-[#3D6B48]' : 'bg-[#FBF0CF] text-[#8A6A18]',
+      ]}
+    >{payment}</span>
+    <span class="num ms-auto rounded bg-[#1B1B19] px-3 py-1.5 text-[0.68rem] font-semibold text-white">{startLabel}</span>
+  </div>
+</div>

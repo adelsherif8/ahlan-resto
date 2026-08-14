@@ -14,6 +14,10 @@ export interface StreamRow {
   item: string;
   /** index into `channels` */
   channel: number;
+  visits: string;
+  egp: string;
+  ago: string;
+  badge: string;
 }
 
 export interface StreamLabels {
@@ -24,6 +28,7 @@ export interface StreamLabels {
   captured: string;
   replay: string;
   demoLabel: string;
+  filters: string[];
   rows: StreamRow[];
 }
 
@@ -104,15 +109,31 @@ export default function ChannelStream({ labels }: { labels: StreamLabels }) {
 
       {/* the one list they all pour into */}
       <div className="card overflow-hidden">
-        <div className="flex items-center justify-between border-b border-ink/10 px-5 py-3.5">
-          <div className="flex items-baseline gap-2.5">
-            <h3 className="text-[1rem]">{labels.panelTitle}</h3>
-            <span className="num text-[0.9rem] font-medium text-brass-deep">
-              {count}
-              <span className="ms-1 text-[0.8rem] text-ink/60">{count === 1 ? labels.counterOne : labels.counter}</span>
-            </span>
+        <div className="border-b border-ink/10 px-5 pb-3 pt-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-2.5">
+              <h3 className="text-[1rem]">{labels.panelTitle}</h3>
+              <span className="num text-[0.9rem] font-medium text-brass-deep">
+                {count}
+                <span className="ms-1 text-[0.8rem] text-ink/60">{count === 1 ? labels.counterOne : labels.counter}</span>
+              </span>
+            </div>
+            <span className="text-[0.7rem] text-ink/40">{labels.demoLabel}</span>
           </div>
-          <span className="text-[0.7rem] text-ink/40">{labels.demoLabel}</span>
+
+          {/* the real page's filter chips */}
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {labels.filters.map((f, i) => (
+              <span
+                key={f}
+                className={`rounded-full px-2.5 py-1 text-[0.72rem] ${
+                  i === 0 ? 'bg-ink text-semna' : 'bg-ink/[0.06] text-ink/65'
+                }`}
+              >
+                {f}
+              </span>
+            ))}
+          </div>
         </div>
 
         <ul className="divide-y divide-ink/[0.07]">
@@ -131,14 +152,22 @@ export default function ChannelStream({ labels }: { labels: StreamLabels }) {
 
                 <div className="min-w-0 flex-1 leading-tight">
                   <p className="truncate text-[0.98rem] font-semibold">{r.name}</p>
-                  <p className="num text-[0.85rem] text-ink/70" dir="ltr">
-                    {r.phone}
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.8rem] text-ink/60">
+                    <span className="num" dir="ltr">{r.phone}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{r.visits}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="num">{r.egp}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="num">{r.ago}</span>
                   </p>
                 </div>
 
-                <div className="hidden min-w-0 text-end sm:block">
-                  <p className="truncate text-[0.88rem] text-ink/75">{r.item}</p>
-                  <p className="text-[0.78rem] text-brass-deep">{labels.channels[r.channel]}</p>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="rounded-full bg-brass-15 px-2 py-0.5 text-[0.72rem] font-medium text-ink/75">
+                    {r.badge}
+                  </span>
+                  <span className="hidden text-[0.75rem] text-ink/55 sm:block">{labels.channels[r.channel]}</span>
                 </div>
               </li>
             );

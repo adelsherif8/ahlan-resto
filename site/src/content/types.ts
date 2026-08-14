@@ -54,7 +54,8 @@ export interface SiteContent {
     /** Channel-stream labels — new UI strings, need Adel's Arabic review. */
     stream: {
       panelTitle: string; counter: string; counterOne: string; captured: string; replay: string;
-      rows: { name: string; phone: string; item: string; channel: number }[];
+      rows: { name: string; phone: string; item: string; channel: number; visits: string; egp: string; ago: string; badge: string }[];
+      filters: string[];
     };
     /** Flow diagram labels — new UI strings, need Adel's Arabic review. */
     flow: {
@@ -68,6 +69,9 @@ export interface SiteContent {
     scene: {
       step1: string; step2: string; step3: string; captured: string; replay: string;
       dashTitle: string; guestName: string; guestPhone: string; chips: string[];
+      stats: { value: string; label: string }[];
+      noteLabel: string; noteValue: string;
+      orderLabel: string; orderCode: string; orderItem: string; orderMeta: string; orderTotal: string;
       chat: { from: 'in' | 'out'; text: string }[];
     };
   };

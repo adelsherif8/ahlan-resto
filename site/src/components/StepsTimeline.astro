@@ -2,6 +2,7 @@
 /** Steps variant C — connected timeline with artifacts: photos → setup → first order.
     SVG connector, brass nodes, one object per step. */
 import type { SiteContent } from '../content/types';
+import KitchenTicket from './KitchenTicket.astro';
 interface Props { t: SiteContent }
 const { t } = Astro.props;
 ---
@@ -22,7 +23,7 @@ const { t } = Astro.props;
             </span>
 
             <!-- the artifact -->
-            <div class="mt-6 flex h-28 items-center justify-center">
+            <div class="mt-6 flex h-36 items-center justify-center">
               {i === 0 && (
                 <div class="relative" aria-hidden="true">
                   <div class="absolute -start-3 top-1 h-20 w-16 rotate-[-6deg] rounded border border-ink/15 bg-[#FFFDF8] shadow-sm"></div>
@@ -44,10 +45,17 @@ const { t } = Astro.props;
                 </div>
               )}
               {i === 2 && (
-                <div class="w-40 rounded border border-dashed border-ink/25 bg-[#FFFDF8] p-3 text-start shadow-md" aria-hidden="true">
-                  <p class="num text-[0.8rem] font-semibold">#A-101</p>
-                  <p class="mt-1 text-[0.82rem] text-ink/80">كلاسيك كومبو ×1</p>
-                  <p class="mt-1 text-[0.72rem] text-ink/55">من نفس الرقم</p>
+                <div class="scale-[0.82]">
+                  <KitchenTicket
+                    channel="takeaway"
+                    channelLabel="TAKEAWAY"
+                    code="O-TA4K"
+                    items={[{ qty: '1x', name: 'Classic Burger', price: 280, mods: ['Combo (fries + drink)'] }]}
+                    total={280}
+                    payment="PAID · INSTAPAY"
+                    paid={true}
+                    width={210}
+                  />
                 </div>
               )}
             </div>

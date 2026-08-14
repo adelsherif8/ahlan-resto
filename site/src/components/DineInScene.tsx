@@ -22,6 +22,14 @@ export interface SceneLabels {
   guestName: string;
   guestPhone: string;
   chips: string[];
+  stats: { value: string; label: string }[];
+  noteLabel: string;
+  noteValue: string;
+  orderLabel: string;
+  orderCode: string;
+  orderItem: string;
+  orderMeta: string;
+  orderTotal: string;
 }
 
 interface Props {
@@ -67,7 +75,7 @@ export default function DineInScene({ labels }: Props) {
       <ol className="grid items-stretch gap-4 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:gap-3">
         {/* 1 — the table */}
         <Beat index={0} step={step} label={beats[0]!}>
-          <div className="relative flex h-[190px] w-full items-end justify-center overflow-hidden rounded-[var(--radius-md)] bg-[#E7DCCB]">
+          <div className="relative flex h-[236px] w-full items-end justify-center overflow-hidden rounded-[var(--radius-md)] bg-[#E7DCCB]">
             {/* table surface */}
             <div className="absolute inset-x-0 bottom-0 h-[62%] bg-[#D8C9B2]" aria-hidden="true" />
             <div className="absolute inset-x-6 bottom-[62%] h-px bg-ink/10" aria-hidden="true" />
@@ -107,7 +115,7 @@ export default function DineInScene({ labels }: Props) {
 
         {/* 2 — the conversation */}
         <Beat index={1} step={step} label={beats[1]!}>
-          <div className="relative flex h-[190px] w-full flex-col overflow-hidden rounded-[var(--radius-md)] bg-[#EFEAE2]" dir="rtl">
+          <div className="relative flex h-[236px] w-full flex-col overflow-hidden rounded-[var(--radius-md)] bg-[#EFEAE2]" dir="rtl">
             <div className="flex items-center gap-2 bg-[#F0F2F5] px-3 py-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#6B4226] text-[9px] font-bold text-white">
                 {labels.restaurant.trim().charAt(0)}
@@ -138,47 +146,67 @@ export default function DineInScene({ labels }: Props) {
 
         {/* 3 — the dashboard */}
         <Beat index={2} step={step} label={beats[2]!} highlight>
-          <div className="flex h-[190px] w-full flex-col overflow-hidden rounded-[var(--radius-md)] border border-ink/10 bg-[#FFFDF8]">
+          <div className="flex h-[236px] w-full flex-col overflow-hidden rounded-[var(--radius-md)] border border-ink/10 bg-[#FFFDF8]">
             <div className="flex items-center justify-between border-b border-ink/10 px-3 py-2">
               <span className="text-[9.5px] font-medium text-ink/60">{labels.dashTitle}</span>
               <span className="text-[8px] text-ink/40">{labels.demoLabel}</span>
             </div>
 
             <div
-              className={`flex flex-1 flex-col justify-center gap-2.5 px-3 transition-all duration-500 ${
+              className={`flex flex-1 flex-col gap-2 overflow-hidden px-3 pb-2 transition-all duration-500 ${
                 step >= 3 ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[0.9rem] font-bold text-karkadeh">
+              {/* identity */}
+              <div className="flex items-center gap-2.5 pt-2">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[0.8rem] font-bold text-karkadeh">
                   {labels.guestName.trim().charAt(0)}
                 </span>
                 <div className="min-w-0 leading-tight">
-                  <p className="text-[0.85rem] font-semibold">{labels.guestName}</p>
-                  <p className="num text-[0.75rem] text-ink/70" dir="ltr">
+                  <p className="text-[0.8rem] font-semibold">{labels.guestName}</p>
+                  <p className="num text-[0.68rem] text-ink/60" dir="ltr">
                     {labels.guestPhone}
                   </p>
                 </div>
+                <span className="ms-auto rounded-full bg-brass-15 px-2 py-0.5 text-[0.62rem] font-medium text-ink/75">
+                  {labels.chips[1]}
+                </span>
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                {labels.chips.map((c, i) => (
-                  <span
-                    key={c}
-                    className="rounded-full border border-ink/10 bg-semna px-2 py-0.5 text-[9.5px] text-ink/75 transition-all duration-400"
-                    style={{ transitionDelay: step >= 3 ? `${200 + i * 120}ms` : '0ms' }}
+              {/* the stat tiles from the real profile */}
+              <div className="grid grid-cols-3 gap-1">
+                {labels.stats.map((st, i) => (
+                  <div
+                    key={st.label}
+                    className="rounded-[4px] bg-ink/[0.04] px-1.5 py-1.5 text-center transition-all duration-500"
+                    style={{ transitionDelay: step >= 3 ? `${180 + i * 110}ms` : '0ms' }}
                   >
-                    {c}
-                  </span>
+                    <p className="num text-[0.82rem] font-semibold leading-none">{st.value}</p>
+                    <p className="mt-0.5 truncate text-[0.55rem] uppercase tracking-wide text-ink/50">{st.label}</p>
+                  </div>
                 ))}
               </div>
 
+              {/* the note the bot actually reads */}
               <div
-                className="flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-brass-15 px-2.5 py-1.5 transition-all duration-500"
-                style={{ transitionDelay: step >= 3 ? '480ms' : '0ms' }}
+                className="rounded-[4px] border border-ink/10 px-2 py-1.5 transition-all duration-500"
+                style={{ transitionDelay: step >= 3 ? '460ms' : '0ms' }}
               >
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brass-deep" aria-hidden="true" />
-                <span className="text-[9.5px] font-medium text-ink/80">{labels.captured}</span>
+                <p className="text-[0.55rem] uppercase tracking-wide text-ink/45">{labels.noteLabel}</p>
+                <p className="mt-0.5 text-[0.72rem] font-medium">{labels.noteValue}</p>
+              </div>
+
+              {/* the order it came from */}
+              <div
+                className="rounded-[4px] border border-ink/10 px-2 py-1.5 transition-all duration-500"
+                style={{ transitionDelay: step >= 3 ? '600ms' : '0ms' }}
+              >
+                <p className="text-[0.55rem] uppercase tracking-wide text-ink/45">{labels.orderLabel}</p>
+                <div className="mt-0.5 flex items-baseline justify-between gap-2">
+                  <span className="num text-[0.7rem] font-semibold" dir="ltr">{labels.orderCode}</span>
+                  <span className="num text-[0.68rem] text-ink/70" dir="ltr">{labels.orderTotal}</span>
+                </div>
+                <p className="num truncate text-[0.62rem] text-ink/55" dir="ltr">{labels.orderItem}</p>
               </div>
             </div>
           </div>
