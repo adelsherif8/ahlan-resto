@@ -50,6 +50,21 @@ export const en: SiteContent = {
     p1: 'Munadim takes your orders on WhatsApp — the same number your customers already message you on.',
     channels: ['Delivery', 'Pickup', 'Dine-in'],
     p2: 'Every order leaves you a phone number and an order history, in a dashboard that belongs to you.',
+    flow: {
+      step1: 'An order on WhatsApp',
+      step2: 'It reaches the kitchen',
+      step3: 'The customer stays yours',
+      captured: 'Recorded — you can reach him again',
+      record: {
+        name: 'Ahmed M.',
+        phone: '010• ••• 4437',
+        rows: [
+          { label: 'Last order', value: 'Classic combo + fries' },
+          { label: 'Always asks for', value: 'no onions' },
+          { label: 'Orders', value: '8' },
+        ],
+      },
+    },
   },
 
   dineIn: {
@@ -57,6 +72,23 @@ export const en: SiteContent = {
     p1: 'Delivery at least leaves an address. Dine-in leaves nothing.',
     p2: "With a code on the table, the customer orders from where he's sitting, the order goes to the kitchen, and his number is recorded like any other order.",
     qr: { scan: 'امسح واطلب من على ترابيزتك' },
+    scene: {
+      step1: 'A code on the table',
+      step2: 'He scans and orders from his seat',
+      step3: 'His number is recorded for you',
+      captured: 'Recorded — you can reach him again',
+      replay: 'Replay',
+      dashTitle: 'Dashboard — Customers',
+      guestName: 'Ahmed M.',
+      guestPhone: '010• ••• 4437',
+      chips: ['Table 4', 'Order #A-114', 'No onions'],
+      chat: [
+        { from: 'in', text: 'عايز أطلب من الترابيزة' },
+        { from: 'out', text: 'أهلاً 👋 إنت على ترابيزة كام؟' },
+        { from: 'in', text: '4' },
+        { from: 'out', text: 'تمام ✅ الأوردر راح للمطبخ.' },
+      ],
+    },
   },
 
   steps: {
@@ -160,6 +192,8 @@ export const en: SiteContent = {
     tagline: 'Every order becomes a customer you know.',
     email: 'welcome@munadim.com',
     privacy: 'Privacy',
+    colSite: 'Site',
+    colContact: 'Contact',
     rights: `© ${new Date().getFullYear()} Munadim`,
   },
 };

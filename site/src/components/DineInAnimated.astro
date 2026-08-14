@@ -1,0 +1,29 @@
+---
+/** Dine-in — demonstrated, not described: the animated capture scene. */
+import type { SiteContent } from '../content/types';
+import DineInScene from './DineInScene';
+
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+
+const labels = {
+  ...t.dineIn.scene,
+  restaurant: t.hero.restaurant,
+  demoLabel: t.hero.demoLabel,
+};
+---
+
+<section class="section">
+  <div class="container-page">
+    <div class="container-text text-center" data-reveal>
+      <h2 class="h-rule rule-center">{t.dineIn.h2}</h2>
+      <p class="mt-7 text-[1.1rem]">{t.dineIn.p1}</p>
+    </div>
+
+    <div class="mx-auto mt-14 max-w-5xl" data-reveal>
+      <DineInScene client:visible labels={labels} />
+    </div>
+
+    <p class="container-text mt-12 text-center text-[1.1rem]" data-reveal>{t.dineIn.p2}</p>
+  </div>
+</section>

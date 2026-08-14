@@ -1,0 +1,35 @@
+---
+// ACCEPTED SO FAR: pill header · hero G · problem mix.
+// Undecided sections use current defaults so the page reads end-to-end.
+import Base from '../../layouts/Base.astro';
+import HeaderPill from '../../components/HeaderPill.astro';
+import Hero from '../../components/Hero.astro';
+import ProblemMix from '../../components/ProblemMix.astro';
+import WhatIs from '../../components/WhatIs.astro';
+import DineIn from '../../components/DineIn.astro';
+import Steps from '../../components/Steps.astro';
+import Understands from '../../components/Understands.astro';
+import TrustStrip from '../../components/TrustStrip.astro';
+import Pricing from '../../components/Pricing.astro';
+import Objections from '../../components/Objections.astro';
+import Closing from '../../components/Closing.astro';
+import FooterColumns from '../../components/FooterColumns.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="منادم — الصفحة المجمّعة" description="Accepted picks assembled" path="/preview/final">
+  <HeaderPill t={t} lang="ar" />
+  <main>
+    <Hero t={t} lang="ar" />
+    <ProblemMix t={t} />
+    <WhatIs t={t} />
+    <DineIn t={t} />
+    <Steps t={t} />
+    <Understands t={t} />
+    <TrustStrip t={t} />
+    <Pricing t={t} />
+    <Objections t={t} />
+    <Closing t={t} />
+  </main>
+  <FooterColumns t={t} lang="ar" />
+</Base>

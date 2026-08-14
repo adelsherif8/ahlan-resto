@@ -1,0 +1,18 @@
+---
+// Footer round 3 — no giant wordmark: columns · split · paper colophon.
+import Base from '../../layouts/Base.astro';
+import FooterColumns from '../../components/FooterColumns.astro';
+import FooterSplit from '../../components/FooterSplit.astro';
+import FooterPaper from '../../components/FooterPaper.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="معاينة الفوتر ٣" description="Footer variants round 3" path="/preview/footers">
+  <main>
+    <FooterColumns t={t} lang="ar" />
+    <div class="h-6 bg-semna"></div>
+    <FooterSplit t={t} lang="ar" />
+    <div class="h-6 bg-ink"></div>
+    <FooterPaper t={t} lang="ar" />
+  </main>
+</Base>

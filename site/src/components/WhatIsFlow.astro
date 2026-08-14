@@ -1,6 +1,7 @@
 ---
-/** WhatIs variant C — the three-element diagram (brand §06: diagrams allowed,
-    max three elements, real labels): the order's journey drawn with artifacts. */
+/** WhatIs — the journey in three artifacts: the message, the ticket, the record.
+    Brand §06: a diagram, max three elements, real labels. The third element is
+    the position — the customer stays yours — so it carries the brass. */
 import type { SiteContent } from '../content/types';
 interface Props { t: SiteContent }
 const { t } = Astro.props;
@@ -11,60 +12,115 @@ const { t } = Astro.props;
     <div class="container-text text-center" data-reveal>
       <h2 class="h-rule rule-center">{t.whatIs.h2}</h2>
       <p class="mt-7 text-[1.1rem]">{t.whatIs.p1}</p>
-      <ul class="mt-7 flex flex-wrap justify-center gap-x-8 gap-y-3">
-        {t.whatIs.channels.map((c) => (
-          <li class="flex items-center gap-2.5 text-[1.1rem] font-semibold">
-            <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
-            {c}
-          </li>
+
+      <!-- the three channels, one line -->
+      <ul class="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[1.05rem] font-semibold">
+        {t.whatIs.channels.map((c, i) => (
+          <>
+            {i > 0 && <li class="h-1.5 w-1.5 rounded-full bg-brass-deep/60" aria-hidden="true"></li>}
+            <li>{c}</li>
+          </>
         ))}
       </ul>
     </div>
 
-    <!-- The journey: message → kitchen → record. Three elements, no more. -->
-    <div class="mx-auto mt-14 grid max-w-4xl items-stretch gap-6 sm:grid-cols-[1fr_auto_1fr_auto_1fr]" data-reveal>
-      <!-- 1: the message -->
-      <div class="card flex flex-col p-5">
-        <span class="text-[0.8rem] font-medium text-ink/55">أوردر على الواتساب</span>
-        <div class="mt-3 flex flex-1 flex-col justify-center rounded-[var(--radius-sm)] bg-[#EFEAE2] p-3" dir="rtl">
-          <p class="w-fit max-w-full self-end rounded-lg rounded-es-none bg-[#D9FDD3] px-2.5 py-1.5 text-[11.5px] text-[#111B21] shadow-sm">
-            الإجمالي 395. كاش ولا فيزا؟
-          </p>
+    <!-- the journey -->
+    <ol class="mx-auto mt-14 grid max-w-5xl items-stretch gap-4 sm:gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr]" data-reveal>
+      <!-- 1 — the message -->
+      <li class="card flex flex-col overflow-hidden p-6">
+        <div class="flex items-center gap-2.5">
+          <span class="num flex h-7 w-7 items-center justify-center rounded-full bg-ink text-[0.85rem] font-medium text-brass">1</span>
+          <h3 class="text-[1.02rem]">{t.whatIs.flow.step1}</h3>
         </div>
-      </div>
 
-      <div class="hidden items-center sm:flex" aria-hidden="true">
-        <svg viewBox="0 0 32 12" class="w-8 rtl:-scale-x-100"><path d="M2 6h24m0 0-5-4m5 4-5 4" fill="none" stroke="var(--brass-deep)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-
-      <!-- 2: the kitchen -->
-      <div class="card flex flex-col p-5">
-        <span class="text-[0.8rem] font-medium text-ink/55">المطبخ</span>
-        <div class="mt-3 flex-1 rounded-[var(--radius-sm)] border border-dashed border-ink/25 bg-[#FFFDF8] p-3">
-          <div class="flex items-baseline justify-between text-[0.85rem] font-semibold">
-            <span>تذكرة #A-114</span>
-          </div>
-          <p class="mt-1.5 text-[0.85rem] text-ink/75">كلاسيك كومبو ×1 · فرايز ×1</p>
-        </div>
-      </div>
-
-      <div class="hidden items-center sm:flex" aria-hidden="true">
-        <svg viewBox="0 0 32 12" class="w-8 rtl:-scale-x-100"><path d="M2 6h24m0 0-5-4m5 4-5 4" fill="none" stroke="var(--brass-deep)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-
-      <!-- 3: the record — the part that's yours -->
-      <div class="card flex flex-col p-5 !border-[1.5px] !border-brass-deep/50">
-        <span class="text-[0.8rem] font-medium text-ink/55">رقم وتاريخ طلبات — عندك</span>
-        <div class="mt-3 flex flex-1 items-center gap-3">
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[1rem] font-bold text-karkadeh">أ</span>
-          <div class="min-w-0">
-            <p class="text-[0.95rem] font-semibold">أحمد م.</p>
-            <p class="num text-[0.85rem] text-ink/70" dir="ltr">010• ••• 4437</p>
+        <div class="mt-5 flex min-h-[150px] flex-1 items-center">
+          <div class="w-full rounded-[var(--radius-md)] bg-[#EFEAE2] p-4" dir="rtl">
+            <div class="flex flex-col gap-2">
+              <p class="w-fit max-w-[85%] self-start rounded-lg rounded-ss-none bg-white px-3 py-2 text-[12.5px] leading-[1.5] text-[#111B21] shadow-sm">
+                عايز كلاسيك كومبو
+              </p>
+              <p class="w-fit max-w-[85%] self-end rounded-lg rounded-es-none bg-[#D9FDD3] px-3 py-2 text-[12.5px] leading-[1.5] text-[#111B21] shadow-sm">
+                الإجمالي <span class="num">395</span>. كاش ولا فيزا؟
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </li>
 
-    <p class="container-text mt-10 text-center text-[1.15rem] font-medium" data-reveal>{t.whatIs.p2}</p>
+      <li class="flex items-center justify-center py-1" aria-hidden="true">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full border border-brass-deep/25 bg-[#FFFDF8]">
+          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 rtl:-scale-x-100">
+            <path d="M2 8h11m0 0-4-4m4 4-4 4" fill="none" stroke="var(--brass-deep)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </span>
+      </li>
+
+      <!-- 2 — the kitchen ticket -->
+      <li class="card flex flex-col overflow-hidden p-6">
+        <div class="flex items-center gap-2.5">
+          <span class="num flex h-7 w-7 items-center justify-center rounded-full bg-ink text-[0.85rem] font-medium text-brass">2</span>
+          <h3 class="text-[1.02rem]">{t.whatIs.flow.step2}</h3>
+        </div>
+
+        <div class="mt-5 flex min-h-[150px] flex-1 items-center justify-center">
+          <div
+            class="w-full max-w-[178px] bg-[#FFFDF8] px-4 pt-4 pb-7 shadow-[0_1px_2px_rgba(20,17,16,0.06),0_10px_24px_-12px_rgba(20,17,16,0.28)] [clip-path:polygon(0_0,100%_0,100%_calc(100%-6px),95%_100%,88%_calc(100%-6px),81%_100%,74%_calc(100%-6px),67%_100%,60%_calc(100%-6px),53%_100%,46%_calc(100%-6px),39%_100%,32%_calc(100%-6px),25%_100%,18%_calc(100%-6px),11%_100%,4%_calc(100%-6px),0_100%)]"
+            dir="rtl"
+          >
+            <div class="flex items-baseline justify-between border-b border-dashed border-ink/25 pb-2">
+              <span class="text-[0.72rem] font-bold">{t.hero.restaurant}</span>
+              <span class="num text-[0.72rem] font-medium">#A-114</span>
+            </div>
+            <p class="mt-2 text-[0.8rem] leading-snug">كلاسيك كومبو <span class="num">×1</span></p>
+            <p class="mt-0.5 text-[0.8rem] leading-snug">فرايز تشيدر <span class="num">×1</span></p>
+            <p class="num mt-2 text-[0.68rem] text-ink/50">9:43</p>
+          </div>
+        </div>
+      </li>
+
+      <li class="flex items-center justify-center py-1" aria-hidden="true">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full border border-brass-deep/25 bg-[#FFFDF8]">
+          <svg viewBox="0 0 16 16" class="h-3.5 w-3.5 rtl:-scale-x-100">
+            <path d="M2 8h11m0 0-4-4m4 4-4 4" fill="none" stroke="var(--brass-deep)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </span>
+      </li>
+
+      <!-- 3 — the record: the part that's yours -->
+      <li class="card relative flex flex-col overflow-hidden !border-[1.5px] !border-brass-deep/45 p-6">
+        <div class="flex items-center gap-2.5">
+          <span class="num flex h-7 w-7 items-center justify-center rounded-full bg-brass-deep text-[0.85rem] font-medium text-semna">3</span>
+          <h3 class="text-[1.02rem]">{t.whatIs.flow.step3}</h3>
+        </div>
+
+        <div class="mt-5 flex min-h-[150px] flex-1 flex-col justify-center gap-3">
+          <div class="flex items-center gap-3">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[1.05rem] font-bold text-karkadeh">
+              {t.whatIs.flow.record.name.trim().charAt(0)}
+            </span>
+            <div class="min-w-0 leading-tight">
+              <p class="text-[0.98rem] font-semibold">{t.whatIs.flow.record.name}</p>
+              <p class="num text-[0.85rem] text-ink/70" dir="ltr">{t.whatIs.flow.record.phone}</p>
+            </div>
+          </div>
+
+          <dl class="space-y-1.5 border-t border-ink/10 pt-3 text-[0.82rem]">
+            {t.whatIs.flow.record.rows.map((r) => (
+              <div class="flex items-baseline justify-between gap-3">
+                <dt class="text-ink/60">{r.label}</dt>
+                <dd class="font-medium text-ink/90">{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div class="flex items-center gap-2 rounded-[var(--radius-sm)] bg-brass-15 px-3 py-2">
+            <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+            <span class="text-[0.78rem] font-medium text-ink/80">{t.whatIs.flow.captured}</span>
+          </div>
+        </div>
+      </li>
+    </ol>
+
+    <p class="container-text mt-12 text-center text-[1.15rem] font-medium" data-reveal>{t.whatIs.p2}</p>
   </div>
 </section>

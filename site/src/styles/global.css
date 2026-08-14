@@ -19,6 +19,9 @@
   --color-brass-deep: var(--brass-deep);
   --color-karkadeh: var(--karkadeh);
   --color-neel: var(--neel);
+  --color-karkadeh-10: var(--karkadeh-10);
+  --color-brass-15: var(--brass-15);
+  --color-ink-80: var(--ink-80);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-error: var(--error);
@@ -178,6 +181,15 @@ html[lang='ar'] * { letter-spacing: 0 !important; }
   cursor: pointer;
 }
 
+/* Small caps-ish label — overrides the display face h2 inherits */
+.label-cap {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+}
+
 /* ---- Focus — visible, brand-coloured, never removed -------------------- */
 :focus-visible {
   outline: 2px solid var(--brass-deep);
@@ -186,3 +198,14 @@ html[lang='ar'] * { letter-spacing: 0 !important; }
 .on-ink :focus-visible {
   outline-color: var(--brass);
 }
+
+
+/* Dine-in scene: the scan beam sweeping the code */
+@keyframes scan {
+  0%   { top: 0; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.animate-scan { animation: scan 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .animate-scan { animation: none; opacity: 0 !important; } }

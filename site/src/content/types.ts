@@ -49,8 +49,23 @@ export interface SiteContent {
     replay: string;
   };
   problem: { h2: string; p1: string; p2: string; bar: { order: string; app: string } };
-  whatIs: { h2: string; p1: string; channels: string[]; p2: string };
-  dineIn: { h2: string; p1: string; p2: string; qr: { scan: string } };
+  whatIs: {
+    h2: string; p1: string; channels: string[]; p2: string;
+    /** Flow diagram labels — new UI strings, need Adel's Arabic review. */
+    flow: {
+      step1: string; step2: string; step3: string; captured: string;
+      record: { name: string; phone: string; rows: { label: string; value: string }[] };
+    };
+  };
+  dineIn: {
+    h2: string; p1: string; p2: string; qr: { scan: string };
+    /** Animated scene labels — new UI strings, need Adel's Arabic review. */
+    scene: {
+      step1: string; step2: string; step3: string; captured: string; replay: string;
+      dashTitle: string; guestName: string; guestPhone: string; chips: string[];
+      chat: { from: 'in' | 'out'; text: string }[];
+    };
+  };
   steps: { h2: string; items: { title: string; body: string }[] };
   understands: { h2: string; fragments: Fragment[] };
   pricing: {
@@ -70,5 +85,5 @@ export interface SiteContent {
   trust: { pre: string; num: string; post: string };
   objections: { h2: string; items: { q: string; a: string }[] };
   closing: { h2: string; p: string; cta: string; waLabel: string };
-  footer: { tagline: string; email: string; privacy: string; rights: string };
+  footer: { tagline: string; email: string; privacy: string; rights: string; colSite: string; colContact: string };
 }
