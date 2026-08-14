@@ -136,6 +136,7 @@ export const ar: SiteContent = {
       counterOne: 'زبون',
       captured: 'كلهم في قاعدة بيانات مطعمك — تقدر توصلهم تاني',
       replay: 'شغّل تاني',
+      stop: 'وقف',
       filters: ['الكل', 'جديد', 'راجع', 'دايم'],
       rows: [
         { name: 'أحمد م.', phone: '+2010•••4437', item: 'Classic Burger', channel: 0, visits: '3 زيارات', egp: 'EGP 680', ago: '2د', badge: 'راجع' },

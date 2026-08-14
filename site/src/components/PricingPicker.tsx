@@ -160,7 +160,7 @@ export default function PricingPicker({ labels }: { labels: PickerLabels }) {
           </p>
         )}
 
-        <p className="mt-4 text-center text-[0.85rem] text-ink/55">{labels.assumption}</p>
+        <p className="mt-4 text-center text-[0.85rem] text-ink/65">{labels.assumption}</p>
       </div>
     </div>
   );

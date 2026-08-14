@@ -73,7 +73,7 @@ export interface SiteContent {
     };
     /** Channel-stream labels — new UI strings, need Adel's Arabic review. */
     stream: {
-      panelTitle: string; counter: string; counterOne: string; captured: string; replay: string;
+      panelTitle: string; counter: string; counterOne: string; captured: string; replay: string; stop: string;
       rows: { name: string; phone: string; item: string; channel: number; visits: string; egp: string; ago: string; badge: string }[];
       filters: string[];
     };

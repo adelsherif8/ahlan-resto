@@ -23,7 +23,7 @@ const half = Math.ceil(t.nav.links.length / 2);
       {t.nav.links.slice(half).map((l) => (
         <a href={l.href} class="hidden min-h-[44px] items-center font-medium text-ink/75 hover:text-karkadeh lg:flex">{l.label}</a>
       ))}
-      <a href={t.nav.toggle.href} class="flex min-h-[44px] items-center font-medium text-ink/55 hover:text-karkadeh" lang={lang === 'ar' ? 'en' : 'ar'} dir={lang === 'ar' ? 'ltr' : 'rtl'}>{t.nav.toggle.label}</a>
+      <a href={t.nav.toggle.href} class="flex min-h-[44px] items-center font-medium text-ink/65 hover:text-karkadeh" lang={lang === 'ar' ? 'en' : 'ar'} dir={lang === 'ar' ? 'ltr' : 'rtl'}>{t.nav.toggle.label}</a>
       <a href={WA_LINK} class="btn-primary flex items-center justify-center text-[0.95rem] !py-2.5 !px-5">{t.nav.cta}</a>
     </nav>
   </div>

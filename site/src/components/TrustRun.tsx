@@ -66,10 +66,10 @@ export default function TrustRun({ labels }: { labels: RunLabels }) {
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-semna/12 bg-[#1D1917]">
         {/* head */}
         <div className="flex items-center justify-between gap-4 border-b border-semna/10 px-5 py-3">
-          <p className="num text-[0.78rem] tracking-[0.1em] text-semna/55">{labels.title}</p>
+          <p className="num text-[0.78rem] tracking-[0.1em] text-semna/70">{labels.title}</p>
           <p className="flex items-baseline gap-1.5">
             <span className="num text-[1.05rem] font-semibold text-brass">{count}</span>
-            <span className="num text-[0.8rem] text-semna/45">
+            <span className="num text-[0.8rem] text-semna/60">
               {labels.ofLabel} {labels.num}
             </span>
           </p>
@@ -97,7 +97,7 @@ export default function TrustRun({ labels }: { labels: RunLabels }) {
                   )}
                 </span>
                 <span className="text-[0.92rem] text-semna/85">{c}</span>
-                <span className="num ms-auto text-[0.75rem] text-semna/40">{on ? labels.passing : '…'}</span>
+                <span className="num ms-auto text-[0.75rem] text-semna/60">{on ? labels.passing : '…'}</span>
               </li>
             );
           })}
@@ -118,7 +118,7 @@ export default function TrustRun({ labels }: { labels: RunLabels }) {
             <button
               type="button"
               onClick={play}
-              className="shrink-0 text-[0.82rem] font-medium text-semna/50 transition-colors hover:text-brass-light"
+              className="shrink-0 text-[0.82rem] font-medium text-semna/65 transition-colors hover:text-brass-light"
             >
               {labels.replay}
             </button>

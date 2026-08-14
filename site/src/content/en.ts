@@ -107,6 +107,7 @@ export const en: SiteContent = {
       counterOne: 'customer',
       captured: "All of them in your restaurant's database — you can reach them again",
       replay: 'Replay',
+      stop: 'Stop',
       filters: ['All', 'New', 'Returning', 'Regular'],
       rows: [
         { name: 'Ahmed M.', phone: '+2010•••4437', item: 'Classic Burger', channel: 0, visits: '3 visits', egp: 'EGP 680', ago: '2d', badge: 'returning' },

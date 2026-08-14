@@ -19,21 +19,21 @@ const { t, lang } = Astro.props;
         <ul class="space-y-1.5">
           {t.nav.links.map((l) => (
             <li>
-              <a href={l.href} class="flex min-h-[36px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light">{l.label}</a>
+              <a href={l.href} class="flex min-h-[44px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light">{l.label}</a>
             </li>
           ))}
         </ul>
         <ul class="space-y-1.5">
           <li>
-            <a href={`mailto:${CONTACT_EMAIL}`} class="flex min-h-[36px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light" dir="ltr">{CONTACT_EMAIL}</a>
+            <a href={`mailto:${CONTACT_EMAIL}`} class="flex min-h-[44px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light" dir="ltr">{CONTACT_EMAIL}</a>
           </li>
           <li>
-            <a href={`/${lang}/privacy`} class="flex min-h-[36px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light">{t.footer.privacy}</a>
+            <a href={`/${lang}/privacy`} class="flex min-h-[44px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light">{t.footer.privacy}</a>
           </li>
           <li>
             <a
               href={t.nav.toggle.href}
-              class="flex min-h-[36px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light"
+              class="flex min-h-[44px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light"
               lang={lang === 'ar' ? 'en' : 'ar'}
               dir={lang === 'ar' ? 'ltr' : 'rtl'}
             >{t.nav.toggle.label}</a>
@@ -55,7 +55,7 @@ const { t, lang } = Astro.props;
 
     <!-- legal bar -->
     <div class="flex items-center justify-between gap-4 border-t border-semna/10 py-5">
-      <p class="text-[var(--step--1)] text-semna/55">{t.footer.rights}</p>
+      <p class="text-[var(--step--1)] text-semna/70">{t.footer.rights}</p>
       <img src="/brand/01-mark-fine-brass-on-ink-nobg.svg" alt="" width="28" height="28" class="h-7 w-7 opacity-70" loading="lazy" aria-hidden="true" />
     </div>
   </div>

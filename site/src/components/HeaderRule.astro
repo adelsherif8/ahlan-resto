@@ -20,7 +20,7 @@ const { t, lang } = Astro.props;
         {t.nav.links.map((l) => (
           <a href={l.href} class="hidden min-h-[44px] items-center text-[0.95rem] font-medium text-ink/75 hover:text-karkadeh sm:flex">{l.label}</a>
         ))}
-        <a href={t.nav.toggle.href} class="flex min-h-[44px] items-center text-[0.95rem] font-medium text-ink/55 hover:text-karkadeh" lang={lang === 'ar' ? 'en' : 'ar'} dir={lang === 'ar' ? 'ltr' : 'rtl'}>{t.nav.toggle.label}</a>
+        <a href={t.nav.toggle.href} class="flex min-h-[44px] items-center text-[0.95rem] font-medium text-ink/65 hover:text-karkadeh" lang={lang === 'ar' ? 'en' : 'ar'} dir={lang === 'ar' ? 'ltr' : 'rtl'}>{t.nav.toggle.label}</a>
       </nav>
       <a href={WA_LINK} class="flex min-h-[44px] items-center gap-2 text-[0.95rem] font-semibold text-karkadeh hover:text-[#741727]">
         {t.nav.cta}<span aria-hidden="true" class="rtl:-scale-x-100">←</span>

@@ -77,7 +77,7 @@ export default function StepsJourney({ labels }: { labels: JourneyLabels }) {
               {/* node */}
               <span
                 className={`num absolute top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full text-[0.8rem] font-medium transition-all duration-500 start-0 lg:start-1/2 lg:-translate-x-1/2 rtl:lg:translate-x-1/2 ${
-                  on ? 'scale-100 bg-ink text-brass' : 'scale-90 bg-ink/15 text-ink/50'
+                  on ? 'scale-100 bg-ink text-brass' : 'scale-90 bg-ink/15 text-ink/65'
                 }`}
               >
                 {i + 1}
@@ -132,7 +132,7 @@ export default function StepsJourney({ labels }: { labels: JourneyLabels }) {
           <button
             type="button"
             onClick={play}
-            className="flex min-h-[40px] items-center rounded-full border border-ink/20 px-5 text-[0.9rem] font-medium text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
+            className="flex min-h-[44px] items-center rounded-full border border-ink/20 px-5 text-[0.9rem] font-medium text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
           >
             {labels.replay}
           </button>
@@ -175,7 +175,7 @@ function Photos({ on, caption }: { on: boolean; caption: string }) {
           </div>
         ))}
       </div>
-      <p className="text-[0.78rem] text-ink/50">{caption}</p>
+      <p className="text-[0.78rem] text-ink/65">{caption}</p>
     </div>
   );
 }
@@ -198,7 +198,7 @@ function MenuBuild({
     <div className="card w-[268px] p-4">
       <div className="flex items-center justify-between">
         <p className="text-[0.85rem] font-semibold">{title}</p>
-        <span className="text-[0.62rem] text-ink/40">{demoLabel}</span>
+        <span className="text-[0.62rem] text-ink/60">{demoLabel}</span>
       </div>
 
       <ul className="mt-3 space-y-1.5 border-t border-ink/10 pt-3">

@@ -149,7 +149,7 @@ export default function DineInScene({ labels }: Props) {
           <div className="flex h-[236px] w-full flex-col overflow-hidden rounded-[var(--radius-md)] border border-ink/10 bg-[#FFFDF8]">
             <div className="flex items-center justify-between border-b border-ink/10 px-3 py-2">
               <span className="text-[9.5px] font-medium text-ink/60">{labels.dashTitle}</span>
-              <span className="text-[8px] text-ink/40">{labels.demoLabel}</span>
+              <span className="text-[8px] text-ink/60">{labels.demoLabel}</span>
             </div>
 
             <div
@@ -182,7 +182,7 @@ export default function DineInScene({ labels }: Props) {
                     style={{ transitionDelay: step >= 3 ? `${180 + i * 110}ms` : '0ms' }}
                   >
                     <p className="num text-[0.82rem] font-semibold leading-none">{st.value}</p>
-                    <p className="mt-0.5 truncate text-[0.55rem] uppercase tracking-wide text-ink/50">{st.label}</p>
+                    <p className="mt-0.5 truncate text-[0.55rem] uppercase tracking-wide text-ink/65">{st.label}</p>
                   </div>
                 ))}
               </div>
@@ -192,7 +192,7 @@ export default function DineInScene({ labels }: Props) {
                 className="rounded-[4px] border border-ink/10 px-2 py-1.5 transition-all duration-500"
                 style={{ transitionDelay: step >= 3 ? '460ms' : '0ms' }}
               >
-                <p className="text-[0.55rem] uppercase tracking-wide text-ink/45">{labels.noteLabel}</p>
+                <p className="text-[0.55rem] uppercase tracking-wide text-ink/60">{labels.noteLabel}</p>
                 <p className="mt-0.5 text-[0.72rem] font-medium">{labels.noteValue}</p>
               </div>
 
@@ -201,12 +201,12 @@ export default function DineInScene({ labels }: Props) {
                 className="rounded-[4px] border border-ink/10 px-2 py-1.5 transition-all duration-500"
                 style={{ transitionDelay: step >= 3 ? '600ms' : '0ms' }}
               >
-                <p className="text-[0.55rem] uppercase tracking-wide text-ink/45">{labels.orderLabel}</p>
+                <p className="text-[0.55rem] uppercase tracking-wide text-ink/60">{labels.orderLabel}</p>
                 <div className="mt-0.5 flex items-baseline justify-between gap-2">
                   <span className="num text-[0.7rem] font-semibold" dir="ltr">{labels.orderCode}</span>
                   <span className="num text-[0.68rem] text-ink/70" dir="ltr">{labels.orderTotal}</span>
                 </div>
-                <p className="num truncate text-[0.62rem] text-ink/55" dir="ltr">{labels.orderItem}</p>
+                <p className="num truncate text-[0.62rem] text-ink/65" dir="ltr">{labels.orderItem}</p>
               </div>
             </div>
           </div>
@@ -218,7 +218,7 @@ export default function DineInScene({ labels }: Props) {
           <button
             type="button"
             onClick={play}
-            className="flex min-h-[40px] items-center rounded-full border border-ink/20 px-5 text-[0.9rem] font-medium text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
+            className="flex min-h-[44px] items-center rounded-full border border-ink/20 px-5 text-[0.9rem] font-medium text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
           >
             {labels.replay}
           </button>
@@ -251,7 +251,7 @@ function Beat({
       <div className="mb-3 flex items-center gap-2.5">
         <span
           className={`num flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[0.78rem] font-medium transition-colors duration-500 ${
-            active ? (highlight ? 'bg-brass-deep text-semna' : 'bg-ink text-brass') : 'bg-ink/15 text-ink/50'
+            active ? (highlight ? 'bg-brass-deep text-semna' : 'bg-ink text-brass') : 'bg-ink/15 text-ink/65'
           }`}
         >
           {index + 1}

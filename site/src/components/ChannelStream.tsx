@@ -118,7 +118,7 @@ export default function ChannelStream({ labels }: { labels: StreamLabels }) {
                 <span className="ms-1 text-[0.8rem] text-ink/60">{count === 1 ? labels.counterOne : labels.counter}</span>
               </span>
             </div>
-            <span className="text-[0.7rem] text-ink/40">{labels.demoLabel}</span>
+            <span className="text-[0.7rem] text-ink/60">{labels.demoLabel}</span>
           </div>
 
           {/* the real page's filter chips */}
@@ -167,7 +167,7 @@ export default function ChannelStream({ labels }: { labels: StreamLabels }) {
                   <span className="rounded-full bg-brass-15 px-2 py-0.5 text-[0.72rem] font-medium text-ink/75">
                     {r.badge}
                   </span>
-                  <span className="hidden text-[0.75rem] text-ink/55 sm:block">{labels.channels[r.channel]}</span>
+                  <span className="hidden text-[0.75rem] text-ink/65 sm:block">{labels.channels[r.channel]}</span>
                 </div>
               </li>
             );
@@ -189,7 +189,7 @@ export default function ChannelStream({ labels }: { labels: StreamLabels }) {
           <button
             type="button"
             onClick={play}
-            className="mx-auto flex min-h-[40px] items-center rounded-full border border-ink/20 px-5 text-[0.9rem] font-medium text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
+            className="mx-auto flex min-h-[44px] items-center rounded-full border border-ink/20 px-5 text-[0.9rem] font-medium text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
           >
             {labels.replay}
           </button>

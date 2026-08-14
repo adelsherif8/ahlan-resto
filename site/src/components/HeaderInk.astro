@@ -16,7 +16,7 @@ const { t, lang } = Astro.props;
         <a href={l.href} class="hidden min-h-[44px] items-center font-medium text-semna/80 hover:text-brass-light lg:flex">{l.label}</a>
       ))}
       <a href={t.nav.toggle.href} class="flex min-h-[44px] items-center px-1 font-medium text-semna/60 hover:text-brass-light" lang={lang === 'ar' ? 'en' : 'ar'} dir={lang === 'ar' ? 'ltr' : 'rtl'}>{t.nav.toggle.label}</a>
-      <a href={WA_LINK} class="flex min-h-[42px] items-center justify-center rounded-full bg-brass px-5 text-[0.95rem] font-semibold text-ink transition-colors hover:bg-brass-light">{t.nav.cta}</a>
+      <a href={WA_LINK} class="flex min-h-[44px] items-center justify-center rounded-full bg-brass px-5 text-[0.95rem] font-semibold text-ink transition-colors hover:bg-brass-light">{t.nav.cta}</a>
     </nav>
   </div>
 </header>

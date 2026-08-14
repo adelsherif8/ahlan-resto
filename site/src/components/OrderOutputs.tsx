@@ -14,6 +14,7 @@ interface Props {
   steps: string[];
   demoLabel: string;
   replay: string;
+  stop: string;
   p1?: ReactNode;
   p2?: ReactNode;
   p3?: ReactNode;
@@ -21,7 +22,7 @@ interface Props {
 
 const DWELL = 3400;
 
-export default function OrderOutputs({ steps, demoLabel, replay, p1, p2, p3 }: Props) {
+export default function OrderOutputs({ steps, demoLabel, replay, stop, p1, p2, p3 }: Props) {
   const panels = [p1, p2, p3];
   const [active, setActive] = useState(steps.length - 1); // rest state = the customer
   const [auto, setAuto] = useState(false);
@@ -119,16 +120,29 @@ export default function OrderOutputs({ steps, demoLabel, replay, p1, p2, p3 }: P
         <div className="flex items-center justify-between border-b border-ink/10 px-5 py-3">
           <h3 className="text-[0.98rem]">{steps[active]}</h3>
           <div className="flex items-center gap-3">
+            {auto && !reduced && (
+              <button
+                type="button"
+                onClick={() => {
+                  clear();
+                  setAuto(false);
+                  setDone(true);
+                }}
+                className="flex min-h-[44px] items-center text-[0.8rem] font-medium text-ink/65 transition-colors hover:text-ink"
+              >
+                {stop}
+              </button>
+            )}
             {done && !reduced && (
               <button
                 type="button"
                 onClick={play}
-                className="text-[0.8rem] font-medium text-ink/55 transition-colors hover:text-ink"
+                className="flex min-h-[44px] items-center text-[0.8rem] font-medium text-ink/65 transition-colors hover:text-ink"
               >
                 {replay}
               </button>
             )}
-            <span className="text-[0.68rem] text-ink/40">{demoLabel}</span>
+            <span className="text-[0.68rem] text-ink/60">{demoLabel}</span>
           </div>
         </div>
 

@@ -32,6 +32,7 @@ const p = t.whatIs.panels;
         steps={[p.p1, p.p2, p.p3]}
         demoLabel={t.hero.demoLabel}
         replay={t.whatIs.stream.replay}
+        stop={t.whatIs.stream.stop}
       >
         <!-- 1 — the receipt the guest gets on WhatsApp -->
         <Fragment slot="p1">
@@ -110,7 +111,7 @@ const p = t.whatIs.panels;
               {p.profile.stats.map((s) => (
                 <div class="px-1 text-center">
                   <p class="num text-[1.15rem] font-semibold leading-none">{s.value}</p>
-                  <p class="mt-1.5 text-[0.65rem] leading-tight text-ink/55">{s.label}</p>
+                  <p class="mt-1.5 text-[0.65rem] leading-tight text-ink/65">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -118,12 +119,12 @@ const p = t.whatIs.panels;
             <dl class="mt-5 space-y-2.5 text-[0.9rem] text-ink/80">
               {p.profile.rows.map((r) => (
                 <div class="flex items-baseline gap-3">
-                  <dt class="w-20 shrink-0 text-[0.8rem] text-ink/45">{r.label}</dt>
+                  <dt class="w-20 shrink-0 text-[0.8rem] text-ink/60">{r.label}</dt>
                   <dd class="min-w-0">{r.text}</dd>
                 </div>
               ))}
               <div class="flex items-baseline gap-3">
-                <dt class="w-20 shrink-0 text-[0.8rem] text-ink/45">{p.profile.favLabel}</dt>
+                <dt class="w-20 shrink-0 text-[0.8rem] text-ink/60">{p.profile.favLabel}</dt>
                 <dd class="flex flex-wrap gap-1.5">
                   {p.profile.favs.map((f) => (
                     <span class="num rounded-full border border-ink/12 bg-semna px-2.5 py-0.5 text-[0.78rem]" dir="ltr">{f}</span>
@@ -131,7 +132,7 @@ const p = t.whatIs.panels;
                 </dd>
               </div>
               <div class="flex items-baseline gap-3">
-                <dt class="w-20 shrink-0 text-[0.8rem] text-ink/45">{p.profile.notesLabel}</dt>
+                <dt class="w-20 shrink-0 text-[0.8rem] text-ink/60">{p.profile.notesLabel}</dt>
                 <dd class="flex flex-wrap gap-1.5">
                   {p.profile.notes.map((n) => (
                     <span class="rounded-full border border-ink/12 bg-semna px-2.5 py-0.5 text-[0.78rem]">{n}</span>

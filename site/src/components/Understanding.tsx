@@ -62,9 +62,9 @@ export default function Understanding({ labels }: { labels: UnderstandingLabels 
       {/* column headings */}
       <div className="mb-3 hidden items-baseline gap-5 px-1 lg:grid lg:grid-cols-[0.85fr_1.05fr_auto_1.15fr]">
         <span />
-        <span className="label-cap text-ink/45">{labels.sends}</span>
+        <span className="label-cap text-ink/60">{labels.sends}</span>
         <span />
-        <span className="label-cap text-ink/45">{labels.gets}</span>
+        <span className="label-cap text-ink/60">{labels.gets}</span>
       </div>
 
       <ol className="divide-y divide-ink/[0.09] border-y border-ink/[0.09]">
@@ -143,7 +143,7 @@ export default function Understanding({ labels }: { labels: UnderstandingLabels 
                       transitionDelay: on ? `${220 + k * 140}ms` : '0ms',
                     }}
                   >
-                    <dt className="shrink-0 text-[0.8rem] text-ink/50">{f.label}</dt>
+                    <dt className="shrink-0 text-[0.8rem] text-ink/65">{f.label}</dt>
                     <dd className="text-end font-medium">{f.value}</dd>
                   </div>
                 ))}
@@ -158,7 +158,7 @@ export default function Understanding({ labels }: { labels: UnderstandingLabels 
           <button
             type="button"
             onClick={play}
-            className="flex min-h-[40px] items-center rounded-full border border-ink/20 px-5 text-[0.9rem] font-medium text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
+            className="flex min-h-[44px] items-center rounded-full border border-ink/20 px-5 text-[0.9rem] font-medium text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
           >
             {labels.replay}
           </button>
