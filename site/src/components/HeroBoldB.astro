@@ -1,0 +1,37 @@
+---
+/** Bold B — poster type: the question at monument scale is the whole hero.
+    The phone sits smaller and lower, evidence under the statement. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+import PhoneChat from './PhoneChat';
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t } = Astro.props;
+---
+
+<section class="relative overflow-hidden bg-semna">
+  <div class="container-page relative pt-12 md:pt-16">
+    <h1 class="mx-auto max-w-[20ch] text-center !text-[clamp(2.3rem,1.1rem+4.4vw,5.4rem)] !leading-[1.18] text-ink" data-reveal>
+      {t.hero.h1}
+    </h1>
+
+    <p class="mx-auto mt-7 max-w-[38rem] text-center text-[1.15rem] font-medium leading-relaxed text-karkadeh sm:text-[1.35rem]" data-reveal>
+      {t.hero.sub}
+    </p>
+
+    <div class="mt-9 flex flex-wrap items-center justify-center gap-x-6 gap-y-3" data-reveal>
+      <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-10 !py-4 text-[1.1rem] shadow-[0_12px_32px_-14px_rgba(140,29,47,0.75)]">
+        {t.hero.ctaPrimary}
+      </a>
+      <a href="#pricing" class="group inline-flex min-h-[44px] items-center gap-2 text-[1rem] font-medium text-ink/65 hover:text-karkadeh">
+        {t.hero.ctaSecondary}
+        <span aria-hidden="true" class="transition-transform group-hover:-translate-x-1 rtl:-scale-x-100">←</span>
+      </a>
+    </div>
+
+    <!-- the conversation rises into the fold -->
+    <div class="relative mx-auto mt-12 h-[300px] w-fit overflow-hidden [mask-image:linear-gradient(to_bottom,black_66%,transparent)] sm:h-[360px]">
+      <PhoneChat client:visible rtlChat={true} restaurant={t.hero.restaurant} status={t.hero.chatStatus}
+        demoLabel={t.hero.demoLabel} replayLabel={t.hero.replay} chat={t.hero.chat} />
+    </div>
+  </div>
+</section>

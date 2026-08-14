@@ -1,0 +1,44 @@
+---
+/** Bold C — inversion: ink ground, the phone the one bright object on it,
+    brass rings behind. Maximum contrast, the WhatsApp screen glows. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+import PhoneChat from './PhoneChat';
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t } = Astro.props;
+---
+
+<section class="on-ink relative overflow-hidden bg-ink">
+  <div class="container-page relative mx-auto grid max-w-[76rem] items-center gap-10 pt-12 pb-14 md:pt-18 md:pb-20 lg:grid-cols-[1.02fr_0.98fr] lg:gap-8">
+    <div class="relative z-10 max-w-[38rem]">
+      <h1 class="max-w-[16ch] text-semna">{t.hero.h1}</h1>
+
+      <div class="mt-7 border-s-2 border-brass ps-5">
+        <p class="max-w-[30rem] text-[1.15rem] font-medium leading-relaxed text-brass sm:text-[1.3rem]">
+          {t.hero.sub}
+        </p>
+      </div>
+
+      <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <a href={WA_LINK} class="inline-flex min-h-[56px] items-center justify-center rounded-full bg-brass px-9 text-[1.08rem] font-semibold text-ink transition-colors hover:bg-brass-light">
+          {t.hero.ctaPrimary}
+        </a>
+        <a href="#pricing" class="group inline-flex min-h-[44px] items-center gap-2 text-[1rem] font-medium text-semna/70 hover:text-brass-light">
+          {t.hero.ctaSecondary}
+          <span aria-hidden="true" class="transition-transform group-hover:-translate-x-1 rtl:-scale-x-100">←</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="relative justify-self-center">
+      <div class="pointer-events-none absolute start-1/2 top-1/2 hidden h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-brass/30 sm:block rtl:translate-x-1/2" aria-hidden="true"></div>
+      <div class="pointer-events-none absolute start-1/2 top-1/2 hidden h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-brass/15 sm:block rtl:translate-x-1/2" aria-hidden="true"></div>
+      <div class="relative max-h-[42vh] overflow-hidden [mask-image:linear-gradient(to_bottom,black_58%,transparent_98%)] lg:max-h-none lg:overflow-visible lg:[mask-image:none]">
+        <div class="shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)] lg:rotate-[-4deg]">
+          <PhoneChat client:visible rtlChat={true} restaurant={t.hero.restaurant} status={t.hero.chatStatus}
+            demoLabel={t.hero.demoLabel} replayLabel={t.hero.replay} chat={t.hero.chat} />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

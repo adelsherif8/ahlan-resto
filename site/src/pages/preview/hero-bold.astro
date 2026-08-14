@@ -1,0 +1,19 @@
+---
+import Base from '../../layouts/Base.astro';
+import HeaderPill from '../../components/HeaderPill.astro';
+import A from '../../components/HeroBoldA.astro';
+import B from '../../components/HeroBoldB.astro';
+import C from '../../components/HeroBoldC.astro';
+import Current from '../../components/Hero.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="معاينة — هيرو أقوى" description="Bold hero options" path="/preview/hero-bold">
+  <HeaderPill t={t} lang="ar" />
+  <main>
+    <A t={t} lang="ar" />
+    <B t={t} lang="ar" />
+    <C t={t} lang="ar" />
+    <Current t={t} lang="ar" />
+  </main>
+</Base>

@@ -1,0 +1,44 @@
+---
+/** Bold A — the karkadeh block: a deep hibiscus panel carries the question in
+    semna (approved pair, 7.5:1), the phone overlaps its edge. Colour is the grab. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+import PhoneChat from './PhoneChat';
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t } = Astro.props;
+---
+
+<section class="relative overflow-hidden bg-semna">
+  <!-- the block: bleeds off the start edge, stops short of the end -->
+  <div class="absolute inset-y-0 start-0 w-full bg-karkadeh lg:w-[62%] lg:rounded-es-[3rem]" aria-hidden="true"></div>
+
+  <div class="container-page relative mx-auto grid max-w-[78rem] items-center gap-10 pt-12 pb-14 md:pt-16 md:pb-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
+    <div class="relative z-10 max-w-[38rem]">
+      <h1 class="max-w-[16ch] text-semna">{t.hero.h1}</h1>
+
+      <p class="mt-7 max-w-[30rem] text-[1.15rem] font-medium leading-relaxed text-semna/90 sm:text-[1.3rem]">
+        {t.hero.sub}
+      </p>
+
+      <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <a
+          href={WA_LINK}
+          class="inline-flex min-h-[56px] items-center justify-center rounded-full bg-semna px-9 text-[1.08rem] font-semibold text-karkadeh transition-colors hover:bg-white"
+        >{t.hero.ctaPrimary}</a>
+        <a href="#pricing" class="group inline-flex min-h-[44px] items-center gap-2 text-[1rem] font-medium text-semna/80 hover:text-white">
+          {t.hero.ctaSecondary}
+          <span aria-hidden="true" class="transition-transform group-hover:-translate-x-1 rtl:-scale-x-100">←</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="relative z-10 justify-self-center">
+      <div class="relative max-h-[42vh] overflow-hidden [mask-image:linear-gradient(to_bottom,black_58%,transparent_98%)] lg:max-h-none lg:overflow-visible lg:[mask-image:none]">
+        <div class="lg:rotate-[-3deg]">
+          <PhoneChat client:visible rtlChat={true} restaurant={t.hero.restaurant} status={t.hero.chatStatus}
+            demoLabel={t.hero.demoLabel} replayLabel={t.hero.replay} chat={t.hero.chat} />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
