@@ -22,6 +22,21 @@ const bufKey = (ctx) => ctx.bufferKey || `${ctx.tenant?.record?.id || "default"}
 const sessionRoutes = new Map(); // "<restaurantId>|<sessionId>" -> { channel, phoneNumberId }
 // language stickiness
 const sessionLang = new Map(); // sessionId -> "en"|"ar"|"franco"|"mixed"
+
+// The PIPELINE writes a handful of guest-facing lines the agents never see: the
+// slow-turn "one sec", the spam cool-down, the loop handoff, the crash apology.
+// They fire at exactly the moments a conversation already feels shaky, so a line
+// in the wrong language — or worse, two languages at once — reads as broken.
+// Same three-language contract as everything the agents say.
+function pipeLang(sessionId, message) {
+  if (/[؀-ۿ]/.test(String(message || ""))) return "ar";
+  const s = sessionLang.get(sessionId);
+  if (s === "ar") return "ar";
+  if (s === "franco") return "fr";
+  return "en";
+}
+const P2 = (lang, en, ar, fr) => (lang === "ar" ? ar : lang === "fr" ? fr : en);
+
 export function setSessionLanguage(sessionId, l) {
   if (l && l !== "unknown") sessionLang.set(sessionId, l);
 }
@@ -95,7 +110,7 @@ defineFlow({
         bump("spam_blocks");
         if (!s.cooled) {
           s.cooled = true;
-          await respondDirect(ctx, "Take a breath 😄 We got your messages — replying to everything in one go now.");
+          await respondDirect(ctx, P2(pipeLang(ctx.sessionId, event?.text), "Take a breath 😄 We got your messages — replying to everything in one go now.", "خد نفس 😄 وصلتنا كل رسايلك — هرد على كله مرة واحدة.", "Khod nafas 😄 wasaltna kol rasayelak — harod 3ala kolo mara wa7da."));
         }
         return { blocked: true, count_this_minute: s.count };
       }
@@ -247,7 +262,7 @@ defineFlow({
     let routed = null;
 
     if (precheck.loop_detected || precheck.circuit_breaker) {
-      reply = "Let me get a team member to help you directly — one moment 🙏";
+      reply = P2(pipeLang(ctx.sessionId, merged), "Let me get a team member to help you directly — one moment 🙏", "هجيبلك حد من الفريق يساعدك على طول — لحظة 🙏", "Hageblak 7ad men el team ysa3dak — le7za 🙏");
       await setSessionFlags(db, ctx.sessionId, { needs_attention: true, handoff_reason: precheck.loop_detected ? "loop detected" : "circuit breaker (too many turns)" });
       await notifyDashboard(db, "handoff", "Human needed: conversation stuck", `Session ${ctx.sessionId} — ${precheck.loop_detected ? "bot repeated itself" : "20+ turns"}`, ctx.sessionId);
     } else {
@@ -255,14 +270,15 @@ defineFlow({
       // SLA guard: past 15s of thinking the guest hears SOMETHING — silence
       // reads as "the bot died". The real reply still lands right after.
       const interim = setTimeout(() => {
-        respondDirect(ctx, "لحظة واحدة 🙏 One sec…").catch(() => {});
+        const L = pipeLang(ctx.sessionId, merged);
+        respondDirect(ctx, P2(L, "One sec… 🙏", "لحظة واحدة 🙏", "Le7za wa7da… 🙏")).catch(() => {});
       }, 15_000);
       routed = await f.node("master", async () => {
         const lastAiMessage = [...(history || [])].reverse().find((h) => h.role === "ai")?.message || null;
         return f.flow("master", { message: merged, history, precheck, stickyLanguage: sticky, lastAiMessage });
       }, { input: { message: merged, precheck_active_flow: precheck.active_flow, sticky_language: sticky } });
       clearTimeout(interim);
-      reply = routed?.reply || "Sorry — something went wrong on our side 🙏 A team member will follow up.";
+      reply = routed?.reply || P2(pipeLang(ctx.sessionId, merged), "Sorry — something went wrong on our side 🙏 A team member will follow up.", "معلش — حصلت مشكلة عندنا 🙏 حد من الفريق هيتواصل معاك.", "Ma3lesh — 7asalet moshkela 3andena 🙏 7ad men el team hayetwasal ma3ak.");
       if (routed?.language) setSessionLanguage(ctx.sessionId, routed.language);
       if (routed?.fast_path === "closer") await setSessionFlags(db, ctx.sessionId, { status: "closed" }).catch(() => {});
       if (!routed?.fast_path) bump("llm_replies");
@@ -495,7 +511,7 @@ export async function handleFlushFailure(ctx, err) {
   } catch {}
   if (n >= 2) {
     failures.delete(ctx.sessionId);
-    await respondDirect(ctx, "So sorry — we're having a technical hiccup 🙏 A team member will reply to you personally.");
+    await respondDirect(ctx, P2(pipeLang(ctx.sessionId, null), "So sorry — we're having a technical hiccup 🙏 A team member will reply to you personally.", "معلش — عندنا مشكلة تقنية 🙏 حد من الفريق هيرد عليك بنفسه.", "Ma3lesh — 3andena moshkela tany2a 🙏 7ad men el team hayrod 3aleik."));
     await setSessionFlags(ctx.tenant.db, ctx.sessionId, { needs_attention: true, handoff_reason: "dead-letter: pipeline failed twice" }).catch(() => {});
     await notifyDashboard(ctx.tenant.db, "system", "Pipeline failure", `Two consecutive failures for ${ctx.sessionId} — guest got apology, needs human`, ctx.sessionId).catch(() => {});
   }

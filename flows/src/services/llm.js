@@ -138,6 +138,31 @@ export async function chatJSON(model, system, user, opts = {}) {
   try {
     return { value: JSON.parse(r2.text), __usage: usage };
   } catch {
+    // LAST RESORT: malformed JSON must never cost the guest their turn. The usual
+    // cause is truncation — the model wrote past max_tokens mid-string — and the
+    // text still holds a real, useful reply. Salvage it instead of dead-lettering
+    // the burst, which leaves the guest staring at silence. Only reply-shaped
+    // payloads are salvageable: an extraction call has no "reply" key, and a
+    // half-parsed order is far worse than an honest failure, so those still throw.
+    const salvaged = salvageReply(r2.text) || salvageReply(r.text);
+    if (salvaged) return { value: salvaged, __usage: usage, __salvaged: true };
     throw new Error(`LLM returned invalid JSON twice: ${r2.text.slice(0, 120)}`);
   }
+}
+
+// Pull a usable "reply" out of truncated/malformed JSON. Cuts a dangling partial
+// sentence so the guest reads a clean line rather than a severed one.
+function salvageReply(text) {
+  const m = /"reply"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(String(text || ""));
+  if (!m) return null;
+  let s = m[1]
+    .replace(/\\n/g, "\n").replace(/\\t/g, " ")
+    .replace(/\\"/g, '"').replace(/\\\\/g, "\\")
+    .trim();
+  if (s.length < 12) return null;                 // too little to be worth sending
+  if (!/[.!?…؟۔\n)]$/.test(s)) {                  // ends mid-thought → trim to the last complete line/sentence
+    const cut = Math.max(s.lastIndexOf("\n"), s.lastIndexOf("."), s.lastIndexOf("!"), s.lastIndexOf("?"), s.lastIndexOf("؟"));
+    if (cut > 20) s = s.slice(0, cut + 1).trim();
+  }
+  return { reply: s };
 }
