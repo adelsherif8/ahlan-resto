@@ -200,6 +200,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       const unknownQty = {};
       let ambiguous = [];
       let answeredAmbiguity = null;   // dish resolved from a pending which-one question
+      let askedBefore = null;         // the which-one question we already printed, if any
       let removedNames = null;
       const outcomeNotices = [];
       let typeHint = null;
@@ -235,6 +236,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         // A pending "which one did you mean?" — the answer names one candidate; the
         // remembered qty ("3 chicken") rides onto the chosen dish.
         const amb0 = loaded.pending?.ambiguous;
+        askedBefore = amb0 || null;
         if (amb0?.candidates?.length) {
           // set when this turn resolves our own "which one did you mean?" — the short-
           // message guard below must never mistake that answer for chit-chat
@@ -515,6 +517,11 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           }
           return false;
         };
+        // An instruction we CANNOT apply must be said out loud. Silently skipping it
+        // leaves the guest certain their change landed — they walk away believing the
+        // fries are off the order and find them on the bill. Same rule as an unknown
+        // dish: name it, show what's actually there, let them correct us.
+        const editMisses = [];
         for (const ed of (e.edits || []).slice(0, 6)) {
           const target = normName(ed.item || "");
           // "make it just 1" / "no I want X instead" (only one item on the order) names
@@ -535,7 +542,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               continue;
             }
           }
-          if (!target) continue;
+          if (!target) { editMisses.push(String(ed.item || ed.with || "").trim()); continue; }
           if (ed.op === "add") {
             const hit = findMenuItem(ed.item);
             if (!hit) { unknown.push(ed.item); continue; }
@@ -545,7 +552,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             else items.push({ id: hit.id, name: hit.name, qty: q, price: Number(hit.price), notes: null, options: {}, option_defs: hit.options || [] });
           } else {
             const idx = items.findIndex((it) => normName(it.name).includes(target) || target.includes(normName(it.name)));
-            if (idx < 0) continue;
+            if (idx < 0) { editMisses.push(String(ed.item || "").trim()); continue; }
             if (ed.op === "remove") items.splice(idx, 1);
             else if (ed.op === "set_option") applyOptionTo(items[idx], ed.option);
             else if (ed.op === "set_qty") items[idx].qty = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20);
@@ -555,6 +562,18 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               loaded.pending.awaiting_option = null;
               items[idx] = { id: hit.id, name: hit.name, qty: items[idx].qty, price: Number(hit.price), notes: null, options: {}, option_defs: hit.options || [] };
             }
+          }
+        }
+        {
+          const misses = editMisses.filter(Boolean);
+          if (misses.length) {
+            const have = items.map((it) => it.name).join("، ");
+            const haveEn = items.map((it) => it.name).join(", ");
+            outcomeNotices.push(L2(
+              `Couldn't find ${misses.join(", ")} on your order 🙏${haveEn ? ` — you have ${haveEn}` : ""}`,
+              `ملقيتش ${misses.join("، ")} في طلبك 🙏${have ? ` — عندك ${have}` : ""}`,
+              `Mala2etsh ${misses.join(", ")} fe orderak 🙏${haveEn ? ` — 3andak ${haveEn}` : ""}`,
+            ));
           }
         }
         if (e.edits?.length && !items.length) {
@@ -748,9 +767,24 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // (After the mapping, so a generic word's candidates come from the mapper and
       // nothing else in the message gets lost behind the question.)
       if (ambiguous.length) {
-        const a = ambiguous[0];
+        let a = ambiguous[0];
+        // The guest ANSWERED our which-one and we still couldn't pin it. Re-searching the
+        // whole menu produced a WIDER question than the one they just answered — the bot
+        // looked like it was getting dumber. If the new candidates overlap the ones we
+        // already printed, re-ask THAT list, say we didn't catch it, and count the try.
+        const amb0Cands = (askedBefore?.candidates || []).map((c) => normName(c));
+        if (amb0Cands.length && !answeredAmbiguity && a.candidates.some((c) => amb0Cands.includes(normName(c)))) {
+          a = { ...askedBefore, tries: (Number(askedBefore.tries) || 1) + 1 };
+        }
         await savePending({ ambiguous: a });
-        return { kind: "which_item", said: a.said, qty: a.qty, candidates: a.candidates, items, running: runningOf(items), notices: outcomeNotices };
+        // three misses on the same list is a loop — hand to a human rather than a 4th ask
+        if ((Number(a.tries) || 1) >= 4) {
+          await notifyDashboard(db, "handoff", "Human needed: guest stuck picking a dish",
+            `${diner?.name || ctx.sessionId} — "${a.said}" asked ${(Number(a.tries) || 1) - 1}× without a match`, ctx.sessionId).catch(() => {});
+          await setSessionFlags(db, ctx.sessionId, { needs_attention: true, handoff_reason: "which-item loop" }).catch(() => {});
+          return { kind: "stuck_handoff", items, running: runningOf(items), notices: outcomeNotices };
+        }
+        return { kind: "which_item", said: a.said, qty: a.qty, candidates: a.candidates, tries: Number(a.tries) || 1, items, running: runningOf(items), notices: outcomeNotices };
       }
       if (!items.length) {
         await savePending({}); // marks the session as ordering — "loaded fries" next turn stays here
@@ -1369,7 +1403,11 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
 
     // Which-one candidates are STRUCTURE too — one lead line, code lists the dishes
     if (outcome.kind === "which_item") {
-      const lead = reply.split("\n")[0];
+      let lead = reply.split("\n")[0];
+      // a silent identical re-ask reads as a stuck bot — say we missed it
+      if ((outcome.tries || 1) >= 2) {
+        lead = `${L2("Sorry — didn't catch that 😅 Pick one of these:", "معلش مش فاهم قصدك 😅 اختار واحد من دول:", "Ma3lesh mesh fahem 2asdak 😅 ekhtar wa7ed men dol:")}`;
+      }
       reply = `${lead}\n\n${(outcome.candidates || []).map((c) => `• *${dishDisp(c)}*`).join("\n")}`;
     }
 
