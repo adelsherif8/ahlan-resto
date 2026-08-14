@@ -3,17 +3,19 @@
 // so the flow engine can attribute cost to the node that made the call.
 import { OPENAI_API_KEY, llmReady, MODEL_SMART, MODEL_FAST } from "../config.js";
 
-// USD per 1M tokens (input, output)
-// [input $/1M, output $/1M, cached-input multiplier]
+// USD per 1M tokens — [input $/1M, output $/1M, cached-input multiplier].
+// Verified against OpenAI's pricing page on 2026-08-14. Only models we actually run
+// (or are about to benchmark) live here: a wrong number silently corrupts every trace,
+// every metric and any model comparison built on them, which is worse than no number.
+// The flagship/mid tiers (gpt-5.4, gpt-5.6-terra, gpt-5.6-sol) are deliberately absent —
+// they cost multiples of what we pay now and we have no plan to run them.
 const PRICES = {
-  "gpt-4.1": [2.0, 8.0, 0.25],
-  "gpt-4.1-mini": [0.4, 1.6, 0.25],
-  "gpt-4.1-nano": [0.1, 0.4, 0.25],
-  "gpt-4o-mini": [0.15, 0.6, 0.5],
-  "gpt-5.4": [2.5, 15.0, 0.1],
-  "gpt-5.4-mini": [0.375, 2.25, 0.1],
-  "gpt-5.4-nano": [0.1, 0.625, 0.1],
-  "deepseek-chat": [0.27, 1.1, 0.5],
+  "gpt-4.1": [2.0, 8.0, 0.25],          // SMART — guest-facing replies
+  "gpt-4.1-mini": [0.4, 1.6, 0.25],     // FAST — extract, classify, summarize
+  "gpt-4.1-nano": [0.1, 0.4, 0.25],     // NANO — router classify
+  "gpt-4o-mini": [0.15, 0.6, 0.5],      // photo classification (media.js)
+  "gpt-5.6-luna": [0.2, 1.2, 0.1],      // cheap tier, Jul 2026 — FAST candidate
+  "deepseek-chat": [0.27, 1.1, 0.5],    // dormant budget lane
 };
 
 // OpenAI automatically caches identical prompt prefixes over ~1024 tokens and
