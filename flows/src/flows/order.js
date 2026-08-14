@@ -1649,10 +1649,13 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       const sug = (config.ai?.suggest_dishes || []).filter(Boolean).slice(0, 3);
       const firstTimer0 = !diner?.name && !(diner?.visit_count > 0) && !diner?.last_visit_at;
       if (sug.length && config.ai?.suggest_enabled !== false && firstTimer0) {
-        const names = sug.map((d) => `*${d}*`).join(" · ");
-        reply = /[\u0600-\u06FF]/.test(reply)
+        // Arabic guests hear the dish by its Arabic menu name, same as everywhere else
+        const names = sug.map((d) => `*${dishDisp(d)}*`).join(" · ");
+        reply = LANGV === "ar"
           ? `${reply}\n\n⭐ أول مرة؟ جرب ${names} — أكتر حاجة الناس بتحبها!`
-          : `${reply}\n\n⭐ First time here? Try ${names} — the crowd favourite${sug.length > 1 ? "s" : ""}!`;
+          : LANGV === "fr"
+            ? `${reply}\n\n⭐ Awel marra? Garrab ${names} — a7la 7aga 3andena!`
+            : `${reply}\n\n⭐ First time here? Try ${names} — the crowd favourite${sug.length > 1 ? "s" : ""}!`;
       }
     }
 

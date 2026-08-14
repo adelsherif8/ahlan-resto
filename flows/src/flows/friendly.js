@@ -583,7 +583,21 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     const currency = config.payments?.currency || "EGP";
     let menuList = null;
     let menuDoc = null;
+    // A FIRST-TIMER browsing the menu gets the restaurant's signature dishes with it —
+    // the same nudge the order flow gives, phrased by code, never invented, and named
+    // in the guest's own language. It belongs here, not in the greeting.
     if (out.send_menu_list) {
+      const sugF = (ai.suggest_dishes || []).filter(Boolean).slice(0, 3);
+      const firstTimerF = !diner?.name && !(diner?.visit_count > 0) && !diner?.last_visit_at;
+      if (sugF.length && ai.suggest_enabled !== false && firstTimerF) {
+        const arOf = (n) => (context.menu.find((m) => m.name === n)?.name_ar) || n;
+        const names = sugF.map((d) => `*${LV === "ar" ? arOf(d) : d}*`).join(" · ");
+        reply = `${reply}\n\n${L2F(
+          `⭐ First time here? Try ${names} — the crowd favourite${sugF.length > 1 ? "s" : ""}!`,
+          `⭐ أول مرة؟ جرب ${names} — أكتر حاجة الناس بتحبها!`,
+          `⭐ Awel marra? Garrab ${names} — a7la 7aga 3andena!`,
+        )}`;
+      }
       if (mc.display === "text") {
         reply = `${reply}\n\n${fullMenuText(context.menu, currency)}`.slice(0, 3900);
       } else if (mc.display === "list") {

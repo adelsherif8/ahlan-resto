@@ -115,6 +115,12 @@ defineFlow({
     await f.node("purge_traces", async () => {
       let deleted = 0, batches = 0;
       const cutoff = (days) => new Date(Date.now() - days * 86_400_000).toISOString();
+      // HARD TIME BUDGET. Batching bounds the ROW count, not the CLOCK: without an
+      // index on started_at every batch scans the whole (very large) trace table, and
+      // real runs took 29 and 42 MINUTES — pinning the tenant database while guests
+      // waited, which is one of the ways a normal turn crawls past the 15s mark and
+      // the bot says "one sec". Cleanup yields to the guest, always.
+      const deadline = Date.now() + 20_000;
 
       for (const [label, days, onlyOk] of [["ok", TRACE_MAX_AGE_D, true], ["error", TRACE_ERROR_MAX_AGE_D, false]]) {
         for (let i = 0; i < TRACE_MAX_BATCHES; i++) {
@@ -130,15 +136,17 @@ defineFlow({
           deleted += data.length;
           batches++;
           if (data.length < TRACE_BATCH) break;
+          if (Date.now() > deadline) break;
         }
-        if (batches >= TRACE_MAX_BATCHES) break;
+        if (batches >= TRACE_MAX_BATCHES || Date.now() > deadline) break;
       }
 
-      const { count } = await db.from("flow_executions").select("id", { count: "exact", head: true });
+      // an exact count is another full scan of the same big table — the estimate the
+      // next run makes from its own batches is worth more than the seconds this costs
       return {
         deleted,
         batches,
-        rows_left: count ?? null,
+        rows_left: null,
         more_next_run: batches >= TRACE_MAX_BATCHES,   // hit the per-run cap → the next hourly run continues
         kept: `success ${TRACE_MAX_AGE_D}d · errors ${TRACE_ERROR_MAX_AGE_D}d`,
       };

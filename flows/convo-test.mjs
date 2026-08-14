@@ -27,7 +27,14 @@ async function aiSince(sid, n) {
   return (data || []).slice(n).map((m) => m.message);
 }
 async function wipe(sid) {
+  // A test phone must start EVERY run as a brand-new guest. Leaving the rolling
+  // conversation (message_full) or the session flags behind meant turns piled up
+  // across runs until the 20-turn circuit breaker fired and answered "let me get a
+  // team member" to a simple menu request — a harness artefact that looks like a bug.
   await db.from("chat_messages").delete().eq("session_id", sid);
+  await db.from("message_full").delete().eq("phone_number", sid);
+  await db.from("chat_sessions").delete().eq("session_id", sid);
+  await db.from("orders").delete().eq("phone_number", sid);
   const { data: d } = await db.from("diners").select("id,preferences").eq("phone_number", sid).maybeSingle();
   if (d?.id) {
     const { pending_order: _p, ...rest } = d.preferences || {};
@@ -47,14 +54,18 @@ for (const c of convos) {
       headers: { "x-ops-token": TOKEN, "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId: c.phone, message: turn, restaurant: SLUG }),
     });
+    // "One sec… 🙏" is the >15s SLA filler, not an answer — waiting must continue.
+    const INTERIM = /^(one sec|لحظة واحدة|le7za wa7da)/i;
     let out = [], waited = 0, stable = 0;
-    while (waited < 60000) {
+    while (waited < 90000) {
       await new Promise((z) => setTimeout(z, 1500));
       waited += 1500;
       const now = await aiSince(c.phone, before);
-      if (now.length && now.length === out.length) { stable++; if (stable >= 2) break; } else stable = 0;
+      const real = now.filter((m) => !INTERIM.test(String(m).trim()));
+      if (real.length && now.length === out.length) { stable++; if (stable >= 2) break; } else stable = 0;
       out = now;
     }
+    out = out.filter((m) => !INTERIM.test(String(m).trim()));
     console.log(`\n👤 ${turn}`);
     if (!out.length) { console.log("🤖 (NO REPLY)"); failures++; }
     for (const m of out) console.log(`🤖 ${m.replace(/\n/g, "\n   ")}`);

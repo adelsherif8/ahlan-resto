@@ -1,0 +1,21 @@
+[
+  {
+    "name": "AR — greeting only + buttons, then menu carries the ⭐ suggestion in ARABIC",
+    "phone": "+201555000501",
+    "turns": ["سلام عليكو", "المنيو"],
+    "expect": { "suggestion arrives WITH the menu, in Arabic": "أول مرة.*سيجناتشر برجر" },
+    "forbid": { "English dish name in an Arabic chat": "Signature Burger" }
+  },
+  {
+    "name": "EN — greeting only, suggestion on the menu message",
+    "phone": "+201555000502",
+    "turns": ["hi", "menu please"],
+    "expect": { "first-timer nudge with the menu": "First time here.*Signature Burger" }
+  },
+  {
+    "name": "FR — franco greeting, suggestion on the menu message",
+    "phone": "+201555000503",
+    "turns": ["salam 3aleko", "3ayez el menu"],
+    "expect": { "franco nudge": "Awel marra|First time here" }
+  }
+]

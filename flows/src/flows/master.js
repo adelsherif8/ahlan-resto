@@ -4,7 +4,7 @@
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_FAST, MODEL_NANO } from "../config.js";
-import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath, isGreetingish } from "../services/fastpaths.js";
+import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath, isGreetingish, isMenuRequest, menuReplyFor } from "../services/fastpaths.js";
 import { wantsBuilder } from "../services/fastpaths.js";
 import { signBuildToken, builderConfig, priceBuild, describeBuild, LAYERS as BUILDER_LAYERS } from "../services/builder.js";
 import { label, isLabel, isLabelKey } from "../services/labels.js";
@@ -95,18 +95,46 @@ defineFlow({
           bump("greeting_hits");
           const rname = ctx.tenant.config.basic_info?.name || ctx.tenant.config.name || "us";
           const isAr = /[\u0600-\u06FF]/.test(message);
-          const isFr = !isAr && sticky === "franco";
+          // On a FIRST message there is no sticky language yet, so "salam 3aleko" was
+          // getting the English welcome. Franco is recognisable from the words themselves.
+          const isFr = !isAr && (sticky === "franco"
+            || /(3alek|3aleko|salam|ahlan|ezay(ak|ek)?|hala|sabah el|masa el|izayak)/i.test(message));
           const cfgPool = isAr ? ctx.tenant.config.ai?.greetings_ar : ctx.tenant.config.ai?.greetings;
           const pool = cfgPool?.length ? cfgPool : (isAr ? DEFAULT_GREETINGS_AR : isFr ? DEFAULT_GREETINGS_FR : DEFAULT_GREETINGS);
           let reply = String(pool[greetIdx++ % pool.length]).replace(/\{name\}/g, rname);
-          const sug = (ctx.tenant.config.ai?.suggest_dishes || []).filter(Boolean).slice(0, 3);
-          if (sug.length && ctx.tenant.config.ai?.suggest_enabled !== false) {
-            const names = sug.map((d) => `*${d}*`).join(" · ");
-            reply += isAr ? `\n\n⭐ أول مرة؟ جرب ${names}!` : `\n\n⭐ First time here? Try ${names}!`;
-          }
-          return { kind: "greeting", reply, language: isAr ? "ar" : (sticky || undefined) };
+          // The signature nudge does NOT belong here. A greeting is hospitality —
+          // "welcome, what are you in the mood for?" — and the recommendation lands
+          // where it's useful: on the MENU message, when they browse or start ordering.
+          // Ways IN, on the greeting itself. This is a 0-LLM fast path, so it skips the
+          // flow that normally attaches entry chips — the founder's greeting arrived
+          // with no buttons at all. Order-first when the restaurant asks type first.
+          const chipLang = isAr ? "ar" : isFr ? "fr" : "en";
+          const cfg = ctx.tenant.config;
+          const entry = cfg.ai?.ask_type_first === true
+            ? [label(cfg, "order_now", chipLang), label(cfg, "browse_menu", chipLang)]
+            : [label(cfg, "browse_menu", chipLang), label(cfg, "order_now", chipLang)];
+          if (builderConfig(cfg).enabled) entry.push(label(cfg, "build_your_own", chipLang));
+          return { kind: "greeting", reply, quick_replies: entry.slice(0, 3), language: isAr ? "ar" : (sticky || undefined) };
         }
       }
+      // THE MENU IS A DOCUMENT — answer it in code. This used to wake the big model
+      // with the whole menu in the prompt just to say "here's the menu" and attach the
+      // same PDF; on a slow call it crossed 15s and the guest got "one sec" and nothing.
+      // Instant, free, and it cannot fail the way an LLM turn can.
+      if (isMenuRequest(message)) {
+        const menuRows = (await getMenu(db).catch(() => [])).filter((m) => m.available);
+        const built = menuRows.length ? menuReplyFor(ctx.tenant.config, menuRows, message, sticky, diner) : null;
+        if (built?.pdfUrl) {
+          bump("faq_hits");
+          return {
+            kind: "menu_request",
+            reply: built.reply,
+            language: built.language,
+            menu_doc: { url: built.pdfUrl, filename: "menu.pdf", caption: null },
+          };
+        }
+      }
+
       // "build my own" hands over a signed one-guest link instead of an answer.
       // Offered only when the restaurant has actually priced its layers — an
       // unpriced builder would quote numbers nobody set.
@@ -189,7 +217,7 @@ defineFlow({
     const replyAr = fast.reply ? /[\u0600-\u06FF]/.test(fast.reply) : false;
     const langMismatch = fast.reply && !fast.media && ((guestAr && !replyAr) || (!guestAr && replyAr));
     if (fast.reply && !langMismatch) {
-      return { reply: fast.reply, fast_path: fast.kind, language: fast.language, bucket: "fast_path" };
+      return { reply: fast.reply, quickReplies: fast.quick_replies || [], menuDoc: fast.menu_doc || null, fast_path: fast.kind, language: fast.language, bucket: "fast_path" };
     }
 
     const precheck = input.precheck || {};

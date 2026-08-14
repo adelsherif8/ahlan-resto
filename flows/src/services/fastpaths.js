@@ -378,3 +378,44 @@ export function isGreetingish(message) {
   if (!norm || norm.length < 2) return false;
   return GREETING_WORDS.some((w) => editDistance(norm, w) <= (w.length <= 4 ? 1 : 2));
 }
+
+// ---- MENU REQUEST: the menu is a DOCUMENT, so the model has nothing to add ----
+// "menu"/"المنيو"/"el menu" used to wake the big model with the whole menu in the
+// prompt, wait for JSON, then attach the PDF anyway — 3-7s on a good day, and on
+// 14 Aug it hit 15s and the guest got "one sec" followed by nothing. Answering in
+// code makes it instant and free, and removes the class of failure entirely.
+const MENU_REQ = /^\W*(?:(?:can i|could i|may i|i want|i'd like|send|show|give|3ayez|3aiz|ana 3ayez|3awez|hat|hatli|ابعت|ابعتلي|هات|هاتلي|عايز|عاوز|ممكن|وريني|اشوف)\s+)?(?:(?:me|the|el|a|us|lw|law)\s+){0,3}(menu|menue|meno|المنيو|منيو|مينيو|المينيو|el menu|elmenu)(?:\s+(please|pls|law sama7t|من فضلك|لو سمحت|كامل|el kamel|full))?\W*$/i;
+
+export function isMenuRequest(message) {
+  const t = String(message || "").trim();
+  return t.length <= 45 && MENU_REQ.test(t);
+}
+
+// Builds the whole reply in code: the line, the first-timer signature nudge (named in
+// the guest's own language), and the PDF to attach. Returns null when the restaurant
+// shows its menu as text or a tappable list — those paths stay where they are.
+export function menuReplyFor(config, menu, message, sticky, diner) {
+  const mc = config.menu_config || {};
+  if (mc.display === "text" || mc.display === "list") return null;
+  const l = lang(message, sticky);
+  const t = (en, ar, fr) => (l === "ar" ? ar : l === "franco" ? fr : en);
+
+  let reply = t(
+    "Here's the full menu 📄 — tell me what you'd like and I'll take it from there.",
+    "اتفضل المنيو الكامل 📄 — قولّي تحب إيه وأنا أظبطهالك.",
+    "Etfadal el menu el kamel 📄 — 2oly te7eb eh w ana azabathalak.",
+  );
+
+  const sug = (config.ai?.suggest_dishes || []).filter(Boolean).slice(0, 3);
+  const firstTimer = !diner?.name && !(diner?.visit_count > 0) && !diner?.last_visit_at;
+  if (sug.length && config.ai?.suggest_enabled !== false && firstTimer) {
+    const arOf = (n) => (menu || []).find((m) => m.name === n)?.name_ar || n;
+    const names = sug.map((d) => `*${l === "ar" ? arOf(d) : d}*`).join(" · ");
+    reply += t(
+      `\n\n⭐ First time here? Try ${names} — the crowd favourite${sug.length > 1 ? "s" : ""}!`,
+      `\n\n⭐ أول مرة؟ جرب ${names} — أكتر حاجة الناس بتحبها!`,
+      `\n\n⭐ Awel marra? Garrab ${names} — a7la 7aga 3andena!`,
+    );
+  }
+  return { reply, language: l, pdfUrl: mc.pdf_url || null };
+}
