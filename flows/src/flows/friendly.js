@@ -355,7 +355,15 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           if (bareGreeting && broken(r.value?.reply || "")) {
             let fixed = (r.value?.reply || "").replace(/^(hey|hi|hello)[!,. ]*/i, "");
             if (context.situation !== "first_timer" && firstName && !fixed.toLowerCase().includes(firstName.toLowerCase())) {
-              fixed = `Welcome back${firstName ? `, ${firstName}` : ""}! ${fixed}`.trim();
+              // This safety-net prefix was English-only, so an Arabic guest got
+              // "Welcome back, Tarek!" glued in front of an Arabic sentence — two
+              // languages in one breath, on a regular's first message back.
+              // computed locally on purpose — LV is declared further down this function
+              const lg = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
+              const back = lg === "ar" ? `أهلاً بعودتك${firstName ? ` يا ${firstName}` : ""}!`
+                : lg === "fr" ? `Welcome back${firstName ? ` ya ${firstName}` : ""}!`
+                : `Welcome back${firstName ? `, ${firstName}` : ""}!`;
+              fixed = `${back} ${fixed}`.trim();
             } else if (context.situation === "first_timer" && !fixed.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase())) {
               fixed = `${(config.ai?.greeting || `Welcome to ${config.name}!`).trim()} ${fixed}`.trim();
             }

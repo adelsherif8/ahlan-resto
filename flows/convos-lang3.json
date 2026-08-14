@@ -1,0 +1,12 @@
+[
+  { "name": "AR returning — must answer in Arabic, Arabic buttons", "phone": "+201555004401",
+    "seed": { "name": "Tarek", "visit_count": 4 }, "turns": ["هاي"],
+    "expect": { "arabic reply": "[\\u0600-\\u06FF]" },
+    "forbid": { "english welcome": "welcome back|what are you craving" } },
+  { "name": "FR returning — franco, latin script", "phone": "+201555004402",
+    "seed": { "name": "Mona", "visit_count": 4 }, "turns": ["ezayak ya basha"],
+    "forbid": { "arabic script": "[\\u0600-\\u06FF]" } },
+  { "name": "EN returning — stays english", "phone": "+201555004403",
+    "seed": { "name": "Hana", "visit_count": 4 }, "turns": ["hey"],
+    "forbid": { "arabic script": "[\\u0600-\\u06FF]" } }
+]

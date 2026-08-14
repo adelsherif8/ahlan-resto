@@ -34,6 +34,28 @@ const DEFAULT_GREETINGS_AR = [
   "أهلاً وسهلاً! 😊 منورنا في {name} — تحب تطلب إيه؟",
   "يا هلا! 🙌 جاهزين لطلبك — تحب تاكل إيه النهارده؟",
 ];
+// LANGUAGE IS DECIDED BY SCRIPT, NOT BY A MODEL. Arabic script is unambiguous and
+// Franco has a stable marker set, so this costs nothing and is never wrong about
+// "هاي". It also can never return "unknown" — which is exactly what happened to a
+// returning Arabic guest: the rule below passed language "unknown" downstream, the
+// host had nothing to mirror, and he got an English welcome with English buttons on
+// his first message back. An extra LLM "language agent" would cost a call per message
+// and still be less certain than reading the alphabet.
+const FRANCO_HINT = /(3ayez|3aiz|3awez|3awz|2ol|ezay|fein|fen|emta|khalas|shokran|habibi|ya basha|law sama7t|ma3lesh|delwa2ty|akl|akol|tamam|kwayes|sabah el|masa el|3alek|nefsak|te7eb|momken|bta3|naharda|3andko|3andokom|hat|hatli|ab3at)/i;
+function detectLang(message, sticky) {
+  if (/[\u0600-\u06FF]/.test(String(message || ""))) return "ar";
+  if (FRANCO_HINT.test(String(message || ""))) return "franco";
+  return sticky || "en";
+}
+// The classifier may still answer "unknown"/"mixed", or disagree with the alphabet.
+// The alphabet wins — a message in Arabic script is Arabic, whatever the model thinks.
+function settleLang(modelLang, message, sticky) {
+  const code = detectLang(message, sticky);
+  if (/[\u0600-\u06FF]/.test(String(message || ""))) return "ar";
+  if (!modelLang || modelLang === "unknown" || modelLang === "mixed") return code;
+  return modelLang;
+}
+
 let greetIdx = 0; // rotates the canned line so it isn't identical every time
 
 import { getMenu } from "../services/menucache.js";
@@ -225,19 +247,19 @@ defineFlow({
     const classification = await f.node("classify", async () => {
       // session override: mid-reservation + bare "yes" → stays in the reservation flow, zero LLM
       if (isAffirmative && precheck.active_flow === "reservation") {
-        return { value: { bucket: "reservation", intent: "confirm_reservation", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (affirmative in active reservation session)" } };
+        return { value: { bucket: "reservation", intent: "confirm_reservation", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (affirmative in active reservation session)" } };
       }
       // a draft order in progress is session STATE, not a guess about wording — a bare
       // "yes" mid-order is a confirmation, and belongs to the ORDER agent, full stop
       if (isAffirmative && precheck.active_flow === "order") {
-        return { value: { bucket: "order", intent: "confirm", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (affirmative in active order session)" } };
+        return { value: { bucket: "order", intent: "confirm", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (affirmative in active order session)" } };
       }
       if (isAffirmative) {
-        return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare affirmative)" } };
+        return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (bare affirmative)" } };
       }
       // a bare greeting is friendly, full stop — no model needed to know that
       if (GREETING.test(message.trim()) || isGreetingish(message)) {
-        return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (bare greeting)" } };
+        return { value: { bucket: "friendly", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (bare greeting)" } };
       }
       // A live order session tells us where a short message belongs. Bare answers to our
       // own questions ("Maadi", "T3", "sprite", "card", "Medium", an address) are the
@@ -250,14 +272,14 @@ defineFlow({
       // question-vs-answer by length here. Routing stays simple; the smart decision lives
       // where the extractor already read the message.
       if (precheck.active_flow === "order" && message.trim().length <= 45) {
-        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (short message inside an active order — order flow re-routes non-order ones)" } };
+        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (short message inside an active order — order flow re-routes non-order ones)" } };
       }
       // A filled-in slots template ("FIRST CHOICE / SANDWICH: iconic / NOTES: …")
       // is structurally an order answer. The classifier once filed one under
       // friendly and dropped the whole order — structure is code's job, not a
       // model's. Two or more "LABEL:" lines during an active order = order.
       if (precheck.active_flow === "order" && (message.match(/^\s*[\p{L} ]{2,24}:/gmu) || []).length >= 2) {
-        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (filled template inside an active order)" } };
+        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (filled template inside an active order)" } };
       }
       // "an iconic wrap meal for dine in at Sheraton" — no verb, but a menu item
       // plus an order-type word is an order, period. Real guests phrase it exactly
@@ -274,7 +296,7 @@ defineFlow({
           return tok.length >= 4 && new RegExp(`\\b${tok.replace(/[.*+?^${'$'}{}()|[\\]\\\\]/g, "\\$&")}\\b`).test(ml);
         });
         if (hit) {
-          return { value: { bucket: "order", confidence: 1, mood: "neutral", language: input.stickyLanguage || "unknown", via: "rule (menu item + order-type wording)" } };
+          return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (menu item + order-type wording)" } };
         }
       }
       const system = `Classify a WhatsApp message to a trendy Cairo restaurant. Reply JSON only.
@@ -315,10 +337,10 @@ Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
         diner,
         history: input.history,
         precheck,
-        classification: { ...cls, requested_bucket: cls.bucket, sticky_language: input.stickyLanguage || null, self_correction: precheck.is_self_correction || false },
+        classification: { ...cls, language: settleLang(cls.language, message, input.stickyLanguage), requested_bucket: cls.bucket, sticky_language: input.stickyLanguage || null, self_correction: precheck.is_self_correction || false },
       });
     }, { input: { bucket: cls.bucket, confidence: cls.confidence, active_flow: precheck.active_flow || "none", restaurant_type: ctx.tenant.config.basic_info?.restaurant_type || "fine" } });
 
-    return { ...result, bucket: cls.bucket, mood: cls.mood, language: cls.language };
+    return { ...result, bucket: cls.bucket, mood: cls.mood, language: settleLang(cls.language, message, input.stickyLanguage) };
   },
 });

@@ -1,0 +1,8 @@
+[
+  { "name": "ISSUE 1 — AR returning guest answered in English", "phone": "+201555004401",
+    "seed": { "name": "Tarek", "visit_count": 4 }, "turns": ["هاي", "وريني المنيو"] },
+  { "name": "ISSUE 2 — ab3atli el menu misses the fast path", "phone": "+201555004402",
+    "seed": { "name": "Mona", "visit_count": 4 }, "turns": ["sabah el kheir", "ab3atli el menu"] },
+  { "name": "ISSUE 3 — can i get the menu misses the fast path", "phone": "+201555004403",
+    "seed": { "name": "Hana", "visit_count": 4 }, "turns": ["morning", "can i get the menu"] }
+]
