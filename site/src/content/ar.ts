@@ -204,6 +204,21 @@ export const ar: SiteContent = {
       { title: 'إحنا بنظبط الباقي', body: 'مناطق التوصيل، الفروع، أسعار التوصيل، ورقم الواتساب.' },
       { title: 'زباينك بيطلبوا', body: 'من نفس الرقم. مفيش تطبيق يتحمّل، ومفيش جهاز جديد.' },
     ],
+    // NEW UI strings — need Adel's review
+    journey: {
+      replay: 'شغّل تاني',
+      photosCaption: 'صور بالموبايل تكفي',
+      menuTitle: 'المنيو بتاعك',
+      menuItems: [
+        { name: 'كلاسيك برجر', price: '260' },
+        { name: 'سماش دوبل', price: '290' },
+        { name: 'فرايز تشيدر', price: '75' },
+      ],
+      setupChips: ['مناطق التوصيل', 'الفروع', 'رقم الواتساب ✓'],
+      orderTitle: 'أوردر جديد — O-A101',
+      orderItem: 'كلاسيك كومبو ×1',
+      orderFrom: 'من نفس رقم مطعمك',
+    },
   },
 
   understands: {

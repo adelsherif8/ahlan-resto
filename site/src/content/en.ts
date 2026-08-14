@@ -174,6 +174,20 @@ export const en: SiteContent = {
       { title: 'We set up the rest', body: 'Delivery zones, branches, delivery pricing, and the WhatsApp number.' },
       { title: 'Your customers order', body: 'From the same number. No app to download, no new device.' },
     ],
+    journey: {
+      replay: 'Replay',
+      photosCaption: 'Phone photos are enough',
+      menuTitle: 'Your menu',
+      menuItems: [
+        { name: 'Classic Burger', price: '260' },
+        { name: 'Smash Double', price: '290' },
+        { name: 'Cheddar Fries', price: '75' },
+      ],
+      setupChips: ['Delivery zones', 'Branches', 'WhatsApp number ✓'],
+      orderTitle: 'New order — O-A101',
+      orderItem: 'Classic combo ×1',
+      orderFrom: 'From your own number',
+    },
   },
 
   understands: {

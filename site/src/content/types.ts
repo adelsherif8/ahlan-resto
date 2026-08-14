@@ -95,7 +95,16 @@ export interface SiteContent {
       chat: { from: 'in' | 'out'; text: string }[];
     };
   };
-  steps: { h2: string; items: { title: string; body: string }[] };
+  steps: {
+    h2: string; items: { title: string; body: string }[];
+    /** Journey artifact labels — new UI strings, need Adel's Arabic review. */
+    journey: {
+      replay: string; photosCaption: string; menuTitle: string;
+      menuItems: { name: string; price: string }[];
+      setupChips: string[];
+      orderTitle: string; orderItem: string; orderFrom: string;
+    };
+  };
   understands: { h2: string; fragments: Fragment[] };
   pricing: {
     h2: string;
