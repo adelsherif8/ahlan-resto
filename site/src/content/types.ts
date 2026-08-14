@@ -30,7 +30,13 @@ export interface Plan {
 
 export interface SiteContent {
   meta: { title: string; description: string };
-  nav: { pricing: string; cta: string; toggle: { label: string; href: string } };
+  nav: {
+    pricing: string;
+    cta: string;
+    toggle: { label: string; href: string };
+    /** Site nav — anchors today, page routes once /features etc. ship (sitemap P1). */
+    links: { label: string; href: string }[];
+  };
   hero: {
     h1: string;
     sub: string;

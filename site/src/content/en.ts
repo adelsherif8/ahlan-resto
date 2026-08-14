@@ -19,6 +19,11 @@ export const en: SiteContent = {
     pricing: 'Pricing',
     cta: 'Book a demo',
     toggle: { label: 'العربية', href: '/ar' },
+    links: [
+      { label: 'How it starts', href: '#how' },
+      { label: 'What it understands', href: '#features' },
+      { label: 'Pricing', href: '#pricing' },
+    ],
   },
 
   hero: {

@@ -18,6 +18,11 @@ export const ar: SiteContent = {
     pricing: 'السعر',
     cta: 'احجز عرض',
     toggle: { label: 'English', href: '/en' },
+    links: [
+      { label: 'إزاي بيبدأ', href: '#how' },
+      { label: 'بيفهم إزاي', href: '#features' },
+      { label: 'السعر', href: '#pricing' },
+    ],
   },
 
   hero: {

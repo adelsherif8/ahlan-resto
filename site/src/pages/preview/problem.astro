@@ -4,6 +4,7 @@ import Base from '../../layouts/Base.astro';
 import Header from '../../components/Header.astro';
 import Hero from '../../components/Hero.astro';
 import Problem from '../../components/Problem.astro';
+import ProblemMix from '../../components/ProblemMix.astro';
 import ProblemDark from '../../components/ProblemDark.astro';
 import ProblemEditorial from '../../components/ProblemEditorial.astro';
 import ProblemStatement from '../../components/ProblemStatement.astro';
@@ -16,6 +17,7 @@ import { ar as t } from '../../content/ar';
   <Header t={t} lang="ar" />
   <main>
     <Hero t={t} lang="ar" />
+    <ProblemMix t={t} />
     <ProblemEditorial t={t} />
     <ProblemStatement t={t} />
     <ProblemRepeat t={t} />
