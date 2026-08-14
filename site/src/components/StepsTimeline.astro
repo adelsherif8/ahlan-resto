@@ -1,0 +1,62 @@
+---
+/** Steps variant C — connected timeline with artifacts: photos → setup → first order.
+    SVG connector, brass nodes, one object per step. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="surface-deep border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <h2 class="h-rule rule-center text-center" data-reveal>{t.steps.h2}</h2>
+
+    <div class="relative mx-auto mt-14 max-w-5xl">
+      <!-- the connector -->
+      <div class="absolute inset-x-10 top-5 hidden h-px bg-ink/15 sm:block" aria-hidden="true"></div>
+
+      <ol class="grid gap-10 sm:grid-cols-3 sm:gap-6">
+        {t.steps.items.map((s, i) => (
+          <li class="relative flex flex-col items-center text-center" data-reveal style={`transition-delay:${i * 100}ms`}>
+            <span class="num relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-ink text-[1rem] font-medium text-brass ring-4 ring-[#EDE4D6]">
+              {i + 1}
+            </span>
+
+            <!-- the artifact -->
+            <div class="mt-6 flex h-28 items-center justify-center">
+              {i === 0 && (
+                <div class="relative" aria-hidden="true">
+                  <div class="absolute -start-3 top-1 h-20 w-16 rotate-[-6deg] rounded border border-ink/15 bg-[#FFFDF8] shadow-sm"></div>
+                  <div class="absolute start-3 top-1 h-20 w-16 rotate-[5deg] rounded border border-ink/15 bg-[#FFFDF8] shadow-sm"></div>
+                  <div class="relative flex h-20 w-16 items-center justify-center rounded border border-ink/15 bg-white shadow-md">
+                    <svg viewBox="0 0 24 24" class="h-7 w-7 fill-none stroke-ink/45" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="9" cy="9" r="1.6" fill="currentColor" stroke="none" class="fill-ink/45" />
+                      <path d="m21 15-4.5-4.5L7 20" />
+                    </svg>
+                  </div>
+                </div>
+              )}
+              {i === 1 && (
+                <div class="flex flex-wrap justify-center gap-1.5" aria-hidden="true">
+                  <span class="rounded-full border border-ink/15 bg-white px-3 py-1.5 text-[0.8rem] text-ink/75 shadow-sm">مدينة نصر — 20 جنيه</span>
+                  <span class="rounded-full border border-ink/15 bg-white px-3 py-1.5 text-[0.8rem] text-ink/75 shadow-sm">التجمع — 30 جنيه</span>
+                  <span class="rounded-full border border-brass-deep/40 bg-brass-15 px-3 py-1.5 text-[0.8rem] font-medium text-ink/85 shadow-sm">رقم الواتساب ✓</span>
+                </div>
+              )}
+              {i === 2 && (
+                <div class="w-40 rounded border border-dashed border-ink/25 bg-[#FFFDF8] p-3 text-start shadow-md" aria-hidden="true">
+                  <p class="num text-[0.8rem] font-semibold">#A-101</p>
+                  <p class="mt-1 text-[0.82rem] text-ink/80">كلاسيك كومبو ×1</p>
+                  <p class="mt-1 text-[0.72rem] text-ink/55">من نفس الرقم</p>
+                </div>
+              )}
+            </div>
+
+            <h3 class="mt-5 text-[1.15rem]">{s.title}</h3>
+            <p class="mt-2 max-w-[16rem] text-[0.95rem] leading-relaxed text-ink/75">{s.body}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,22 @@
+---
+/** Objections variant B — two-column cards: scannable between shifts,
+    still fully expanded (no taps to read). */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="section">
+  <div class="container-page">
+    <h2 class="h-rule rule-center text-center" data-reveal>{t.objections.h2}</h2>
+
+    <dl class="mx-auto mt-12 flex max-w-4xl flex-wrap justify-center gap-5">
+      {t.objections.items.map((o, i) => (
+        <div class="card w-full p-6 sm:w-[calc(50%-0.625rem)]" data-reveal style={`transition-delay:${(i % 2) * 80}ms`}>
+          <dt class="text-[1.1rem] font-semibold">{o.q}</dt>
+          <dd class="mt-2.5 text-[1rem] leading-relaxed text-ink/85">{o.a}</dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>

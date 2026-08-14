@@ -1,0 +1,52 @@
+---
+/** Variant B — centered stack: headline owns the width, chat center stage below. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+import PhoneChat from './PhoneChat';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t } = Astro.props;
+---
+
+<section class="on-ink relative overflow-hidden bg-ink">
+  <div class="container-page relative flex flex-col items-center pt-16 pb-20 text-center md:pt-24">
+    <h1 class="max-w-[17ch] text-semna">{t.hero.h1}</h1>
+
+    <p class="mt-7 max-w-[38rem] text-[1.25rem] font-medium leading-relaxed text-brass sm:text-[1.4rem]">
+      {t.hero.sub}
+    </p>
+
+    <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
+      <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-8 !py-3.5 text-[1.05rem]">
+        {t.hero.ctaPrimary}
+      </a>
+      <a
+        href="#pricing"
+        class="inline-flex min-h-[52px] items-center justify-center rounded-[var(--radius-md)] border-[1.5px] border-semna/35 px-8 py-3.5 text-[1.05rem] font-semibold text-semna transition-colors hover:border-brass hover:text-brass-light"
+      >
+        {t.hero.ctaSecondary}
+      </a>
+    </div>
+
+    <div class="relative mt-14">
+      <!-- the mark's circle, echoed once -->
+      <div
+        class="pointer-events-none absolute start-1/2 top-1/2 h-[620px] w-[620px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-brass/[0.15] rtl:translate-x-1/2"
+        aria-hidden="true"
+      ></div>
+      <div
+        class="pointer-events-none absolute start-1/2 top-1/2 h-[480px] w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-brass/[0.08] rtl:translate-x-1/2"
+        aria-hidden="true"
+      ></div>
+      <PhoneChat
+        client:visible
+        rtlChat={true}
+        restaurant={t.hero.restaurant}
+        status={t.hero.chatStatus}
+        demoLabel={t.hero.demoLabel}
+        replayLabel={t.hero.replay}
+        chat={t.hero.chat}
+      />
+    </div>
+  </div>
+</section>

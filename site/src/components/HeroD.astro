@@ -1,0 +1,96 @@
+---
+/** Variant D — product window: chat + the kitchen ticket it becomes, one wide surface.
+    Proves "real software behind it" in a single image. Static preview (animation later if chosen). */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t } = Astro.props;
+const chat = t.hero.chat;
+---
+
+<section class="on-ink relative overflow-hidden bg-ink">
+  <div class="container-page relative flex flex-col items-center pt-16 pb-20 text-center md:pt-20">
+    <h1 class="max-w-[17ch] text-semna">{t.hero.h1}</h1>
+    <p class="mt-6 max-w-[38rem] text-[1.2rem] font-medium leading-relaxed text-brass sm:text-[1.35rem]">
+      {t.hero.sub}
+    </p>
+
+    <div class="mt-9 flex flex-wrap items-center justify-center gap-4">
+      <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-8 !py-3.5 text-[1.05rem]">
+        {t.hero.ctaPrimary}
+      </a>
+      <a
+        href="#pricing"
+        class="inline-flex min-h-[52px] items-center justify-center rounded-[var(--radius-md)] border-[1.5px] border-semna/35 px-8 py-3.5 text-[1.05rem] font-semibold text-semna transition-colors hover:border-brass hover:text-brass-light"
+      >
+        {t.hero.ctaSecondary}
+      </a>
+    </div>
+
+    <!-- The window -->
+    <div class="mt-14 w-full max-w-4xl overflow-hidden rounded-[var(--radius-lg)] border border-semna/[0.12] bg-[#1D1917] shadow-[0_32px_80px_-32px_rgba(0,0,0,0.7)]">
+      <!-- chrome -->
+      <div class="flex items-center gap-2 border-b border-semna/[0.08] px-4 py-3">
+        <span class="h-2.5 w-2.5 rounded-full bg-semna/20"></span>
+        <span class="h-2.5 w-2.5 rounded-full bg-semna/20"></span>
+        <span class="h-2.5 w-2.5 rounded-full bg-semna/20"></span>
+        <span class="ms-3 text-[12px] text-semna/50" dir="ltr">{t.hero.restaurant}</span>
+        <span class="ms-auto rounded-full bg-[#111B21]/60 px-2.5 py-0.5 text-[10.5px] text-semna/70">{t.hero.demoLabel}</span>
+      </div>
+
+      <div class="grid gap-0 sm:grid-cols-[1.15fr_1fr]">
+        <!-- the conversation -->
+        <div class="flex flex-col gap-1.5 bg-[#EFEAE2] p-4" dir="rtl">
+          {chat.map((m) => (
+            m.voice ? (
+              <div class="flex w-fit max-w-[85%] items-center gap-2 self-start rounded-lg rounded-ss-none bg-white px-3 py-2 shadow-sm">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 fill-[#54656F]" aria-hidden="true"><path d="M8 5.5v13l10-6.5-10-6.5Z" /></svg>
+                <span class="flex h-4 items-center gap-[2px]" aria-hidden="true">
+                  {[5,9,13,7,11,15,9,5,11,14,8,5,8,12,16,10,6,9].map((h) => (
+                    <span class="w-[2px] rounded-full bg-[#8696A0]" style={`height:${h}px`}></span>
+                  ))}
+                </span>
+                <span class="num text-[10px] text-[#667781]">{m.voice.duration}</span>
+              </div>
+            ) : m.bill ? (
+              <div class="w-fit max-w-[85%] self-end rounded-lg rounded-es-none bg-[#D9FDD3] px-3 py-2 text-[12.5px] leading-relaxed text-[#111B21] shadow-sm">
+                {m.bill.lines.map((l) => (
+                  <div class="flex items-baseline justify-between gap-4"><span>{l.label}</span><span class="num">{l.price}</span></div>
+                ))}
+                <div class="mt-1 flex items-baseline justify-between gap-4 border-t border-[#111B21]/10 pt-1 font-semibold">
+                  <span>{m.bill.total.label}</span><span class="num">{m.bill.total.price}</span>
+                </div>
+                {m.bill.after && <p class="mt-1">{m.bill.after}</p>}
+              </div>
+            ) : (
+              <p dir="auto" class:list={[
+                'w-fit max-w-[85%] rounded-lg px-3 py-1.5 text-[12.5px] leading-[1.5] text-[#111B21] shadow-sm',
+                m.from === 'out' ? 'self-end rounded-es-none bg-[#D9FDD3]' : 'self-start rounded-ss-none bg-white',
+              ]}>{m.text}</p>
+            )
+          ))}
+        </div>
+
+        <!-- the kitchen ticket it becomes -->
+        <div class="flex items-center justify-center border-t border-semna/[0.08] bg-[#1D1917] p-6 sm:border-s sm:border-t-0">
+          <div class="w-full max-w-[250px] bg-[#FFFDF8] p-4 text-start text-ink shadow-[0_16px_40px_-16px_rgba(0,0,0,0.6)] [clip-path:polygon(0_0,100%_0,100%_calc(100%-7px),97%_100%,91%_calc(100%-7px),85%_100%,79%_calc(100%-7px),73%_100%,67%_calc(100%-7px),61%_100%,55%_calc(100%-7px),49%_100%,43%_calc(100%-7px),37%_100%,31%_calc(100%-7px),25%_100%,19%_calc(100%-7px),13%_100%,7%_calc(100%-7px),3%_100%,0_calc(100%-7px))]" dir="rtl">
+            <div class="flex items-baseline justify-between border-b border-dashed border-ink/25 pb-2">
+              <span class="text-[13px] font-bold">{t.hero.restaurant}</span>
+              <span class="num text-[12px] font-medium">#A-114</span>
+            </div>
+            <div class="num pt-2 text-[11px] text-ink/60">9:43</div>
+            <div class="mt-1.5 space-y-1.5 text-[12.5px] leading-snug">
+              <div class="flex justify-between gap-2"><span>كلاسيك برجر كومبو</span><span class="num">×1</span></div>
+              <div class="flex justify-between gap-2"><span>فرايز تشيدر</span><span class="num">×1</span></div>
+            </div>
+            <div class="mt-2.5 border-t border-dashed border-ink/25 pt-2 text-[11.5px] leading-relaxed text-ink/80">
+              <p>دليفري — شارع 9 جنب صيدلية العزبي</p>
+              <p class="mt-0.5">كاش — الباقي <span class="num">105</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

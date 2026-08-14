@@ -1,0 +1,21 @@
+---
+/** Problem variant F — pure typography: no graphic at all. The words at scale,
+    Stripe-press restraint. The quietest possible version. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="border-y border-ink/[0.07] bg-semna">
+  <div class="container-page section">
+    <div class="mx-auto max-w-3xl" data-reveal>
+      <h2 class="h-rule">{t.problem.h2}</h2>
+      <p class="mt-10 text-[1.35rem] leading-[1.9] text-ink/85 sm:text-[1.5rem]">
+        {t.problem.p1}
+      </p>
+      <p class="mt-8 text-[1.35rem] font-semibold leading-[1.9] text-ink sm:text-[1.5rem]">
+        {t.problem.p2}
+      </p>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,74 @@
+---
+/** Understands variant B — bento: voice notes lead (the differentiator no
+    competitor can screenshot), four supporting tiles. Hierarchy, not parallelism. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+
+const [voice, ...rest] = t.understands.fragments;
+const WAVE = [5, 9, 14, 8, 12, 17, 10, 6, 12, 16, 9, 5, 9, 13, 18, 11, 7, 10, 15, 8, 5, 9];
+---
+
+<section class="section">
+  <div class="container-page">
+    <h2 class="h-rule rule-center text-center" data-reveal>{t.understands.h2}</h2>
+
+    <div class="mx-auto mt-12 grid max-w-5xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <!-- Lead tile: the voice note — wide, first -->
+      <article class="card relative flex flex-col p-7 sm:col-span-2 lg:col-span-2" data-reveal>
+        <h3 class="flex items-center gap-2.5 text-[1.35rem]">
+          <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+          {voice!.head}
+        </h3>
+        <p class="mt-3 text-[1.05rem] leading-relaxed text-ink/80">{voice!.body}</p>
+
+        <div class="relative mt-auto pt-6">
+          <div class="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[#EFEAE2] p-4 pb-7" dir="rtl">
+            <div class="flex w-fit max-w-[92%] items-center gap-2.5 self-start rounded-lg rounded-ss-none bg-white px-3.5 py-2.5 shadow-sm">
+              <svg viewBox="0 0 24 24" class="h-6 w-6 shrink-0 fill-[#54656F]" aria-hidden="true">
+                <path d="M8 5.5v13l10-6.5-10-6.5Z" />
+              </svg>
+              <span class="flex h-5 items-center gap-[2.5px]" aria-hidden="true">
+                {WAVE.map((h) => (
+                  <span class="w-[2.5px] rounded-full bg-[#8696A0]" style={`height:${h}px`}></span>
+                ))}
+              </span>
+              <span class="num text-[11px] text-[#667781]">{voice!.demo.inVoice}</span>
+            </div>
+            <p dir="auto" class="w-fit max-w-[92%] self-end rounded-lg rounded-es-none bg-[#D9FDD3] px-3.5 py-2.5 text-[14px] leading-[1.55] text-[#111B21] shadow-sm">
+              {voice!.demo.out}
+            </p>
+          </div>
+          <span class="pointer-events-none absolute bottom-2 start-3.5 text-[9.5px] font-medium text-[#667781]">
+            {t.hero.demoLabel}
+          </span>
+        </div>
+      </article>
+
+      <!-- Supporting tiles -->
+      {rest.map((f, i) => (
+        <article class="card relative flex flex-col p-5 sm:col-span-1" data-reveal style={`transition-delay:${(i + 1) * 70}ms`}>
+          <h3 class="flex items-center gap-2 text-[1.05rem]">
+            <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+            {f.head}
+          </h3>
+          <p class="mt-2 text-[0.92rem] leading-relaxed text-ink/80">{f.body}</p>
+
+          <div class="relative mt-auto pt-4">
+            <div class="flex flex-col gap-1.5 rounded-[var(--radius-md)] bg-[#EFEAE2] p-2.5 pb-5" dir="rtl">
+              <p dir="auto" class="w-fit max-w-[94%] self-start rounded-lg rounded-ss-none bg-white px-2.5 py-1.5 text-[11.5px] leading-[1.45] text-[#111B21] shadow-sm">
+                {f.demo.in}
+              </p>
+              <p dir="auto" class="w-fit max-w-[94%] self-end rounded-lg rounded-es-none bg-[#D9FDD3] px-2.5 py-1.5 text-[11.5px] leading-[1.45] text-[#111B21] shadow-sm">
+                {f.demo.out}
+              </p>
+            </div>
+            <span class="pointer-events-none absolute bottom-1.5 start-2.5 text-[9px] font-medium text-[#667781]">
+              {t.hero.demoLabel}
+            </span>
+          </div>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>

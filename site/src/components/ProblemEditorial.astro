@@ -1,0 +1,44 @@
+---
+/** Problem variant C — editorial/magazine (ui-ux-pro-max: editorial-grid-magazine).
+    Asymmetric print grid: headline column · body column · pull quote · giant stat.
+    Same copy, article treatment. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="border-y border-ink/[0.07] bg-semna">
+  <div class="container-page section">
+    <div class="mx-auto grid max-w-5xl gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-16">
+      <!-- Headline column -->
+      <div data-reveal>
+        <div class="flex items-center gap-4">
+          <span class="num text-[0.85rem] font-medium tracking-wide text-brass-deep">02</span>
+          <span class="h-px flex-1 bg-ink/15" aria-hidden="true"></span>
+        </div>
+        <h2 class="mt-6">{t.problem.h2}</h2>
+
+        <!-- The giant stat — a magazine callout, not a chart -->
+        <div class="mt-10 flex items-end gap-4" aria-label={t.problem.bar.app}>
+          <span class="num text-[6.5rem] font-medium leading-[0.85] text-karkadeh sm:text-[8.5rem]">30</span>
+          <div class="pb-2">
+            <div class="num text-[1.6rem] font-medium leading-none text-ink/60" dir="ltr">/ 150</div>
+            <p class="mt-2 max-w-[11rem] text-[0.95rem] leading-snug text-ink/75">{t.problem.bar.app}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body column -->
+      <div class="flex flex-col justify-center" data-reveal style="transition-delay:90ms">
+        <p class="text-[1.15rem] leading-[1.9]">{t.problem.p1}</p>
+
+        <!-- Pull quote — the editorial signature -->
+        <blockquote class="mt-9 border-s-[3px] border-karkadeh ps-6">
+          <p class="text-[1.45rem] font-semibold leading-[1.7] text-ink sm:text-[1.6rem]">
+            {t.problem.p2}
+          </p>
+        </blockquote>
+      </div>
+    </div>
+  </div>
+</section>

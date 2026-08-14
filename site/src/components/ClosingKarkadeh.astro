@@ -1,0 +1,49 @@
+---
+/** Closing variant B — the karkadeh band: the page's one deep-red moment,
+    bookending the light hero. With a REAL scannable wa.me QR for desktop
+    visitors (generated at build time — it opens the same chat the button does). */
+import type { SiteContent } from '../content/types';
+import { WA_LINK, WA_NUMBER_DISPLAY } from '../lib/const';
+import QRCode from 'qrcode';
+
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+
+const qrSvg = await QRCode.toString(WA_LINK, {
+  type: 'svg',
+  margin: 0,
+  color: { dark: '#141110', light: '#FFFDF8' },
+});
+---
+
+<section class="bg-karkadeh">
+  <div class="container-page section">
+    <div class="mx-auto grid max-w-4xl items-center gap-12 lg:grid-cols-[1.2fr_0.8fr]">
+      <div data-reveal>
+        <h2 class="h-rule text-semna">{t.closing.h2}</h2>
+        <p class="mt-7 max-w-[34rem] text-[1.1rem] text-semna/90">{t.closing.p}</p>
+
+        <div class="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
+          <a
+            href={WA_LINK}
+            class="inline-flex min-h-[52px] items-center justify-center rounded-[var(--radius-md)] bg-semna px-9 py-4 text-[1.1rem] font-semibold text-karkadeh transition-colors hover:bg-white"
+          >
+            {t.closing.cta}
+          </a>
+          <a href={WA_LINK} class="flex min-h-[44px] items-center gap-2 text-semna/90 hover:text-white">
+            <span>{t.closing.waLabel.split(':')[0]}:</span>
+            <span class="num text-[1.1rem] font-medium" dir="ltr">{WA_NUMBER_DISPLAY}</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- the QR — scans straight into the same chat -->
+      <div class="hidden justify-self-center lg:block" data-reveal style="transition-delay:100ms">
+        <div class="rounded-[var(--radius-md)] bg-[#FFFDF8] p-5 shadow-[0_24px_48px_-20px_rgba(0,0,0,0.4)]">
+          <div class="h-40 w-40 [&_svg]:h-full [&_svg]:w-full" set:html={qrSvg} />
+          <p class="num mt-3 text-center text-[0.85rem] text-ink/70" dir="ltr">{WA_NUMBER_DISPLAY}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

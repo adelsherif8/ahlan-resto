@@ -1,0 +1,18 @@
+---
+// Steps variants stacked: chat thread → timeline artifacts → current (ghost-numeral cards).
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/Header.astro';
+import StepsChat from '../../components/StepsChat.astro';
+import StepsTimeline from '../../components/StepsTimeline.astro';
+import Steps from '../../components/Steps.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="معاينة قسم الخطوات" description="Steps section variants" path="/preview/steps">
+  <Header t={t} lang="ar" />
+  <main>
+    <StepsChat t={t} />
+    <StepsTimeline t={t} />
+    <Steps t={t} />
+  </main>
+</Base>

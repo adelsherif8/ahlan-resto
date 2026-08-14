@@ -1,0 +1,49 @@
+---
+/** Variant C — conversation-first: the chat IS the hero. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+import PhoneChat from './PhoneChat';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t } = Astro.props;
+---
+
+<section class="on-ink relative overflow-hidden bg-ink">
+  <div class="container-page relative flex flex-col items-center pt-14 pb-16 text-center md:pt-16">
+    <h1 class="max-w-[24ch] !text-[clamp(1.6rem,1.1rem+1.6vw,2.3rem)] text-semna">
+      {t.hero.h1}
+    </h1>
+
+    <div class="relative mt-10 scale-[1.06] sm:scale-[1.12]">
+      <div
+        class="pointer-events-none absolute start-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-brass/[0.16] rtl:translate-x-1/2"
+        aria-hidden="true"
+      ></div>
+      <PhoneChat
+        client:visible
+        rtlChat={true}
+        restaurant={t.hero.restaurant}
+        status={t.hero.chatStatus}
+        demoLabel={t.hero.demoLabel}
+        replayLabel={t.hero.replay}
+        chat={t.hero.chat}
+      />
+    </div>
+
+    <p class="mt-12 max-w-[38rem] text-[1.2rem] font-medium leading-relaxed text-brass sm:text-[1.3rem]">
+      {t.hero.sub}
+    </p>
+
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-4">
+      <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-9 !py-4 text-[1.1rem]">
+        {t.hero.ctaPrimary}
+      </a>
+      <a
+        href="#pricing"
+        class="inline-flex min-h-[52px] items-center justify-center rounded-[var(--radius-md)] border-[1.5px] border-semna/35 px-8 py-3.5 text-[1.05rem] font-semibold text-semna transition-colors hover:border-brass hover:text-brass-light"
+      >
+        {t.hero.ctaSecondary}
+      </a>
+    </div>
+  </div>
+</section>

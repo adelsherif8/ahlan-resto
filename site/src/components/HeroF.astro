@@ -1,0 +1,51 @@
+---
+/** Variant F — "Monument type": the question at poster scale, the phone rising
+    into it from the fold. Typography IS the design. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+import PhoneChat from './PhoneChat';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t } = Astro.props;
+---
+
+<section class="on-ink relative overflow-hidden bg-ink">
+  <div class="container-page relative flex flex-col items-center pt-16 text-center md:pt-24">
+    <h1 class="max-w-[15ch] !text-[clamp(2.6rem,1.6rem+4.2vw,5rem)] !leading-[1.22] text-semna">
+      {t.hero.h1}
+    </h1>
+
+    <p class="mt-8 max-w-[38rem] text-[1.25rem] font-medium leading-relaxed text-brass sm:text-[1.4rem]">
+      {t.hero.sub}
+    </p>
+
+    <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
+      <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-9 !py-4 text-[1.1rem]">
+        {t.hero.ctaPrimary}
+      </a>
+      <a
+        href="#pricing"
+        class="inline-flex min-h-[52px] items-center justify-center rounded-[var(--radius-md)] border-[1.5px] border-semna/35 px-8 py-3.5 text-[1.05rem] font-semibold text-semna transition-colors hover:border-brass hover:text-brass-light"
+      >
+        {t.hero.ctaSecondary}
+      </a>
+    </div>
+
+    <!-- the phone rises out of the fold — cropped on purpose -->
+    <div class="relative mt-14 h-[400px] w-full overflow-hidden sm:h-[460px]">
+      <div class="absolute start-1/2 top-0 -translate-x-1/2 rtl:translate-x-1/2">
+        <PhoneChat
+          client:visible
+          rtlChat={true}
+          restaurant={t.hero.restaurant}
+          status={t.hero.chatStatus}
+          demoLabel={t.hero.demoLabel}
+          replayLabel={t.hero.replay}
+          chat={t.hero.chat}
+        />
+      </div>
+      <!-- fade the crop edge into the next section's ground -->
+      <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-semna to-transparent" aria-hidden="true"></div>
+    </div>
+  </div>
+</section>

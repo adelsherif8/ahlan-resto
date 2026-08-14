@@ -1,0 +1,22 @@
+---
+// Objections + Closing variants stacked: grid objections → karkadeh closing → current versions.
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/Header.astro';
+import ObjectionsGrid from '../../components/ObjectionsGrid.astro';
+import ClosingKarkadeh from '../../components/ClosingKarkadeh.astro';
+import Objections from '../../components/Objections.astro';
+import Closing from '../../components/Closing.astro';
+import Footer from '../../components/Footer.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="معاينة الأسئلة والختام" description="Objections and closing variants" path="/preview/closing">
+  <Header t={t} lang="ar" />
+  <main>
+    <ObjectionsGrid t={t} />
+    <ClosingKarkadeh t={t} />
+    <Objections t={t} />
+    <Closing t={t} />
+  </main>
+  <Footer t={t} lang="ar" />
+</Base>

@@ -1,0 +1,39 @@
+---
+/** Problem variant E — the eight orders: p2's exact insight drawn. The same
+    customer, eight times, the same commission every time. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+
+const ORDERS = Array.from({ length: 8 }, (_, i) => i + 1);
+---
+
+<section class="border-y border-ink/[0.07] bg-semna">
+  <div class="container-page section">
+    <div class="container-text" data-reveal>
+      <h2 class="h-rule">{t.problem.h2}</h2>
+      <p class="mt-7 text-[1.1rem]">{t.problem.p1}</p>
+    </div>
+
+    <!-- The same customer, eight times -->
+    <div class="mx-auto mt-12 max-w-4xl" data-reveal>
+      <div class="grid grid-cols-4 gap-3 sm:grid-cols-8">
+        {ORDERS.map((n) => (
+          <div class="card flex flex-col items-center gap-1 !rounded-[var(--radius-md)] px-2 py-3.5">
+            <span class="text-[0.7rem] text-ink/55">أوردر {n}</span>
+            <span class="num text-[0.95rem] font-medium">150</span>
+            <span class="num rounded-full bg-karkadeh-10 px-2 py-0.5 text-[0.8rem] font-semibold text-karkadeh" dir="ltr">−30</span>
+          </div>
+        ))}
+      </div>
+      <div class="mt-5 flex flex-wrap items-baseline justify-between gap-3">
+        <span class="text-[1.05rem] font-medium">نفس الزبون، 8 مرات</span>
+        <span class="text-[1.05rem] font-semibold text-karkadeh">
+          <span class="num" dir="ltr">−240</span> جنيه للتطبيق
+        </span>
+      </div>
+    </div>
+
+    <p class="container-text mt-10 text-[1.15rem] font-semibold" data-reveal>{t.problem.p2}</p>
+  </div>
+</section>

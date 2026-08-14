@@ -1,0 +1,26 @@
+---
+// ALL six Problem treatments stacked, hero above for context.
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/Header.astro';
+import Hero from '../../components/Hero.astro';
+import Problem from '../../components/Problem.astro';
+import ProblemDark from '../../components/ProblemDark.astro';
+import ProblemEditorial from '../../components/ProblemEditorial.astro';
+import ProblemStatement from '../../components/ProblemStatement.astro';
+import ProblemRepeat from '../../components/ProblemRepeat.astro';
+import ProblemType from '../../components/ProblemType.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="معاينة قسم المشكلة" description="Problem section variants" path="/preview/problem">
+  <Header t={t} lang="ar" />
+  <main>
+    <Hero t={t} lang="ar" />
+    <ProblemEditorial t={t} />
+    <ProblemStatement t={t} />
+    <ProblemRepeat t={t} />
+    <ProblemType t={t} />
+    <ProblemDark t={t} />
+    <Problem t={t} />
+  </main>
+</Base>

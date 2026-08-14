@@ -1,0 +1,63 @@
+---
+/** DineIn variant B — before/after: the hall today leaves nothing; with the
+    code on the table it leaves a record. The copy's own logic, drawn. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="section">
+  <div class="container-page">
+    <div class="container-text" data-reveal>
+      <h2 class="h-rule">{t.dineIn.h2}</h2>
+      <p class="mt-7 text-[1.1rem]">{t.dineIn.p1}</p>
+    </div>
+
+    <!-- Before / after -->
+    <div class="mx-auto mt-12 grid max-w-4xl gap-5 sm:grid-cols-2" data-reveal>
+      <!-- Before: the hall today -->
+      <div class="flex flex-col rounded-[var(--radius-lg)] border border-dashed border-ink/30 p-6">
+        <span class="text-[0.9rem] font-medium text-ink/60">الصالة — النهاردة</span>
+        <div class="mt-4 flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center">
+          <span class="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-ink/30 text-[1.2rem] text-ink/35" aria-hidden="true">؟</span>
+          <p class="text-[1rem] font-medium text-ink/55">زبون جه، أكل، ومشي</p>
+          <p class="text-[0.9rem] text-ink/45">مفيش اسم. مفيش رقم. مفيش تاريخ.</p>
+        </div>
+      </div>
+
+      <!-- After: with the code on the table -->
+      <div class="card flex flex-col !border-[1.5px] !border-brass-deep/50 p-6">
+        <div class="flex items-center justify-between">
+          <span class="text-[0.9rem] font-medium text-ink/60">الصالة — مع الكود على الترابيزة</span>
+          <span class="text-[0.68rem] text-ink/45">{t.hero.demoLabel}</span>
+        </div>
+        <div class="mt-4 flex flex-1 flex-col justify-center gap-3">
+          <div class="flex items-center gap-3">
+            <!-- mini QR -->
+            <svg viewBox="0 0 44 44" class="h-11 w-11 shrink-0" role="img" aria-label="QR">
+              <rect width="44" height="44" fill="#FFFDF8" />
+              <g fill="#8C1D2F">
+                <path d="M3 3h12v12H3zM6 6v6h6V6z" fill-rule="evenodd" />
+                <path d="M29 3h12v12H29zM32 6v6h6V6z" fill-rule="evenodd" />
+                <path d="M3 29h12v12H3zM6 32v6h6V32z" fill-rule="evenodd" />
+                <rect x="20" y="4" width="4" height="4" /><rect x="20" y="12" width="4" height="4" />
+                <rect x="18" y="20" width="5" height="5" /><rect x="27" y="22" width="4" height="4" />
+                <rect x="35" y="20" width="4" height="4" /><rect x="6" y="20" width="4" height="4" />
+                <rect x="20" y="29" width="4" height="4" /><rect x="28" y="31" width="5" height="4" />
+                <rect x="22" y="37" width="4" height="4" /><rect x="36" y="36" width="5" height="5" />
+              </g>
+            </svg>
+            <p class="text-[0.95rem] leading-snug text-ink/80">{t.dineIn.p2}</p>
+          </div>
+          <div class="flex items-center gap-3 rounded-[var(--radius-sm)] bg-brass-15 px-3.5 py-2.5">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[0.95rem] font-bold text-karkadeh">أ</span>
+            <div class="min-w-0 leading-tight">
+              <p class="text-[0.92rem] font-semibold">أحمد م. — ترابيزة 4</p>
+              <p class="num text-[0.85rem] text-ink/70" dir="ltr">010• ••• 4437</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

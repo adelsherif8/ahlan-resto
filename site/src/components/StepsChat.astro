@@ -1,0 +1,74 @@
+---
+/** Steps variant B — the onboarding as the WhatsApp thread it actually is.
+    Owner ↔ Munadim (voice 1 — the one chat where our name belongs).
+    Each exchange annotated with its step. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="surface-deep border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <h2 class="h-rule rule-center text-center" data-reveal>{t.steps.h2}</h2>
+
+    <div class="mx-auto mt-12 grid max-w-4xl gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14">
+      <!-- Step annotations -->
+      <ol class="order-2 flex flex-col justify-center gap-8 lg:order-1">
+        {t.steps.items.map((s, i) => (
+          <li class="flex gap-4" data-reveal style={`transition-delay:${i * 90}ms`}>
+            <span class="num flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink text-[1rem] font-medium text-brass">
+              {i + 1}
+            </span>
+            <div>
+              <h3 class="text-[1.1rem]">{s.title}</h3>
+              <p class="mt-1 text-[0.95rem] leading-relaxed text-ink/75">{s.body}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <!-- The thread -->
+      <div class="order-1 lg:order-2" data-reveal style="transition-delay:120ms">
+        <div class="overflow-hidden rounded-[var(--radius-lg)] border border-ink/10 shadow-[0_16px_40px_-20px_rgba(20,17,16,0.25)]">
+          <div class="flex items-center gap-3 bg-[#F0F2F5] px-4 py-3" dir="rtl">
+            <img src="/brand/06-avatar-whatsapp.svg" alt="" width="36" height="36" class="h-9 w-9 rounded-full" />
+            <div class="leading-tight">
+              <p class="text-[14px] font-semibold text-[#111B21]">منادم</p>
+              <p class="text-[11.5px] text-[#667781]">{t.hero.chatStatus}</p>
+            </div>
+            <span class="ms-auto rounded-full bg-[#111B21]/55 px-2.5 py-0.5 text-[10px] text-[#F5EFE7]">{t.hero.demoLabel}</span>
+          </div>
+
+          <div class="flex flex-col gap-2 bg-[#EFEAE2] p-4" dir="rtl">
+            <!-- 1: the owner sends menu photos -->
+            <div class="w-fit max-w-[85%] self-end rounded-lg rounded-es-none bg-[#D9FDD3] p-1.5 shadow-sm">
+              <div class="grid grid-cols-3 gap-1" aria-label="صور المنيو">
+                {[0, 1, 2].map(() => (
+                  <div class="flex h-16 w-16 items-center justify-center rounded bg-[#c9bfae]">
+                    <svg viewBox="0 0 24 24" class="h-6 w-6 fill-none stroke-[#8a7d68]" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="9" cy="9" r="1.6" fill="#8a7d68" stroke="none" />
+                      <path d="m21 15-4.5-4.5L7 20" />
+                    </svg>
+                  </div>
+                ))}
+              </div>
+              <p class="px-1.5 py-1 text-[13px] text-[#111B21]">دي صور المنيو 👍</p>
+            </div>
+
+            <!-- 2: Munadim sets up the rest -->
+            <p class="w-fit max-w-[85%] self-start rounded-lg rounded-ss-none bg-white px-3 py-2 text-[13px] leading-[1.55] text-[#111B21] shadow-sm">
+              تمام. إحنا هنبني المنيو ونظبط مناطق التوصيل والفروع وأسعار التوصيل ورقم الواتساب — ونبعتلك تجربة كاملة قبل التشغيل.
+            </p>
+
+            <!-- 3: the first order arrives -->
+            <div class="w-fit max-w-[85%] self-start rounded-lg rounded-ss-none bg-white px-3 py-2 shadow-sm">
+              <p class="text-[12px] font-semibold text-[#111B21]">أوردر جديد — #A-101</p>
+              <p class="mt-0.5 text-[12.5px] text-[#111B21]">كلاسيك كومبو ×1 · من نفس رقم مطعمك</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,70 @@
+---
+/** WhatIs variant C — the three-element diagram (brand §06: diagrams allowed,
+    max three elements, real labels): the order's journey drawn with artifacts. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="surface-deep border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <div class="container-text text-center" data-reveal>
+      <h2 class="h-rule rule-center">{t.whatIs.h2}</h2>
+      <p class="mt-7 text-[1.1rem]">{t.whatIs.p1}</p>
+      <ul class="mt-7 flex flex-wrap justify-center gap-x-8 gap-y-3">
+        {t.whatIs.channels.map((c) => (
+          <li class="flex items-center gap-2.5 text-[1.1rem] font-semibold">
+            <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+            {c}
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <!-- The journey: message → kitchen → record. Three elements, no more. -->
+    <div class="mx-auto mt-14 grid max-w-4xl items-stretch gap-6 sm:grid-cols-[1fr_auto_1fr_auto_1fr]" data-reveal>
+      <!-- 1: the message -->
+      <div class="card flex flex-col p-5">
+        <span class="text-[0.8rem] font-medium text-ink/55">أوردر على الواتساب</span>
+        <div class="mt-3 flex flex-1 flex-col justify-center rounded-[var(--radius-sm)] bg-[#EFEAE2] p-3" dir="rtl">
+          <p class="w-fit max-w-full self-end rounded-lg rounded-es-none bg-[#D9FDD3] px-2.5 py-1.5 text-[11.5px] text-[#111B21] shadow-sm">
+            الإجمالي 395. كاش ولا فيزا؟
+          </p>
+        </div>
+      </div>
+
+      <div class="hidden items-center sm:flex" aria-hidden="true">
+        <svg viewBox="0 0 32 12" class="w-8 rtl:-scale-x-100"><path d="M2 6h24m0 0-5-4m5 4-5 4" fill="none" stroke="var(--brass-deep)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- 2: the kitchen -->
+      <div class="card flex flex-col p-5">
+        <span class="text-[0.8rem] font-medium text-ink/55">المطبخ</span>
+        <div class="mt-3 flex-1 rounded-[var(--radius-sm)] border border-dashed border-ink/25 bg-[#FFFDF8] p-3">
+          <div class="flex items-baseline justify-between text-[0.85rem] font-semibold">
+            <span>تذكرة #A-114</span>
+          </div>
+          <p class="mt-1.5 text-[0.85rem] text-ink/75">كلاسيك كومبو ×1 · فرايز ×1</p>
+        </div>
+      </div>
+
+      <div class="hidden items-center sm:flex" aria-hidden="true">
+        <svg viewBox="0 0 32 12" class="w-8 rtl:-scale-x-100"><path d="M2 6h24m0 0-5-4m5 4-5 4" fill="none" stroke="var(--brass-deep)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- 3: the record — the part that's yours -->
+      <div class="card flex flex-col p-5 !border-[1.5px] !border-brass-deep/50">
+        <span class="text-[0.8rem] font-medium text-ink/55">رقم وتاريخ طلبات — عندك</span>
+        <div class="mt-3 flex flex-1 items-center gap-3">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[1rem] font-bold text-karkadeh">أ</span>
+          <div class="min-w-0">
+            <p class="text-[0.95rem] font-semibold">أحمد م.</p>
+            <p class="num text-[0.85rem] text-ink/70" dir="ltr">010• ••• 4437</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="container-text mt-10 text-center text-[1.15rem] font-medium" data-reveal>{t.whatIs.p2}</p>
+  </div>
+</section>

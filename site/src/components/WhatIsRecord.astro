@@ -1,0 +1,65 @@
+---
+/** WhatIs variant B — the payoff drawn: the customer record that dine-in/delivery
+    orders leave behind. The damma made real — the customer you can finally see. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="surface-deep border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <div class="mx-auto grid max-w-5xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+      <div class="max-w-[36rem]" data-reveal>
+        <h2 class="h-rule">{t.whatIs.h2}</h2>
+        <p class="mt-7 text-[1.1rem]">{t.whatIs.p1}</p>
+
+        <ul class="mt-7 flex flex-wrap gap-x-8 gap-y-3">
+          {t.whatIs.channels.map((c) => (
+            <li class="flex items-center gap-2.5 text-[1.1rem] font-semibold">
+              <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+              {c}
+            </li>
+          ))}
+        </ul>
+
+        <p class="mt-7 text-[1.1rem] font-medium">{t.whatIs.p2}</p>
+      </div>
+
+      <!-- The record an order leaves behind -->
+      <div class="justify-self-center" data-reveal style="transition-delay:90ms">
+        <div class="card w-[300px] p-5">
+          <div class="flex items-center justify-between border-b border-ink/10 pb-3">
+            <span class="text-[0.8rem] font-medium text-ink/60">لوحة التحكم — الزباين</span>
+            <span class="text-[0.68rem] text-ink/45">{t.hero.demoLabel}</span>
+          </div>
+          <div class="mt-4 flex items-center gap-3.5">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[1.2rem] font-bold text-karkadeh">أ</span>
+            <div class="min-w-0">
+              <p class="text-[1.05rem] font-semibold">أحمد م.</p>
+              <p class="num text-[0.92rem] text-ink/70" dir="ltr">010• ••• 4437</p>
+            </div>
+          </div>
+          <dl class="mt-5 space-y-2.5 border-t border-ink/10 pt-4 text-[0.92rem]">
+            <div class="flex justify-between gap-3">
+              <dt class="text-ink/65">الأوردرات</dt>
+              <dd class="num font-medium">8</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-ink/65">آخر أوردر</dt>
+              <dd class="font-medium">من 3 أيام</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-ink/65">بيطلب دايماً</dt>
+              <dd class="font-medium">كلاسيك كومبو</dd>
+            </div>
+          </dl>
+          <!-- the dot device: customer captured -->
+          <div class="mt-4 flex items-center gap-2 rounded-[var(--radius-sm)] bg-brass-15 px-3 py-2">
+            <span class="h-2 w-2 rounded-full bg-brass-deep" aria-hidden="true"></span>
+            <span class="text-[0.85rem] font-medium text-ink/80">زبون متسجل — تقدر توصله تاني</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
