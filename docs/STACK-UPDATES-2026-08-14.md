@@ -1,7 +1,10 @@
 # Stack & AI Updates — 14 August 2026
 
 What changed in the world since we last looked, and what (if anything) we should do about it.
-**Nothing in this document has been applied.** It is research + recommendations, awaiting a go-ahead.
+
+**Status:** the price table in §1 has been corrected in code, and the Luna switch in §1 was
+**tested and rejected** — see **§5** for the result. Everything else here is still research
+awaiting a go-ahead. Read §5 before acting on §1.
 
 ---
 
