@@ -157,6 +157,13 @@ const CASES = [
     expect: [/pay|cash|card|instapay/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "confirmgate", needs: "casual", name: "Confirmation required before the kitchen sees it", turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "cash"],
     expect: [/confirm/i], forbid: [/O-[A-Z2-9]{4}/] },
+  // Answering our OWN which-one question must land on the order. Live 14 Aug: the guest
+  // was asked Classic-or-Nashville, answered "Nashville Slaw", and the short-message guard
+  // dropped it — the bot skipped to payment with only the old line on the bill. A typo'd
+  // answer ("nashvile") must land too: it's an answer to a printed list, not a new search.
+  { id: "whichanswer", needs: "casual", name: "The answer to which-one lands on the order",
+    turns: ["lets get 3 tenders", "nashvile"],
+    expect: [/nashville/i], forbid: [/which one did you mean|تقصد أنهي/i] },
   // A guest answers the payment question with the LABEL WE PRINTED, not our internal key.
   // Live 14 Aug: we offered "online link", he typed "Online", nothing matched, the turn
   // fell through to chit-chat and the bot wished him a good meal for an order that was

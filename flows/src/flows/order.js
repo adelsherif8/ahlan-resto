@@ -7,6 +7,7 @@ import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, publicLink, log } fro
 import { notifyDashboard, setSessionFlags } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
 import { deliveryQuote } from "../services/delivery.js";
+import { editDistance } from "../services/fastpaths.js";
 import { getMenu } from "../services/menucache.js";
 import { fmtMoney } from "../services/format.js";
 import { makeReceipt } from "../services/receipt.js";
@@ -198,6 +199,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       let unknown = [];
       const unknownQty = {};
       let ambiguous = [];
+      let answeredAmbiguity = null;   // dish resolved from a pending which-one question
       let removedNames = null;
       const outcomeNotices = [];
       let typeHint = null;
@@ -234,11 +236,37 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         // remembered qty ("3 chicken") rides onto the chosen dish.
         const amb0 = loaded.pending?.ambiguous;
         if (amb0?.candidates?.length) {
+          // set when this turn resolves our own "which one did you mean?" — the short-
+          // message guard below must never mistake that answer for chit-chat
           const said = normName(arOptionWords(input.message));
           let pick = amb0.candidates.filter((c) => { const n = normName(c); return said === n || said.includes(n); });
           if (!pick.length && said.length >= 4) pick = amb0.candidates.filter((c) => normName(c).includes(said));
           if (!pick.length) pick = amb0.candidates.filter((c) => normName(c).split(" ").filter((t) => t.length >= 3).some((t) => said.includes(t)));
+          // "1" / "2" / "the second one" — people answer a printed list by position.
+          if (!pick.length) {
+            const nth = /^\D{0,6}([1-9])\D{0,8}$/.exec(input.message.trim())?.[1]
+              || { first: 1, second: 2, third: 3, fourth: 4, "الاول": 1, "الأول": 1, "التاني": 2, "الثاني": 2, "التالت": 3, "الثالث": 3 }[said];
+            if (nth && amb0.candidates[Number(nth) - 1]) pick = [amb0.candidates[Number(nth) - 1]];
+          }
+          // TYPOS. A guest answering our own printed list wrote "nashvile" and every
+          // matcher above is exact-containment, so his answer was re-resolved against
+          // the WHOLE menu and he got asked a WIDER question than the one he'd just
+          // answered. Compare his words to each candidate's DISTINGUISHING tokens
+          // (the ones the candidates don't share) with edit-distance tolerance, and
+          // only take it when exactly one candidate is in reach — never guess between two.
+          if (!pick.length && said.length >= 4) {
+            const tokensOf = (c) => normName(c).split(" ").filter((t) => t.length >= 4);
+            const shared = new Set(
+              tokensOf(amb0.candidates[0]).filter((t) => amb0.candidates.every((c) => tokensOf(c).includes(t))),
+            );
+            const saidToks = said.split(" ").filter((t) => t.length >= 4);
+            const hits = amb0.candidates.filter((c) =>
+              tokensOf(c).filter((t) => !shared.has(t)).some((t) =>
+                saidToks.some((s) => editDistance(s, t) <= (t.length <= 5 ? 1 : 2))));
+            if (hits.length === 1) pick = hits;
+          }
           if (pick.length === 1) {
+            answeredAmbiguity = pick[0];
             if (!(e.items || []).length) e.items = [{ name: pick[0], qty: amb0.qty || 1 }];
             else if (e.items.length === 1 && (Number(e.items[0].qty) || 1) === 1 && (amb0.qty || 1) > 1) e.items[0].qty = amb0.qty;
           }
@@ -335,14 +363,27 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const draftStale = draftAgeMs > 20 * 60_000;
         if (loaded.pending?.items?.length && input.message.trim().length <= 28 && items.length && !e.edits?.length && !draftStale) {
           const prev = loaded.pending.items;
+          // A dish the guest NAMED is never chit-chat. This guard exists so a short
+          // reply mid-draft ("sprite") isn't mistaken for a new order — but it used to
+          // require an add-word or a leading digit, so "Nashville Slaw" (14 chars, our
+          // own which-one answer) was silently discarded and the guest watched the bot
+          // skip to payment with only the old line on the bill.
+          const msgN0 = normName(arOptionWords(input.message));
+          const spokenHere = (nm) => { const n = normName(nm); return !!n && msgN0.includes(n); };
           if (items.length === 1 && !loaded.pending.awaiting_option) {
             const line = prev.find((it) => normName(it.name) === normName(items[0].name));
             if (line && Number(items[0].qty) !== Number(line.qty) && /\d|one|two|three|واحد|اتنين|٢|١/i.test(input.message)) {
               line.qty = items[0].qty;
-            } else if (!line && (ADD_VERB.test(input.message) || /^\s*\d/.test(input.message))) {
-              // "add a loaded fries" OR a leading quantity ("2 cokes") — both are
-              // genuine additions, not answers to an open question
+            } else if (!line && (answeredAmbiguity || spokenHere(items[0].name) || ADD_VERB.test(input.message) || /^\s*\d/.test(input.message))) {
+              // answering our which-one question, naming the dish outright, "add a
+              // loaded fries", or a leading quantity ("2 cokes") — all genuine additions
               prev.push(items[0]);
+            }
+          } else if (!loaded.pending.awaiting_option) {
+            // several dishes in one short message ("burger and fries") — keep every one
+            // the guest actually said instead of dropping the lot
+            for (const ni of items) {
+              if (!prev.find((pp) => normName(pp.name) === normName(ni.name)) && spokenHere(ni.name)) prev.push(ni);
             }
           }
           items = prev;

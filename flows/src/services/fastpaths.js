@@ -356,7 +356,7 @@ const GREETING_WORDS = [
   "هاي", "اهلا", "اهلين", "هلا", "سلام", "سلام عليكم", "سلام عليكو", "السلام عليكم",
   "وعليكم السلام", "مرحبا", "ازيك", "ازيكم", "صباح الخير", "مساء الخير", "عامل ايه",
 ];
-function editDistance(a, b) {
+export function editDistance(a, b) {
   if (Math.abs(a.length - b.length) > 2) return 99;
   const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
   for (let j = 1; j <= b.length; j++) dp[0][j] = j;
