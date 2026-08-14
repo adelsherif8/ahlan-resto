@@ -141,6 +141,13 @@ export const ar: SiteContent = {
     ourCost: { label: 'مع منادم على باقة Grow', value: 8.5, suffix: 'جنيه' },
   },
 
+  // NEW LINE — not from website-copy.md; drafted from decision 6. Needs Adel's review.
+  trust: {
+    pre: 'كل إصدار بيتجرب على',
+    num: '110',
+    post: 'محادثة حقيقية قبل ما يشتغل في مطعمك.',
+  },
+
   objections: {
     h2: 'أسئلة بتتسأل',
     items: [

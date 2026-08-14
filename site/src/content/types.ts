@@ -60,6 +60,8 @@ export interface SiteContent {
     appTake: { label: string; value: number; suffix: string };
     ourCost: { label: string; value: number; suffix: string };
   };
+  /** Decision 6 (feature-truth §9): the 110 scenarios, phrased as process, never a guarantee. */
+  trust: { pre: string; num: string; post: string };
   objections: { h2: string; items: { q: string; a: string }[] };
   closing: { h2: string; p: string; cta: string; waLabel: string };
   footer: { tagline: string; email: string; privacy: string; rights: string };

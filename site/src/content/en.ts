@@ -115,6 +115,12 @@ export const en: SiteContent = {
     ourCost: { label: 'With Munadim on Grow', value: 8.5, suffix: 'EGP' },
   },
 
+  trust: {
+    pre: 'Every release is tested against',
+    num: '110',
+    post: 'real conversation scenarios before it reaches your restaurant.',
+  },
+
   objections: {
     h2: 'Questions people ask',
     items: [

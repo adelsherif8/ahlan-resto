@@ -1,0 +1,18 @@
+---
+/** The 110-scenarios line — a breath, not a section. Process, never a guarantee
+    (decision 6). One sentence, the dot device, hairlines. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<aside class="border-y border-ink/[0.07] bg-semna">
+  <div class="container-page flex items-center justify-center gap-4 py-10" data-reveal>
+    <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+    <p class="text-center text-[1.05rem] text-ink/85">
+      {t.trust.pre}
+      <span class="num font-medium text-ink">{t.trust.num}</span>
+      {t.trust.post}
+    </p>
+  </div>
+</aside>
