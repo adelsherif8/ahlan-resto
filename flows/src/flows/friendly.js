@@ -371,7 +371,26 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     }, { input: { message, history_turns: (history || []).length, mood: classification?.mood, bucket: classification?.requested_bucket } });
 
     const out = llmOut.value || {};
-    let reply = (out.reply || "One second! 🙌").slice(0, 3500);
+    const LV = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
+    const L2F = (en, ar, fr) => (LV === "ar" ? ar : LV === "fr" ? fr : en);
+    let reply = (out.reply || L2F("One second! 🙌", "لحظة واحدة! 🙌", "Le7za wa7da! 🙌")).slice(0, 3500);
+
+    // THE PDF IS THE MENU — code guarantees it, the prompt only asks.
+    // On 14 Aug the model answered "عايز منيو كامل" by typing all 47 items into the
+    // reply: it ran past max_tokens, the truncated JSON failed to parse twice, and the
+    // guest's turn died. Even when it fits, a wall of dishes duplicates the attachment,
+    // costs output tokens for text nobody reads, and buries the one line that matters.
+    // So when the menu is being attached, a listy or long reply is REPLACED in code.
+    if (out.send_menu_list) {
+      const bulletLines = reply.split("\n").filter((l) => /^\s*[•\-*·—]/.test(l)).length;
+      if (reply.length > 220 || bulletLines >= 3) {
+        reply = L2F(
+          "Here's the full menu 📄 — tell me what you'd like and I'll take it from there.",
+          "اتفضل المنيو الكامل 📄 — قولّي تحب إيه وأنا أظبطهالك.",
+          "Etfadal el menu el kamel 📄 — 2oly te7eb eh w ana azabathalak.",
+        );
+      }
+    }
 
     // ---- side_effects ----
     await f.node("side_effects", async () => {
