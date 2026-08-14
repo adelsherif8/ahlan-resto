@@ -73,7 +73,12 @@ async function tenantFromQuery(req) {
   return all[0] || resolveRestaurant();
 }
 
-app.get("/pdf/menu", async (req, res) => {
+// Both spellings are served here. Bills, receipt QRs and older WhatsApp messages
+// carry /menu.pdf and /receipt/:code — those used to reach us through the Vercel
+// dashboard's rewrites, so once PUBLIC_BASE moved onto this service directly they
+// 404'd for guests. The pretty paths are permanent guest-facing URLs; they must
+// resolve wherever PUBLIC_BASE points.
+app.get(["/pdf/menu", "/menu.pdf"], async (req, res) => {
   try {
     const t = await tenantFromQuery(req);
     if (!t) return res.status(404).send("menu unavailable");
@@ -98,7 +103,7 @@ app.get("/pdf/menu", async (req, res) => {
 
 // Order codes are per-restaurant daily sequences, so the SAME code can exist in two
 // restaurants — ?r=<slug> is what keeps a guest from being shown someone else's receipt.
-app.get("/pdf/receipt/:code", async (req, res) => {
+app.get(["/pdf/receipt/:code", "/receipt/:code"], async (req, res) => {
   try {
     const code = String(req.params.code || "").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 12);
     const slug = String(req.query?.r || "").trim().toLowerCase();
