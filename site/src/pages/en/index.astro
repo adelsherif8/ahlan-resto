@@ -1,10 +1,10 @@
 ---
 import Base from '../../layouts/Base.astro';
-import Header from '../../components/Header.astro';
+import HeaderPill from '../../components/HeaderPill.astro';
 import Hero from '../../components/Hero.astro';
-import Problem from '../../components/Problem.astro';
-import WhatIs from '../../components/WhatIs.astro';
-import DineIn from '../../components/DineIn.astro';
+import Problem from '../../components/ProblemMix.astro';
+import WhatIs from '../../components/WhatIsPanels.astro';
+import DineIn from '../../components/DineInAnimated.astro';
 import Steps from '../../components/Steps.astro';
 import Understands from '../../components/Understands.astro';
 import TrustStrip from '../../components/TrustStrip.astro';
@@ -24,7 +24,7 @@ import { en as t } from '../../content/en';
     'ibm-plex-sans-arabic-v15-arabic_latin-regular.woff2',
   ]}
 >
-  <Header t={t} lang="en" />
+  <HeaderPill t={t} lang="en" />
   <main>
     <Hero t={t} lang="en" />
     <Problem t={t} />
