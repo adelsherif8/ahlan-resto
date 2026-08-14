@@ -64,8 +64,8 @@ section[id],
   max-width: 46rem; /* still inside the 68ch measure — prose never widens */
 }
 
-.section { padding-block: 4.5rem; }
-@media (min-width: 768px) { .section { padding-block: 7.5rem; } }
+.section { padding-block: 3.25rem; }
+@media (min-width: 768px) { .section { padding-block: 5rem; } }
 
 /* Deeper warm surface for alternating sections — visible, still quiet */
 .surface-deep { background: #EDE4D6; }
