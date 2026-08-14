@@ -42,6 +42,13 @@ html {
   scroll-behavior: smooth;
 }
 
+/* The pill header floats; anchored sections must clear it when jumped to. */
+:target,
+section[id],
+[id]:not(body) {
+  scroll-margin-top: 6.5rem;
+}
+
 /* ---- Layout system ------------------------------------------------------
    One page container, one centered text column. Sections breathe evenly;
    the emptiness is intentional and symmetric, never a dead half-page. */

@@ -72,10 +72,10 @@ export default function DineInScene({ labels }: Props) {
   return (
     <div ref={ref} className="relative">
       {/* the three beats */}
-      <ol className="grid items-stretch gap-4 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:gap-3">
+      <ol className="card grid items-stretch overflow-hidden lg:grid-cols-3 lg:divide-x lg:divide-ink/10 rtl:lg:divide-x-reverse">
         {/* 1 — the table */}
         <Beat index={0} step={step} label={beats[0]!}>
-          <div className="relative flex h-[236px] w-full items-end justify-center overflow-hidden rounded-[var(--radius-md)] bg-[#E7DCCB]">
+          <div className="relative flex h-[240px] w-full items-end justify-center overflow-hidden rounded-[var(--radius-md)] bg-[#E7DCCB]">
             {/* table surface */}
             <div className="absolute inset-x-0 bottom-0 h-[62%] bg-[#D8C9B2]" aria-hidden="true" />
             <div className="absolute inset-x-6 bottom-[62%] h-px bg-ink/10" aria-hidden="true" />
@@ -111,11 +111,10 @@ export default function DineInScene({ labels }: Props) {
           </div>
         </Beat>
 
-        <Connector active={step >= 2} />
 
         {/* 2 — the conversation */}
         <Beat index={1} step={step} label={beats[1]!}>
-          <div className="relative flex h-[236px] w-full flex-col overflow-hidden rounded-[var(--radius-md)] bg-[#EFEAE2]" dir="rtl">
+          <div className="relative flex h-[240px] w-full flex-col overflow-hidden rounded-[var(--radius-md)] bg-[#EFEAE2]" dir="rtl">
             <div className="flex items-center gap-2 bg-[#F0F2F5] px-3 py-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#6B4226] text-[9px] font-bold text-white">
                 {labels.restaurant.trim().charAt(0)}
@@ -142,11 +141,10 @@ export default function DineInScene({ labels }: Props) {
           </div>
         </Beat>
 
-        <Connector active={step >= 3} />
 
         {/* 3 — the dashboard */}
         <Beat index={2} step={step} label={beats[2]!} highlight>
-          <div className="flex h-[236px] w-full flex-col overflow-hidden rounded-[var(--radius-md)] border border-ink/10 bg-[#FFFDF8]">
+          <div className="flex h-[240px] w-full flex-col overflow-hidden rounded-[var(--radius-md)] border border-ink/10 bg-[#FFFDF8]">
             <div className="flex items-center justify-between border-b border-ink/10 px-3 py-2">
               <span className="text-[9.5px] font-medium text-ink/60">{labels.dashTitle}</span>
               <span className="text-[8px] text-ink/60">{labels.demoLabel}</span>
@@ -213,6 +211,14 @@ export default function DineInScene({ labels }: Props) {
         </Beat>
       </ol>
 
+      <div className="mt-0 h-0.5 w-full overflow-hidden rounded-b-[var(--radius-lg)] bg-ink/[0.06]">
+        <div
+          className="h-full bg-brass-deep transition-[width] duration-700 ease-out"
+          style={{ width: `${(step / 3) * 100}%` }}
+          aria-hidden="true"
+        />
+      </div>
+
       {done && !reduced && (
         <div className="mt-6 flex justify-center">
           <button
@@ -244,9 +250,9 @@ function Beat({
   const active = step >= index + 1;
   return (
     <li
-      className={`card flex flex-col p-4 transition-all duration-500 ${
-        active ? 'opacity-100' : 'opacity-55'
-      } ${highlight && active ? '!border-[1.5px] !border-brass-deep/45' : ''}`}
+      className={`relative flex flex-col px-6 py-6 transition-all duration-500 lg:px-8 ${
+        active ? 'opacity-100' : 'opacity-45'
+      } ${highlight && active ? 'bg-brass-15/60' : ''}`}
     >
       <div className="mb-3 flex items-center gap-2.5">
         <span
@@ -256,32 +262,9 @@ function Beat({
         >
           {index + 1}
         </span>
-        <h3 className="text-[0.98rem]">{label}</h3>
+        <h3 className="min-h-[2.6rem] text-[0.98rem] leading-snug">{label}</h3>
       </div>
       {children}
-    </li>
-  );
-}
-
-function Connector({ active }: { active: boolean }) {
-  return (
-    <li className="flex items-center justify-center py-1" aria-hidden="true">
-      <span
-        className={`flex h-8 w-8 items-center justify-center rounded-full border bg-[#FFFDF8] transition-colors duration-500 ${
-          active ? 'border-brass-deep/45' : 'border-ink/12'
-        }`}
-      >
-        <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 rtl:-scale-x-100">
-          <path
-            d="M2 8h11m0 0-4-4m4 4-4 4"
-            fill="none"
-            stroke={active ? 'var(--brass-deep)' : 'rgba(20,17,16,0.25)'}
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
     </li>
   );
 }

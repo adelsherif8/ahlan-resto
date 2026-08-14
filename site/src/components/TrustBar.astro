@@ -1,22 +1,27 @@
 ---
-/** Trust variant — the fact bar: three verified facts, no claims. */
+/** Trust — the number at the scale a trust asset deserves, with the three
+    verified facts beside it. Process, never a guarantee (decision 6). */
 import type { SiteContent } from '../content/types';
 interface Props { t: SiteContent }
 const { t } = Astro.props;
 ---
 
-<aside class="border-y border-ink/[0.07] bg-semna">
-  <div class="container-page py-10">
-    <ul class="mx-auto grid max-w-4xl gap-6 sm:grid-cols-3 sm:gap-8">
-      {t.trust.facts.map((f, i) => (
-        <li class="flex gap-3" data-reveal style={`transition-delay:${i * 80}ms`}>
-          <span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
-          <div>
-            <p class="text-[1.02rem] font-semibold">{f.head}</p>
-            <p class="mt-1 text-[0.92rem] leading-relaxed text-ink/70">{f.body}</p>
-          </div>
-        </li>
-      ))}
-    </ul>
+<aside class="on-ink bg-ink">
+  <div class="container-page py-14 sm:py-16">
+    <div class="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[auto_1fr] lg:gap-16">
+      <div class="flex items-baseline gap-4 lg:flex-col lg:items-start lg:gap-2" data-reveal>
+        <span class="num text-[4.5rem] font-medium leading-none text-brass sm:text-[5.5rem]">{t.trust.num}</span>
+        <span class="max-w-[10rem] text-[1rem] leading-snug text-semna/70">{t.trust.post}</span>
+      </div>
+
+      <ul class="grid gap-6 sm:grid-cols-3 sm:gap-8">
+        {t.trust.facts.map((f, i) => (
+          <li class="border-t border-semna/15 pt-4" data-reveal style={`transition-delay:${i * 80}ms`}>
+            <p class="text-[1.02rem] font-semibold text-semna">{f.head}</p>
+            <p class="mt-1.5 text-[0.92rem] leading-relaxed text-semna/70">{f.body}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
   </div>
 </aside>

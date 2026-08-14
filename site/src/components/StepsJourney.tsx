@@ -68,7 +68,7 @@ export default function StepsJourney({ labels }: { labels: JourneyLabels }) {
         aria-hidden="true"
       />
 
-      <ol className="space-y-10 lg:space-y-4">
+      <ol className="space-y-12 lg:space-y-8">
         {labels.steps.map((s, i) => {
           const on = step >= i + 1;
           const flip = i % 2 === 1;
@@ -83,11 +83,11 @@ export default function StepsJourney({ labels }: { labels: JourneyLabels }) {
                 {i + 1}
               </span>
 
-              <div className="grid items-center gap-6 lg:grid-cols-2 lg:gap-14">
+              <div className="grid items-center gap-6 lg:grid-cols-2 lg:gap-0">
                 {/* words */}
                 <div
                   className={`transition-all duration-700 ${on ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-40'} ${
-                    flip ? 'lg:order-2 lg:ps-12 lg:text-start' : 'lg:order-1 lg:pe-12 lg:text-end'
+                    flip ? 'lg:col-start-2 lg:ps-14 lg:text-start' : 'lg:col-start-1 lg:pe-14 lg:text-end'
                   }`}
                 >
                   <h3 className="text-[1.25rem]">{s.title}</h3>
@@ -97,7 +97,9 @@ export default function StepsJourney({ labels }: { labels: JourneyLabels }) {
                 {/* artifact */}
                 <div
                   className={`transition-all duration-700 ${on ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'} ${
-                    flip ? 'lg:order-1 lg:justify-self-end lg:pe-12' : 'lg:order-2 lg:justify-self-start lg:ps-12'
+                    flip
+                      ? 'lg:col-start-1 lg:row-start-1 lg:justify-self-end lg:pe-14'
+                      : 'lg:col-start-2 lg:row-start-1 lg:justify-self-start lg:ps-14'
                   }`}
                 >
                   {i === 0 && <Photos on={on} caption={labels.photosCaption} />}
@@ -126,18 +128,6 @@ export default function StepsJourney({ labels }: { labels: JourneyLabels }) {
         })}
       </ol>
       </div>
-
-      {done && !reduced && (
-        <div className="mt-10 flex justify-center">
-          <button
-            type="button"
-            onClick={play}
-            className="flex min-h-[44px] items-center rounded-full border border-ink/20 px-5 text-[0.9rem] font-medium text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
-          >
-            {labels.replay}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

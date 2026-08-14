@@ -82,19 +82,19 @@ export default function CostCalc({ labels, dir = 'rtl' }: Props) {
 
       {/* Outputs — computed, never asserted */}
       <div className="mt-9 grid gap-5 sm:grid-cols-2">
-        <div className="rounded-[var(--radius-md)] border border-ink/10 bg-semna p-6 text-center">
+        <div className="rounded-[var(--radius-md)] border border-ink/10 bg-semna p-7 text-center">
           <p className="text-[0.92rem] text-ink/70">{labels.appSide}</p>
           <p className="mt-2.5 flex items-baseline justify-center gap-2 text-karkadeh">
-            <span className="num text-[2.6rem] font-medium leading-none sm:text-[3.2rem]">{fmt(appCost)}</span>
+            <span className="num text-[3.6rem] font-medium leading-none sm:text-[4.6rem]">{fmt(appCost)}</span>
             <span className="text-[1rem]">{labels.egp} {labels.perMonth}</span>
           </p>
         </div>
-        <div className="rounded-[var(--radius-md)] border border-ink/10 bg-semna p-6 text-center">
+        <div className="rounded-[var(--radius-md)] border border-ink/10 bg-semna p-7 text-center">
           <p className="text-[0.92rem] text-ink/70">
             {labels.ourSide} <span className="font-semibold" dir="ltr">{munadim.name}</span> {labels.onPlan}
           </p>
           <p className="mt-2.5 flex items-baseline justify-center gap-2 text-ink">
-            <span className="num text-[2.6rem] font-medium leading-none sm:text-[3.2rem]">{fmt(munadim.total)}</span>
+            <span className="num text-[3.6rem] font-medium leading-none sm:text-[4.6rem]">{fmt(munadim.total)}</span>
             <span className="text-[1rem]">{labels.egp} {labels.perMonth}</span>
           </p>
         </div>
