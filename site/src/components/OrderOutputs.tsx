@@ -146,7 +146,7 @@ export default function OrderOutputs({ steps, demoLabel, replay, stop, p1, p2, p
           </div>
         </div>
 
-        <div className="relative min-h-[420px] px-5 py-6">
+        <div className="relative min-h-[344px] px-5 py-5">
           {panels.map((panel, i) => (
             <div
               key={i}

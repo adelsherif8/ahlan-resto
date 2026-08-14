@@ -68,7 +68,7 @@ export default function StepsJourney({ labels }: { labels: JourneyLabels }) {
         aria-hidden="true"
       />
 
-      <ol className="space-y-12 lg:space-y-8">
+      <ol className="space-y-10 lg:space-y-5">
         {labels.steps.map((s, i) => {
           const on = step >= i + 1;
           const flip = i % 2 === 1;
@@ -138,11 +138,11 @@ function Photos({ on, caption }: { on: boolean; caption: string }) {
   const offsets = ['-56px', '0px', '56px'];
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative h-[132px] w-[240px]">
+      <div className="relative h-[118px] w-[240px]">
         {tilts.map((t, i) => (
           <div
             key={i}
-            className="absolute start-1/2 top-2 h-[118px] w-[84px] rounded-[3px] border border-ink/10 bg-[#FFFDF8] p-2 shadow-[0_8px_20px_-10px_rgba(20,17,16,0.4)] transition-all duration-700 ease-out"
+            className="absolute start-1/2 top-2 h-[104px] w-[84px] rounded-[3px] border border-ink/10 bg-[#FFFDF8] p-2 shadow-[0_8px_20px_-10px_rgba(20,17,16,0.4)] transition-all duration-700 ease-out"
             style={{
               transform: on
                 ? `translateX(calc(-50% + ${offsets[i]})) rotate(${tilts[i]})`

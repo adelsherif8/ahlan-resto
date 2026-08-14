@@ -96,10 +96,10 @@ section[id],
 .h-rule.rule-center::after { margin-inline: auto; }
 
 /* ---- Display scale — the page must have a voice at 1440px --------------- */
-h1 { font-size: clamp(2.2rem, 1.15rem + 3.4vw, 4.35rem); }
-h2 { font-size: clamp(1.75rem, 1.1rem + 2.3vw, 3.1rem); }
-html[lang='en'] h1 { font-size: clamp(2rem, 1.05rem + 3.1vw, 3.9rem); }
-html[lang='en'] h2 { font-size: clamp(1.6rem, 1.05rem + 2.1vw, 2.8rem); }
+h1 { font-size: clamp(2.1rem, 1.15rem + 3vw, 3.85rem); }
+h2 { font-size: clamp(1.7rem, 1.1rem + 2vw, 2.8rem); }
+html[lang='en'] h1 { font-size: clamp(1.95rem, 1.05rem + 2.7vw, 3.45rem); }
+html[lang='en'] h2 { font-size: clamp(1.55rem, 1.05rem + 1.8vw, 2.5rem); }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
