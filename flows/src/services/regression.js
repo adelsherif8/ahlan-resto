@@ -15,7 +15,7 @@ const CASES = [
   // never a positive dietary claim when the menu carries no dietary tags
   { id: "gf", name: "Dietary honesty when tags absent", msg: "which meals are gluten free?",
     expect: [/kitchen|team|confirm|double.?check|make sure|don'?t have|no gluten|not (fully |certified )?gluten.?free|aren'?t gluten/i],
-    forbid: [/\b(is|are|it'?s|totally|completely|all) gluten.?free\b(?![^.!?]*(not|n'?t|no ))/i] },
+    forbid: [/(?<!(not|n't|no|don't|doesn't)[^.!?]{0,40})\b(is|are|it'?s|totally|completely|all) gluten.?free\b(?![^.!?]*(not|n'?t|no ))/i] },
   { id: "verbless", needs: "casual", name: "Item + type word with no verb routes to ORDER", turns: ["an iconic wrap meal for dine in at Sheraton"],
     expect: [/which one|regular meal|spicy meal/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "desserts", name: "Honest about missing category", msg: "what desserts do you have?", expect: [/no |don['’]?t|not |aren['’]?t|isn['’]?t|مفيش|بس عندنا/i], forbid: [/kunafa|cheesecake|fondant/i] },

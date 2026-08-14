@@ -1,0 +1,35 @@
+[
+  {
+    "name": "1 — which-one answered with a TYPO must land (the live bug)",
+    "phone": "+201555000201",
+    "turns": ["okay lets get 3 tenders", "nashvil"],
+    "expect": { "picks the tenders, not the slaw": "chicken tenders 3 pcs nashville|tenders.*nashville" },
+    "forbid": { "asks a WIDER question": "nashville slaw.*nashville fiery" }
+  },
+  {
+    "name": "2 — which-one answered exactly",
+    "phone": "+201555000202",
+    "turns": ["3 tenders please", "classic"],
+    "expect": { "picks classic": "classic" },
+    "forbid": { "re-asks which one": "which one did you mean" }
+  },
+  {
+    "name": "3 — which-one answered by POSITION",
+    "phone": "+201555000203",
+    "turns": ["2 tenders", "2"],
+    "forbid": { "re-asks which one": "which one did you mean" }
+  },
+  {
+    "name": "4 — a dish named outright mid-draft is never dropped",
+    "phone": "+201555000204",
+    "turns": ["1 classic burger", "loaded fries"],
+    "expect": { "both on the order": "loaded fries" }
+  },
+  {
+    "name": "5 — payment answered with the printed label",
+    "phone": "+201555000205",
+    "turns": ["1 loaded fries", "dine in", "T3", "online"],
+    "expect": { "reaches confirm": "confirm|أكد" },
+    "forbid": { "chit-chat deflection": "we do delivery and pickup|share your location" }
+  }
+]

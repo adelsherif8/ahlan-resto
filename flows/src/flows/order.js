@@ -285,9 +285,15 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             // asked for. Anything else he named in the same breath ("and a coke")
             // is genuinely additional and stays.
             const qty = Math.min(Math.max(Math.round(Number(amb0.qty || e.items?.[0]?.qty) || 1), 1), 20);
-            const others = (e.items || []).filter((it) => {
+            // A SHORT reply to a which-one is purely the answer. The extractor reads the
+            // same word its own way ("classic" → Classic Burger), and keeping that guess
+            // alongside the pick added the dish AND asked a wider question in the same
+            // breath. Only a longer message can carry a genuine extra dish.
+            const shortAnswer = said.split(" ").filter(Boolean).length <= 4;
+            const others = shortAnswer ? [] : (e.items || []).filter((it) => {
               const n = normName(it.name);
-              return n && n !== normName(pick[0]) && !amb0.candidates.some((c) => normName(c) === n);
+              return n && n !== normName(pick[0]) && !amb0.candidates.some((c) => normName(c) === n)
+                && (said.includes(n) || n.split(" ").filter((t) => t.length >= 4).some((t) => said.includes(t)));
             });
             e.items = [{ name: pick[0], qty, notes: e.items?.[0]?.notes || null }, ...others];
           }
@@ -323,7 +329,12 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           {
             const msgN2 = normName(arOptionWords(input.message));
             const hitN = normName(hit.name);
-            if (!msgN2.includes(hitN)) {
+            // A dish the guest just chose from OUR printed list is not the extractor
+            // over-specifying — it's an answer. Without this, "nashvil" resolved
+            // correctly to Chicken Tenders Nashville and was then re-ambiguated into a
+            // WIDER question (Slaw / Fiery / Tenders) because the guest's short word
+            // didn't contain the full dish name. That is the loop the founder hit twice.
+            if (!msgN2.includes(hitN) && hitN !== normName(answeredAmbiguity || "")) {
               const near = (t) => msgN2.includes(t) || (t.length >= 5 && msgN2.includes(t.slice(0, 5)));
               const fragToks = hitN.split(" ").filter((t) => t.length >= 3 && near(t));
               if (fragToks.length) {
