@@ -136,3 +136,32 @@ Nothing is broken and nothing is urgent. Patch drift only.
 ## 4. What was changed by this review
 
 **Nothing.** No dependency upgraded, no model switched, no config touched. The only concrete follow-ups are the price-table fix and the 1 September diary date.
+
+---
+
+## 5. RESULT — Luna was tested and rejected (14 Aug 2026)
+
+`MODEL_FAST` was switched from `gpt-4.1-mini` to `gpt-5.6-luna` on the live service and the
+full suite run against it. **Reverted the same night.**
+
+**Pre-checks that passed:** Luna accepts our exact call shape (`reasoning_effort: "none"` +
+JSON mode), and on three real order phrasings — Arabic, Franco, English-with-modifier — it
+matched gpt-4.1-mini. Latency 1,493ms avg vs mini's 1,401ms.
+
+**Suite: 103 passed, 3 failed.** Two failures were real:
+
+1. **`crosssell` — guest-visible.** The guest was *answering* option questions ("full meal,
+   medium, French fries, Coca-Cola") and Luna's extraction read it as *naming a dish*. The bot
+   replied "we've got a few like that 😄 Which one did you mean?" and listed four meals. Same
+   bug family as the Habiba bug. gpt-4.1-mini handles it correctly.
+2. **`combochoice`.** Luna silently resolved the format to "meal" instead of offering
+   *Sandwich only* vs *Full meal* — a configured choice the guest never gets asked.
+3. `kids` — a brittle test regex, not a model fault. Luna's answer was correct.
+
+**Conclusion.** Both real failures are **instruction-following on our long, rule-dense prompts** —
+the same failure mode as nano and gpt-5.4, not a language or intelligence gap. If this is ever
+revisited, the lever is rewriting the extraction prompt *for* a reasoning model, not dropping
+Luna in behind a prompt tuned for gpt-4.1-mini. Phase 2 (SMART) was never attempted: a model
+that can't be trusted with code-validated mechanical work has no business writing guest replies.
+
+**Live config is unchanged from before the test:** SMART `gpt-4.1`, FAST `gpt-4.1-mini`, NANO `gpt-4.1-nano`.
