@@ -380,7 +380,10 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     // the menu was withheld, and the model invented "Nashville Classic — 195 EGP" and
     // "Nashville Spicy — 205 EGP". Neither dish nor price exists. A prompt is a
     // request; this is the guarantee. We send the real menu instead.
-    if (!foodTalk && /\d\s*(egp|جنيه|l\.?e\b)/i.test(reply)) {
+    // recomputed here on purpose: `foodTalk` lives in the prompt-building scope above,
+    // and reaching for it from this one threw on EVERY friendly turn.
+    const hadMenuInContext = mentionsFood(message, history, context.menu);
+    if (!hadMenuInContext && /\d\s*(egp|جنيه|l\.?e\b)/i.test(reply)) {
       reply = L2F(
         "One sec — here's the menu 📄 so you're picking from the real thing.",
         "ثانية واحدة — اتفضل المنيو 📄 عشان تختار من الحقيقي.",

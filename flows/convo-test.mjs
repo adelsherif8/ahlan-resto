@@ -26,6 +26,14 @@ async function aiSince(sid, n) {
     .eq("sender", "ai").order("created_at", { ascending: true });
   return (data || []).slice(n).map((m) => m.message);
 }
+async function seedDiner(sid, seed) {
+  const { data: d } = await db.from("diners").select("id").eq("phone_number", sid).maybeSingle();
+  const row = { name: seed.name, visit_count: seed.visit_count ?? 3,
+    last_visit_at: new Date(Date.now() - 3 * 86400000).toISOString(), status: "regular" };
+  if (d?.id) await db.from("diners").update(row).eq("id", d.id);
+  else await db.from("diners").insert({ phone_number: sid, ...row });
+}
+
 async function wipe(sid) {
   // A test phone must start EVERY run as a brand-new guest. Leaving the rolling
   // conversation (message_full) or the session flags behind meant turns piled up
@@ -46,7 +54,9 @@ let failures = 0;
 for (const c of convos) {
   console.log(`\n${"=".repeat(70)}\n${c.name}\n${"=".repeat(70)}`);
   await wipe(c.phone);
+  if (c.seed) await seedDiner(c.phone, c.seed);
   let lastTurnText = "";
+  let sawInterim = false;
   for (const turn of c.turns) {
     const before = await aiCount(c.phone);
     await fetch(`${BASE}/api/web/send`, {
@@ -65,6 +75,7 @@ for (const c of convos) {
       if (real.length && now.length === out.length) { stable++; if (stable >= 2) break; } else stable = 0;
       out = now;
     }
+    if (out.some((m) => INTERIM.test(String(m).trim()))) sawInterim = true;
     out = out.filter((m) => !INTERIM.test(String(m).trim()));
     console.log(`\n👤 ${turn}`);
     if (!out.length) { console.log("🤖 (NO REPLY)"); failures++; }
@@ -77,6 +88,7 @@ for (const c of convos) {
     if (!ok) failures++;
     console.log(`   ${ok ? "✅" : "❌"} ${label}`);
   }
+  if (sawInterim) { failures++; console.log("   ⏱ SLOW — guest saw the 'one sec' filler"); }
   for (const [label, re] of Object.entries(c.forbid || {})) {
     const bad = new RegExp(re, "i").test(lastTurnText);
     if (bad) failures++;

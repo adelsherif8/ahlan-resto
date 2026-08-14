@@ -1,0 +1,512 @@
+[
+ {
+  "name": "AR #1 NEW — \"سلام عليكو\" → \"المنيو\"",
+  "phone": "+20155501001",
+  "turns": [
+   "سلام عليكو",
+   "المنيو"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu"
+  }
+ },
+ {
+  "name": "AR #2 NEW — \"اهلا\" → \"عايز المنيو\"",
+  "phone": "+20155501002",
+  "turns": [
+   "اهلا",
+   "عايز المنيو"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu"
+  }
+ },
+ {
+  "name": "AR #3 NEW — \"أهلاً وسهلاً\" → \"ابعتلي المنيو\"",
+  "phone": "+20155501003",
+  "turns": [
+   "أهلاً وسهلاً",
+   "ابعتلي المنيو"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu"
+  }
+ },
+ {
+  "name": "AR #4 NEW — \"صباح الخير\" → \"هات المنيو\"",
+  "phone": "+20155501004",
+  "turns": [
+   "صباح الخير",
+   "هات المنيو"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu"
+  }
+ },
+ {
+  "name": "AR #5 NEW — \"مساء الخير\" → \"ممكن المنيو\"",
+  "phone": "+20155501005",
+  "turns": [
+   "مساء الخير",
+   "ممكن المنيو"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu"
+  }
+ },
+ {
+  "name": "AR #6 RETURNING — \"هاي\" → \"وريني المنيو\"",
+  "phone": "+20155501006",
+  "turns": [
+   "هاي",
+   "وريني المنيو"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Kareem",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "AR #7 RETURNING — \"ازيك\" → \"المنيو لو سمحت\"",
+  "phone": "+20155501007",
+  "turns": [
+   "ازيك",
+   "المنيو لو سمحت"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Mona",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "AR #8 RETURNING — \"السلام عليكم\" → \"عاوز المنيو\"",
+  "phone": "+20155501008",
+  "turns": [
+   "السلام عليكم",
+   "عاوز المنيو"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Tarek",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "AR #9 RETURNING — \"هلا\" → \"المينيو\"",
+  "phone": "+20155501009",
+  "turns": [
+   "هلا",
+   "المينيو"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Salma",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "AR #10 RETURNING — \"يا هلا\" → \"ابعت المنيو\"",
+  "phone": "+20155501010",
+  "turns": [
+   "يا هلا",
+   "ابعت المنيو"
+  ],
+  "expect": {
+   "menu line in Arabic": "المنيو|منيو"
+  },
+  "forbid": {
+   "latin menu line": "here'?s the full menu|etfadal el menu",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Youssef",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "FR #1 NEW — \"salam 3aleko\" → \"3ayez el menu\"",
+  "phone": "+20155501011",
+  "turns": [
+   "salam 3aleko",
+   "3ayez el menu"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "FR #2 NEW — \"ahlan\" → \"el menu\"",
+  "phone": "+20155501012",
+  "turns": [
+   "ahlan",
+   "el menu"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "FR #3 NEW — \"izayak\" → \"hat el menu\"",
+  "phone": "+20155501013",
+  "turns": [
+   "izayak",
+   "hat el menu"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "FR #4 NEW — \"sabah el kheir\" → \"el menu law sama7t\"",
+  "phone": "+20155501014",
+  "turns": [
+   "sabah el kheir",
+   "el menu law sama7t"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "FR #5 NEW — \"masa el kheir\" → \"ab3atli el menu\"",
+  "phone": "+20155501015",
+  "turns": [
+   "masa el kheir",
+   "ab3atli el menu"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "FR #6 RETURNING — \"hala\" → \"3awez el menu\"",
+  "phone": "+20155501016",
+  "turns": [
+   "hala",
+   "3awez el menu"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Kareem",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "FR #7 RETURNING — \"ezayak ya basha\" → \"menu law sama7t\"",
+  "phone": "+20155501017",
+  "turns": [
+   "ezayak ya basha",
+   "menu law sama7t"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Mona",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "FR #8 RETURNING — \"ahlan ya m3alem\" → \"el menu please\"",
+  "phone": "+20155501018",
+  "turns": [
+   "ahlan ya m3alem",
+   "el menu please"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Tarek",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "FR #9 RETURNING — \"salam\" → \"hatli el menu\"",
+  "phone": "+20155501019",
+  "turns": [
+   "salam",
+   "hatli el menu"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Salma",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "FR #10 RETURNING — \"ezayek\" → \"3ayez el menue\"",
+  "phone": "+20155501020",
+  "turns": [
+   "ezayek",
+   "3ayez el menue"
+  ],
+  "expect": {
+   "menu line in franco/latin": "etfadal el menu|here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Youssef",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "EN #1 NEW — \"hi\" → \"menu\"",
+  "phone": "+20155501021",
+  "turns": [
+   "hi",
+   "menu"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "EN #2 NEW — \"hello\" → \"menu please\"",
+  "phone": "+20155501022",
+  "turns": [
+   "hello",
+   "menu please"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "EN #3 NEW — \"hey there\" → \"send me the menu\"",
+  "phone": "+20155501023",
+  "turns": [
+   "hey there",
+   "send me the menu"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "EN #4 NEW — \"good evening\" → \"show me the menu\"",
+  "phone": "+20155501024",
+  "turns": [
+   "good evening",
+   "show me the menu"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "EN #5 NEW — \"good morning\" → \"the menu\"",
+  "phone": "+20155501025",
+  "turns": [
+   "good morning",
+   "the menu"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu",
+   "first-timer nudge with the menu": "first time here|أول مرة|awel marra"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "EN #6 RETURNING — \"hi there\" → \"can i get the menu\"",
+  "phone": "+20155501026",
+  "turns": [
+   "hi there",
+   "can i get the menu"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Kareem",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "EN #7 RETURNING — \"hello there\" → \"menu pls\"",
+  "phone": "+20155501027",
+  "turns": [
+   "hello there",
+   "menu pls"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Mona",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "EN #8 RETURNING — \"hey\" → \"i want the menu\"",
+  "phone": "+20155501028",
+  "turns": [
+   "hey",
+   "i want the menu"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Tarek",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "EN #9 RETURNING — \"evening\" → \"show the menu\"",
+  "phone": "+20155501029",
+  "turns": [
+   "evening",
+   "show the menu"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Salma",
+   "visit_count": 4
+  }
+ },
+ {
+  "name": "EN #10 RETURNING — \"morning\" → \"send the menu\"",
+  "phone": "+20155501030",
+  "turns": [
+   "morning",
+   "send the menu"
+  ],
+  "expect": {
+   "menu line in English": "here'?s the full menu"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "first-timer nudge shown to a REGULAR": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Youssef",
+   "visit_count": 4
+  }
+ }
+]

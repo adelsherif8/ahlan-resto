@@ -1,0 +1,10 @@
+[
+  { "name": "greeting that falls through to the LLM (AR)", "phone": "+201555009901",
+    "turns": ["أهلاً وسهلاً"], "forbid": { "no reply / crash": "^$" } },
+  { "name": "greeting that falls through (هاي)", "phone": "+201555009902",
+    "turns": ["هاي"], "forbid": { "no reply / crash": "^$" } },
+  { "name": "greeting that falls through (ازيك)", "phone": "+201555009903",
+    "turns": ["ازيك"], "forbid": { "no reply / crash": "^$" } },
+  { "name": "ordinary question through friendly", "phone": "+201555009904",
+    "turns": ["بتقفلوا امتى؟"], "forbid": { "no reply / crash": "^$" } }
+]
