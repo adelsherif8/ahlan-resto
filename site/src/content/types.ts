@@ -105,7 +105,18 @@ export interface SiteContent {
       orderTitle: string; orderItem: string; orderFrom: string;
     };
   };
-  understands: { h2: string; fragments: Fragment[] };
+  understands: {
+    h2: string; fragments: Fragment[];
+    /** Translation table — new UI strings, need Adel's Arabic review. */
+    table: {
+      sends: string; gets: string; replay: string;
+      pairs: {
+        head: string;
+        input: { kind: 'voice' | 'text' | 'location'; text?: string; duration?: string };
+        fields: { label: string; value: string }[];
+      }[];
+    };
+  };
   pricing: {
     h2: string;
     rows: { monthly: string; included: string; overage: string; fits: string };
@@ -116,11 +127,20 @@ export interface SiteContent {
     mathH3: string;
     mathLines: [string, string];
     mathClose: string;
+    picker: {
+      yourPlan: string; aov: string; orders: string; egp: string; perOrder: string;
+      appSide: string; ourSide: string; diff: string; assumption: string;
+      fits: string[];
+    };
     appTake: { label: string; value: number; suffix: string };
     ourCost: { label: string; value: number; suffix: string };
   };
   /** Decision 6 (feature-truth §9): the 110 scenarios, phrased as process, never a guarantee. */
-  trust: { pre: string; num: string; post: string };
+  trust: {
+    pre: string; num: string; post: string;
+    /** Suite-run panel — new UI strings, need Adel's Arabic review. */
+    run: { title: string; sentence: string; ofLabel: string; passing: string; cases: string[]; replay: string };
+  };
   objections: { h2: string; items: { q: string; a: string }[] };
   closing: { h2: string; p: string; cta: string; waLabel: string };
   footer: { tagline: string; email: string; privacy: string; rights: string; colSite: string; colContact: string };

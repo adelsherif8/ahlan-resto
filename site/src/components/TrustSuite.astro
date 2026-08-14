@@ -1,0 +1,14 @@
+---
+/** The 110 scenarios — the suite running. */
+import type { SiteContent } from '../content/types';
+import TrustRun from './TrustRun';
+
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="section">
+  <div class="container-page" data-reveal>
+    <TrustRun client:visible labels={{ ...t.trust.run, num: t.trust.num }} />
+  </div>
+</section>

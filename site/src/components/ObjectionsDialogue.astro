@@ -1,0 +1,28 @@
+---
+/** Questions people ask — the owner's objection in his own voice, answered
+    plainly underneath. Fully expanded; nothing to tap. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="section">
+  <div class="container-page">
+    <h2 class="h-rule rule-center text-center" data-reveal>{t.objections.h2}</h2>
+
+    <dl class="mx-auto mt-12 max-w-3xl space-y-8">
+      {t.objections.items.map((o, i) => (
+        <div class="grid gap-3" data-reveal style={`transition-delay:${i * 60}ms`}>
+          <!-- his words, as he says them -->
+          <dt class="w-fit max-w-[85%] rounded-[var(--radius-lg)] rounded-ss-sm bg-ink px-5 py-3 text-[1.05rem] font-medium text-semna">
+            {o.q}
+          </dt>
+          <!-- the answer, plain -->
+          <dd class="max-w-[85%] self-end ps-1 text-[1.05rem] leading-relaxed text-ink/85">
+            {o.a}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>

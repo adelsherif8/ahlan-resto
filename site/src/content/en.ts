@@ -219,6 +219,19 @@ export const en: SiteContent = {
         demo: ar.understands.fragments[4]!.demo,
       },
     ],
+
+    table: {
+      sends: 'What the customer sends',
+      gets: 'What you end up with',
+      replay: 'Replay',
+      pairs: [
+        { head: 'Voice notes', input: { kind: 'voice', duration: '0:11' }, fields: [ { label: 'Order', value: '2 Smash Burgers + cola' } ] },
+        { head: 'Franco-Arabic', input: { kind: 'text', text: '3ayez burger w batates' }, fields: [ { label: 'Order', value: 'Burger + fries' }, { label: 'Reply', value: 'in Franco too' } ] },
+        { head: 'Landmark addresses', input: { kind: 'text', text: 'التجمع، جنب صيدلية العزبي شارع التسعين' }, fields: [ { label: 'Area', value: 'New Cairo' }, { label: 'Landmark', value: 'El Ezaby pharmacy' }, { label: 'Delivery', value: '30 EGP' } ] },
+        { head: 'Cash and change', input: { kind: 'text', text: 'كاش ومعايا 200' }, fields: [ { label: 'Payment', value: 'Cash' }, { label: 'Change', value: '38 EGP with the driver' } ] },
+        { head: 'Multiple branches', input: { kind: 'location', text: 'my location' }, fields: [ { label: 'Branch', value: 'Nasr City' }, { label: 'Delivery', value: '20 EGP' } ] },
+      ],
+    },
   },
 
   pricing: {
@@ -238,6 +251,18 @@ export const en: SiteContent = {
       'On Grow, an order costs you 8.5 EGP.',
     ],
     mathClose: "We're not the cheapest thing on the market. We're the arithmetic that works in your favour.",
+    picker: {
+      yourPlan: 'Your plan',
+      aov: 'Your average order',
+      orders: 'Orders per month',
+      egp: 'EGP',
+      perOrder: '/ order',
+      appSide: 'What the app takes',
+      ourSide: 'With Munadim on',
+      diff: 'Difference in your pocket:',
+      assumption: 'Assuming the apps take about a fifth of the order. Your real commission is on your monthly statement.',
+      fits: ['one branch', 'one busy branch or 2–3', '4–10 branches'],
+    },
     appTake: { label: 'To the app, from a 150 EGP order', value: 30, suffix: 'EGP' },
     ourCost: { label: 'With Munadim on Grow', value: 8.5, suffix: 'EGP' },
   },
@@ -246,6 +271,20 @@ export const en: SiteContent = {
     pre: 'Every release is tested against',
     num: '110',
     post: 'real conversation scenarios before it reaches your restaurant.',
+    run: {
+      title: 'RELEASE SUITE',
+      sentence: 'Every release is tested against 110 real conversation scenarios before it reaches your restaurant.',
+      ofLabel: 'of',
+      passing: 'pass',
+      cases: [
+        'Customer changes his mind mid-order',
+        'A voice note with two dishes and a drink',
+        'A landmark address with no street name',
+        'Sold-out item answered honestly, not refused',
+        'Cash with a 100 — change computed correctly',
+      ],
+      replay: 'Replay',
+    },
   },
 
   objections: {
