@@ -1,0 +1,56 @@
+---
+/** Pricing variant — the comparison table: rows are what you get, columns are plans. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section id="pricing" class="surface-deep border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <h2 class="h-rule rule-center text-center" data-reveal>{t.pricing.h2}</h2>
+
+    <div class="mx-auto mt-12 max-w-4xl overflow-x-auto" data-reveal>
+      <table class="w-full min-w-[34rem] border-collapse text-[1rem]">
+        <thead>
+          <tr>
+            <th class="w-1/4"></th>
+            {t.pricing.plans.map((p) => (
+              <th class:list={['px-4 pb-4 text-center', p.name === 'Grow' && 'rounded-t-[var(--radius-md)] bg-[#FFFDF8]']}>
+                <span class="block text-[1.1rem] font-semibold" dir="ltr">{p.name}</span>
+                <span class="num mt-1.5 block text-[1.7rem] font-medium">{p.monthly}</span>
+                <span class="block text-[0.82rem] text-ink/60">{t.pricing.perMonth}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody class="border-t border-ink/12">
+          {[
+            { label: t.pricing.rows.included, key: 'included' },
+            { label: t.pricing.rows.overage, key: 'overage' },
+            { label: t.pricing.rows.fits, key: 'fits' },
+          ].map((row) => (
+            <tr class="border-b border-ink/10">
+              <th scope="row" class="py-4 text-start text-[0.92rem] font-medium text-ink/60">{row.label}</th>
+              {t.pricing.plans.map((p) => (
+                <td class:list={['px-4 py-4 text-center', p.name === 'Grow' && 'bg-[#FFFDF8]']}>
+                  <span class:list={[row.key === 'included' && 'num', 'font-medium']}>{(p as any)[row.key]}</span>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="container-text mt-8 text-center" data-reveal>
+      <p class="text-[1.05rem]">{t.pricing.includesAll}</p>
+      <p class="mt-2 text-ink/75">{t.pricing.setup}</p>
+    </div>
+
+    <div class="mx-auto mt-12 max-w-2xl text-center" data-reveal>
+      <p class="text-[1.1rem]">{t.pricing.mathLines[0]}</p>
+      <p class="mt-1.5 text-[1.1rem]">{t.pricing.mathLines[1]}</p>
+      <p class="mt-6 text-[1.2rem] font-semibold">{t.pricing.mathClose}</p>
+    </div>
+  </div>
+</section>

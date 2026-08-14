@@ -1,0 +1,28 @@
+---
+/** Closing variant — split: words on ink, the QR panel on semna beside it. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK, WA_NUMBER_DISPLAY } from '../lib/const';
+import QRCode from 'qrcode';
+
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+const qrSvg = await QRCode.toString(WA_LINK, { type: 'svg', margin: 0, color: { dark: '#141110', light: '#FFFDF8' } });
+---
+
+<section class="on-ink bg-ink">
+  <div class="container-page section">
+    <div class="mx-auto grid max-w-4xl items-center gap-10 lg:grid-cols-[1.2fr_0.8fr]">
+      <div data-reveal>
+        <h2 class="h-rule text-semna">{t.closing.h2}</h2>
+        <p class="mt-7 max-w-[32rem] text-[1.1rem] text-semna/85">{t.closing.p}</p>
+        <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
+          <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-9 !py-4 text-[1.1rem]">{t.closing.cta}</a>
+          <a href={WA_LINK} class="num flex min-h-[44px] items-center text-[1.1rem] font-medium text-semna/85 hover:text-brass-light" dir="ltr">{WA_NUMBER_DISPLAY}</a>
+        </div>
+      </div>
+      <div class="justify-self-center rounded-[var(--radius-md)] bg-[#FFFDF8] p-5" data-reveal>
+        <div class="h-36 w-36 [&_svg]:h-full [&_svg]:w-full" set:html={qrSvg} />
+      </div>
+    </div>
+  </div>
+</section>

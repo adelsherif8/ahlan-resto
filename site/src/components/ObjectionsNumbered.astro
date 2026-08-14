@@ -1,0 +1,23 @@
+---
+/** Objections variant — numbered index: quiet, reference-like. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="surface-deep border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <h2 class="h-rule rule-center text-center" data-reveal>{t.objections.h2}</h2>
+    <dl class="mx-auto mt-12 max-w-3xl">
+      {t.objections.items.map((o, i) => (
+        <div class="grid gap-2 border-b border-ink/10 py-6 sm:grid-cols-[auto_1fr] sm:gap-6" data-reveal>
+          <span class="num text-[0.85rem] font-medium text-brass-deep">{String(i + 1).padStart(2, '0')}</span>
+          <div>
+            <dt class="text-[1.1rem] font-semibold">{o.q}</dt>
+            <dd class="mt-2 leading-relaxed text-ink/80">{o.a}</dd>
+          </div>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>

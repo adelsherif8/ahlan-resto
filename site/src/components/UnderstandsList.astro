@@ -1,0 +1,34 @@
+---
+/** Understands variant — editorial list: capability, then the example inline.
+    No chat frames at all; typography carries it. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section id="features" class="section">
+  <div class="container-page">
+    <h2 class="h-rule" data-reveal>{t.understands.h2}</h2>
+
+    <ol class="mx-auto mt-12 max-w-4xl divide-y divide-ink/10 border-y border-ink/10">
+      {t.understands.table.pairs.map((p, i) => (
+        <li class="grid gap-3 py-7 sm:grid-cols-[0.8fr_1.2fr] sm:gap-8" data-reveal style={`transition-delay:${i * 70}ms`}>
+          <h3 class="flex items-center gap-2.5 text-[1.15rem]">
+            <span class="h-2 w-2 shrink-0 rounded-full bg-brass-deep" aria-hidden="true"></span>
+            {p.head}
+          </h3>
+          <div>
+            <p class="text-[1.02rem] leading-relaxed text-ink/80">
+              {p.input.kind === 'voice' ? `فويس نوت ${p.input.duration}` : p.input.text}
+            </p>
+            <p class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[0.92rem]">
+              {p.fields.map((f) => (
+                <span><span class="text-ink/50">{f.label}:</span> <span class="font-medium">{f.value}</span></span>
+              ))}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>

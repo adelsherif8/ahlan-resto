@@ -1,0 +1,56 @@
+---
+/** Pricing variant — one plan anchored: Grow large and detailed, the other two
+    as quiet side options. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+const grow = t.pricing.plans.find((p) => p.name === 'Grow')!;
+const others = t.pricing.plans.filter((p) => p.name !== 'Grow');
+---
+
+<section id="pricing" class="surface-deep border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <h2 class="h-rule rule-center text-center" data-reveal>{t.pricing.h2}</h2>
+
+    <div class="mx-auto mt-12 grid max-w-4xl items-start gap-5 lg:grid-cols-[1.25fr_0.75fr]">
+      <!-- the anchor -->
+      <article class="card !border-[1.5px] !border-karkadeh p-8" data-reveal>
+        <h3 class="text-[1.3rem] font-semibold" dir="ltr">{grow.name}</h3>
+        <p class="mt-4 flex items-baseline gap-3">
+          <span class="num text-[3.2rem] font-medium leading-none">{grow.monthly}</span>
+          <span class="text-[1rem] text-ink/70">{t.pricing.perMonth}</span>
+        </p>
+        <dl class="mt-7 space-y-3.5 border-t border-ink/10 pt-6 text-[1.05rem]">
+          <div class="flex justify-between gap-3"><dt class="text-ink/70">{t.pricing.rows.included}</dt><dd class="num font-medium">{grow.included}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-ink/70">{t.pricing.rows.overage}</dt><dd class="font-medium">{grow.overage}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-ink/70">{t.pricing.rows.fits}</dt><dd class="font-medium">{grow.fits}</dd></div>
+        </dl>
+        <p class="mt-6 border-t border-ink/10 pt-5 text-[1rem] leading-relaxed text-ink/80">{t.pricing.mathLines[1]}</p>
+      </article>
+
+      <!-- the quiet options -->
+      <div class="grid gap-5">
+        {others.map((p, i) => (
+          <article class="card p-6" data-reveal style={`transition-delay:${(i + 1) * 80}ms`}>
+            <div class="flex items-baseline justify-between gap-3">
+              <h3 class="text-[1.05rem] font-semibold" dir="ltr">{p.name}</h3>
+              <p class="flex items-baseline gap-1.5">
+                <span class="num text-[1.5rem] font-medium">{p.monthly}</span>
+                <span class="text-[0.8rem] text-ink/60">{t.pricing.perMonth}</span>
+              </p>
+            </div>
+            <p class="mt-3 text-[0.92rem] text-ink/70">
+              <span class="num">{p.included}</span> · {p.overage} · {p.fits}
+            </p>
+          </article>
+        ))}
+      </div>
+    </div>
+
+    <div class="container-text mt-10 text-center" data-reveal>
+      <p class="text-[1.05rem]">{t.pricing.includesAll}</p>
+      <p class="mt-2 text-ink/75">{t.pricing.setup}</p>
+      <p class="mt-8 text-[1.2rem] font-semibold">{t.pricing.mathClose}</p>
+    </div>
+  </div>
+</section>

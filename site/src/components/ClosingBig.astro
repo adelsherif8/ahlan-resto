@@ -1,0 +1,17 @@
+---
+/** Closing variant — the statement: one huge line, one button. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK, WA_NUMBER_DISPLAY } from '../lib/const';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="on-ink bg-ink">
+  <div class="container-page py-24 text-center sm:py-32">
+    <h2 class="mx-auto max-w-[16ch] !text-[clamp(2.2rem,1.4rem+3.4vw,4rem)] text-semna" data-reveal>{t.closing.h2}</h2>
+    <div class="mt-10 flex flex-col items-center gap-5" data-reveal>
+      <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-12 !py-4 text-[1.15rem]">{t.closing.cta}</a>
+      <a href={WA_LINK} class="num flex min-h-[44px] items-center text-[1.1rem] text-semna/70 hover:text-brass-light" dir="ltr">{WA_NUMBER_DISPLAY}</a>
+    </div>
+  </div>
+</section>

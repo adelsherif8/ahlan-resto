@@ -1,0 +1,30 @@
+---
+/** Header variant — editorial masthead: wordmark, hairline rule, nav under it. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK, WA_NUMBER_DISPLAY } from '../lib/const';
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t, lang } = Astro.props;
+---
+
+<header class="bg-semna">
+  <div class="container-page pt-6">
+    <div class="flex items-center justify-between gap-4">
+      <a href={`/${lang}`} class="flex min-h-[44px] items-center" aria-label="Munadim">
+        <img src="/brand/11-wordmark-latin-ink-nobg.svg" alt="MUNADIM" width="551" height="190" class="h-6 w-auto sm:h-7" />
+      </a>
+      <a href={WA_LINK} class="num hidden min-h-[44px] items-center text-[1rem] font-medium text-ink/70 hover:text-karkadeh sm:flex" dir="ltr">{WA_NUMBER_DISPLAY}</a>
+    </div>
+
+    <div class="mt-4 flex items-center justify-between gap-4 border-t border-ink/12 pt-2">
+      <nav class="flex items-center gap-6">
+        {t.nav.links.map((l) => (
+          <a href={l.href} class="hidden min-h-[44px] items-center text-[0.95rem] font-medium text-ink/75 hover:text-karkadeh sm:flex">{l.label}</a>
+        ))}
+        <a href={t.nav.toggle.href} class="flex min-h-[44px] items-center text-[0.95rem] font-medium text-ink/55 hover:text-karkadeh" lang={lang === 'ar' ? 'en' : 'ar'} dir={lang === 'ar' ? 'ltr' : 'rtl'}>{t.nav.toggle.label}</a>
+      </nav>
+      <a href={WA_LINK} class="flex min-h-[44px] items-center gap-2 text-[0.95rem] font-semibold text-karkadeh hover:text-[#741727]">
+        {t.nav.cta}<span aria-hidden="true" class="rtl:-scale-x-100">←</span>
+      </a>
+    </div>
+  </div>
+</header>

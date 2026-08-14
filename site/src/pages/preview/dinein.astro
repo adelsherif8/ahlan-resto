@@ -1,20 +1,19 @@
 ---
-// DineIn variants stacked: contrast (before/after) → dark band → current (tent card).
 import Base from '../../layouts/Base.astro';
-import Header from '../../components/Header.astro';
-import DineInAnimated from '../../components/DineInAnimated.astro';
-import DineInContrast from '../../components/DineInContrast.astro';
-import DineInDark from '../../components/DineInDark.astro';
-import DineIn from '../../components/DineIn.astro';
+import A from '../../components/DineInAnimated.astro';
+import B from '../../components/DineInContrast.astro';
+import C from '../../components/DineInTableTop.astro';
+import D from '../../components/DineInDark.astro';
+import E from '../../components/DineIn.astro';
 import { ar as t } from '../../content/ar';
 ---
 
-<Base lang="ar" title="معاينة قسم الصالة" description="DineIn section variants" path="/preview/dinein">
-  <Header t={t} lang="ar" />
+<Base lang="ar" title="معاينة — الصالة" description="معاينة — الصالة" path="/preview/dinein">
   <main>
-    <DineInAnimated t={t} />
-    <DineInContrast t={t} />
-    <DineInDark t={t} />
-    <DineIn t={t} />
+    <A t={t} />
+    <B t={t} />
+    <C t={t} />
+    <D t={t} />
+    <E t={t} />
   </main>
 </Base>

@@ -1,0 +1,20 @@
+---
+/** Objections variant — two editorial columns, no cards. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="section">
+  <div class="container-page">
+    <h2 class="h-rule" data-reveal>{t.objections.h2}</h2>
+    <dl class="mt-10 gap-x-14 sm:columns-2 [&>div]:break-inside-avoid">
+      {t.objections.items.map((o) => (
+        <div class="mb-8" data-reveal>
+          <dt class="text-[1.1rem] font-semibold">{o.q}</dt>
+          <dd class="mt-2 leading-relaxed text-ink/80">{o.a}</dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>

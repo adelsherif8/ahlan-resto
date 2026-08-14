@@ -1,0 +1,24 @@
+---
+import Base from '../../layouts/Base.astro';
+import HeaderPill from '../../components/HeaderPill.astro';
+import HeaderBlur from '../../components/HeaderBlur.astro';
+import HeaderCenter from '../../components/HeaderCenter.astro';
+import HeaderRule from '../../components/HeaderRule.astro';
+import HeaderInk from '../../components/HeaderInk.astro';
+import Hero from '../../components/Hero.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="معاينة — الهيدر" description="Header variants" path="/preview/headers">
+  <main>
+    <div class="relative"><HeaderPill t={t} lang="ar" /><Hero t={t} lang="ar" /></div>
+    <div class="h-10 bg-ink"></div>
+    <div class="relative"><HeaderBlur t={t} lang="ar" /><Hero t={t} lang="ar" /></div>
+    <div class="h-10 bg-ink"></div>
+    <div class="relative"><HeaderCenter t={t} lang="ar" /><Hero t={t} lang="ar" /></div>
+    <div class="h-10 bg-ink"></div>
+    <div class="relative"><HeaderRule t={t} lang="ar" /><Hero t={t} lang="ar" /></div>
+    <div class="h-10 bg-ink"></div>
+    <div class="relative"><HeaderInk t={t} lang="ar" /><Hero t={t} lang="ar" /></div>
+  </main>
+</Base>

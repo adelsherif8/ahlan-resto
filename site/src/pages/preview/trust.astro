@@ -1,22 +1,19 @@
 ---
-// Trust-strip variants sandwiched in context: end of Understands above, start of Pricing below.
 import Base from '../../layouts/Base.astro';
-import Header from '../../components/Header.astro';
-import Understands from '../../components/Understands.astro';
-import TrustStrip from '../../components/TrustStrip.astro';
-import TrustNumeral from '../../components/TrustNumeral.astro';
-import TrustRibbon from '../../components/TrustRibbon.astro';
-import Pricing from '../../components/Pricing.astro';
+import A from '../../components/TrustSuite.astro';
+import B from '../../components/TrustSeal.astro';
+import C from '../../components/TrustRibbon.astro';
+import D from '../../components/TrustNumeral.astro';
+import E from '../../components/TrustStrip.astro';
 import { ar as t } from '../../content/ar';
 ---
 
-<Base lang="ar" title="معاينة سطر الثقة" description="Trust strip variants" path="/preview/trust">
-  <Header t={t} lang="ar" />
+<Base lang="ar" title="معاينة — سطر الثقة" description="معاينة — سطر الثقة" path="/preview/trust">
   <main>
-    <Understands t={t} />
-    <TrustStrip t={t} />
-    <TrustNumeral t={t} />
-    <TrustRibbon t={t} />
-    <Pricing t={t} />
+    <A t={t} />
+    <B t={t} />
+    <C t={t} />
+    <D t={t} />
+    <E t={t} />
   </main>
 </Base>

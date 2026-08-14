@@ -1,0 +1,24 @@
+---
+/** Steps variant — pure typography: oversized brass numerals, no artifacts. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section id="how" class="surface-deep border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <h2 class="h-rule text-start" data-reveal>{t.steps.h2}</h2>
+
+    <ol class="mx-auto mt-12 max-w-4xl divide-y divide-ink/10 border-y border-ink/10">
+      {t.steps.items.map((s, i) => (
+        <li class="grid items-baseline gap-4 py-8 sm:grid-cols-[auto_1fr]" data-reveal style={`transition-delay:${i * 80}ms`}>
+          <span class="num text-[3.5rem] font-medium leading-none text-brass-deep/35 sm:text-[4.5rem]">{i + 1}</span>
+          <div>
+            <h3 class="text-[1.35rem]">{s.title}</h3>
+            <p class="mt-2 max-w-[38rem] text-[1.05rem] leading-relaxed text-ink/75">{s.body}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>

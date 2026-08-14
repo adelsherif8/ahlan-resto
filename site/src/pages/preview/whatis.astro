@@ -1,22 +1,19 @@
 ---
-// WhatIs variants stacked: flow diagram → record card → current (pills).
 import Base from '../../layouts/Base.astro';
-import Header from '../../components/Header.astro';
-import WhatIsPanels from '../../components/WhatIsPanels.astro';
-import WhatIsStream from '../../components/WhatIsStream.astro';
-import WhatIsFlow from '../../components/WhatIsFlow.astro';
-import WhatIsRecord from '../../components/WhatIsRecord.astro';
-import WhatIs from '../../components/WhatIs.astro';
+import A from '../../components/WhatIsPanels.astro';
+import B from '../../components/WhatIsStream.astro';
+import C from '../../components/WhatIsFlow.astro';
+import D from '../../components/WhatIsRecord.astro';
+import E from '../../components/WhatIs.astro';
 import { ar as t } from '../../content/ar';
 ---
 
-<Base lang="ar" title="معاينة قسم القناة" description="WhatIs section variants" path="/preview/whatis">
-  <Header t={t} lang="ar" />
-  <main class="[&>section+section]:mt-2">
-    <WhatIsPanels t={t} />
-    <WhatIsStream t={t} />
-    <WhatIsFlow t={t} />
-    <WhatIsRecord t={t} />
-    <WhatIs t={t} />
+<Base lang="ar" title="معاينة — قناة الطلبات" description="معاينة — قناة الطلبات" path="/preview/whatis">
+  <main>
+    <A t={t} />
+    <B t={t} />
+    <C t={t} />
+    <D t={t} />
+    <E t={t} />
   </main>
 </Base>

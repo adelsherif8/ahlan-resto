@@ -1,0 +1,19 @@
+---
+import Base from '../../layouts/Base.astro';
+import A from '../../components/PricingSmart.astro';
+import B from '../../components/PricingCalc.astro';
+import C from '../../components/PricingTable.astro';
+import D from '../../components/PricingAnchor.astro';
+import E from '../../components/Pricing.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="معاينة — السعر" description="معاينة — السعر" path="/preview/pricing">
+  <main>
+    <A t={t} />
+    <B t={t} />
+    <C t={t} />
+    <D t={t} />
+    <E t={t} />
+  </main>
+</Base>
