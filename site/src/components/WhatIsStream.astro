@@ -1,0 +1,30 @@
+---
+/** WhatIs — three channels, one owned list. Different visual language from the
+    dine-in scene on purpose: convergence, not a pipeline. */
+import type { SiteContent } from '../content/types';
+import ChannelStream from './ChannelStream';
+
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+
+const labels = {
+  channels: t.whatIs.channels,
+  demoLabel: t.hero.demoLabel,
+  ...t.whatIs.stream,
+};
+---
+
+<section class="surface-deep border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <div class="mx-auto max-w-3xl" data-reveal>
+      <h2 class="h-rule">{t.whatIs.h2}</h2>
+      <p class="mt-7 text-[1.15rem] leading-[1.9]">{t.whatIs.p1}</p>
+    </div>
+
+    <div class="mx-auto mt-14 max-w-5xl" data-reveal>
+      <ChannelStream client:visible labels={labels} />
+    </div>
+
+    <p class="mx-auto mt-12 max-w-3xl text-[1.15rem] font-medium" data-reveal>{t.whatIs.p2}</p>
+  </div>
+</section>

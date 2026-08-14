@@ -77,6 +77,18 @@ export const ar: SiteContent = {
     channels: ['دليفري', 'تيك أواي', 'صالة'],
     p2: 'كل أوردر بيسيبلك رقم تليفون وتاريخ طلبات في لوحة تحكم بتاعتك إنت.',
     // NEW UI strings — need Adel's review
+    stream: {
+      panelTitle: 'لوحة التحكم — الزباين',
+      counter: 'زباين',
+      counterOne: 'زبون',
+      captured: 'كلهم في قاعدة بيانات مطعمك — تقدر توصلهم تاني',
+      replay: 'شغّل تاني',
+      rows: [
+        { name: 'أحمد م.', phone: '010• ••• 4437', item: 'كلاسيك كومبو', channel: 0 },
+        { name: 'منة ع.', phone: '011• ••• 2210', item: 'تشيكن رانش', channel: 1 },
+        { name: 'كريم س.', phone: '012• ••• 8842', item: 'سماش دوبل — ترابيزة 4', channel: 2 },
+      ],
+    },
     flow: {
       step1: 'أوردر على الواتساب',
       step2: 'بيروح للمطبخ',

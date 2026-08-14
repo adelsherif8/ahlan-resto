@@ -50,6 +50,18 @@ export const en: SiteContent = {
     p1: 'Munadim takes your orders on WhatsApp — the same number your customers already message you on.',
     channels: ['Delivery', 'Pickup', 'Dine-in'],
     p2: 'Every order leaves you a phone number and an order history, in a dashboard that belongs to you.',
+    stream: {
+      panelTitle: 'Dashboard — Customers',
+      counter: 'customers',
+      counterOne: 'customer',
+      captured: "All of them in your restaurant's database — you can reach them again",
+      replay: 'Replay',
+      rows: [
+        { name: 'Ahmed M.', phone: '010• ••• 4437', item: 'Classic combo', channel: 0 },
+        { name: 'Menna A.', phone: '011• ••• 2210', item: 'Chicken ranch', channel: 1 },
+        { name: 'Karim S.', phone: '012• ••• 8842', item: 'Smash double — table 4', channel: 2 },
+      ],
+    },
     flow: {
       step1: 'An order on WhatsApp',
       step2: 'It reaches the kitchen',

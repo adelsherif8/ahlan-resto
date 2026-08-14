@@ -51,6 +51,11 @@ export interface SiteContent {
   problem: { h2: string; p1: string; p2: string; bar: { order: string; app: string } };
   whatIs: {
     h2: string; p1: string; channels: string[]; p2: string;
+    /** Channel-stream labels — new UI strings, need Adel's Arabic review. */
+    stream: {
+      panelTitle: string; counter: string; counterOne: string; captured: string; replay: string;
+      rows: { name: string; phone: string; item: string; channel: number }[];
+    };
     /** Flow diagram labels — new UI strings, need Adel's Arabic review. */
     flow: {
       step1: string; step2: string; step3: string; captured: string;
