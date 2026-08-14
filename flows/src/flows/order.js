@@ -165,7 +165,16 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       if (e.intent === "question") return { kind: "handoff_to_friendly" };
       // Belt-and-suspenders: an "other" message carrying zero order content, when we're
       // not waiting on a specific answer, is chit-chat/a question too → hand it off.
-      const notAwaiting = !loaded.pending?.awaiting_option && loaded.pending?.awaiting_confirm !== true;
+      // A message that ANSWERS a question we just asked is never chit-chat. We flag
+      // awaiting_option and awaiting_confirm, but the which-one ask and the PAYMENT ask
+      // carried no flag at all — so a bare "Online" or "nashville" scored as zero order
+      // content and was handed to the chit-chat brain before the payment matcher ever
+      // ran. Live 14 Aug: the guest answered the payment question, the bot wished him a
+      // good meal, and no order was ever created.
+      const PAY_ANSWER = /^\W*(cash|card|visa|instapay|online|link|كاش|كارت|فيزا|انستاباي|اونلاين|أونلاين|لينك)\b/i;
+      const answersOpenQuestion = !!loaded.pending?.ambiguous
+        || (!!loaded.pending?.items?.length && PAY_ANSWER.test(input.message.trim()));
+      const notAwaiting = !loaded.pending?.awaiting_option && loaded.pending?.awaiting_confirm !== true && !answersOpenQuestion;
       const noOrderContent = e.intent === "other" && !(e.items?.length) && !(e.edits?.length)
         && !e.order_type && !e.address && !e.table_number && !e.payment_method && !e.pickup_time && !named;
       if (notAwaiting && noOrderContent) return { kind: "handoff_to_friendly" };

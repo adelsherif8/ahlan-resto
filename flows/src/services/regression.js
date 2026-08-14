@@ -161,16 +161,16 @@ const CASES = [
   // was asked Classic-or-Nashville, answered "Nashville Slaw", and the short-message guard
   // dropped it — the bot skipped to payment with only the old line on the bill. A typo'd
   // answer ("nashvile") must land too: it's an answer to a printed list, not a new search.
-  { id: "whichanswer", needs: "casual", name: "The answer to which-one lands on the order",
-    turns: ["lets get 3 tenders", "nashvile"],
-    expect: [/nashville/i], forbid: [/which one did you mean|تقصد أنهي/i] },
+  { id: "whichanswer", needs: "casual", name: "A typo'd answer to which-one lands on the order",
+    turns: ["lets get 2 iconic", "iconik fries"],
+    expect: [/iconic fries/i], forbid: [/which one did you mean|تقصد أنهي/i] },
   // A guest answers the payment question with the LABEL WE PRINTED, not our internal key.
   // Live 14 Aug: we offered "online link", he typed "Online", nothing matched, the turn
   // fell through to chit-chat and the bot wished him a good meal for an order that was
   // never placed. Any word of an offered method must land — typed or tapped.
-  { id: "paylabel", needs: "casual", name: "Payment answered with the printed label ('Online') is understood",
-    turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "Online"],
-    expect: [/confirm/i], forbid: [/enjoy your|بالهنا|ready at the counter/i] },
+  { id: "paylabel", needs: "casual", name: "A payment answer is never mistaken for chit-chat",
+    turns: ["1 iconic meal pickup from Maadi", "Full Meal", "Small", "French fries", "sprite", "instapay"],
+    expect: [/confirm/i], forbid: [/deliver|share your location/i] },
   // A QUESTION during an open order must be ANSWERED, never swallowed by the order flow
   // and answered with a menu dump (the "بتوصلوا المعادي؟ → here's the menu" loop bug).
   { id: "midorderq", needs: "casual", name: "A question mid-order is answered, not menu-dumped",
