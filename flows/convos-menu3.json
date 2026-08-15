@@ -1,0 +1,10 @@
+[
+  { "name": "issue 2 — ab3atli el menu (franco)", "phone": "+201555004404",
+    "seed": { "name": "Mona", "visit_count": 4 }, "turns": ["ab3atli el menu"],
+    "expect": { "code line, not model prose": "etfadal el menu el kamel|here'?s the full menu" } },
+  { "name": "issue 3 — can i get the menu (english)", "phone": "+201555004405",
+    "seed": { "name": "Hana", "visit_count": 4 }, "turns": ["can i get the menu"],
+    "expect": { "code line": "here'?s the full menu" } },
+  { "name": "arabic still instant", "phone": "+201555004406",
+    "turns": ["ابعتلي المنيو"], "expect": { "arabic code line": "اتفضل المنيو الكامل" } }
+]

@@ -232,7 +232,8 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
   ? `WE DON'T TAKE RESERVATIONS — walk-in only 🍔. If they ask to book a table: tell them warmly to just come by anytime; if they're worried it's busy (or it IS busy), offer the WAITLIST (rule 14) — that's our version of booking. NEVER pretend a reservation was made.`
   : `If they want to BOOK A TABLE: our booking assistant handles it instantly — warmly invite them to send people/day/time (e.g. "4 people Friday 8pm") and it books on the spot. NEVER say "booked/reserved/حجزتلك" yourself and NEVER hand off to staff for a normal booking — the next message with details goes straight to the booking flow.`}
 6. If angry, or asking for a human, or you cannot answer from FACTS: apologize briefly, say the team is taking over, set needs_handoff=true with a 1–2 line handoff_briefing.
-7. If they mention their own name, set detected_name. If they mention a FOOD ALLERGY, set detected_allergies (array of lowercase FOOD allergens ONLY: nuts, dairy, gluten, shellfish, eggs, soy, sesame…). Health CONDITIONS (diabetes, pregnancy, blood pressure…) are NEVER stored anywhere — not as allergies, not as facts. For those: help with sensible suggestions AND you MUST end with the kitchen double-check line ("the kitchen will gladly double-check ingredients for you") — this line is mandatory for any health condition, it overrides the fewer-questions rule.
+7. NAMES ARE NEVER TRANSLITERATED. Write the guest's name EXACTLY as it is stored, letter for letter, even inside an Arabic sentence — Egyptians write Latin names in Arabic chats all the time. Guessing Arabic spelling produced "سلامة" for Salma (a different word entirely) and "تarek" for Tarek. A mangled name is worse than no name.
+7b. If they mention their own name, set detected_name. If they mention a FOOD ALLERGY, set detected_allergies (array of lowercase FOOD allergens ONLY: nuts, dairy, gluten, shellfish, eggs, soy, sesame…). Health CONDITIONS (diabetes, pregnancy, blood pressure…) are NEVER stored anywhere — not as allergies, not as facts. For those: help with sensible suggestions AND you MUST end with the kitchen double-check line ("the kitchen will gladly double-check ingredients for you") — this line is mandatory for any health condition, it overrides the fewer-questions rule.
 8. Off-topic requests: one playful redirect back to the restaurant.
 9. If they ask for PHOTOS of food: ONLY items marked "📷 has photo" can be sent — set send_photos to up to 3 of those. If the dish they asked about has NO 📷 marker: say you don't have a photo of that one yet (NEVER "coming right up" / "sending now"), and optionally offer a photo of a similar 📷 dish instead.
 10. If they asked a factual question about the restaurant you could NOT answer from FACTS (policy, service, amenity…), set suggested_faq = { "question": "<the generic question>", "context": "<what the guest actually said>" } so the owner can add the answer.
@@ -325,7 +326,9 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           !draft.toLowerCase().includes(usualName.toLowerCase());
         const broken = (d) =>
           BOTISM.test(d) || PITCH.test(d) ||
-          (bareGreeting && firstName && context.situation !== "first_timer" && !d.toLowerCase().includes(firstName.toLowerCase())) ||
+          (bareGreeting && firstName && context.situation !== "first_timer"
+            && !d.toLowerCase().includes(firstName.toLowerCase())
+            && !/^\s*(أهلا|أهلاً|اهلا|مرحبا|يا هلا|هلا|welcome|ahlan|ya hala)/i.test(d)) ||
           (bareGreeting && context.situation === "first_timer" && !d.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase())) ||
           (bareGreeting && usualName && context.situation === "returning" && !d.toLowerCase().includes(usualName.toLowerCase()));
         if (broken(draft)) {
@@ -354,7 +357,11 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           // the welcome/name by prefixing — a guest must never be greeted anonymously
           if (bareGreeting && broken(r.value?.reply || "")) {
             let fixed = (r.value?.reply || "").replace(/^(hey|hi|hello)[!,. ]*/i, "");
-            if (context.situation !== "first_timer" && firstName && !fixed.toLowerCase().includes(firstName.toLowerCase())) {
+            // Does it ALREADY open with a welcome? The name check alone was not enough:
+            // the model wrote the name in Arabic letters, the Latin comparison missed it,
+            // and we glued a second greeting on top — "أهلاً بعودتك يا Tarek! أهلاً بيك تarek!".
+            const alreadyGreets = /^\s*(أهلا|أهلاً|اهلا|مرحبا|يا هلا|هلا|welcome|ahlan|ya hala|hala|sabah|masa)/i.test(fixed);
+            if (context.situation !== "first_timer" && firstName && !alreadyGreets && !fixed.toLowerCase().includes(firstName.toLowerCase())) {
               // This safety-net prefix was English-only, so an Arabic guest got
               // "Welcome back, Tarek!" glued in front of an Arabic sentence — two
               // languages in one breath, on a regular's first message back.

@@ -4,9 +4,13 @@ import { hoursToday } from "./tenant.js";
 
 const AR = /[؀-ۿ]/;
 
+// Franco markers must be as wide here as in the router, or a fast path answers a
+// Franco guest in English: "ab3atli el menu" carried none of the old keywords, so the
+// instant menu line came back in English to someone writing Arabic in Latin letters.
+const FRANCO = /(3ayez|3aiz|3awez|3awz|fein|fen|emta|ezay|eshta|tamam|shokran|habibi|ya3ni|keda|bokra|ab3at|eb3at|hatli|hatly|warini|law sama7t|ma3lesh|delwa2ty|naharda|3andko|te7eb|momken|nefsak|kwayes|sabah el|masa el|3alek|akl|akol|el menu|elmenu)/i;
 function lang(message, sticky) {
   if (AR.test(message)) return "ar";
-  if (/\b(3ayez|3aiz|fein|fen|emta|ezay|eshta|tamam|shokran|habibi|ya3ni|keda|bokra)\b/i.test(message)) return "franco";
+  if (FRANCO.test(message)) return "franco";
   if (sticky) return sticky;
   return "en";
 }
@@ -384,7 +388,7 @@ export function isGreetingish(message) {
 // prompt, wait for JSON, then attach the PDF anyway — 3-7s on a good day, and on
 // 14 Aug it hit 15s and the guest got "one sec" followed by nothing. Answering in
 // code makes it instant and free, and removes the class of failure entirely.
-const MENU_REQ = /^\W*(?:(?:can i|could i|may i|i want|i'd like|send|show|give|3ayez|3aiz|ana 3ayez|3awez|3awz|hat|hatli|hatly|ab3at|ab3atli|eb3atli|ab3tli|warini|wareeni|ابعت|ابعتلي|هات|هاتلي|عايز|عاوز|ممكن|وريني|اشوف)\s+)?(?:(?:me|the|el|a|us|lw|law)\s+){0,3}(menu|menue|meno|المنيو|منيو|مينيو|المينيو|el menu|elmenu)(?:\s+(please|pls|law sama7t|من فضلك|لو سمحت|كامل|el kamel|full))?\W*$/i;
+const MENU_REQ = /^\W*(?:(?:can i get|can i see|could i get|could i see|can i|could i|may i|i want|i'd like|i need|lemme see|let me see|send|show|give|gimme|3ayez|3aiz|ana 3ayez|3awez|3awz|ab3atli|ab3tli|eb3atli|eb3at|ab3at|hatli|hatly|hat|warini|wareeni|ابعت|ابعتلي|هات|هاتلي|عايز|عاوز|ممكن|وريني|اشوف)\s+)?(?:(?:me|the|el|a|us|lw|law)\s+){0,3}(menu|menue|meno|المنيو|منيو|مينيو|المينيو|el menu|elmenu)(?:\s+(please|pls|law sama7t|من فضلك|لو سمحت|كامل|el kamel|full))?\W*$/i;
 
 export function isMenuRequest(message) {
   const t = String(message || "").trim();

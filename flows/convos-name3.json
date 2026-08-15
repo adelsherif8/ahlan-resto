@@ -1,0 +1,13 @@
+[
+  { "name": "AR regular — one greeting, name kept as Tarek", "phone": "+201555004401",
+    "seed": { "name": "Tarek", "visit_count": 4 }, "turns": ["هاي"],
+    "expect": { "arabic": "[\\u0600-\\u06FF]", "name intact": "Tarek" },
+    "forbid": { "mangled name": "تarek|طارق ط|سلامة", "double greeting": "(أهلا|اهلا|أهلاً)[\\s\\S]{0,40}(أهلا|اهلا|أهلاً)" } },
+  { "name": "AR regular Salma — never becomes سلامة", "phone": "+201555004402",
+    "seed": { "name": "Salma", "visit_count": 4 }, "turns": ["ازيك"],
+    "expect": { "arabic": "[\\u0600-\\u06FF]", "name intact": "Salma" },
+    "forbid": { "wrong name": "سلامة", "double greeting": "(أهلا|اهلا|أهلاً)[\\s\\S]{0,40}(أهلا|اهلا|أهلاً)" } },
+  { "name": "EN regular — unchanged", "phone": "+201555004403",
+    "seed": { "name": "Hana", "visit_count": 4 }, "turns": ["hey"],
+    "expect": { "name": "Hana" }, "forbid": { "arabic script": "[\\u0600-\\u06FF]" } }
+]
