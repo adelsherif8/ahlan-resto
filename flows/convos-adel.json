@@ -1,0 +1,6 @@
+[
+  { "name": "your exact case — known guest with order history says hihi",
+    "phone": "+201555003001",
+    "seed": { "name": "Adel", "visit_count": 6 },
+    "turns": ["hihi"] }
+]

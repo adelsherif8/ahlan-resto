@@ -372,7 +372,7 @@ export function editDistance(a, b) {
 export function isGreetingish(message) {
   const raw = String(message || "").trim();
   if (!raw || raw.length > 40) return false;
-  const norm = raw
+  let norm = raw
     .toLowerCase()
     .replace(/[ً-ْـ]/g, "")        // diacritics + tatweel
     .replace(/[أإآ]/g, "ا").replace(/ة/g, "ه")     // hamza/teh-marbuta variants
@@ -380,6 +380,15 @@ export function isGreetingish(message) {
     .replace(/^(ال)/, "")                          // definite article
     .replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
   if (!norm || norm.length < 2) return false;
+  // People double a greeting for warmth — "hihi", "heyhey", "hi hi", "هلا هلا".
+  // Collapse an exact repetition so it reads as the single word it is; without this
+  // "hihi" missed the free greeting and cost a full model call.
+  const words = norm.split(" ");
+  if (words.length === 2 && words[0] === words[1]) norm = words[0];
+  else if (norm.length % 2 === 0) {
+    const half = norm.slice(0, norm.length / 2);
+    if (half === norm.slice(norm.length / 2) && half.length >= 2) norm = half;
+  }
   return GREETING_WORDS.some((w) => editDistance(norm, w) <= (w.length <= 4 ? 1 : 2));
 }
 

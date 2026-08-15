@@ -235,6 +235,16 @@ defineFlow({
         }
       }
 
+      // "Same as last time" — tapped or typed, or a plain "yes" to the usual we just
+      // offered in the greeting. The intent is already certain, so it goes straight to
+      // the order agent with the extractor skipped: no model, no wait.
+      if (isLabelKey(ctx.tenant.config, message, "same_as_last")
+        || /^(?:\W*)(same as last( time)?|the usual|my usual|نفس الطلب|نفس المرة اللي فاتت|زي المرة اللي فاتت|زي كل مرة|nafs el order|zay el marra)(?:\W*)$/i.test(message.trim())
+        || (AFFIRMATIVES.test(message.trim()) && /same as last|زي المرة اللي فاتت|zay el marra/i.test(String(input.lastAiMessage || "")))) {
+        bump("greeting_hits");
+        return { kind: "repeat_last_shortcut" };
+      }
+
       // "build my own" hands over a signed one-guest link instead of an answer.
       // Offered only when the restaurant has actually priced its layers — an
       // unpriced builder would quote numbers nobody set.
@@ -316,6 +326,14 @@ defineFlow({
     const guestAr = /[\u0600-\u06FF]/.test(message);
     const replyAr = fast.reply ? /[\u0600-\u06FF]/.test(fast.reply) : false;
     const langMismatch = fast.reply && !fast.media && ((guestAr && !replyAr) || (!guestAr && replyAr));
+    if (fast.kind === "repeat_last_shortcut") {
+      return f.flow("order", {
+        message, diner, history: input.history, precheck: input.precheck || {},
+        forcedIntent: "repeat_last",
+        classification: { bucket: "order", intent: "repeat_last", confidence: 1, mood: "neutral",
+          language: detectLang(message, input.stickyLanguage), via: "fast path (usual shortcut)" },
+      });
+    }
     if (fast.reply && !langMismatch) {
       return { reply: fast.reply, quickReplies: fast.quick_replies || [], menuDoc: fast.menu_doc || null, fast_path: fast.kind, language: fast.language, bucket: "fast_path" };
     }

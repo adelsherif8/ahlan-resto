@@ -83,6 +83,14 @@ defineFlow({
     const dishDisp = (n) => (LANGV === "ar" ? arNameOf(n) : n);
 
     const ex = await f.node("extract", async () => {
+      // The router already KNOWS what this is — the guest tapped "Same as last time"
+      // or answered yes to the greeting's usual offer. Asking a model to re-derive an
+      // intent we handed it is a call we pay for and wait on for nothing.
+      if (input.forcedIntent) {
+        return { value: { intent: input.forcedIntent, items: null, edits: null, payment_method: null,
+          order_type: null, table_number: null, pickup_time: null, notes: null, address: null,
+          branch: null, reorder_ref: null, question: null }, __usage: null };
+      }
       const menuNames = loaded.menu.map((m) => `${m.name}${m.name_ar ? ` / ${m.name_ar}` : ""} (${m.category})`).join(" | ");
       // Grounding the model in the ACTUAL current state beats asking it to infer intent
       // from phrasing alone. Earlier this only had a paragraph of trigger phrases for
