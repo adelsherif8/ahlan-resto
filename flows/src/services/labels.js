@@ -53,3 +53,26 @@ export function isLabel(message, value) {
 export function isLabelKey(config, message, key) {
   return ["en", "ar", "fr"].some((l) => isLabel(message, label(config, key, l)));
 }
+
+// WHICH ways-in appear on a greeting is the restaurant's decision, not ours.
+// config.ai.entry_buttons is a list of keys, max 3, in the order they should appear:
+//   "order_now" | "browse_menu" | "build_your_own" | "same_as_last"
+// Unset  → sensible default (menu + order, builder when it's switched on).
+// []     → no buttons at all, for a restaurant that wants a plain greeting.
+// A key is dropped when it can't apply: the builder when it isn't enabled, "same as
+// last time" for a guest with no order history.
+export function entryChips(config, lang = "en", opts = {}) {
+  const configured = config?.ai?.entry_buttons;
+  const keys = Array.isArray(configured)
+    ? configured
+    : [
+        ...(config?.ai?.ask_type_first === true ? ["order_now", "browse_menu"] : ["browse_menu", "order_now"]),
+        ...(opts.builderEnabled ? ["build_your_own"] : []),
+      ];
+  return keys
+    .filter((k) => (k === "build_your_own" ? !!opts.builderEnabled : true))
+    .filter((k) => (k === "same_as_last" ? !!opts.hasUsual : true))
+    .map((k) => label(config, k, lang))
+    .filter(Boolean)
+    .slice(0, 3);
+}

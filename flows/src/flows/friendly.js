@@ -11,7 +11,7 @@ import { todayISO } from "../services/availability.js";
 import { branchList, nearestBranches, matchBranchByText, freshLocation } from "../services/branches.js";
 import { deliveryFacts } from "../services/delivery.js";
 import { menuPdfUrl } from "../services/menupdf.js";
-import { label } from "../services/labels.js";
+import { label, entryChips } from "../services/labels.js";
 import { builderConfig } from "../services/builder.js";
 
 // rolling-summary cooldown: refresh at most once per 10 min per session
@@ -590,11 +590,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       // menu-first restaurants keep the browse-first order. Chips render in the
       // guest's language — an Arabic سلام never gets an "Order now" button.
       const chipLang = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
-      const entry = config.ai?.ask_type_first === true
-        ? [label(config, "order_now", chipLang), label(config, "browse_menu", chipLang)]
-        : [label(config, "browse_menu", chipLang), label(config, "order_now", chipLang)];
-      if (builderConfig(config).enabled) entry.push(label(config, "build_your_own", chipLang));
-      quickReplies = entry.slice(0, 3);
+      quickReplies = entryChips(config, chipLang, { builderEnabled: builderConfig(config).enabled });
     }
     // menu display mode is per-restaurant: PDF document + link (default) | full text | tappable list
     const mc = config.menu_config || {};

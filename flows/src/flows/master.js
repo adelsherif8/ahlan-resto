@@ -7,7 +7,7 @@ import { MODEL_FAST, MODEL_NANO } from "../config.js";
 import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath, isGreetingish, isMenuRequest, menuReplyFor } from "../services/fastpaths.js";
 import { wantsBuilder } from "../services/fastpaths.js";
 import { signBuildToken, builderConfig, priceBuild, describeBuild, LAYERS as BUILDER_LAYERS } from "../services/builder.js";
-import { label, isLabel, isLabelKey } from "../services/labels.js";
+import { label, isLabel, isLabelKey, entryChips } from "../services/labels.js";
 import { PUBLIC_BASE } from "../config.js";
 import { bump } from "../services/metrics.js";
 
@@ -18,22 +18,67 @@ const GREETING = /^(hi+|hey+|hello+|yo|hala|ahlan|salam( 3alek(o|om|um))?|اهل
 // warm, assumption-free fallbacks when the restaurant hasn't set config.ai.greetings.
 // {name} = restaurant name (filled in below). Returning guests never see these — they
 // get the context-rich LLM greeting (their usual, birthday, welcome-back).
+// EVERY greeting names the restaurant — a welcome that doesn't is a wasted first
+// impression, and the lines that omitted {name} were dropped for that reason.
+// {icon} is the restaurant's own food emoji (see foodIcon) — never a hardcoded burger.
 const DEFAULT_GREETINGS = [
-  "Heyy! 👋 Welcome to {name} — what are you craving today? 🍔",
-  "Hi there! 😊 Welcome to {name}. What can I get you?",
-  "Ahlan! 🙌 Ready when you are — what would you like today?",
+  "Heyy! 👋 Welcome to {name} — what are you craving today? {icon}",
+  "Hi there! 😊 Welcome to {name}. What can I get you? {icon}",
 ];
 // An Arabic "اهلا" must never get an English canned line — same rotation, mirrored.
 const DEFAULT_GREETINGS_FR = [
-  "Ahlan beek fe {name}! 👋 Nefsak fe eh el naharda? 🍔",
-  "Heyy! 😊 Menawarna fe {name} — te7eb totlob eh?",
-  "Ya hala! 🙌 Gahzeen le orderak — te7eb takol eh?",
+  "Ahlan beek fe {name}! 👋 Nefsak fe eh el naharda? {icon}",
+  "Heyy! 😊 Menawarna fe {name} — te7eb totlob eh? {icon}",
 ];
 const DEFAULT_GREETINGS_AR = [
-  "أهلاً بيك في {name}! 👋 نفسك في إيه النهارده؟ 🍔",
-  "أهلاً وسهلاً! 😊 منورنا في {name} — تحب تطلب إيه؟",
-  "يا هلا! 🙌 جاهزين لطلبك — تحب تاكل إيه النهارده؟",
+  "أهلاً بيك في {name}! 👋 نفسك في إيه النهارده؟ {icon}",
+  "أهلاً وسهلاً! 😊 منورنا في {name} — تحب تطلب إيه؟ {icon}",
 ];
+
+// A RETURNING guest's welcome is just as predictable as a first-timer's: their name,
+// their usual, and a way in. It used to cost a full premium model call (8-12s and real
+// money) on every "hi" from every regular — the single most repeated message a busy
+// restaurant gets. Code writes it now: same warmth, instant, free.
+const WELCOME_BACK = {
+  en: [
+    "Welcome back, {name}! 👋 {usual}",
+    "Hey {name}! 😊 Good to see you again. {usual}",
+  ],
+  ar: [
+    "أهلاً يا {name}! 👋 {usual}",
+    "أهلاً وسهلاً يا {name}! 😊 نورت تاني. {usual}",
+  ],
+  fr: [
+    "Ahlan ya {name}! 👋 {usual}",
+    "Heyy {name}! 😊 Wa7ashtena. {usual}",
+  ],
+};
+const USUAL_LINE = {
+  en: (u) => (u ? `Same as last time — *${u}*? Or take a look at the menu.` : "What can I get you today?"),
+  ar: (u) => (u ? `زي المرة اللي فاتت — *${u}*؟ أو شوف المنيو.` : "تحب تطلب إيه النهارده؟"),
+  fr: (u) => (u ? `Zay el marra elly fatet — *${u}*? Aw shoof el menu.` : "Te7eb totlob eh el naharda?"),
+};
+
+// The greeting emoji belongs to the RESTAURANT, not to burgers. Settings wins
+// (ai.greeting_emoji); otherwise it is read off their own menu categories, so a
+// chicken place greets with 🍗 and a coffee shop with ☕ without anyone configuring it.
+const CUISINE_ICONS = [
+  [/burger|برجر|برغر/i, "🍔"], [/pizza|بيتزا/i, "🍕"], [/sushi|سوشي/i, "🍣"],
+  [/chicken|دجاج|فراخ|تشيكن/i, "🍗"], [/seafood|fish|سمك|بحري/i, "🦐"],
+  [/pasta|italian|مكرونة|باستا/i, "🍝"], [/coffee|cafe|قهوة|كافيه/i, "☕"],
+  [/dessert|sweet|حلو|حلويات|كيك/i, "🍰"], [/juice|drink|عصير|مشروب/i, "🥤"],
+  [/grill|bbq|مشوي|مشويات/i, "🔥"], [/shawarma|شاورما/i, "🌯"],
+  [/breakfast|فطار|إفطار/i, "🍳"], [/sandwich|ساندوتش|سندوتش/i, "🥪"],
+  [/koshary|كشري|مصري/i, "🍛"], [/taco|mexican|تاكو/i, "🌮"],
+];
+function foodIcon(config, menuRows) {
+  const set = String(config?.ai?.greeting_emoji || "").trim();
+  if (set) return set;
+  const hay = (menuRows || []).map((m) => `${m.category || ""} ${m.name || ""}`).join(" ");
+  const counts = CUISINE_ICONS.map(([re, ic]) => [ic, (hay.match(new RegExp(re.source, "gi")) || []).length]);
+  const best = counts.sort((a, b) => b[1] - a[1])[0];
+  return best && best[1] > 0 ? best[0] : "🍽";
+}
 // LANGUAGE IS DECIDED BY SCRIPT, NOT BY A MODEL. Arabic script is unambiguous and
 // Franco has a stable marker set, so this costs nothing and is never wrong about
 // "هاي". It also can never return "unknown" — which is exactly what happened to a
@@ -123,7 +168,10 @@ defineFlow({
             || /(3alek|3aleko|salam|ahlan|ezay(ak|ek)?|hala|sabah el|masa el|izayak)/i.test(message));
           const cfgPool = isAr ? ctx.tenant.config.ai?.greetings_ar : ctx.tenant.config.ai?.greetings;
           const pool = cfgPool?.length ? cfgPool : (isAr ? DEFAULT_GREETINGS_AR : isFr ? DEFAULT_GREETINGS_FR : DEFAULT_GREETINGS);
-          let reply = String(pool[greetIdx++ % pool.length]).replace(/\{name\}/g, rname);
+          const icon = foodIcon(ctx.tenant.config, await getMenu(db).catch(() => []));
+          let reply = String(pool[greetIdx++ % pool.length])
+            .replace(/\{name\}/g, rname)
+            .replace(/\{icon\}/g, icon);
           // The signature nudge does NOT belong here. A greeting is hospitality —
           // "welcome, what are you in the mood for?" — and the recommendation lands
           // where it's useful: on the MENU message, when they browse or start ordering.
@@ -132,11 +180,41 @@ defineFlow({
           // with no buttons at all. Order-first when the restaurant asks type first.
           const chipLang = isAr ? "ar" : isFr ? "fr" : "en";
           const cfg = ctx.tenant.config;
-          const entry = cfg.ai?.ask_type_first === true
-            ? [label(cfg, "order_now", chipLang), label(cfg, "browse_menu", chipLang)]
-            : [label(cfg, "browse_menu", chipLang), label(cfg, "order_now", chipLang)];
-          if (builderConfig(cfg).enabled) entry.push(label(cfg, "build_your_own", chipLang));
-          return { kind: "greeting", reply, quick_replies: entry.slice(0, 3), language: isAr ? "ar" : (sticky || undefined) };
+          const entry = entryChips(cfg, chipLang, { builderEnabled: builderConfig(cfg).enabled });
+          return { kind: "greeting", reply, quick_replies: entry, language: isAr ? "ar" : (sticky || undefined) };
+        }
+
+        // KNOWN GUEST, bare greeting → also answered in code. One cheap DB read for
+        // their usual; no model. Anything richer than a welcome (a question, an order)
+        // never reaches here, so the host still handles everything that needs thought.
+        const knownName = (diner?.name || "").trim().split(/\s+/)[0];
+        if (knownName && !diner?.preferences?.pending_order) {
+          const lg = detectLang(message, sticky);
+          const lgk = lg === "ar" ? "ar" : lg === "franco" ? "fr" : "en";
+          let usual = null;
+          try {
+            const { data: past } = await db.from("orders").select("items")
+              .eq("phone_number", ctx.sessionId).neq("status", "cancelled")
+              .order("created_at", { ascending: false }).limit(1);
+            const first = past?.[0]?.items?.[0];
+            if (first?.name) {
+              const menuRows = await getMenu(db).catch(() => []);
+              const row = menuRows.find((m) => m.name === first.name && m.available);
+              usual = row ? (lgk === "ar" && row.name_ar ? row.name_ar : row.name) : null;
+            }
+          } catch { /* no usual is fine — the greeting still works */ }
+          bump("greeting_hits");
+          const pool = WELCOME_BACK[lgk];
+          const reply = String(pool[greetIdx++ % pool.length])
+            .replace(/\{name\}/g, knownName)
+            .replace(/\{usual\}/g, USUAL_LINE[lgk](usual));
+          const cfg2 = ctx.tenant.config;
+          const chips = entryChips(cfg2, lgk, { builderEnabled: builderConfig(cfg2).enabled, hasUsual: !!usual });
+          // their usual leads when they have one — it's the fastest way back in
+          if (usual && !chips.includes(label(cfg2, "same_as_last", lgk))) {
+            chips.unshift(label(cfg2, "same_as_last", lgk));
+          }
+          return { kind: "greeting", reply, quick_replies: chips.slice(0, 3), language: lg };
         }
       }
       // THE MENU IS A DOCUMENT — answer it in code. This used to wake the big model
