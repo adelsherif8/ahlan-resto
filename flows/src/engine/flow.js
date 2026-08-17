@@ -179,10 +179,11 @@ function persistExecution(ctx, exec) {
 }
 
 // DB-backed reads (merged with the in-memory ring by the server)
-export async function listExecutionsDb(db, { flow, limit = 50 } = {}) {
+export async function listExecutionsDb(db, { flow, limit = 50, since = null } = {}) {
   try {
     let q = db.from("flow_executions").select("id,flow,session_id,trigger,status,error,started_at,finished_at,duration_ms,tokens_in,tokens_out,cost_usd,children,parent_id").order("started_at", { ascending: false }).limit(limit);
     if (flow) q = q.eq("flow", flow);
+    if (since) q = q.gt("started_at", since); // incremental polling — see /api/executions
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return (data || []).map((e) => ({ ...e, nodes: [] , _db: true }));

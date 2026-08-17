@@ -1,5 +1,6 @@
 // Zero-LLM fast paths: closing detection + FAQ cache (hours / location / contact).
 // Biggest cost saver — the most common messages never touch a model.
+import { orderedCategories } from "./categories.js";
 import { hoursToday } from "./tenant.js";
 
 const AR = /[؀-ۿ]/;
@@ -66,18 +67,23 @@ const COMPOUND_PAT = /(\?[^?]*\?)|(?<![\p{L}\p{N}])(and|also|plus|kaman|كمان
 // full deterministic listing — every dish, price, flags. Zero LLM, zero teasing.
 import { getMenu } from "./menucache.js";
 
-export async function matchMenuCategory(db, message, currency = "EGP") {
+export async function matchMenuCategory(db, message, currency = "EGP", config = null) {
   const probe = String(message).trim().split("\n")[0].trim();
   if (!probe || probe.length > 24 || /[?؟]/.test(probe)) return null;
   const data = await getMenu(db);
   const items = (data || []).filter((m) => m.available);
-  const cat = [...new Set(items.map((m) => m.category))].find((c) => String(c).toLowerCase() === probe.toLowerCase());
-  if (!cat) return null;
-  const list = items.filter((m) => m.category === cat);
+  // a tapped list row sends the row TITLE back — English name, or the restaurant's
+  // Arabic category name for an Arabic guest — match either
+  const nz = (s) => String(s || "").toLowerCase().replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").trim();
+  const cats = orderedCategories(items, config || {});
+  const hit = cats.find((c) => nz(c.name) === nz(probe) || (c.name_ar && nz(c.name_ar) === nz(probe)));
+  if (!hit) return null;
+  const isAr = /[؀-ۿ]/.test(probe) || (!!hit.name_ar && nz(hit.name_ar) === nz(probe));
+  const list = items.filter((m) => m.category === hit.name);
   const lines = list.map((m) =>
-    `• ${m.name} — ${m.price} ${currency}${m.bestseller ? " ⭐" : ""}${m.spice_level ? " " + "🌶".repeat(m.spice_level) : ""}${m.description ? `\n   ${m.description}` : ""}`
+    `• ${isAr && m.name_ar ? m.name_ar : m.name} — ${m.price} ${currency}${m.bestseller ? " ⭐" : ""}${m.spice_level ? " " + "🌶".repeat(m.spice_level) : ""}${(isAr ? (m.ingredients_ar || m.description) : m.description) ? `\n   ${isAr ? (m.ingredients_ar || m.description) : m.description}` : ""}`
   );
-  return { reply: `🍽 ${cat}\n\n${lines.join("\n")}`, kind: "menu_category", language: null };
+  return { reply: `🍽 ${isAr && hit.name_ar ? hit.name_ar : hit.name}\n\n${lines.join("\n")}`, kind: "menu_category", language: isAr ? "ar" : null };
 }
 
 export function matchFaq(message, config, sticky) {
@@ -162,10 +168,25 @@ export function matchApprovedFaq(message, config) {
 }
 
 // ---- item facts straight from the DB: "what's in X" / "is X spicy" ----
-const INGREDIENTS_PAT = /(?<![\p{L}\p{N}])(what'?s in|what is in|ingredients?|made (of|with)|contains?|فيه ايه|مكونات|بيتعمل من)(?![\p{L}\p{N}])/iu;
+const INGREDIENTS_PAT = /(?<![\p{L}\p{N}])(what'?s in|what is in|inside|ingredients?|made (of|with)|contains?|فيه ايه|فيه إيه|فيها ايه|فيها إيه|جواه|جواها|مكونات|مكوناته|مكوناتها|بيتعمل من|feh eh|fyh eh|gowah|gowaha|makonat)(?![\p{L}\p{N}])/iu;
+// "wat is inisde teh truffle shroom" — guests typo the QUESTION words, not just dish
+// names. A fuzzy pass over the message's tokens catches 1–2-letter slips of the
+// ingredient keywords, so the free path still answers instead of a paid model.
+const ING_FUZZY = ["inside", "ingredients", "ingredient", "contains"];
+function wantsIngredientsLoose(message) {
+  if (INGREDIENTS_PAT.test(message)) return true;
+  const toks = String(message).toLowerCase().split(/[^a-z]+/).filter((t) => t.length >= 5);
+  return toks.some((t) => ING_FUZZY.some((k) =>
+    Math.abs(k.length - t.length) <= 2 && editDistance(t, k) <= (Math.min(t.length, k.length) >= 6 ? 2 : 1)));
+}
+// A follow-up that NAMES a dish is a dish-info question, whatever came before:
+// "wat about the Smoky BBQ Burger" deserves the same instant card.
+const ABOUT_PAT = /(?<![\p{L}\p{N}])((wh?at|how) ?about|tell me about|وايه عن|وإيه عن|طب وايه|وايه رأيك في|w ?eh 3an|ra2yak fi)(?![\p{L}\p{N}])/iu;
 const SPICY_PAT = /(?<![\p{L}\p{N}])(spicy|hot\??$|حار|سبايسي|حراق)(?![\p{L}\p{N}])/iu;
-function findItem(data, message) {
-  const norm = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+export function findItem(data, message) {
+  // The Arabic definite article is stripped on BOTH sides: guests say «الترافل شروم»,
+  // the menu row says «ترافل شروم برجر» — symmetric normalisation keeps them equal.
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/(^|\s)ال(?=\S)/g, "$1").replace(/\s+/g, " ").trim();
   const probe = ` ${norm(message)} `;
   const items = (data || []).filter((m) => m.available);
   // Arabic guests name dishes by their Arabic menu name — match both scripts.
@@ -175,28 +196,35 @@ function findItem(data, message) {
     || items.find((m) => { const t = norm(m.name_ar || "").split(" ")[0]; return t.length >= 4 && probe.includes(` ${t} `); })
     || null;
 }
-export async function matchItemInfo(db, message, sticky = null) {
+export async function matchItemInfo(db, message, sticky = null, currency = "EGP") {
   if (message.length > 90) return null;
-  const wantsIngredients = INGREDIENTS_PAT.test(message);
+  const wantsIngredients = wantsIngredientsLoose(message);
   const wantsSpice = SPICY_PAT.test(message);
-  if (!wantsIngredients && !wantsSpice) return null;
+  const wantsAbout = ABOUT_PAT.test(message);
+  if (!wantsIngredients && !wantsSpice && !wantsAbout) return null;
   const data = await getMenu(db);
   const item = findItem(data, message);
-  if (!item) { nearMiss("item_info", message); return null; }
+  if (!item) { if (wantsIngredients || wantsSpice) nearMiss("item_info", message); return null; }
   const l = lang(message, sticky);
   // Arabic guests get the Arabic dish name; ingredient text comes from the DB in
   // the guest's language when it exists (ingredients_ar), never invented.
   const dnAr = item.name_ar || item.name;
-  if (wantsIngredients) {
+  if (wantsIngredients || wantsAbout) {
     const srcEn = item.ingredients || item.description;
     const srcAr = item.ingredients_ar || null;
     if (!srcEn && !srcAr) return null; // nothing real in the DB → the LLM stays honest instead
+    const price = Number(item.price) ? Number(item.price) : null;
+    const tail = price ? ` — ${price} ${currency}` : "";
+    const tailAr = price ? ` — ${price} ${currency === "EGP" ? "جنيه" : currency}` : "";
     const replies = {
-      en: `${item.name}: ${srcEn || srcAr}`,
-      ar: `${dnAr}: ${srcAr || srcEn}`,
-      franco: `${item.name}: ${srcEn || srcAr}`,
+      en: `*${item.name}*${tail}\n${srcEn || srcAr}`,
+      ar: `*${dnAr}*${tailAr}\n${srcAr || srcEn}`,
+      franco: `*${item.name}*${tail}\n${srcEn || srcAr}`,
     };
-    return { reply: replies[l] || replies.en, kind: "item_info", language: l };
+    // The dish's photo rides WITH the answer (deliver merges it into one message) —
+    // never a "want to see a photo?" question, never a second bubble.
+    const photos = item.photo_url ? [{ url: item.photo_url, caption: `${l === "ar" ? dnAr : item.name}${l === "ar" ? tailAr : tail}` }] : [];
+    return { reply: replies[l] || replies.en, kind: "item_info", language: l, photos };
   }
   if (wantsSpice) {
     if (item.spice_level == null) return null;

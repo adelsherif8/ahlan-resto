@@ -368,10 +368,12 @@ const CASES = [
     expect: [/point|reward|loyalt|program|free|order|don'?t have|مفيش|نقاط|مكافأ/i], forbid: [/\b\d{3,}\s*points\b/i] },
 ];
 
-let state = { status: "idle", started_at: null, finished_at: null, passed: 0, failed: 0, results: [] };
+let state = { status: "idle", started_at: null, finished_at: null, total: CASES.length, passed: 0, failed: 0, results: [] };
 
 export function regressionStatus() {
-  return state;
+  // `total` lets the console show real progress (n/113). It used to hardcode 20,
+  // so a full run looked hung a fifth of the way in.
+  return { ...state, suite_size: CASES.length };
 }
 
 // Grade EVERYTHING the guest received for their last message, not just the final
@@ -539,7 +541,7 @@ async function cleanup(db, runId) {
 export async function runRegression({ only } = {}) {
   if (state.status === "running") return state;
   const runId = Date.now().toString(36);
-  state = { status: "running", started_at: new Date().toISOString(), finished_at: null, passed: 0, failed: 0, results: [] };
+  state = { status: "running", started_at: new Date().toISOString(), finished_at: null, total: CASES.length, passed: 0, failed: 0, results: [] };
   try {
     const tenant = await resolveRestaurant();
     const rtype = tenant.config.basic_info?.restaurant_type || "fine";
@@ -552,6 +554,7 @@ export async function runRegression({ only } = {}) {
       const unknown = only.filter((id) => !CASES.some((c) => c.id === id));
       if (unknown.length) throw new Error(`unknown case id(s): ${unknown.join(", ")}`);
     }
+    state.total = picked.length; // a targeted `only` run counts against its own subset
     // Long conversations desync under parallel load (replies cross-count, the
     // buffer merges rushed turns) and fail for harness reasons — run them serially.
     const longCases = picked.filter((c) => (c.turns?.length || 0) >= 5);

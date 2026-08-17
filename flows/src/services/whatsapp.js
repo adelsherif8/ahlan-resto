@@ -98,13 +98,14 @@ export async function sendText(phoneNumberId, to, text) {
   return graphPost(phoneNumberId, { to, type: "text", text: { body: text.slice(0, 4096) } });
 }
 
+// WhatsApp image links accept ONLY jpeg/png — .webp (e.g. CDN product shots) is
+// silently rejected. Convert through an image proxy at send time.
+const imageLink = (url) => /\.webp(\?|$)/i.test(url)
+  ? `https://images.weserv.nl/?url=${encodeURIComponent(url.replace(/^https?:\/\//, ""))}&output=jpg&q=85`
+  : url;
+
 export async function sendImage(phoneNumberId, to, imageUrl, caption = "") {
-  // WhatsApp image links accept ONLY jpeg/png — .webp (e.g. CDN product shots) is
-  // silently rejected. Convert through an image proxy at send time.
-  const link = /\.webp(\?|$)/i.test(imageUrl)
-    ? `https://images.weserv.nl/?url=${encodeURIComponent(imageUrl.replace(/^https?:\/\//, ""))}&output=jpg&q=85`
-    : imageUrl;
-  return graphPost(phoneNumberId, { to, type: "image", image: { link, caption: caption.slice(0, 1024) } });
+  return graphPost(phoneNumberId, { to, type: "image", image: { link: imageLink(imageUrl), caption: caption.slice(0, 1024) } });
 }
 
 // Quick-reply buttons (max 3, 20-char titles). Tapping one sends its title back
@@ -118,15 +119,19 @@ export async function sendLocationRequest(phoneNumberId, to, bodyText) {
   });
 }
 
-export async function sendButtons(phoneNumberId, to, bodyText, labels) {
+export async function sendButtons(phoneNumberId, to, bodyText, labels, headerImageUrl = null) {
   const buttons = labels.slice(0, 3).map((l, i) => ({
     type: "reply",
     reply: { id: `qr_${i}_${String(l).replace(/[^\w]/g, "").slice(0, 12)}`, title: String(l).slice(0, 20) },
   }));
+  const interactive = { type: "button", body: { text: bodyText.slice(0, 1024) }, action: { buttons } };
+  // A dish answer, its photo AND its buttons can be ONE message — the image rides
+  // as the interactive header instead of a second bubble.
+  if (headerImageUrl) interactive.header = { type: "image", image: { link: imageLink(headerImageUrl) } };
   return graphPost(phoneNumberId, {
     to,
     type: "interactive",
-    interactive: { type: "button", body: { text: bodyText.slice(0, 1024) }, action: { buttons } },
+    interactive,
   });
 }
 

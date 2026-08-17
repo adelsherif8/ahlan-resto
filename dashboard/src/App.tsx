@@ -19,6 +19,8 @@ import Chats from "./pages/Chats";
 import Events from "./pages/Events";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
+import Profit from "./pages/Profit";
+import Quality from "./pages/Quality";
 
 function Home() {
   const { token, role } = session();
@@ -38,6 +40,10 @@ export default function App() {
         }
       >
         <Route path="/overview" element={<ProtectedRoute roles={["manager"]}><Overview /></ProtectedRoute>} />
+        {/* Hidden from the sidebar, admin-only, reachable by URL: Profit is parked until
+            item costs exist; Bot quality is an internal tool that will move to the ops console. */}
+        <Route path="/profit" element={<ProtectedRoute roles={["admin"]}><Profit /></ProtectedRoute>} />
+        <Route path="/quality" element={<ProtectedRoute roles={["admin"]}><Quality /></ProtectedRoute>} />
         <Route path="/reservations" element={<ProtectedRoute roles={["manager", "host"]}><Reservations /></ProtectedRoute>} />
         <Route path="/floor" element={<ProtectedRoute roles={["manager", "host"]}><FloorMap /></ProtectedRoute>} />
         <Route path="/waitlist" element={<ProtectedRoute roles={["manager", "host"]}><Waitlist /></ProtectedRoute>} />

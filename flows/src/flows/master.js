@@ -87,9 +87,16 @@ function foodIcon(config, menuRows) {
 // his first message back. An extra LLM "language agent" would cost a call per message
 // and still be less certain than reading the alphabet.
 const FRANCO_HINT = /(3ayez|3aiz|3awez|3awz|2ol|ezay|fein|fen|emta|khalas|shokran|habibi|ya basha|law sama7t|ma3lesh|delwa2ty|akl|akol|tamam|kwayes|sabah el|masa el|3alek|nefsak|te7eb|momken|bta3|naharda|3andko|3andokom|hat|hatli|ab3at)/i;
-function detectLang(message, sticky) {
-  if (/[\u0600-\u06FF]/.test(String(message || ""))) return "ar";
-  if (FRANCO_HINT.test(String(message || ""))) return "franco";
+// exported so the ops language split reports what the BOT actually decided, rather
+// than a second, subtly different guess living in the console
+export function detectLang(message, sticky) {
+  const s = String(message || "");
+  if (/[\u0600-\u06FF]/.test(s)) return "ar";
+  // a bare URL / pin / number carries no language — keep whatever the guest was
+  // speaking (an Arabic guest sending a Maps link got a Franco refusal)
+  const words = s.replace(/https?:\/\/\S+/g, "").replace(/[^\p{L}]/gu, "");
+  if (!words && sticky) return sticky;
+  if (FRANCO_HINT.test(s)) return "franco";
   return sticky || "en";
 }
 // The classifier may still answer "unknown"/"mixed", or disagree with the alphabet.
@@ -97,6 +104,14 @@ function detectLang(message, sticky) {
 function settleLang(modelLang, message, sticky) {
   const code = detectLang(message, sticky);
   if (/[\u0600-\u06FF]/.test(String(message || ""))) return "ar";
+  // LATIN IN → NEVER ARABIC OUT. The classifier labelled "3ayez classic burger" as
+  // Arabic (it IS Arabic, just written in Latin letters), and the order flow then
+  // rendered his whole bill in Arabic script — dish name, subtotal label and all —
+  // to a guest who had never typed an Arabic character.
+  // (Only when the message actually contains Latin LETTERS — a bare Maps link or
+  // pin from an Arabic guest keeps their language, resolved by detectLang above.)
+  const latinWords = /\p{Script=Latin}/u.test(String(message || "").replace(/https?:\/\/\S+/g, ""));
+  if (modelLang === "ar") return !latinWords ? code : (code === "ar" ? "franco" : code);
   if (!modelLang || modelLang === "unknown" || modelLang === "mixed") return code;
   return modelLang;
 }
@@ -308,14 +323,14 @@ defineFlow({
       const svc = matchService(message, ctx.tenant.config, sticky);
       if (svc) { bump("service_hits"); return svc; }
       const currency = ctx.tenant.config.payments?.currency || "EGP";
-      const catList = await matchMenuCategory(db, message, currency);
+      const catList = await matchMenuCategory(db, message, currency, ctx.tenant.config);
       if (catList) { bump("menu_category_hits"); return catList; }
       const itemPrice = await matchItemPrice(db, message, currency, sticky);
       if (itemPrice) { bump("item_price_hits"); return itemPrice; }
       // multi-item totals are arithmetic — code adds, never the model
       const priceMath = await matchPriceMath(db, message, currency, sticky);
       if (priceMath) { bump("price_math_hits"); return priceMath; }
-      const itemInfo = await matchItemInfo(db, message, sticky);
+      const itemInfo = await matchItemInfo(db, message, sticky, currency);
       if (itemInfo) { bump("item_info_hits"); return itemInfo; }
       return { kind: "none — needs classification + LLM" };
     }, { input: { message, sticky_language: input.stickyLanguage || null } });
@@ -335,7 +350,7 @@ defineFlow({
       });
     }
     if (fast.reply && !langMismatch) {
-      return { reply: fast.reply, quickReplies: fast.quick_replies || [], menuDoc: fast.menu_doc || null, fast_path: fast.kind, language: fast.language, bucket: "fast_path" };
+      return { reply: fast.reply, quickReplies: fast.quick_replies || [], menuDoc: fast.menu_doc || null, photos: fast.photos || [], fast_path: fast.kind, language: fast.language, bucket: "fast_path" };
     }
 
     const precheck = input.precheck || {};
@@ -367,6 +382,12 @@ defineFlow({
       // "بتوصلوا المعادي؟" gets a real answer instead of a menu dump — WITHOUT us guessing
       // question-vs-answer by length here. Routing stays simple; the smart decision lives
       // where the extractor already read the message.
+      // A Maps link / shared pin during an active order IS the delivery address — it
+      // belongs to the order flow whatever its length (URLs are long). Friendly once
+      // answered it with the old flat zone fee and its own "Place order" buttons.
+      if (precheck.active_flow === "order" && /https?:\/\/[^\s]*(google\.[a-z.]+\/maps|maps\.google|maps\.app\.goo\.gl|goo\.gl\/maps|waze\.com)|^\[location\]/i.test(message)) {
+        return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (map link / pin inside an active order)" } };
+      }
       if (precheck.active_flow === "order" && message.trim().length <= 45) {
         return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (short message inside an active order — order flow re-routes non-order ones)" } };
       }
@@ -376,6 +397,22 @@ defineFlow({
       // model's. Two or more "LABEL:" lines during an active order = order.
       if (precheck.active_flow === "order" && (message.match(/^\s*[\p{L} ]{2,24}:/gmu) || []).length >= 2) {
         return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (filled template inside an active order)" } };
+      }
+      // A message that is JUST a dish name ("سيجناتشر برجر", "classic burger") is an
+      // ORDER, not a question — the guest is picking, the way people answer a menu.
+      // Friendly used to send a product card + photo and ask "want to try it?".
+      // Only when nothing marks it as a question (no ?/بكام/how much/what's in).
+      if (!/[?؟]/.test(message) && !/(بكام|how much|price|سعر|what'?s in|فيه ايه|ingredients|مكونات|spicy|حار)/i.test(message) && message.trim().length <= 40) {
+        const names = await menuNames(db);
+        const { getMenu } = await import("../services/menucache.js");
+        const rows = await getMenu(db).catch(() => []);
+        const arNames = rows.filter((m) => m.available && m.name_ar).map((m) => String(m.name_ar));
+        const nz = (s) => String(s || "").toLowerCase().replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+        const said = nz(message);
+        const isDish = names.some((n) => nz(n) === said) || arNames.some((n) => nz(n) === said || nz(n).replace(/\s*[٠-٩0-9]+\s*قطع$/, "").trim() === said);
+        if (isDish) {
+          return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (bare dish name = order)" } };
+        }
       }
       // "an iconic wrap meal for dine in at Sheraton" — no verb, but a menu item
       // plus an order-type word is an order, period. Real guests phrase it exactly

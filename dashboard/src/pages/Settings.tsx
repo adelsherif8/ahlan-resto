@@ -183,6 +183,10 @@ export default function Settings() {
           <Field label="Reservations via bot">
             <Toggle on={!!ai.reservations_enabled} onClick={() => upd("ai", { reservations_enabled: !ai.reservations_enabled })} />
           </Field>
+          <Field label="Answer waiting guests within (min) — 0 = no target">
+            <Input type="number" min={0} max={240} value={ai.sla_minutes ?? 0}
+              onChange={(e) => upd("ai", { sla_minutes: Math.max(0, Number(e.target.value) || 0) })} />
+          </Field>
           <Field label="Compact messages (one bubble per reply — cuts Meta's Oct-2026 per-message fees ~2×)">
             <Toggle on={!!ai.compact_messages} onClick={() => upd("ai", { compact_messages: !ai.compact_messages })} />
           </Field>
@@ -422,6 +426,22 @@ export default function Settings() {
               </Field>
             ))}
           </div>
+        </div>
+
+        {/* These used to be four English lines hardcoded in the Chats page — every
+            restaurant inherited the same voice and none could change a word of it. */}
+        <div className="mt-6 border-t border-zinc-800 pt-5">
+          <SectionTitle title="Staff quick replies" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai || {})} />
+          <p className="mb-2 text-xs text-zinc-500">
+            One-tap replies staff send from the Chats page — your words, your language.
+            Use <code className="rounded bg-zinc-800 px-1">{"{name}"}</code> for the guest's name
+            and <code className="rounded bg-zinc-800 px-1">{"{order}"}</code> for their latest order code;
+            both are filled in before sending, and a line is skipped if the value is missing.
+          </p>
+          <SnippetsEditor
+            value={(config.ai || {}).snippets || []}
+            onChange={(next: string[]) => upd("ai", { snippets: next })}
+          />
         </div>
       </Card>}
 
@@ -684,5 +704,36 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
     >
       <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${on ? "left-[22px]" : "left-0.5"}`} />
     </button>
+  );
+}
+
+// Free-form list editor for the staff quick replies. Kept deliberately dumb: add, edit,
+// remove, reorder by position in the list. Empty list = the Chats page falls back to a
+// neutral built-in set, so a restaurant that never opens this screen still has something.
+function SnippetsEditor({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const rows = value.length ? value : [""];
+  const set = (i: number, v: string) => {
+    const next = [...rows];
+    next[i] = v;
+    onChange(next.filter((x, n) => x.trim() || n < next.length - 1));
+  };
+  return (
+    <div className="space-y-2">
+      {rows.map((s, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <Input className="flex-1" maxLength={300} placeholder="e.g. Ahlan {name}! How can we help?"
+            value={s} onChange={(e) => set(i, e.target.value)} />
+          <button type="button" onClick={() => onChange(rows.filter((_, n) => n !== i))}
+            aria-label="Remove this quick reply"
+            className="cursor-pointer rounded-lg border border-zinc-700 px-2 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+            remove
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={() => onChange([...rows.filter((x) => x.trim()), ""])}
+        className="cursor-pointer rounded-lg border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800">
+        + Add a quick reply
+      </button>
+    </div>
   );
 }

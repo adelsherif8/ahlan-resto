@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, allowRoles } from "../middleware/auth.js";
 import { restaurantContext } from "../middleware/restaurantContext.js";
 
 const router = Router();
@@ -47,10 +47,18 @@ router.get("/kpis", async (req, res, next) => {
     const revenueYesterday = round2(real
       .filter((o) => dayOf(o.created_at) === yesterday && o.status !== "cancelled")
       .reduce((s, o) => s + Number(o.total || 0), 0));
-    // live tickets are live regardless of which day they started — a 23:50 order
-    // still cooking at 00:05 stays in open/late
-    const openNow = real.filter((o) => !["paid", "cancelled", "served", "delivered"].includes(o.status));
-    const lateNow = openNow.filter((o) => (Date.now() - new Date(o.created_at).getTime()) / 60000 > 20).length;
+    // Live tickets are live regardless of which day they started — a 23:50 order still
+    // cooking at 00:05 stays in open/late, so this is deliberately NOT bounded to today.
+    // But "open" has to end somewhere. A ticket nobody ever closed is an admin chore, not
+    // a kitchen emergency; counting those forever made "N orders running late" a permanent
+    // red alarm no one could ever clear (observed: 12 "late" on a day with 1 order, the
+    // oldest 17h old). Past STALE_HOURS a ticket stops being late and becomes stale_open.
+    const STALE_HOURS = 12;
+    const ageMin = (o) => (Date.now() - new Date(o.created_at).getTime()) / 60000;
+    const openAll = real.filter((o) => !["paid", "cancelled", "served", "delivered"].includes(o.status));
+    const openNow = openAll.filter((o) => ageMin(o) <= STALE_HOURS * 60);
+    const staleOpen = openAll.length - openNow.length;
+    const lateNow = openNow.filter((o) => ageMin(o) > 20).length;
     const prep = kept
       .map((o) => { const end = o.ready_at || o.served_at; return end ? (new Date(end).getTime() - new Date(o.created_at).getTime()) / 60000 : null; })
       .filter((x) => x !== null && x > 0 && x < 240);
@@ -65,7 +73,7 @@ router.get("/kpis", async (req, res, next) => {
       orders_today: {
         count: kept.length,
         revenue, revenue_yesterday: revenueYesterday,
-        open_now: openNow.length, late_now: lateNow,
+        open_now: openNow.length, late_now: lateNow, stale_open: staleOpen,
         cancelled: todayOrders.length - kept.length,
         avg_prep: prep.length ? Math.round(prep.reduce((s, x) => s + x, 0) / prep.length) : null,
         ai_count: kept.filter((o) => !String(o.phone_number || "").startsWith("walkin:")).length,
@@ -124,6 +132,127 @@ router.get("/agent-stats", async (req, res, next) => {
       walk_ins: recent.filter((r) => r.source === "walk_in").length,
       abandoned_leads: nRecent("abandoned_booking"),
       arrivals_handled: nRecent("arrival"),
+    });
+  } catch (e) { next(e); }
+});
+
+// What the restaurant actually MADE, not what it took. Revenue is the easy half —
+// this pairs every sold item with its menu_items.cost so a manager can see gross
+// profit, which categories carry the place, and which dishes lose money on every plate.
+//
+// Two honesty rules, because a wrong profit number is worse than no profit number:
+//   1) an item with no cost recorded is NEVER guessed — it is excluded and reported
+//      as uncovered, so the UI can say "these numbers cover 62% of revenue".
+//   2) revenue here is FOOD revenue (items only). Delivery fees, tax and tips are
+//      not food and would inflate margin if mixed in with food cost.
+// Admin-only while the page is parked (hidden from the sidebar until item costs exist).
+router.get("/profit", allowRoles("admin"), async (req, res, next) => {
+  try {
+    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
+    const cutoff = Date.now() - days * 86400000;
+    const isTest = (v) => /^web:(regress|convo|test)-/i.test(String(v || ""));
+    const tz = req.restaurant?.basic_info?.timezone || "Africa/Cairo";
+    const dayOf = (ts) => new Date(ts).toLocaleDateString("en-CA", { timeZone: tz });
+    const round2 = (n) => Math.round(n * 100) / 100;
+
+    const [menu, allOrders] = await Promise.all([
+      req.repo.list("menu_items", { order: "sort_order", desc: false }),
+      req.repo.list("orders", { order: "created_at", desc: true, limit: 5000 }),
+    ]);
+    const orders = allOrders.filter((o) =>
+      o.status !== "cancelled" && !isTest(o.phone_number) && new Date(o.created_at).getTime() > cutoff);
+
+    // menu lookup by normalised name — order items store the name, not the id
+    const key = (s) => String(s || "").trim().toLowerCase();
+    const byName = new Map(menu.map((m) => [key(m.name), m]));
+
+    const items = {};      // name -> aggregated sales
+    const byDay = {};
+    const byCategory = {};
+    let discounts = 0;
+
+    for (const o of orders) {
+      discounts += Number(o.discount) || 0;
+      const day = dayOf(o.created_at);
+      byDay[day] = byDay[day] || { day, revenue: 0, cost: 0, profit: 0, covered: 0 };
+      for (const it of o.items || []) {
+        const qty = Number(it.qty) || 1;
+        const unitPrice = Number(it.unit_price ?? it.price) || 0;
+        const revenue = unitPrice * qty;
+        const m = byName.get(key(it.name));
+        const unitCost = m && m.cost != null && m.cost !== "" ? Number(m.cost) : null;
+        const costed = unitCost != null && Number.isFinite(unitCost);
+        const cost = costed ? unitCost * qty : 0;
+        const category = m?.category || "—";
+
+        const row = (items[it.name] = items[it.name] || {
+          name: it.name, category, units: 0, revenue: 0, cost: 0,
+          price: m ? Number(m.price) : null, unit_cost: costed ? unitCost : null, costed,
+        });
+        row.units += qty; row.revenue += revenue; row.cost += cost;
+
+        byDay[day].revenue += revenue;
+        if (costed) { byDay[day].cost += cost; byDay[day].covered += revenue; }
+
+        const c = (byCategory[category] = byCategory[category] || { category, units: 0, revenue: 0, cost: 0, covered: 0 });
+        c.units += qty; c.revenue += revenue;
+        if (costed) { c.cost += cost; c.covered += revenue; }
+      }
+    }
+
+    const all = Object.values(items);
+    const costed = all.filter((r) => r.costed);
+    const uncosted = all.filter((r) => !r.costed);
+    const revenueTotal = all.reduce((s, r) => s + r.revenue, 0);
+    const revenueCovered = costed.reduce((s, r) => s + r.revenue, 0);
+    const foodCost = costed.reduce((s, r) => s + r.cost, 0);
+    const grossProfit = revenueCovered - foodCost;
+
+    const shape = (r) => ({
+      name: r.name, category: r.category, units: r.units,
+      revenue: round2(r.revenue), cost: round2(r.cost),
+      profit: round2(r.revenue - r.cost),
+      margin_pct: r.revenue > 0 ? Math.round(((r.revenue - r.cost) / r.revenue) * 100) : null,
+      price: r.price, unit_cost: r.unit_cost,
+      unit_margin: r.price != null && r.unit_cost != null ? round2(r.price - r.unit_cost) : null,
+    });
+
+    res.json({
+      days,
+      currency: req.restaurant?.payments?.currency || "EGP",
+      coverage: {
+        items_sold: all.length,
+        items_costed: costed.length,
+        revenue_total: round2(revenueTotal),
+        revenue_covered: round2(revenueCovered),
+        pct: revenueTotal > 0 ? Math.round((revenueCovered / revenueTotal) * 100) : 0,
+      },
+      totals: {
+        orders: orders.length,
+        food_revenue: round2(revenueCovered),
+        food_cost: round2(foodCost),
+        gross_profit: round2(grossProfit),
+        margin_pct: revenueCovered > 0 ? Math.round((grossProfit / revenueCovered) * 100) : null,
+        discounts: round2(discounts),
+        avg_profit_per_order: orders.length ? round2(grossProfit / orders.length) : 0,
+      },
+      by_day: Object.values(byDay)
+        .map((d) => ({ day: d.day, revenue: round2(d.covered), cost: round2(d.cost), profit: round2(d.covered - d.cost) }))
+        .sort((a, b) => (a.day < b.day ? -1 : 1)),
+      by_category: Object.values(byCategory)
+        .map((c) => ({
+          category: c.category, units: c.units,
+          revenue: round2(c.covered), cost: round2(c.cost), profit: round2(c.covered - c.cost),
+          margin_pct: c.covered > 0 ? Math.round(((c.covered - c.cost) / c.covered) * 100) : null,
+          uncovered: round2(c.revenue - c.covered),
+        }))
+        .sort((a, b) => b.profit - a.profit),
+      top: costed.map(shape).sort((a, b) => b.profit - a.profit).slice(0, 12),
+      // sold below cost, or so thin it is not worth the pass — the whole point of the page
+      losers: costed.map(shape).filter((r) => r.unit_margin != null && r.unit_margin <= 0)
+        .sort((a, b) => a.profit - b.profit),
+      uncosted: uncosted.map((r) => ({ name: r.name, units: r.units, revenue: round2(r.revenue) }))
+        .sort((a, b) => b.revenue - a.revenue),
     });
   } catch (e) { next(e); }
 });

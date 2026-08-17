@@ -341,10 +341,16 @@ defineFlow({
       // otherwise text-first stands (never truncate, never lose a button).
       const mergeDoc = !!md && config.ai?.compact_messages === true && !list && !qrs.length
         && parts.join("\n\n").length <= 1000;
+      // A dish answer and its photo are ONE message, always: the photo carries the
+      // text as its caption — or as the interactive header when buttons ride along.
+      // Two bubbles buried the answer and read like the bot changed its mind.
+      const photos = routed?.photos || [];
+      const mergePhoto = photos.length === 1 && parts.length === 1 && !list && !md
+        && parts[0].length <= 1000;
 
       for (let i = 0; i < parts.length; i++) {
         const last = i === parts.length - 1;
-        if (mergeDoc) break; // delivered below, as the document's caption
+        if (mergeDoc || mergePhoto) break; // delivered below, merged with the doc/photo
         if (last && isWa && routed?.wantLocation && !list && !qrs.length) {
           // address ask ships as WhatsApp's native location-request — one tap, no typos
           const pnid = sessionRoutes.get(bufKey(ctx))?.phoneNumberId || ctx.tenant?.record?.wpid || WA_PHONE_NUMBER_ID;
@@ -359,9 +365,43 @@ defineFlow({
           : last && qrs.length ? `\n${qrs.map((q) => "▸ " + q).join("  ")}` : "";
         writes.push(logMessage(db, ctx.sessionId, "ai", parts[i] + suffix, ctx.channel));
       }
-      for (const photo of routed?.photos || []) {
-        await deliverPhoto(ctx, photo);
-        writes.push(logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" }));
+      // ONE bubble or no photo (founder rule): an unsolicited photo may only ride
+      // INSIDE the reply's bubble. If every merged form fails, the guest gets the
+      // text alone — never a trailing photo-only bubble. A photo the guest ASKED
+      // for ("send a photo", «وريني») is the answer itself and may stand alone.
+      let photoDelivered = false;
+      if (mergePhoto) {
+        const p = photos[0];
+        if (isWa) {
+          const pnid = sessionRoutes.get(bufKey(ctx))?.phoneNumberId || ctx.tenant?.record?.wpid || WA_PHONE_NUMBER_ID;
+          if (pnid) {
+            if (qrs.length) {
+              photoDelivered = await sendButtons(pnid, ctx.sessionId.replace(/^\+/, ""), parts[0], qrs, p.url)
+                .then(() => true)
+                .catch((e) => { log("merged buttons+photo failed:", p.url.slice(0, 80), e.message); return false; });
+            }
+            if (!photoDelivered) {
+              photoDelivered = await sendImage(pnid, ctx.sessionId.replace(/^\+/, ""), p.url, parts[0])
+                .then(() => true)
+                .catch((e) => { log("merged photo send failed:", p.url.slice(0, 80), e.message); return false; });
+            }
+          }
+          if (!photoDelivered) await deliverToChannel(ctx, parts[0]); // text only — never a second bubble
+        } else {
+          photoDelivered = true; // web renders the logged row's text + image as one entry
+        }
+        const suffix = qrs.length ? `\n${qrs.map((q) => "▸ " + q).join("  ")}` : "";
+        writes.push(logMessage(db, ctx.sessionId, "ai", parts[0] + suffix, ctx.channel, photoDelivered ? { url: p.url, type: "image" } : null));
+      } else if (photos.length) {
+        const ASKED_PHOTO = /photo|picture|image|pics?(?![\p{L}])|صورة|صور|شكله|شكلها|وريني|اشوفه?ا?|sou?ra|swar|warini|ashou?f/iu;
+        if (ASKED_PHOTO.test(String(burst.merged || ""))) {
+          for (const photo of photos) {
+            await deliverPhoto(ctx, photo);
+            writes.push(logMessage(db, ctx.sessionId, "ai", photo.caption || "", ctx.channel, { url: photo.url, type: "image" }));
+          }
+        } else {
+          log(`unsolicited photo(s) dropped (${photos.length}) — couldn't share the reply's bubble`);
+        }
       }
       if (md) {
         // WhatsApp caps document captions at 1024 chars

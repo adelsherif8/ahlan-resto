@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search, Star, MessageCircle, Download, Megaphone, AlertCircle, MapPin,
   Ticket, X, Cake, Store, Clock, Bot, PenLine,
@@ -61,6 +61,29 @@ export default function Diners() {
   const nav = useNavigate();
 
   const load = () => api.get("/api/diners", { params: { q } }).then((r) => setRows(r.data)).catch(() => {});
+
+  // ?item=<dish> — arriving from the Menu's "47 sold" link. Work out who those buyers
+  // actually are by walking their order history, so a sales figure turns into a list of
+  // people you can talk to. Cleared with one tap, never a filter you get stuck inside.
+  const [itemFilter, setItemFilter] = useState<string | null>(null);
+  const [itemBuyers, setItemBuyers] = useState<Set<string> | null>(null);
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const want = params.get("item");
+    if (!want) return;
+    setItemFilter(want);
+    api.get("/api/orders").then((r) => {
+      const phones = new Set<string>();
+      for (const o of r.data || []) {
+        if (o.status === "cancelled") continue;
+        if ((o.items || []).some((i: any) => String(i.name || "").toLowerCase() === want.toLowerCase()))
+          if (o.phone_number) phones.add(String(o.phone_number));
+      }
+      setItemBuyers(phones);
+    }).catch(() => setItemBuyers(new Set()));
+    params.delete("item");
+    setParams(params, { replace: true });
+  }, [params]);
   useEffect(() => {
     const t = setTimeout(load, 200);
     return () => clearTimeout(t);
@@ -79,6 +102,7 @@ export default function Diners() {
 
   const filtered = useMemo(() => {
     let out = rows.filter((d) => {
+      if (itemBuyers && !itemBuyers.has(String(d.phone_number))) return false;
       if (seg === "vip") return d.is_vip;
       if (seg === "all") return true;
       const l = lifecycle(d).label;
@@ -90,7 +114,7 @@ export default function Diners() {
       : sort === "visits" ? Number(b.visit_count || 0) - Number(a.visit_count || 0)
       : String(b.last_seen_at || "").localeCompare(String(a.last_seen_at || "")));
     return out;
-  }, [rows, seg, sort]);
+  }, [rows, seg, sort, itemBuyers]);
 
   function exportCsv() {
     const head = ["name", "phone", "visits", "total_spend", "last_seen", "lifecycle", "vip", "allergies", "tags"];
@@ -107,6 +131,15 @@ export default function Diners() {
 
   return (
     <div>
+      {/* a filter you can't see is a filter you get stuck in */}
+      {itemFilter && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-300">
+          <span>Showing guests who ordered <b className="text-zinc-100">{itemFilter}</b>
+            {itemBuyers ? ` · ${filtered.length} of ${rows.length}` : " · loading…"}</span>
+          <button onClick={() => { setItemFilter(null); setItemBuyers(null); }}
+            className="ml-auto cursor-pointer rounded-lg border border-zinc-700 px-2 py-0.5 text-zinc-300 hover:bg-zinc-800">clear</button>
+        </div>
+      )}
       <PageHeader
         title="Diners"
         subtitle="Built automatically from every chat and order — the AI captures names, tastes and addresses as guests talk, and reads them back to personalize"

@@ -10,8 +10,10 @@ const CONVERSATION_MAX_AGE_H = 24; // delete message_full rows idle > 24h (read-
 const BUFFER_MAX_AGE_MIN = 10;     // stray buffer rows older than 10 min = orphans
 const QUEUE_MAX_AGE_H = 24;        // undeliverable queue items older than 24h are harmful to send
 const ABANDONED_BOOKING_MIN = 90;  // mid-booking silence → tell staff (a warm lead going cold)
-const TRACE_MAX_AGE_D = 14;        // flow_executions is debug data — nobody reads a 3-week-old trace
-const TRACE_ERROR_MAX_AGE_D = 30;  // failures are the ones you DO come back to — keep them twice as long
+// Exported: the ops endpoints must not offer a window longer than what still exists —
+// a 30-day cost total built from 14 days of surviving rows reads as a real number.
+export const TRACE_MAX_AGE_D = 14;        // flow_executions is debug data — nobody reads a 3-week-old trace
+export const TRACE_ERROR_MAX_AGE_D = 30;  // failures are the ones you DO come back to — keep them twice as long
 const TRACE_BATCH = 500;           // PostgREST deletes in chunks; a 30k backlog drains over a few hourly runs
 const TRACE_MAX_BATCHES = 20;      // ≤10k rows per run — never let cleanup starve the request the bot is serving
 

@@ -3,6 +3,7 @@
 // descriptions, a "popular" tag, and a footer. Cached in tenant storage and reused
 // until the menu (or brand) changes. Guests get a document they can open and zoom
 // instead of tapping through a WhatsApp list.
+import { orderedCategories } from "./categories.js";
 import PDFDocument from "pdfkit";
 import crypto from "node:crypto";
 import { log } from "../config.js";
@@ -54,7 +55,7 @@ async function fetchImage(url) {
   }
 }
 
-async function buildPdf({ restaurant, menu, currency, accent, tagline, phone, website, logoUrl }) {
+async function buildPdf({ restaurant, menu, currency, accent, tagline, phone, website, logoUrl, categories: orderedNames }) {
   const logo = await fetchImage(logoUrl);
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 48 });
@@ -102,7 +103,9 @@ async function buildPdf({ restaurant, menu, currency, accent, tagline, phone, we
     const flagged = menu.filter((m) => m.bestseller).length;
     const markBestsellers = flagged > 0 && flagged <= Math.ceil(menu.length * 0.4);
 
-    const categories = [...new Set(menu.map((m) => m.category).filter(Boolean))];
+    // section order = the restaurant's configured order (menu_config.categories), then any
+    // section that only exists on items — passed in by the caller; fallback = item order
+    const categories = (Array.isArray(orderedNames) && orderedNames.length ? orderedNames : orderedCategories(menu, {}).map((c) => c.name));
     for (const cat of categories) {
       const items = menu.filter((m) => m.category === cat);
       if (!items.length) continue;
@@ -161,10 +164,10 @@ async function buildPdf({ restaurant, menu, currency, accent, tagline, phone, we
 const urlCache = new Map();
 
 // Returns { url, filename } or null — a missing PDF must never block a reply.
-export async function menuPdfUrl(db, { restaurant, menu, currency = "EGP", accent = "#111111", tagline, phone, website, logoUrl }) {
+export async function menuPdfUrl(db, { restaurant, menu, currency = "EGP", accent = "#111111", tagline, phone, website, logoUrl, categories = null }) {
   try {
     if (!menu?.length) return null;
-    const hash = menuHash(restaurant, menu, currency, accent, logoUrl, tagline);
+    const hash = menuHash(restaurant, menu, currency, accent, logoUrl, `${tagline || ""}|${(categories || []).join(">")}`);
     const safe = String(restaurant).replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").slice(0, 28) || "menu";
     const path = `${safe}-${hash}.pdf`;
     const filename = `${safe}-menu.pdf`;
@@ -176,7 +179,7 @@ export async function menuPdfUrl(db, { restaurant, menu, currency = "EGP", accen
       if (data?.publicUrl) { urlCache.set(path, data.publicUrl); return { url: data.publicUrl, filename }; }
     }
 
-    const buffer = await buildPdf({ restaurant, menu, currency, accent, tagline, phone, website, logoUrl });
+    const buffer = await buildPdf({ restaurant, menu, currency, accent, tagline, phone, website, logoUrl, categories });
     const url = await uploadPublicPdf(db, BUCKET, path, buffer, { cacheControl: "31536000" });
     if (url) { urlCache.set(path, url); return { url, filename }; }
     return null;

@@ -3,6 +3,7 @@ import multer from "multer";
 import { requireAuth, allowRoles } from "../middleware/auth.js";
 import { restaurantContext } from "../middleware/restaurantContext.js";
 import { supabaseAhlan } from "../config/connections.js";
+import { FLOWS_URL, FLOWS_OPS_TOKEN } from "../config/env.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
 const router = Router();
@@ -122,15 +123,35 @@ router.post("/", async (req, res, next) => {
       dietary_tags: req.body.dietary_tags || [],
       available: req.body.available !== false,
       sort_order: Number(req.body.sort_order) || 0,
+      // bilingual from day one — the bot reads name_ar / ingredients_ar for Arabic guests
+      ...(req.body.name_ar ? { name_ar: String(req.body.name_ar).trim() } : {}),
+      ...(req.body.ingredients ? { ingredients: String(req.body.ingredients).trim() } : {}),
+      ...(req.body.ingredients_ar ? { ingredients_ar: String(req.body.ingredients_ar).trim() } : {}),
     });
     res.status(201).json(row);
   } catch (e) { next(e); }
 });
 
+// ✨ Arabic copy for a dish — proxied to the flows service (it owns the LLM). Nothing
+// is saved here; the form shows the suggestion and staff can edit before saving.
+router.post("/arabize", async (req, res) => {
+  try {
+    if (!FLOWS_URL) return res.status(503).json({ error: "flows not configured" });
+    const r = await fetch(`${FLOWS_URL}/api/ops/arabize-item`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(FLOWS_OPS_TOKEN ? { "x-ops-token": FLOWS_OPS_TOKEN } : {}) },
+      body: JSON.stringify({ name: req.body?.name || "", ingredients: req.body?.ingredients || "", description: req.body?.description || "" }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return res.status(502).json({ error: j.error || "arabize failed" });
+    res.json(j);
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
 router.patch("/:id", async (req, res, next) => {
   try {
     const patch = {};
-    for (const k of ["name", "category", "price", "description", "dietary_tags", "available", "sort_order", "photo_url", "ingredients", "spice_level", "bestseller", "pairs_with", "options", "sold_out_until", "stock_count", "cost", "name_ar"])
+    for (const k of ["name", "category", "price", "description", "dietary_tags", "available", "sort_order", "photo_url", "ingredients", "spice_level", "bestseller", "pairs_with", "options", "sold_out_until", "stock_count", "cost", "name_ar", "ingredients_ar"])
       if (k in req.body) patch[k] = req.body[k];
     const row = await req.repo.update("menu_items", req.params.id, patch);
     if (!row) return res.status(404).json({ error: "Not found" });

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Star, AlertTriangle, Check, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import OrderPeek from "../components/OrderPeek";
 import { api } from "../config/api";
 import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
 
@@ -134,8 +136,8 @@ export default function Reviews() {
                   </div>
                   {r.comments && <p className="mt-2 text-sm text-zinc-200">{r.comments}</p>}
                   <div className="mt-1.5 flex flex-wrap gap-x-3 text-[11px] text-zinc-500">
-                    {r.order_code && <span>Order {r.order_code}</span>}
-                    {r.phone_number && <span>{r.phone_number}</span>}
+                    {r.order_code && <span>Order <OrderPeek code={r.order_code} className="text-zinc-400 hover:text-zinc-200" /></span>}
+                    {r.phone_number && <Link to={`/chats?session=${encodeURIComponent(r.phone_number)}`} className="underline decoration-dotted underline-offset-2 hover:text-zinc-200">{r.phone_number}</Link>}
                     {r.source && <span>via {r.source}</span>}
                     <span>{ago(r.created_at)}</span>
                     {r.assigned_to && <span>· assigned to {r.assigned_to}</span>}

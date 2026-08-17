@@ -1,8 +1,9 @@
 // FRIENDLY (host agent) — the restaurant's voice. Answers ONLY from config + DB.
 // Ported logic: hotel friendly.json context builder + persona prompt, restaurant domain.
+import { orderedCategories, categoryLabel } from "../services/categories.js";
 import { defineFlow } from "../engine/flow.js";
 import { getMenu } from "../services/menucache.js";
-import { isGreetingish, editDistance } from "../services/fastpaths.js";
+import { isGreetingish, editDistance, findItem } from "../services/fastpaths.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, publicLink } from "../config.js";
 import { hoursToday } from "../services/tenant.js";
@@ -149,8 +150,8 @@ defineFlow({
       // is back. Nothing here is restaurant-specific: names come from their menu.
       const foodTalk = mentionsFood(message, history, context.menu);
       const menuText = foodTalk
-        ? buildMenuText(context.menu, message, history, config.payments?.currency || "EGP")
-        : `[menu not loaded this turn — the guest isn't discussing food] Categories we serve: ${[...new Set(context.menu.map((m) => m.category))].join(", ")} (${context.menu.length} items). If food, dishes or prices unexpectedly come up, NEVER invent or answer from memory — give a natural bridging line and the full menu will be in your next turn.`;
+        ? buildMenuText(context.menu, message, history, config.payments?.currency || "EGP", config)
+        : `[menu not loaded this turn — the guest isn't discussing food] Categories we serve: ${orderedCategories(context.menu, config).map((c) => c.name_ar ? `${c.name} [ar: ${c.name_ar}]` : c.name).join(", ")} (${context.menu.length} items). If food, dishes or prices unexpectedly come up, NEVER invent or answer from memory — give a natural bridging line and the full menu will be in your next turn.`;
 
       const system = `You are ${ai.name || "the host"} — the greeter at the door of ${config.name}, and the waiter who knows every dish by heart. You're a real hospitality person on WhatsApp, not a support bot.
 Personality: ${ai.personality || "warm and friendly"}.
@@ -223,7 +224,7 @@ ${context.summary ? `- Earlier in this relationship (summary of older chats): ${
 ${memoryBlock(context, diner)}
 
 ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been notified about this guest. If they follow up, reassure them the team is on it and will reply here shortly — do NOT restart cheerful small talk or re-pitch the menu.\n" : ""}RULES:
-0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. Your reply language = the language of the guest's LAST message (detected: ${classification?.language || "detect it yourself"}). English message → reply 100% in ENGLISH (a single local flavor word is allowed ONLY if it fits this restaurant's own personality). The Arabic/Franco snippets in these instructions are EXAMPLES for those languages only — never copy them into an English reply. DISH NAMES: menu facts may carry [ar: …] — the dish's official Arabic menu name. In an ARABIC reply, call dishes by that Arabic name. English and Franco replies use the English name. Never invent your own translation of a dish name — no [ar:] means keep the English name even in Arabic.
+0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. Your reply language = the language of the guest's LAST message (detected: ${classification?.language || "detect it yourself"}). English message → reply 100% in ENGLISH (a single local flavor word is allowed ONLY if it fits this restaurant's own personality). The Arabic/Franco snippets in these instructions are EXAMPLES for those languages only — never copy them into an English reply. DISH NAMES: menu facts may carry [ar: …] — the dish's official Arabic menu name. In an ARABIC reply, call dishes by that Arabic name. English and Franco replies use the English name. Never invent your own translation of a dish name — no [ar:] means keep the English name even in Arabic. Write dish names EXACTLY as the menu prints them, same words same order ("Milkshake Chocolate", never "Chocolate Milkshake") — the guest taps/types that name back and it must match.
 1. عربي → عربي مصري. Franco-Arabizi → reply FULLY in Franco, Latin letters ONLY (e.g. "lazem tegarrab el Mushroom Shawarma, ta3mo gamed"). NEVER answer Franco with Arabic script. ALWAYS keep menu item names in English. THE SCRIPT RULE: your reply's SCRIPT must match the guest's last message — Latin letters in → Latin letters out, Arabic script in → Arabic script out. This applies to EVERY line: greetings, EMPATHY lines, identity answers, everything. A sad Franco message gets Franco comfort, never Arabic script.
 2. 1–3 short sentences. WhatsApp tone, warm, ${ai.personality ? "on-personality" : "friendly"}. Emojis welcome but max 2.
 3. NEVER invent menu items, prices, events, or policies. Item not in the menu list = "not available tonight".
@@ -235,7 +236,7 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 7. NAMES ARE NEVER TRANSLITERATED. Write the guest's name EXACTLY as it is stored, letter for letter, even inside an Arabic sentence — Egyptians write Latin names in Arabic chats all the time. Guessing Arabic spelling produced "سلامة" for Salma (a different word entirely) and "تarek" for Tarek. A mangled name is worse than no name.
 7b. If they mention their own name, set detected_name. If they mention a FOOD ALLERGY, set detected_allergies (array of lowercase FOOD allergens ONLY: nuts, dairy, gluten, shellfish, eggs, soy, sesame…). Health CONDITIONS (diabetes, pregnancy, blood pressure…) are NEVER stored anywhere — not as allergies, not as facts. For those: help with sensible suggestions AND you MUST end with the kitchen double-check line ("the kitchen will gladly double-check ingredients for you") — this line is mandatory for any health condition, it overrides the fewer-questions rule.
 8. Off-topic requests: one playful redirect back to the restaurant.
-9. If they ask for PHOTOS of food: ONLY items marked "📷 has photo" can be sent — set send_photos to up to 3 of those. If the dish they asked about has NO 📷 marker: say you don't have a photo of that one yet (NEVER "coming right up" / "sending now"), and optionally offer a photo of a similar 📷 dish instead.
+9. If they ask for PHOTOS of food: ONLY items marked "📷 has photo" can be sent — set send_photos to up to 3 of those. If the dish they asked about has NO 📷 marker: say you don't have a photo of that one yet (NEVER "coming right up" / "sending now"), and optionally offer a photo of a similar 📷 dish instead. When you DESCRIBE a specific 📷 dish (ingredients, taste, "what about X"), attach its photo via send_photos in the SAME reply — NEVER ask "want to see a photo?"; the photo and your words arrive as one message.
 10. If they asked a factual question about the restaurant you could NOT answer from FACTS (policy, service, amenity…), set suggested_faq = { "question": "<the generic question>", "context": "<what the guest actually said>" } so the owner can add the answer.
 11. MEMORY CAPTURE — when the GUEST (never staff) volunteers something durable about themselves, record it:
    - a dish they LOVE (must be on our menu) → detected_preferences.favorite_items
@@ -293,6 +294,23 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           ...convo,
           { role: "assistant", content: JSON.stringify(r.value) },
           { role: "user", content: "SYSTEM CHECK: the guest wrote in LATIN letters but your reply contains Arabic-script characters. Rewrite the ENTIRE reply (and any quick_replies) with the same meaning using ONLY Latin letters — English or Franco-Arabizi to match the guest. Not a single Arabic-script character is allowed. Return the same JSON shape." },
+        ], { temperature: 0.4, maxTokens: 500 });
+        r2.__usage = {
+          model,
+          tokens_in: r.__usage.tokens_in + r2.__usage.tokens_in,
+          tokens_out: r.__usage.tokens_out + r2.__usage.tokens_out,
+          cost_usd: r.__usage.cost_usd + r2.__usage.cost_usd,
+        };
+        r = r2;
+      }
+      // …and the mirror: an ARABIC-script guest must never get an all-Latin reply
+      // (dish names in Latin are fine INSIDE an Arabic sentence — the check is "no
+      // Arabic at all"). Same corrective re-ask, once.
+      if (arScript.test(message) && r.value?.reply && !arScript.test(r.value.reply)) {
+        const r2 = await chatJSON(model, system, [
+          ...convo,
+          { role: "assistant", content: JSON.stringify(r.value) },
+          { role: "user", content: "SYSTEM CHECK: the guest wrote in ARABIC letters but your reply has no Arabic at all. Rewrite the ENTIRE reply (and any quick_replies) with the same meaning in EGYPTIAN Arabic script (dish names may stay as printed on the menu). Return the same JSON shape." },
         ], { temperature: 0.4, maxTokens: 500 });
         r2.__usage = {
           model,
@@ -389,6 +407,19 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     const LV = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
     const L2F = (en, ar, fr) => (LV === "ar" ? ar : LV === "fr" ? fr : en);
     let reply = (out.reply || L2F("One second! 🙌", "لحظة واحدة! 🙌", "Le7za wa7da! 🙌")).slice(0, 3500);
+    // FINAL SCRIPT GUARANTEE: the re-asks above fix nearly every slip; if the model
+    // STILL answered in the wrong script, the wrong-script text is never sent. A
+    // short code line in the guest's language + a hand to the menu beats a reply
+    // the guest can't read. (Latin guests: no Arabic at all; Arabic guests: some Arabic.)
+    {
+      const hasAr = /[؀-ۿ]/.test(reply);
+      const wrongScript = LV === "ar" ? !hasAr : hasAr;
+      if (out.reply && wrongScript) {
+        log(`friendly: reply in the wrong script for lang=${LV} after retries — code fallback`);
+        reply = L2F("Happy to help — what would you like to know? 😊", "تحت أمرك — تحب تعرف إيه؟ 😊", "Ta7t amrak — te7eb te3raf eh? 😊");
+        out.quick_replies = null;
+      }
+    }
 
     // NO MENU IN CONTEXT → THE MODEL MAY NOT NAME A PRICE. The prompt already says
     // so and was ignored on 14 Aug: a Franco message slipped past the food detector,
@@ -567,6 +598,17 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       }
       if (photos.length === 3) break;
     }
+    // CODE attaches the photo when the guest NAMES a photographed dish — the model
+    // sent it on one of three identical questions and skipped the other two, and
+    // consistency is the product. Skipped for complaints: a glamour shot of the
+    // burger someone is unhappy about reads as mockery.
+    const upset = classification?.mood === "frustrated" || out.detected_feedback?.sentiment === "negative" || out.staff_alert;
+    if (!photos.length && !upset && mentionsFood(message, history, context.menu)) {
+      const named = findItem(context.menu, message);
+      if (named?.photo_url && String(reply || out.reply || "").toLowerCase().includes(String(named.name).toLowerCase().split(" ")[0])) {
+        photos.push({ url: named.photo_url, caption: `${named.name} — ${named.price} ${config.payments?.currency || "EGP"}` });
+      }
+    }
 
     // Buttons must be concrete guest actions (menu, order, book…). The model sometimes
     // invents meta chips like "اسألني سؤال" / "Ask me a question" — a button that tells
@@ -613,9 +655,9 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         )}`;
       }
       if (mc.display === "text") {
-        reply = `${reply}\n\n${fullMenuText(context.menu, currency)}`.slice(0, 3900);
+        reply = `${reply}\n\n${fullMenuText(context.menu, currency, config, LV)}`.slice(0, 3900);
       } else if (mc.display === "list") {
-        menuList = buildMenuList(context.menu, mc.build_your_own);
+        menuList = buildMenuList(context.menu, mc.build_your_own, config, LV);
       } else {
         // default: a real PDF they can open, zoom and scroll — uploaded one wins,
         // otherwise we generate it from the live menu and cache it
@@ -624,6 +666,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           : await menuPdfUrl(db, {
               restaurant: config.name,
               menu: context.menu,
+              categories: orderedCategories(context.menu, config).map((c) => c.name),
               currency,
               accent: config.basic_info?.brand?.primary || "#111111",
               tagline: config.basic_info?.tagline || "",
@@ -641,7 +684,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           reply = `${reply}\n\n${l2("Just tell me what you'd like and I'll take it from there.", "قولّي تحب تطلب إيه وأنا أكمّل معاك.", "2oly te7eb totlob eh w ana akamel ma3ak.")}`.slice(0, 3900);
         } else {
           // menu exists but the PDF couldn't be made — never leave the guest empty-handed
-          reply = `${reply}\n\n${fullMenuText(context.menu, currency)}`.slice(0, 3900);
+          reply = `${reply}\n\n${fullMenuText(context.menu, currency, config, LV)}`.slice(0, 3900);
         }
       }
     }
@@ -656,19 +699,24 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
 });
 
 // full menu as ONE readable message (menu_config.display = "text")
-function fullMenuText(menu, currency) {
-  const cats = [...new Set(menu.map((m) => m.category).filter(Boolean))];
-  return cats.map((c) => {
-    const items = menu.filter((m) => m.category === c)
-      .map((m) => `• ${m.name} — ${m.price} ${currency}${m.bestseller ? " ⭐" : ""}`);
-    return `🍽 ${c}\n${items.join("\n")}`;
+function fullMenuText(menu, currency, config = {}, lang = "en") {
+  return orderedCategories(menu, config).map((c) => {
+    const items = menu.filter((m) => m.category === c.name)
+      .map((m) => `• ${lang === "ar" && m.name_ar ? m.name_ar : m.name} — ${m.price} ${currency}${m.bestseller ? " ⭐" : ""}`);
+    return `🍽 ${categoryLabel(c, lang)}\n${items.join("\n")}`;
   }).join("\n\n");
 }
 
 // WhatsApp list message: one tappable row per category (10-row API cap).
 // Tapping a row sends the category name back as a normal message — the bot answers it.
-function buildMenuList(menu, byo = null) {
-  const cats = [...new Set(menu.map((m) => m.category).filter(Boolean))].slice(0, byo?.enabled ? 9 : 10);
+function buildMenuList(menu, byo = null, config = {}, lang = "en") {
+  // configured order; the row TITLE is what WhatsApp sends back when tapped, and the
+  // category fast path matches it by name — so the title carries the name the matcher
+  // knows (Arabic name when the restaurant gave one AND the guest is Arabic; the fast
+  // path matches both), English otherwise
+  const catObjs = orderedCategories(menu, config).slice(0, byo?.enabled ? 9 : 10);
+  const cats = catObjs.map((c) => c.name);
+  const titleOf = (c) => { const o = catObjs.find((x) => x.name === c); return lang === "ar" && o?.name_ar ? o.name_ar : c; };
   if (!cats.length) return null;
   const list = {
     button: "View menu 🍽",
@@ -685,7 +733,7 @@ function buildMenuList(menu, byo = null) {
         }
         return {
           id: `cat_${String(c).replace(/[^\w]/g, "").slice(0, 20)}`,
-          title: String(c).slice(0, 24),
+          title: String(titleOf(c)).slice(0, 24),
           description: preview.slice(0, 72),
         };
       }),
@@ -936,7 +984,7 @@ function mentionsFood(message, history, menu) {
   return false;
 }
 
-function buildMenuText(menu, message, history, currency) {
+function buildMenuText(menu, message, history, currency, config = {}) {
   const line = (m, full) => {
     const tags = m.dietary_tags?.length ? ", " + m.dietary_tags.join("/") : "";
     const photo = m.photo_url ? ", 📷 has photo" : "";
@@ -970,6 +1018,13 @@ function buildMenuText(menu, message, history, currency) {
       compressed.get(m.category).push(line(m, false));
     }
   }
-  for (const [cat, items] of compressed) out.push(`${cat}: ${items.join(" · ")}`);
+  // configured section order (then item-only sections); Arabic label offered so an
+  // Arabic reply can name the section the way the restaurant does
+  const order = orderedCategories(menu, config);
+  const rank = new Map(order.map((c, i) => [c.name, i]));
+  const arOf = new Map(order.map((c) => [c.name, c.name_ar]));
+  for (const [cat, items] of [...compressed.entries()].sort((a, b) => (rank.get(a[0]) ?? 999) - (rank.get(b[0]) ?? 999))) {
+    out.push(`${cat}${arOf.get(cat) ? ` [ar: ${arOf.get(cat)}]` : ""}: ${items.join(" · ")}`);
+  }
   return out.join("\n");
 }

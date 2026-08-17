@@ -17,6 +17,7 @@ import kpisRoutes from "./routes/kpisRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import eventsRoutes from "./routes/eventsRoutes.js";
 import usersRoutes from "./routes/usersRoutes.js";
+import qualityRoutes from "./routes/qualityRoutes.js";
 
 const app = express();
 // CORS allowlist: the dashboard (Vercel) + localhost dev. No-Origin requests (server-to-
@@ -47,6 +48,7 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/events", eventsRoutes);
 app.use("/api/reviews", reviewsRoutes);
 app.use("/api/users", usersRoutes);
+app.use("/api/quality", qualityRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

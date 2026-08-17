@@ -92,16 +92,61 @@ export async function resolveRestaurantById(id) {
 // Every restaurant on the platform — schedulers (janitor, reminders, the
 // recovery/upsell/review sweeps) must run for ALL of them, not just the one
 // named in RESTAURANT_SLUG, or a second restaurant silently gets no automations.
+// Cached for the same CACHE_MS as single lookups. Every ops endpoint calls this, so
+// an uncached version meant a `select * from restaurants` plus a fresh Supabase client
+// per tenant on EVERY request — two or three times per console page load. The clients
+// are reused rather than rebuilt, which is the bigger saving.
+let allCache = { at: 0, list: null };
 export async function resolveAllRestaurants() {
   if (!control) throw new Error("SUPABASE_AHLAN_URL not configured");
+  if (allCache.list && Date.now() - allCache.at < CACHE_MS) return allCache.list;
+
   const { data, error } = await control.from("restaurants").select("*");
-  if (error) throw new Error(error.message);
+  if (error) {
+    // a blip upstream must not blank out the tenant list mid-poll
+    if (allCache.list) return allCache.list;
+    throw new Error(error.message);
+  }
   const out = [];
   for (const row of data || []) {
-    try { out.push(buildTenant(row)); }
-    catch (e) { log(`skipping ${row.slug}: ${e.message}`); }
+    try {
+      // reuse the per-slug client if it's still warm, so repeat calls don't churn clients
+      const hit = tenants.get(`slug:${row.slug}`);
+      const tenant = hit && Date.now() - hit.at < CACHE_MS ? hit.tenant : buildTenant(row);
+      tenants.set(`slug:${row.slug}`, { tenant, at: Date.now() });
+      out.push(tenant);
+    } catch (e) { log(`skipping ${row.slug}: ${e.message}`); }
   }
+  allCache = { at: Date.now(), list: out };
   return out;
+}
+
+/**
+ * One row per process start (migration 033). `railway up` deploys from a working
+ * directory and carries no git metadata, so this is the only record of when the
+ * running behaviour changed — the ops console marks its charts from it.
+ * Fire-and-forget: a missing table must never delay or block boot.
+ */
+export async function recordServiceBoot(service = "flows", note = null) {
+  if (!control) return;
+  const env = process.env.RAILWAY_ENVIRONMENT || (process.env.NODE_ENV === "production" ? "production" : "local");
+  const { error } = await control.from("service_boots").insert({ service, env, note });
+  if (error) log(`service_boots unavailable (${error.message}) — run migration 033 for deploy markers`);
+}
+
+export async function listServiceBoots(sinceIso, limit = 60) {
+  if (!control) return { rows: [], error: "control plane not configured" };
+  let q = control.from("service_boots").select("id,service,started_at,env,note")
+    .order("started_at", { ascending: false }).limit(limit);
+  if (sinceIso) q = q.gte("started_at", sinceIso);
+  const { data, error } = await q;
+  return { rows: data || [], error: error?.message || null };
+}
+
+/** Drop the caches — for after a config write, so the next read is fresh. */
+export function invalidateTenantCache() {
+  allCache = { at: 0, list: null };
+  tenants.clear();
 }
 
 export async function resolveRestaurantBySlug(slug) {

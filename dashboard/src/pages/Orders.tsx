@@ -4,11 +4,12 @@ import {
   Bell, BellOff, Monitor, Printer, Phone, MapPin, Store, X, AlertTriangle,
   Plus, Search, MessageCircle, Minus,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, session } from "../config/api";
 import { money, mins } from "../lib/format";
 import { modLines, printTicket as printSharedTicket } from "../lib/ticket";
 import { PageHeader, Btn } from "../components/ui";
+import BackLink, { backTrip } from "../components/BackLink";
 
 // Fast-food ticket board (KDS): tickets flow left → right, one tap advances.
 const COLS: { key: string; label: string; Icon: any; statuses: string[]; next?: string; nextLabel?: string }[] = [
@@ -122,7 +123,13 @@ export default function Orders() {
   );
   const visibleAll = [...carried, ...dayRows.filter((o) => o.status !== "cancelled")];
   const stationNames = [...new Set(visibleAll.flatMap((o) => (o.items || []).map((i: any) => i.station).filter(Boolean)))] as string[];
-  const visible = station ? visibleAll.filter((o) => (o.items || []).some((i: any) => i.station === station)) : visibleAll;
+  // ?filter=late — arriving from the Overview alert. "12 running late" should open the
+  // board showing those twelve, not the whole board with them somewhere inside it.
+  const [lateOnly, setLateOnly] = useState(false);
+  const byStation = station ? visibleAll.filter((o) => (o.items || []).some((i: any) => i.station === station)) : visibleAll;
+  const visible = lateOnly
+    ? byStation.filter((o) => !DONE.includes(o.status) && o.status !== "cancelled" && mins(o.created_at) > 20)
+    : byStation;
   const cancelled = dayRows.filter((o) => o.status === "cancelled");
   const carriedIds = useMemo(() => new Set(carried.map((o) => String(o.id))), [carried]);
   const active = isToday ? visible.filter((o) => !DONE.includes(o.status)) : [];
@@ -189,13 +196,41 @@ export default function Orders() {
     const hit = dayRows.find(matchCode);
     if (hit) document.getElementById(`tk-${hit.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [findCode]);
-  const filtersDirty = findCode.trim() || station || !isToday || branch !== "all";
-  function resetFilters() { setFindCode(""); setStation(""); setDate(today); setBranch("all"); }
+  // Arriving from somewhere else with a ticket in mind (/orders?code=O-8H2W) — land ON
+  // that ticket, don't dump the user on the board to hunt for it. If it's from another
+  // day we move the date filter too, otherwise the board would look empty and the link
+  // would seem broken. The param is cleared afterwards so a refresh doesn't re-fire it.
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const code = params.get("code");
+    const wantLate = params.get("filter") === "late";
+    if (wantLate) setLateOnly(true);
+    if (!code) {
+      if (wantLate) { params.delete("filter"); setParams(params, { replace: true }); }
+      return;
+    }
+    if (!rows.length) return;
+    const hit = rows.find((o) => String(o.code || "").toLowerCase() === code.toLowerCase());
+    if (hit) {
+      const d = new Date(hit.created_at).toLocaleDateString("en-CA");
+      if (d !== date) setDate(d);
+      if (hit.status === "cancelled") setShowCancelled(true);
+      setFindCode(hit.code);
+      // after the date/filter change has painted
+      setTimeout(() => document.getElementById(`tk-${hit.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
+    }
+    params.delete("code");
+    setParams(params, { replace: true });
+  }, [rows]);
+
+  const filtersDirty = findCode.trim() || station || !isToday || branch !== "all" || lateOnly;
+  function resetFilters() { setFindCode(""); setStation(""); setDate(today); setBranch("all"); setLateOnly(false); }
 
   const boardEmpty = visible.length === 0;
 
   return (
     <div className="flex h-full flex-col">
+      {!tv && <BackLink />}
       {!tv && (
         <PageHeader
           title="Orders"
@@ -366,7 +401,8 @@ export default function Orders() {
         )}
       </div>
 
-      {viewOrder && <TicketModal o={viewOrder} branches={branches} onClose={() => setViewOrder(null)} onPrint={printTicket} />}
+      {viewOrder && <TicketModal o={viewOrder} branches={branches} onClose={() => setViewOrder(null)} onPrint={printTicket}
+        onOpenChat={(phone: string) => nav(`/chats?session=${encodeURIComponent(phone)}`, backTrip(`/orders?code=${encodeURIComponent(viewOrder.code)}`, `order ${viewOrder.code}`))} />}
       {cancelTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setCancelTarget(null)}>
           <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-5" onClick={(e) => e.stopPropagation()}>
@@ -547,7 +583,7 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
 
 // Full ticket view for any order — search hits and handed-over tickets open
 // here: everything the kitchen ticket shows, plus courier + driver link.
-function TicketModal({ o, branches, onClose, onPrint }: any) {
+function TicketModal({ o, branches, onClose, onPrint, onOpenChat }: any) {
   const t = typeOf(o.order_type);
   const branchName = branches.find((b: any) => b.key === o.branch)?.name || o.branch;
   return (
@@ -558,7 +594,15 @@ function TicketModal({ o, branches, onClose, onPrint }: any) {
           <button onClick={onClose}><X size={16} className="text-zinc-500 hover:text-zinc-200" /></button>
         </div>
         <div className="text-center text-3xl font-extrabold tracking-[0.2em]">{o.code}</div>
-        <div className="mb-3 text-center text-xs text-zinc-500">
+        {/* the other half of the round trip: a ticket always leads back to the
+            conversation that produced it (walk-ins have no chat, so no link) */}
+        {o.phone_number && !String(o.phone_number).startsWith("walkin:") && (
+          <button onClick={() => onOpenChat?.(o.phone_number)}
+            className="mx-auto mt-1 flex cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 transition hover:bg-zinc-800">
+            <MessageCircle size={12} aria-hidden="true" /> Open this guest's chat
+          </button>
+        )}
+        <div className="mb-3 mt-2 text-center text-xs text-zinc-500">
           {(o.diner_name || o.phone_number || "guest").replace(/^walkin:.*/, "walk-in")}
           {branchName ? ` · ${branchName}` : ""}{o.table_number ? ` · T${o.table_number}` : ""}
           {o.cashier ? ` · by ${o.cashier}` : ""}

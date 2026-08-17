@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CalendarClock, Grid3X3, Hourglass, UtensilsCrossed,
-  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator, ChevronDown, Star, QrCode, FileText } from "lucide-react";
+  ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator, ChevronDown, Star, QrCode, FileText, Wallet, Bot } from "lucide-react";
 import { api, session } from "../config/api";
 import NotificationBell from "./NotificationBell";
-import { unreadCount } from "../lib/unread";
+import { unreadCount, isUnread } from "../lib/unread";
 
 // black or white text on the brand color, by luminance
 function contrastFor(hex: string): string {
@@ -21,6 +21,10 @@ function contrastFor(hex: string): string {
 const NAV = [
   { group: "", items: [
     { to: "/overview", label: "Overview", icon: LayoutDashboard, roles: ["admin", "manager"] },
+    // Profit (/profit) and Bot quality (/quality) are deliberately NOT listed. Both still
+    // exist and are reachable by URL for admins only — Profit is parked until costs are
+    // entered, Bot quality is an internal tool heading for the ops console. Re-add a line
+    // here to bring either back into the sidebar.
   ]},
   { group: "Service", items: [
     { to: "/reservations", label: "Reservations", icon: CalendarClock, roles: ["admin", "manager", "host"] },
@@ -74,15 +78,58 @@ export default function DashboardLayout() {
 
   // unread chats badge — refreshed on a slow poll so reception never misses a guest
   const [unread, setUnread] = useState(0);
+  // A guest's message shouldn't wait for someone to happen to look at the Chats tab.
+  // When a new one lands anywhere in the app, it says who and what — and clicking opens
+  // that exact conversation. Only announces messages seen AFTER the first poll, so
+  // opening the dashboard never dumps a pile of toasts for a backlog.
+  const [toast, setToast] = useState<{ session: string; who: string; text: string } | null>(null);
+  const seenAt = useRef<Map<string, string> | null>(null);
   useEffect(() => {
     if (!(role === "admin" || ["manager", "host", "livechat"].includes(role))) return;
-    const load = () => api.get("/api/chat/sessions").then((r) => setUnread(unreadCount(r.data || []))).catch(() => {});
+    const load = () => api.get("/api/chat/sessions").then((r) => {
+      const rows = r.data || [];
+      setUnread(unreadCount(rows));
+      const prev = seenAt.current;
+      const next = new Map<string, string>(rows.map((s: any) => [s.session_id, String(s.last_message_at || "")]));
+      if (prev) {
+        const fresh = rows.find((s: any) =>
+          s.last_message_at && prev.get(s.session_id) && prev.get(s.session_id) !== String(s.last_message_at) && isUnread(s));
+        if (fresh) setToast({
+          session: fresh.session_id,
+          who: fresh.diner_name || fresh.phone_number || fresh.session_id,
+          text: String(fresh.last_message || "").slice(0, 90),
+        });
+      }
+      seenAt.current = next;
+    }).catch(() => {});
     load();
     const t = setInterval(load, 30000);
     const bump = () => load();
     window.addEventListener("chat-seen", bump);
     return () => { clearInterval(t); window.removeEventListener("chat-seen", bump); };
   }, [role]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // Live urgency counts in the nav: you should be TOLD the board needs you, not have to
+  // go and look. Late tickets and guests waiting on a human are the two things that get
+  // worse the longer nobody notices, so they ride next to their page name.
+  const [live, setLive] = useState<{ late: number; waiting: number }>({ late: 0, waiting: 0 });
+  useEffect(() => {
+    const load = () => api.get("/api/dashboard/kpis")
+      .then((r) => setLive({
+        late: r.data?.orders_today?.late_now || 0,
+        waiting: r.data?.needs_attention || 0,
+      }))
+      .catch(() => {});
+    load();
+    const t = setInterval(load, 25000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     api.get("/api/settings").then((r) => {
@@ -112,6 +159,21 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      {toast && (
+        <button
+          onClick={() => { nav(`/chats?session=${encodeURIComponent(toast.session)}`); setToast(null); }}
+          className="fixed bottom-5 right-5 z-[80] flex max-w-sm cursor-pointer items-start gap-2 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-left shadow-xl transition hover:border-zinc-500"
+        >
+          <MessageCircle size={16} className="mt-0.5 shrink-0" style={{ color: "var(--accent)" }} aria-hidden="true" />
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-zinc-100">{toast.who}</span>
+            <span className="block truncate text-xs text-zinc-400">{toast.text}</span>
+            <span className="mt-0.5 block text-xs text-zinc-600">click to open the chat</span>
+          </span>
+          <span onClick={(e) => { e.stopPropagation(); setToast(null); }}
+            className="ml-1 shrink-0 rounded px-1 text-zinc-600 hover:text-zinc-300">✕</span>
+        </button>
+      )}
       <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950">
         <div className="flex items-center gap-2 px-5 py-5">
           {brand.logo_url ? (
@@ -154,8 +216,22 @@ export default function DashboardLayout() {
                 >
                   <Icon size={17} />
                   <span className="flex-1">{label}</span>
-                  {to === "/chats" && unread > 0 && (
-                    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none" style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
+                  {/* red = someone is waiting and it's getting worse; accent = unread,
+                      which is information, not urgency. Never the same colour. */}
+                  {to === "/orders" && live.late > 0 && (
+                    <span title={`${live.late} running late`} aria-label={`${live.late} orders running late`}
+                      className="rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-bold leading-none text-white">
+                      {live.late}
+                    </span>
+                  )}
+                  {to === "/chats" && live.waiting > 0 && (
+                    <span title={`${live.waiting} waiting on a human`} aria-label={`${live.waiting} conversations waiting on a human`}
+                      className="rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-bold leading-none text-white">
+                      {live.waiting}
+                    </span>
+                  )}
+                  {to === "/chats" && live.waiting === 0 && unread > 0 && (
+                    <span aria-label={`${unread} unread`} className="rounded-full px-1.5 py-0.5 text-xs font-bold leading-none" style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}>
                       {unread}
                     </span>
                   )}
