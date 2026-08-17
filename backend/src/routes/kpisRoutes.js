@@ -8,13 +8,37 @@ router.use(requireAuth, restaurantContext);
 router.get("/kpis", async (req, res, next) => {
   try {
     const today = new Date().toLocaleDateString("en-CA"); // local date, matches dashboard
+    // This endpoint is polled by every open tab, so it must never mean "select everything
+    // ever". Orders are read as two bounded slices instead of one unbounded scan:
+    //   recent  — the last WINDOW_DAYS, which is all today/yesterday maths needs
+    //   openAny — tickets that never reached a terminal status, whatever their age, so a
+    //             stale ticket from last month is still counted (that is the whole point
+    //             of stale_open) without dragging the archive along with it.
+    // 3 days, not 45: everything this endpoint derives from orders is today or yesterday
+    // (revenue, by_hour, top_items, by_branch, prep) — plus open tickets of any age, which
+    // are fetched separately. A wider window would be pure egress for numbers nobody reads.
+    const WINDOW_DAYS = 3;
+    const since = new Date(Date.now() - WINDOW_DAYS * 86400000).toISOString();
+    const OPEN_STATES = ["pending", "accepted", "preparing", "ready", "out_for_delivery", "dispatched"];
+    const loadOrders = async () => {
+      if (!req.tenantClient) return req.repo.list("orders", { order: "created_at", desc: true, limit: 2000 });
+      const [recent, openAny] = await Promise.all([
+        req.tenantClient.from("orders").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(1000),
+        req.tenantClient.from("orders").select("*").in("status", OPEN_STATES).order("created_at", { ascending: false }).limit(500),
+      ]);
+      const seen = new Set();
+      return [...(recent.data || []), ...(openAny.data || [])].filter((o) => {
+        if (seen.has(o.id)) return false;
+        seen.add(o.id); return true;
+      });
+    };
     const [reservations, tables, waitlist, orders, sessions, feedback] = await Promise.all([
-      req.repo.list("reservations"),
-      req.repo.list("restaurant_tables"),
-      req.repo.list("waitlist"),
-      req.repo.list("orders"),
-      req.repo.list("chat_sessions"),
-      req.repo.list("feedback"),
+      req.repo.list("reservations", { order: "date", desc: true, limit: 2000 }),
+      req.repo.list("restaurant_tables", { limit: 200 }),
+      req.repo.list("waitlist", { order: "created_at", desc: true, limit: 200 }),
+      loadOrders(),
+      req.repo.list("chat_sessions", { order: "last_message_at", desc: true, limit: 500 }),
+      req.repo.list("feedback", { order: "created_at", desc: true, limit: 1000 }),
     ]);
 
     const todays = reservations.filter((r) => r.date === today);

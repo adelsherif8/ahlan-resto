@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Pill, Btn, Input, Empty } from "../components/ui";
+import { usePoll } from "../lib/usePoll";
 
 function minsAgo(iso: string) {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -12,11 +13,7 @@ export default function Waitlist() {
   const [form, setForm] = useState({ name: "", phone_number: "", party_size: "2", quoted_wait_min: "20" });
 
   const load = () => api.get("/api/waitlist").then((r) => setRows(r.data)).catch(() => {});
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 10000);
-    return () => clearInterval(t);
-  }, []);
+  usePoll(load, 10000);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();

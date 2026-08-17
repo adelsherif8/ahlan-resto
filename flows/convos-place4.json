@@ -1,0 +1,49 @@
+[
+ {
+  "name": "FR — founder's exact chat: unknown 'Levels Mall'... now known → priced, then continues to confirm",
+  "phone": "+2015559011",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, Levels Mall"],
+  "expect": {
+   "priced and confirm screen": "Delivery \\(~[0-9.]+ km\\): 50 EGP",
+   "confirm line": "akked w hayro7|confirm and I'll send"
+  },
+  "forbid": {
+   "refused a Tagamoa mall": "mabnwaselsh|don't deliver|benwasseel",
+   "asked for pin": "share your location|eb3at location"
+  }
+ },
+ {
+  "name": "EN — vague address → pin ask → guest names 'point 90 mall' → priced (not refused, not chit-chat)",
+  "phone": "+2015559012",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, villa 7 street 12 next to the pharmacy", "point 90 mall"],
+  "expect": {
+   "priced after landmark": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "refused": "don't deliver|We don't deliver",
+   "asked for pin again": "share your location"
+  }
+ },
+ {
+  "name": "EN — 'o1 new cairo maybe?' resolves directly",
+  "phone": "+2015559013",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, o1 new cairo maybe?"],
+  "expect": {
+   "priced": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "asked for pin": "share your location"
+  }
+ },
+ {
+  "name": "AR — «كاش، الرحاب» → Rehab landmark → priced in Arabic",
+  "phone": "+2015559014",
+  "turns": ["سيجناتشر برجر", "دليفري", "كومبو كولا", "كاش، الرحاب"],
+  "expect": {
+   "priced in arabic": "التوصيل \\(~[0-9.]+ كم\\): [0-9]+ EGP"
+  },
+  "forbid": {
+   "asked for pin": "ابعت لوكيشنك"
+  }
+ }
+]

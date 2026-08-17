@@ -10,6 +10,7 @@ import { mins } from "../lib/format";
 const DRIVER_BASE = "https://flows.munadim.com/driver";
 
 import { money } from "../lib/format";
+import { usePoll } from "../lib/usePoll";
 
 const STAGE: Record<string, { label: string; cls: string }> = {
   pending: { label: "in kitchen", cls: "bg-zinc-800 text-zinc-300" },
@@ -46,11 +47,7 @@ export default function Delivery() {
       setZones(r.data?.basic_info?.delivery?.zones || []);
     }).catch(() => {});
   }, []);
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 7000);
-    return () => clearInterval(t);
-  }, [branch]);
+  usePoll(load, 7000, [branch]);
 
   const today = new Date().toLocaleDateString("en-CA");
   const rows = useMemo(() =>

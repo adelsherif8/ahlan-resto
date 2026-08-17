@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CalendarClock, Grid3X3, Hourglass, UtensilsCrossed,
   ChefHat, Users, MessageCircle, PartyPopper, Settings, LogOut, Flame, Bike, Calculator, ChevronDown, Star, QrCode, FileText, Wallet, Bot } from "lucide-react";
 import { api, session } from "../config/api";
 import NotificationBell from "./NotificationBell";
 import { unreadCount, isUnread } from "../lib/unread";
+import { usePoll } from "../lib/usePoll";
 
 // black or white text on the brand color, by luminance
 function contrastFor(hex: string): string {
@@ -84,16 +85,24 @@ export default function DashboardLayout() {
   // opening the dashboard never dumps a pile of toasts for a backlog.
   const [toast, setToast] = useState<{ session: string; who: string; text: string } | null>(null);
   const seenAt = useRef<Map<string, string> | null>(null);
-  useEffect(() => {
+  const startedAt = useRef<number>(Date.now());
+  const loadSessions = useCallback(() => {
     if (!(role === "admin" || ["manager", "host", "livechat"].includes(role))) return;
-    const load = () => api.get("/api/chat/sessions").then((r) => {
+    api.get("/api/chat/sessions").then((r) => {
       const rows = r.data || [];
       setUnread(unreadCount(rows));
       const prev = seenAt.current;
       const next = new Map<string, string>(rows.map((s: any) => [s.session_id, String(s.last_message_at || "")]));
       if (prev) {
-        const fresh = rows.find((s: any) =>
-          s.last_message_at && prev.get(s.session_id) && prev.get(s.session_id) !== String(s.last_message_at) && isUnread(s));
+        // A brand-new guest has no previous entry, so requiring one silently excluded
+        // first-ever messages — the main thing this is meant to catch. Unknown sessions
+        // count too, as long as they arrived after this tab started watching.
+        const fresh = rows.find((s: any) => {
+          if (!s.last_message_at || !isUnread(s)) return false;
+          const seen = prev.get(s.session_id);
+          if (seen === undefined) return new Date(s.last_message_at).getTime() > startedAt.current;
+          return seen !== String(s.last_message_at);
+        });
         if (fresh) setToast({
           session: fresh.session_id,
           who: fresh.diner_name || fresh.phone_number || fresh.session_id,
@@ -102,12 +111,14 @@ export default function DashboardLayout() {
       }
       seenAt.current = next;
     }).catch(() => {});
-    load();
-    const t = setInterval(load, 30000);
-    const bump = () => load();
-    window.addEventListener("chat-seen", bump);
-    return () => { clearInterval(t); window.removeEventListener("chat-seen", bump); };
   }, [role]);
+
+  useEffect(() => {
+    const bump = () => loadSessions();
+    window.addEventListener("chat-seen", bump);
+    return () => window.removeEventListener("chat-seen", bump);
+  }, [loadSessions]);
+  usePoll(loadSessions, 30000, [role]);
 
   useEffect(() => {
     if (!toast) return;
@@ -118,18 +129,20 @@ export default function DashboardLayout() {
   // Live urgency counts in the nav: you should be TOLD the board needs you, not have to
   // go and look. Late tickets and guests waiting on a human are the two things that get
   // worse the longer nobody notices, so they ride next to their page name.
+  // Overview already fetches this exact payload on its own timer — polling it a second
+  // time from the sidebar doubled the cost of the most expensive endpoint we have, for two
+  // numbers the user is already looking at in bigger form.
+  const onOverview = useLocation().pathname.startsWith("/overview");
   const [live, setLive] = useState<{ late: number; waiting: number }>({ late: 0, waiting: 0 });
-  useEffect(() => {
-    const load = () => api.get("/api/dashboard/kpis")
+  usePoll(() => {
+    if (onOverview) return;
+    api.get("/api/dashboard/kpis")
       .then((r) => setLive({
         late: r.data?.orders_today?.late_now || 0,
         waiting: r.data?.needs_attention || 0,
       }))
       .catch(() => {});
-    load();
-    const t = setInterval(load, 25000);
-    return () => clearInterval(t);
-  }, []);
+  }, 25000, [onOverview]);
 
   useEffect(() => {
     api.get("/api/settings").then((r) => {

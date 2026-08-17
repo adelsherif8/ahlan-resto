@@ -28,6 +28,7 @@
 //   branch.delivery_zones = [{area, fee, eta_min}]   // per-branch coverage (wins over config.delivery.zones)
 //   branch.delivery_paused / branch.delivery_hours   // per-branch overrides (optional)
 import { branchList, nearestBranches } from "./branches.js";
+import { transliterateArabic } from "./translit.js";
 
 const norm = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
 
@@ -175,6 +176,8 @@ function landmarkCandidates(config, text) {
 function insideAnyZone(config, pt) {
   const branches = branchList(config);
   const pool = branches.length ? branches : [null];
+  // no zones at all → the restaurant hasn't limited delivery; nothing is "outside"
+  if (!pool.flatMap((b) => zonesFor(config, b)).length) return true;
   for (const b of pool) for (const z of zonesFor(config, b)) {
     if (Array.isArray(z.polygon) && z.polygon.length >= 3) { if (pointInPolygon(pt, z.polygon)) return true; continue; }
     if (typeof z.lat === "number" && typeof z.lng === "number" && distanceKm(pt.lat, pt.lng, z.lat, z.lng) <= (Number(z.radius_km) || 5) + 3) return true;
@@ -254,6 +257,11 @@ export function queryVariants(text) {
   if (isAr) {
     out.add(core.replace(/^(شارع|ش)\s+/u, "").trim());
     out.add(core.replace(/^(شارع|ش)\s+/u, "").replace(/\s+(بن|ابن)\s+/gu, " ").trim());
+    // Photon's Arabic index is thin; its Latin one knows most Tagamoa streets. Add a
+    // rule-based transliteration (+ a no-"ibn" form) as extra queries. Wrong guesses
+    // can't hurt: every hit is scored against the guest's words and zone-filtered.
+    const lat = transliterateArabic(core);
+    if (lat.length >= 4) { out.add(lat); out.add(lat.replace(/\b(bn|ibn|ebn)\b/g, "").replace(/\s+/g, " ").trim()); }
   } else {
     const l = core.toLowerCase().replace(/\b(street|st\.?|road|rd\.?)\b/g, "").replace(/\s+/g, " ").trim();
     out.add(l);
@@ -294,6 +302,12 @@ async function nominatimSearch(q, cityHint) {
 // Cairo default; naming one is an honest "no", never a fuzzy landmark hit
 const DEFAULT_OUTSIDE = ["maadi", "المعادي", "zamalek", "الزمالك", "heliopolis", "مصر الجديدة", "dokki", "الدقي", "mohandessin", "المهندسين", "giza", "الجيزة", "6th of october", "6 october", "السادس من اكتوبر", "اكتوبر", "أكتوبر", "sheikh zayed", "zayed", "الشيخ زايد", "زايد", "shorouk", "الشروق", "obour", "العبور", "downtown cairo", "وسط البلد", "alexandria", "اسكندرية", "الإسكندرية", "helwan", "حلوان", "shubra", "شبرا", "ain shams", "عين شمس"];
 export function namesOutsideArea(config, text) {
+  // Only meaningful for a restaurant that has DEFINED where it delivers. With no zones
+  // at all, "Maadi" is not outside anything — Just Smash HAS a Maadi branch and got a
+  // false "we don't deliver there" from the Cairo default list.
+  const zoneCount = branchList(config).concat([null]).flatMap((b) => zonesFor(config, b)).length;
+  const explicit = config?.basic_info?.delivery?.outside_areas || config?.delivery?.outside_areas;
+  if (!zoneCount && !(Array.isArray(explicit) && explicit.length)) return null;
   const t = ` ${norm(arNz(text))} `;
   const list = (config?.basic_info?.delivery?.outside_areas || config?.delivery?.outside_areas || DEFAULT_OUTSIDE).map((a) => norm(arNz(a))).filter(Boolean);
   // an outside word that is ALSO a covered zone/alias (e.g. a restaurant that does
@@ -316,25 +330,34 @@ export async function resolvePlace(config, text, { cityHint = "" } = {}) {
   if (lms.length === 1 && lms[0].score >= 45) return { point: lms[0] };
   // 2) + 3) geocoders, scored by the guest's own words, zone-filtered
   const core = streetCore(raw) || raw;
-  const gw = distinctiveWords(core);
+  // Arabic guest: score geocoder hits by the TRANSLITERATED words too (a Latin hit
+  // name can never contain Arabic letters, so the Arabic words alone would score 0)
+  const gwAr = distinctiveWords(core);
+  const gwLat = /[؀-ۿ]/.test(core) ? distinctiveWords(transliterateArabic(core)) : [];
+  const gw = gwAr; // (kept for the landmark path below)
   const scored = [];
   // a CONFIDENT hit that sits outside every zone is remembered: if nothing inside
   // matches, that's an honest "we don't deliver there", not "couldn't place it"
   const outsideHits = [];
   const consider = (arr) => {
     for (const h of arr || []) {
-      const s = hitScore(gw, h.nameForScore || h.label);
+      // score against the word-set that matches the hit's script: an Arabic hit name
+      // vs the guest's Arabic words, a Latin hit name vs the transliteration
+      const hitAr = /[؀-ۿ]/.test(h.nameForScore || h.label || "");
+      const set = hitAr ? gwAr : (gwLat.length ? gwLat : gwAr);
+      const s = hitScore(set, h.nameForScore || h.label);
       if (!insideAnyZone(config, h)) { if (s >= 0.99) outsideHits.push({ ...h, score: s }); continue; }
       if (s >= 0.5) scored.push({ ...h, score: s });
     }
   };
+  // all variants IN PARALLEL (each call has its own 4.5s timeout) — sequential
+  // querying of 4–5 variants pushed an Arabic street past the 15s SLA filler
   const variants = queryVariants(raw);
-  for (const v of variants) {
-    consider(await photonSearch(config, v));
-    if (scored.some((s) => s.score >= 0.99)) break;
-  }
+  const photonAll = await Promise.all(variants.map((v) => photonSearch(config, v).catch(() => [])));
+  for (const arr of photonAll) consider(arr);
   if (!scored.some((s) => s.score >= 0.99)) {
-    for (const v of variants.slice(0, 2)) { consider(await nominatimSearch(v, cityHint)); if (scored.some((s) => s.score >= 0.99)) break; }
+    const nomiAll = await Promise.all(variants.slice(0, 2).map((v) => nominatimSearch(v, cityHint).catch(() => [])));
+    for (const arr of nomiAll) consider(arr);
   }
   // best first — by word coverage, then by CLOSENESS TO THE BRANCH (the same street
   // name exists in Nasr City and Tagamoa; the one 2 km away is the one they mean);
@@ -357,7 +380,8 @@ export async function resolvePlace(config, text, { cityHint = "" } = {}) {
   // a full-confidence place that is outside coverage → honest no (only when the guest
   // also named a district/city word, so a bare street name that merely EXISTS
   // elsewhere doesn't get refused — those go to the area/pin path)
-  if (outsideHits.length && /(nasr|مدينة نصر|maadi|المعادي|heliopolis|مصر الجديدة|zamalek|الزمالك|giza|الجيزة|october|اكتوبر|أكتوبر|zayed|زايد|shorouk|الشروق|obour|العبور|helwan|حلوان|dokki|الدقي|mohandessin|المهندسين|downtown|وسط البلد|shubra|شبرا|ain shams|عين شمس|alex|اسكندرية|الإسكندرية|badr|بدر|city|مدينة)/i.test(raw)) {
+  const zonesDefined = branchList(config).concat([null]).flatMap((b) => zonesFor(config, b)).length > 0;
+  if (zonesDefined && outsideHits.length && /(nasr|مدينة نصر|maadi|المعادي|heliopolis|مصر الجديدة|zamalek|الزمالك|giza|الجيزة|october|اكتوبر|أكتوبر|zayed|زايد|shorouk|الشروق|obour|العبور|helwan|حلوان|dokki|الدقي|mohandessin|المهندسين|downtown|وسط البلد|shubra|شبرا|ain shams|عين شمس|alex|اسكندرية|الإسكندرية|badr|بدر|city|مدينة)/i.test(raw)) {
     return { outside: true, area: outsideHits[0].label };
   }
   // 4) area-centre fallback: a district we know is named, street not placed. Only

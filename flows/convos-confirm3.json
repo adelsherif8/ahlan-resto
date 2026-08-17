@@ -1,0 +1,36 @@
+[
+ {
+  "name": "EN — founder's case: confirm screen must be 100% Latin",
+  "phone": "+2015557001",
+  "turns": ["classic burger sandwich for pickup", "cash, coming now"],
+  "expect": {
+   "receipt shown": "YOUR ORDER",
+   "english confirm line": "confirm and I'll send it to the kitchen"
+  },
+  "forbid": {
+   "arabic script anywhere": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "AR — confirm screen in Arabic",
+  "phone": "+2015557002",
+  "turns": ["كلاسيك برجر ساندوتش تيك اواي", "كاش وجاي دلوقتي"],
+  "expect": {
+   "arabic confirm line": "أكد وهيروح للمطبخ"
+  },
+  "forbid": {
+   "english confirm line": "send it to the kitchen|All set"
+  }
+ },
+ {
+  "name": "FR — confirm screen in Franco, no Arabic script",
+  "phone": "+2015557003",
+  "turns": ["classic burger sandwich pickup", "cash w gay delwa2ty"],
+  "expect": {
+   "franco confirm line": "akked w hayro7 lel kitchen"
+  },
+  "forbid": {
+   "arabic script anywhere": "[\\u0600-\\u06FF]"
+  }
+ }
+]

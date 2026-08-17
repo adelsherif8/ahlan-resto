@@ -1,0 +1,44 @@
+[
+ {
+  "name": "EN — real street: 'ibrahim ibn al mahdi street, villa 12' → Tagamoa street, priced",
+  "phone": "+2015559021",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, ibrahim ibn al mahdi street, villa 12"],
+  "expect": { "priced": "Delivery \\(~[0-9.]+ km\\): [0-9]+ EGP", "confirm": "confirm and I'll send" },
+  "forbid": { "pin asked": "share your location", "refused": "don't deliver" }
+ },
+ {
+  "name": "AR — «كاش، شارع ٩٠ الجنوبي عمارة ٥» → South 90 → priced in Arabic",
+  "phone": "+2015559022",
+  "turns": ["سيجناتشر برجر", "دليفري", "كومبو كولا", "كاش، شارع ٩٠ الجنوبي عمارة ٥"],
+  "expect": { "priced": "التوصيل \\(~[0-9.]+ كم\\): [0-9]+ EGP" },
+  "forbid": { "pin asked": "ابعت لوكيشنك", "which place asked": "تقصد أنهي مكان" }
+ },
+ {
+  "name": "FR — 'cash, el teseen el ganouby villa 7' → South 90 (Franco alias) → priced",
+  "phone": "+2015559023",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, el teseen el ganouby villa 7"],
+  "expect": { "priced": "Delivery \\(~[0-9.]+ km\\): [0-9]+ EGP" },
+  "forbid": { "which asked": "Te2sod anhy makan|Which one do you mean" }
+ },
+ {
+  "name": "EN — area-centre fallback: 'narges 4, street 8, villa 12' → El Narges approx → priced, not stopped",
+  "phone": "+2015559024",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, narges 4, street 8, villa 12"],
+  "expect": { "priced": "Delivery \\(~[0-9.]+ km\\): [0-9]+ EGP" },
+  "forbid": { "pin asked": "share your location" }
+ },
+ {
+  "name": "EN — Maadi named → honest no (not a fuzzy landmark)",
+  "phone": "+2015559025",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, maadi degla street 9"],
+  "expect": { "refused honestly": "don't deliver to that area|We don't deliver" },
+  "forbid": { "priced anyway": "Delivery \\(~[0-9.]+ km\\)" }
+ },
+ {
+  "name": "EN — vague → pin ask → then WhatsApp location [location] payload → priced",
+  "phone": "+2015559026",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, villa 7 street 12 next to the pharmacy", "https://maps.google.com/?q=30.0203,31.4947"],
+  "expect": { "priced after pin": "Delivery \\(~[0-9.]+ km\\): 50 EGP" },
+  "forbid": { "asked again": "share your location" }
+ }
+]

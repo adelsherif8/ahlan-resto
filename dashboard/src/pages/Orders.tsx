@@ -10,6 +10,7 @@ import { money, mins } from "../lib/format";
 import { modLines, printTicket as printSharedTicket } from "../lib/ticket";
 import { PageHeader, Btn } from "../components/ui";
 import BackLink, { backTrip } from "../components/BackLink";
+import { usePoll } from "../lib/usePoll";
 
 // Fast-food ticket board (KDS): tickets flow left → right, one tap advances.
 const COLS: { key: string; label: string; Icon: any; statuses: string[]; next?: string; nextLabel?: string }[] = [
@@ -77,6 +78,14 @@ export default function Orders() {
   const [findCode, setFindCode] = useState("");
   const [viewOrder, setViewOrder] = useState<any | null>(null);
   const [syncedAt, setSyncedAt] = useState<number>(Date.now());
+  const [pending, setPending] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem("kds_pending") || "[]"); } catch { return []; }
+  });
+  // a clock of its own, so "last updated" keeps counting even when nothing is arriving
+  const [now, setNow] = useState<number>(Date.now());
+  usePoll(() => setNow(Date.now()), 2000);
+  const staleSec = Math.max(0, Math.round((now - syncedAt) / 1000));
+  const offline = staleSec > 20;
   const knownIds = useRef<Set<string> | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const undoTimer = useRef<any>(null);
@@ -88,20 +97,25 @@ export default function Orders() {
   const today = new Date().toLocaleDateString("en-CA");
   const isToday = date === today;
 
+  // How far back to fetch. Normally a few days — but viewing an older date, searching for
+  // a code, or arriving on a ?code= deep link all need history, and silently returning an
+  // empty board would look like the ticket had been deleted.
+  const [wide, setWide] = useState(false);
+  const daysBackOfDate = Math.ceil((Date.now() - new Date(date + "T00:00:00").getTime()) / 86400000);
+  const windowDays = wide ? 400 : Math.max(3, daysBackOfDate + 2);
+
   const load = (b = branch) =>
-    api.get("/api/orders", { params: { branch: b } }).then((r) => { setRows(r.data); setSyncedAt(Date.now()); }).catch(() => {});
+    api.get("/api/orders", { params: { branch: b, since_days: windowDays } })
+      .then((r) => { setRows(r.data); setSyncedAt(Date.now()); })
+      .catch(() => setNow(Date.now()));   // force a render so the age keeps ticking when polls fail
   useEffect(() => {
     api.get("/api/settings").then((r) => {
       setBranches(r.data?.basic_info?.branches || []);
       setWaNumber(r.data?.basic_info?.contact?.whatsapp || r.data?.basic_info?.contact?.phone || "");
     }).catch(() => {});
   }, []);
-  useEffect(() => {
-    load(branch);
-    if (!staffBranch) localStorage.setItem("resto_branch_view", branch);
-    const t = setInterval(() => load(branch), 5000);
-    return () => clearInterval(t);
-  }, [branch]);
+  useEffect(() => { if (!staffBranch) localStorage.setItem("resto_branch_view", branch); }, [branch]);
+  usePoll(() => load(branch), 5000, [branch, windowDays]);
 
   useEffect(() => {
     const f = () => setTv(!!document.fullscreenElement);
@@ -123,12 +137,41 @@ export default function Orders() {
   );
   const visibleAll = [...carried, ...dayRows.filter((o) => o.status !== "cancelled")];
   const stationNames = [...new Set(visibleAll.flatMap((o) => (o.items || []).map((i: any) => i.station).filter(Boolean)))] as string[];
+  // How long each DISH actually takes here, from finished tickets. A burger waiting on a
+  // slow side shouldn't read as late at the same minute as a drink — the ticket is judged
+  // by its slowest line, not by one number for the whole menu.
+  const itemPrep = useMemo(() => {
+    const byItem: Record<string, number[]> = {};
+    for (const o of rows) {
+      const end = o.ready_at || o.served_at;
+      if (!end) continue;
+      const m = (new Date(end).getTime() - new Date(o.created_at).getTime()) / 60000;
+      if (!(m > 0 && m < 240)) continue;
+      for (const i of o.items || []) (byItem[i.name] = byItem[i.name] || []).push(m);
+    }
+    const out: Record<string, number> = {};
+    for (const [name, xs] of Object.entries(byItem)) {
+      if (xs.length < 3) continue;                    // too few to call it a pattern
+      const sorted = [...xs].sort((a, b) => a - b);
+      out[name] = Math.round(sorted[Math.floor(sorted.length / 2)]);
+    }
+    return out;
+  }, [rows]);
+
+  const lateAfter = useMemo(() => {
+    const preps = rows
+      .map((o) => { const end = o.ready_at || o.served_at; return end ? (new Date(end).getTime() - new Date(o.created_at).getTime()) / 60000 : null; })
+      .filter((x): x is number => x !== null && x > 0 && x < 240)
+      .sort((a, b) => a - b);
+    return preps.length >= 5 ? Math.max(10, Math.round(preps[Math.floor(preps.length / 2)] * 1.5)) : 20;
+  }, [rows]);
+
   // ?filter=late — arriving from the Overview alert. "12 running late" should open the
   // board showing those twelve, not the whole board with them somewhere inside it.
   const [lateOnly, setLateOnly] = useState(false);
   const byStation = station ? visibleAll.filter((o) => (o.items || []).some((i: any) => i.station === station)) : visibleAll;
   const visible = lateOnly
-    ? byStation.filter((o) => !DONE.includes(o.status) && o.status !== "cancelled" && mins(o.created_at) > 20)
+    ? byStation.filter((o) => !DONE.includes(o.status) && o.status !== "cancelled" && mins(o.created_at) > lateAfter)
     : byStation;
   const cancelled = dayRows.filter((o) => o.status === "cancelled");
   const carriedIds = useMemo(() => new Set(carried.map((o) => String(o.id))), [carried]);
@@ -159,6 +202,24 @@ export default function Orders() {
     await api.patch(`/api/orders/${o.id}`, { items }).catch(load);
   }
 
+  // Tick items off as they leave the pass. When the last one is done the ticket advances
+  // itself — a cook who has finished every line shouldn't also have to remember to bump.
+  async function toggleItem(o: any, idx: number) {
+    const items = (o.items || []).map((i: any, j: number) => (j === idx ? { ...i, done: !i.done } : i));
+    setRows((xs) => xs.map((x) => (x.id === o.id ? { ...x, items } : x)));
+    try { await api.patch(`/api/orders/${o.id}`, { items }); } catch { load(branch); return; }
+
+    const col = COLS.find((c) => c.statuses.includes(o.status));
+    const step = col && nextFor(o, col);
+    if (step && items.length && items.every((i: any) => i.done)) {
+      // clear the ticks on the way out, so the next stage starts from a clean board
+      const cleared = items.map((i: any) => ({ ...i, done: false }));
+      setRows((xs) => xs.map((x) => (x.id === o.id ? { ...x, items: cleared } : x)));
+      await api.patch(`/api/orders/${o.id}`, { items: cleared }).catch(() => {});
+      advance({ ...o, items: cleared }, step.next);
+    }
+  }
+
   async function advance(o: any, status: string, withUndo = true, reason?: string) {
     if (withUndo) {
       clearTimeout(undoTimer.current);
@@ -166,8 +227,33 @@ export default function Orders() {
       undoTimer.current = setTimeout(() => setUndo(null), 5000);
     }
     setRows((xs) => xs.map((x) => (x.id === o.id ? { ...x, status, cancel_reason: reason || x.cancel_reason } : x)));
-    await api.patch(`/api/orders/${o.id}`, { status, ...(reason ? { cancel_reason: reason } : {}) }).catch(load);
+    try {
+      await api.patch(`/api/orders/${o.id}`, { status, ...(reason ? { cancel_reason: reason } : {}) });
+    } catch {
+      // Queue it. The optimistic row already moved, so without this the next poll would
+      // silently put the ticket back and the cook would never know the bump was lost.
+      setPending((q) => {
+        const next = [...q.filter((x) => x.id !== o.id), { id: o.id, code: o.code, status, reason: reason || null, at: Date.now() }];
+        localStorage.setItem("kds_pending", JSON.stringify(next));
+        return next;
+      });
+    }
   }
+
+  // flush whatever the board couldn't send, whenever it can talk again
+  usePoll(() => {
+    if (!pending.length) return;
+    (async () => {
+      const left: any[] = [];
+      for (const p of pending) {
+        try { await api.patch(`/api/orders/${p.id}`, { status: p.status, ...(p.reason ? { cancel_reason: p.reason } : {}) }); }
+        catch { left.push(p); }
+      }
+      setPending(left);
+      localStorage.setItem("kds_pending", JSON.stringify(left));
+      if (left.length !== pending.length) load(branch);
+    })();
+  }, 8000, [pending.length, branch]);
 
   // digest numbers — real prep time when the stamps exist, updated_at as fallback
   const done = visible.filter((o) => DONE.includes(o.status));
@@ -178,7 +264,9 @@ export default function Orders() {
     })
     .filter((x): x is number => x !== null && x > 0 && x < 240);
   const avgPrep = prepTimes.length ? Math.round(prepTimes.reduce((s, x) => s + x, 0) / prepTimes.length) : null;
-  const lateCount = active.filter((o) => mins(o.created_at) > 20).length;
+  // measured, not assumed: median of real prep times, ×1.5 — the same rule Overview uses,
+  // so the board and the alert can never disagree about which tickets are late
+  const lateCount = active.filter((o) => mins(o.created_at) > lateAfter).length;
 
   const sortCol = (list: any[], colKey: string) =>
     colKey !== "new" ? list : [...list].sort((a, b) =>
@@ -191,6 +279,10 @@ export default function Orders() {
   const found = findCode.trim()
     ? rows.filter(matchCode).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 8)
     : [];
+  // widen only while a search/deep-link actually needs history — latching it on for the
+  // rest of the session quietly undid the whole point of the window
+  useEffect(() => { setWide(findCode.trim().length > 0); }, [findCode]);
+
   useEffect(() => {
     if (!findCode.trim()) return;
     const hit = dayRows.find(matchCode);
@@ -201,6 +293,7 @@ export default function Orders() {
   // day we move the date filter too, otherwise the board would look empty and the link
   // would seem broken. The param is cleared afterwards so a refresh doesn't re-fire it.
   const [params, setParams] = useSearchParams();
+  useEffect(() => { if (params.get("code") && !wide) setWide(true); }, [params]);
   useEffect(() => {
     const code = params.get("code");
     const wantLate = params.get("filter") === "late";
@@ -223,8 +316,65 @@ export default function Orders() {
     setParams(params, { replace: true });
   }, [rows]);
 
+  // Bump-bar / keyboard control. A cook with wet or gloved hands should never have to
+  // touch the screen, and a physical bump bar is just a keypad — it sends these keystrokes.
+  // 1-9 advance the Nth ticket in the leftmost column that has any; U undoes the last one.
+  const [kbd, setKbd] = useState(() => localStorage.getItem("kds_kbd") !== "off");
+  const [cursor, setCursor] = useState(0);
+  useEffect(() => {
+    if (!kbd || !isToday) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;   // never steal typing
+      if (e.key.toLowerCase() === "u") {
+        if (undo) { advance(undo.order, undo.prev, false); setUndo(null); }
+        return;
+      }
+      // arrows walk the active column, Enter bumps what's under the cursor — the two
+      // motions a bump bar sends. Space ticks the next unfinished item off instead.
+      const activeCol = COLS.find((c) => c.key !== "done" && visible.some((o) => c.statuses.includes(o.status)));
+      const list = activeCol ? sortCol(visible.filter((o) => activeCol.statuses.includes(o.status)), activeCol.key) : [];
+      if (["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(e.key)) {
+        if (!list.length) return;
+        e.preventDefault();
+        setCursor((c) => {
+          const fwd = e.key === "ArrowRight" || e.key === "ArrowDown";
+          return (c + (fwd ? 1 : -1) + list.length) % list.length;
+        });
+        return;
+      }
+      if (e.key === "Enter" || e.key === " ") {
+        const target = list[cursor];
+        if (!target || !activeCol) return;
+        e.preventDefault();
+        if (e.key === " ") {
+          const idx = (target.items || []).findIndex((i: any) => !i.done && !i.hold);
+          if (idx >= 0) toggleItem(target, idx);
+          return;
+        }
+        const step = nextFor(target, activeCol);
+        if (step) advance(target, step.next);
+        return;
+      }
+      const n = Number(e.key);
+      if (!n || n < 1 || n > 9) return;
+      // leftmost column with tickets = what the kitchen is working on now
+      for (const col of COLS) {
+        if (col.key === "done") break;
+        const list = visible.filter((o) => col.statuses.includes(o.status));
+        if (!list.length) continue;
+        const target = sortCol(list, col.key)[n - 1];
+        const step = target && nextFor(target, col);
+        if (target && step) { e.preventDefault(); advance(target, step.next); }
+        return;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [kbd, isToday, visible, undo, cursor]);
+
   const filtersDirty = findCode.trim() || station || !isToday || branch !== "all" || lateOnly;
-  function resetFilters() { setFindCode(""); setStation(""); setDate(today); setBranch("all"); setLateOnly(false); }
+  function resetFilters() { setFindCode(""); setStation(""); setDate(today); setBranch("all"); setLateOnly(false); setWide(false); }
 
   const boardEmpty = visible.length === 0;
 
@@ -263,10 +413,10 @@ export default function Orders() {
               {stationNames.length > 0 && (
                 <div className="flex items-center gap-1">
                   <button onClick={() => setStation("")}
-                    className={`rounded-full px-2 py-1 text-[11px] ${!station ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>All stations</button>
+                    className={`rounded-full px-2 py-1 text-xs ${!station ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>All stations</button>
                   {stationNames.map((st) => (
                     <button key={st} onClick={() => setStation(station === st ? "" : st)}
-                      className={`rounded-full px-2 py-1 text-[11px] ${station === st ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>{st}</button>
+                      className={`rounded-full px-2 py-1 text-xs ${station === st ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>{st}</button>
                   ))}
                 </div>
               )}
@@ -300,14 +450,32 @@ export default function Orders() {
       )}
 
       {!tv && (
-        <div className="mb-2 flex items-center gap-3 text-[11px] text-zinc-500">
-          <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-            live · updated {Math.max(0, Math.round((Date.now() - syncedAt) / 1000))}s ago
-          </span>
+        <div className="mb-2 flex items-center gap-3 text-xs text-zinc-500">
+          {offline ? (
+            <span className="flex items-center gap-1.5 rounded-md bg-red-600 px-2 py-1 text-xs font-bold text-white">
+              <AlertTriangle size={12} /> NOT UPDATING — last refreshed {staleSec}s ago. Check the connection before trusting this board.
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              live · updated {staleSec}s ago
+            </span>
+          )}
+          {pending.length > 0 && (
+            <span className="flex items-center gap-1.5 rounded-md bg-amber-500 px-2 py-1 text-xs font-bold text-amber-950">
+              {pending.length} bump{pending.length > 1 ? "s" : ""} not sent yet — {pending.map((p) => p.code).join(", ")}
+            </span>
+          )}
           {cancelled.length > 0 && (
             <button onClick={() => setShowCancelled(!showCancelled)} className="underline decoration-dotted underline-offset-2 hover:text-zinc-300">
               Cancelled ({cancelled.length})
+            </button>
+          )}
+          {isToday && (
+            <button onClick={() => { setKbd((v) => { localStorage.setItem("kds_kbd", v ? "off" : "on"); return !v; }); }}
+              title="Number keys bump the first tickets in the active column; U undoes. Works with a bump bar."
+              className={`cursor-pointer rounded-full px-2 py-0.5 ${kbd ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800 text-zinc-400"}`}>
+              keys {kbd ? "on" : "off"} · 1-9 bump · ←→ move · Enter bump · Space tick · U undo
             </button>
           )}
           {!isToday && <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-zinc-300">viewing {date} — read-only</span>}
@@ -320,7 +488,7 @@ export default function Orders() {
             <div key={o.id} className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-1.5 text-xs text-zinc-400">
               <span className="font-mono font-bold text-zinc-300">{o.code}</span>
               {carriedIds.has(String(o.id)) && (
-                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold text-amber-300">
                   {new Date(o.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                 </span>
               )}
@@ -368,9 +536,11 @@ export default function Orders() {
                     ) : list.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-zinc-800 p-6 text-center text-xs text-zinc-600">—</div>
                     ) : (
-                      list.map((o) => (
+                      list.map((o, n) => (
                         <Ticket
                           key={o.id} o={o} col={col}
+                          keyHint={kbd && isToday && col.key !== "done" && n < 9 ? n + 1 : null}
+                          cursor={kbd && isToday && col.key === COLS.find((c) => c.key !== "done" && visible.some((x) => c.statuses.includes(x.status)))?.key && n === cursor}
                           flash={flash.has(String(o.id)) || matchCode(o)}
                           branchName={branches.find((b: any) => b.key === o.branch)?.name || o.branch}
                           showBranch={branch === "all"}
@@ -378,7 +548,10 @@ export default function Orders() {
                           onAdvance={advance}
                           onCancel={setCancelTarget}
                           onPrint={printTicket}
+                          lateAfter={lateAfter}
                           onFire={fireLine}
+                          onToggleItem={toggleItem}
+                          itemPrep={itemPrep}
                           onOpen={setViewOrder}
                         />
                       ))
@@ -430,9 +603,9 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount, onOpen }: any) {
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 text-sm">
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">This day</div>
         <div className="grid grid-cols-3 gap-2 text-center">
-          <div><div className="text-lg font-bold">{doneCount}</div><div className="text-[10px] text-zinc-500">done</div></div>
-          <div><div className="text-lg font-bold">{avgPrep ?? "—"}</div><div className="text-[10px] text-zinc-500">avg min</div></div>
-          <div><div className={`text-lg font-bold ${lateCount ? "text-red-400" : ""}`}>{lateCount}</div><div className="text-[10px] text-zinc-500">late now</div></div>
+          <div><div className="text-lg font-bold">{doneCount}</div><div className="text-xs text-zinc-500">done</div></div>
+          <div><div className="text-lg font-bold">{avgPrep ?? "—"}</div><div className="text-xs text-zinc-500">avg min</div></div>
+          <div><div className={`text-lg font-bold ${lateCount ? "text-red-400" : ""}`}>{lateCount}</div><div className="text-xs text-zinc-500">late now</div></div>
         </div>
       </div>
       {list.slice(-6).reverse().map((o: any) => {
@@ -456,33 +629,41 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount, onOpen }: any) {
 }
 
 const BACK: Record<string, string> = { preparing: "pending", ready: "preparing", out_for_delivery: "ready", served: "ready", delivered: "out_for_delivery" };
-const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint, onFire, onOpen }: any) {
+const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint, onFire, onOpen, lateAfter, keyHint, onToggleItem, itemPrep, cursor }: any) {
   const step = nextFor(o, col);
   const [copied, setCopied] = useState(false);
   const road = col.key === "road";
   const age = road ? mins(o.out_at || o.updated_at || o.created_at) : mins(o.created_at);
-  const lateAt = road ? 60 : 20;
+  // the ticket's own target: the slowest dish on it, when history knows. Falls back to
+  // the board-wide figure for anything we haven't seen enough of.
+  const slowest = (o.items || []).reduce((m: number, i: any) => Math.max(m, itemPrep?.[i.name] || 0), 0);
+  const lateAt = road ? 60 : Math.round((slowest ? slowest * 1.5 : (lateAfter || 20)));
   const warm = !readOnly && col.key !== "done" && age >= lateAt / 2 && age < lateAt;
   const late = !readOnly && col.key !== "done" && age >= lateAt;
   const t = typeOf(o.order_type);
   const phone = String(o.phone_number || "");
   const callable = /^[+\d][\d\s-]{6,}$/.test(phone);
   return (
-    <div id={`tk-${o.id}`} className={`drop-shadow-md ${flash ? "animate-pulse" : ""}`}>
+    <div id={`tk-${o.id}`} className={`drop-shadow-md ${flash ? "animate-pulse" : ""} ${cursor ? "outline outline-2 outline-offset-2 outline-sky-400" : ""}`}>
       <div
         onClick={() => onOpen && onOpen(o)}
         className={`overflow-hidden rounded-t-sm bg-[#fbfaf4] font-mono text-neutral-900 ${!readOnly && step ? "cursor-pointer" : ""} ${
-          late ? "ring-2 ring-red-500 animate-[pulse_1.6s_ease-in-out_infinite]" : flash ? "ring-2 ring-emerald-400" : ""
+          // A pulsing ticket fades its own text — the most urgent ticket became the
+          // hardest to read. Loud and STILL: thick red ring, no opacity animation.
+          late ? "ring-4 ring-red-600" : flash ? "ring-2 ring-emerald-400" : ""
         }`}
       >
         <div className={`h-2 ${t.bar}`} />
         <div className="flex items-center justify-between px-3 pt-2">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-widest">
+          <span className="flex items-center gap-1.5 text-xs font-bold tracking-widest">
+            {keyHint && (
+              <span className="rounded bg-neutral-900 px-1.5 py-0.5 font-mono text-xs text-white" title={`Press ${keyHint} to bump`}>{keyHint}</span>
+            )}
             <t.Icon size={13} />
             {t.label}
             {o.order_type !== "delivery" && o.table_number ? ` · T${o.table_number}` : ""}
           </span>
-          <span className={`flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
+          <span className={`flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-bold tabular-nums ${
             late ? "bg-red-600 text-white" : warm ? "bg-amber-400 text-amber-950" : t.chip
           }`}>
             {late && <AlertTriangle size={11} />}
@@ -492,7 +673,7 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
 
         <div className="px-3 pb-1 pt-0.5 text-center">
           <div className="text-2xl font-extrabold tracking-[0.15em]">{o.code}</div>
-          <div className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-widest text-neutral-500">
+          <div className="flex items-center justify-center gap-1 text-xs uppercase tracking-widest text-neutral-500">
             {phone.startsWith("walkin:") ? (o.diner_name || "walk-in") : (o.diner_name || phone || "guest")}
             {showBranch && o.branch ? ` · ${branchName}` : ""}
             {o.order_type === "pre_order" && o.pickup_time ? (
@@ -501,18 +682,43 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
           </div>
         </div>
 
+        {o.allergy_flags?.length > 0 && (
+          <div className="border-y-2 border-red-700 bg-red-600 px-3 py-1.5 text-center text-white">
+            <div className="text-sm font-extrabold uppercase tracking-widest">⚠ Allergy — {o.guest_allergies?.join(", ")}</div>
+            <div className="text-xs font-bold">
+              {o.allergy_flags.map((f: any) => f.item).join(", ")} — check before cooking
+            </div>
+          </div>
+        )}
+        {/* an allergy on file that no item matched still gets said, quietly: a miss proves
+            nothing when ingredient lists are free text */}
+        {!o.allergy_flags?.length && o.guest_allergies?.length > 0 && (
+          <div className="border-y border-dashed border-red-500 bg-red-50 px-3 py-1 text-center text-xs font-bold text-red-900">
+            Guest allergy on file: {o.guest_allergies.join(", ")}
+          </div>
+        )}
+
         <div className="divide-y divide-dashed divide-neutral-300 border-y border-dashed border-neutral-400">
           {(o.items || []).map((i: any, idx: number) => (
-            <div key={idx} className={`px-3 py-1.5 text-[13px] leading-snug ${i.hold ? "opacity-60" : ""}`}>
+            <div key={idx}
+              onClick={(e) => { if (!readOnly && onToggleItem && !i.hold) { e.stopPropagation(); onToggleItem(o, idx); } }}
+              className={`px-3 py-1.5 text-[13px] leading-snug ${i.hold ? "opacity-60" : ""} ${
+                !readOnly && !i.hold ? "cursor-pointer hover:bg-neutral-100" : ""} ${i.done ? "bg-emerald-50" : ""}`}>
               <div className="flex justify-between gap-2">
-                <span className="font-bold">
+                <span className={`font-bold ${i.done ? "text-neutral-400 line-through" : ""}`}>
+                  {!readOnly && !i.hold && (
+                    <span className={`mr-1.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border align-[-2px] ${
+                      i.done ? "border-emerald-600 bg-emerald-600 text-white" : "border-neutral-400"}`}>
+                      {i.done ? "✓" : ""}
+                    </span>
+                  )}
                   {i.qty}x {i.name}
-                  {i.station ? <span className="ml-1 rounded bg-neutral-200 px-1 text-[9px] font-semibold uppercase text-neutral-600">{i.station}</span> : null}
+                  {i.station ? <span className="ml-1 rounded bg-neutral-200 px-1 text-xs font-semibold uppercase text-neutral-600">{i.station}</span> : null}
                 </span>
                 <span className="flex items-center gap-1.5">
                   {i.hold ? (
                     <button onClick={(e) => { e.stopPropagation(); onFire && onFire(o, idx); }}
-                      className="rounded bg-amber-400 px-1.5 text-[10px] font-extrabold uppercase text-neutral-900">HOLD — fire</button>
+                      className="rounded bg-amber-400 px-1.5 text-xs font-extrabold uppercase text-neutral-900">HOLD — fire</button>
                   ) : null}
                   <span className="tabular-nums text-neutral-500">{money(Number(i.unit_price ?? i.price) * Number(i.qty))}</span>
                 </span>
@@ -524,6 +730,11 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
           ))}
         </div>
 
+        {!readOnly && (o.items || []).length > 1 && (o.items || []).some((i: any) => i.done) && (
+          <div className="border-b border-dashed border-neutral-400 px-3 py-1 text-center text-xs font-bold text-emerald-700">
+            {(o.items || []).filter((i: any) => i.done).length} of {(o.items || []).length} done — ticket moves itself when they all are
+          </div>
+        )}
         {o.notes && (
           <div className="border-b border-dashed border-neutral-400 bg-amber-50 px-3 py-1.5 text-xs font-bold">
             !! {o.notes}
@@ -543,8 +754,8 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
           <span className="flex items-center gap-1.5 text-sm font-extrabold tabular-nums">
             EGP {money(o.total)}
             {o.payment_method && (o.payment_method === "cash"
-              ? <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-800">💵 cash — collect</span>
-              : <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800">paid · {o.payment_method}</span>)}
+              ? <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-bold uppercase text-amber-800">💵 cash — collect</span>
+              : <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-xs font-bold uppercase text-emerald-800">paid · {o.payment_method}</span>)}
           </span>
           <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
             {o.order_type === "delivery" && o.courier_token && (
@@ -590,7 +801,7 @@ function TicketModal({ o, branches, onClose, onPrint, onOpenChat }: any) {
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div className="max-h-[85vh] w-96 overflow-y-auto rounded-2xl border border-zinc-700 bg-zinc-950 p-5" onClick={(e) => e.stopPropagation()}>
         <div className="mb-1 flex items-center justify-between">
-          <span className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${t.chip}`}><t.Icon size={11} /> {t.label}</span>
+          <span className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs font-bold uppercase ${t.chip}`}><t.Icon size={11} /> {t.label}</span>
           <button onClick={onClose}><X size={16} className="text-zinc-500 hover:text-zinc-200" /></button>
         </div>
         <div className="text-center text-3xl font-extrabold tracking-[0.2em]">{o.code}</div>

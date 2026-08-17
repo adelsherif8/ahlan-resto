@@ -1,0 +1,30 @@
+[
+ {
+  "name": "EN — '3 tenders please' → which-one → 'nashville' → 3× on the bill",
+  "phone": "+2015559061",
+  "turns": ["3 tenders please", "nashville", "medium"],
+  "expect": { "three on the bill": "3× \\*Chicken Tenders 3 Pcs Nashville\\*" },
+  "forbid": { "one on the bill": "1× \\*Chicken Tenders" }
+ },
+ {
+  "name": "AR — «عايز ٣ تندرز» → «ناشفيل» → ٣×",
+  "phone": "+2015559062",
+  "turns": ["عايز ٣ تندرز", "ناشفيل", "وسط"],
+  "expect": { "three": "3× \\*تشيكن تندرز|٣× \\*تشيكن تندرز" },
+  "forbid": { "one": "1× \\*تشيكن تندرز|١× \\*تشيكن تندرز" }
+ },
+ {
+  "name": "EN — per-unit split: 3 nashville tenders, 'hot for the first 2, mild for the third'",
+  "phone": "+2015559063",
+  "turns": ["3 chicken tenders nashville", "hot for the first 2 and mild for the third"],
+  "expect": { "split into two lines": "2× \\*Chicken Tenders 3 Pcs Nashville\\* \\(Hot|2× \\*Chicken Tenders 3 Pcs Nashville\\*[^\\n]*Hot", "the mild one": "1× \\*Chicken Tenders 3 Pcs Nashville\\*[^\\n]*Mild" },
+  "forbid": { "single line with one spice for all": "3× \\*Chicken Tenders 3 Pcs Nashville\\* \\((Hot|Mild|Medium)\\)" }
+ },
+ {
+  "name": "FR — '3 tenders' → 'nashville' → 3×",
+  "phone": "+2015559064",
+  "turns": ["3ayez 3 tenders", "nashville", "medium"],
+  "expect": { "three": "3× \\*Chicken Tenders 3 Pcs Nashville\\*" },
+  "forbid": { "one": "1× \\*Chicken Tenders" }
+ }
+]

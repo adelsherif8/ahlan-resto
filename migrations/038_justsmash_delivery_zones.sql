@@ -1,0 +1,87 @@
+-- ============================================================================
+-- 038: Just Smash has delivery ON with no zones. CONTROL DB (npznnysudtkesnliibvl).
+--
+-- ⚠️  THIS FILE IS A TEMPLATE. THE FEES AND AREAS ARE PLACEHOLDERS.
+--     Nothing below runs as written — every `999` is a number only you know.
+--
+-- THE PROBLEM (found by /api/ops/preflight)
+-- -----------------------------------------
+--   ahlan-pilot (Just Smash): services.delivery = true, but basic_info.delivery = {}
+--   luciz        (Luci'z):    services.delivery = true, delivery fully configured
+--
+-- With delivery on and no zones, the bot will accept a delivery order and then have no
+-- fee, no ETA and no coverage check to answer with. Live impact today is nil — the
+-- platform's one WhatsApp number is routed to luciz, so no guest reaches Just Smash —
+-- but it breaks the moment that number (or a second one) points here.
+--
+-- TWO HONEST OPTIONS
+-- ------------------
+-- A) Turn delivery OFF until the zones exist. Safe, immediate, reversible, and the bot
+--    stops offering something it cannot price. Recommended if Just Smash is not taking
+--    delivery through the bot yet.
+-- B) Configure the zones. Requires real numbers: fee per area, minimum order, free-over
+--    threshold, ETA. I have deliberately not invented these — a wrong delivery fee is
+--    worse than a missing one, because the guest is quoted it and the restaurant eats
+--    the difference.
+--
+-- Luci'z's live config is the reference shape (zones[] with area, aliases, fee, eta_min,
+-- lat/lng, and an optional polygon; plus paused, enabled, pricing, free_over, min_order,
+-- landmarks, eta_enabled, rush_pad_min, uncovered_message).
+-- Read it before filling this in:
+--   select basic_info->'delivery' from restaurants where slug = 'luciz';
+-- ============================================================================
+
+
+-- ─────────────────────── OPTION A — switch delivery off ───────────────────────
+-- Uncomment to run. Reversible: set it back to true when the zones are ready.
+
+-- update restaurants
+--    set basic_info = jsonb_set(basic_info, '{services,delivery}', 'false'::jsonb)
+--  where slug = 'ahlan-pilot';
+
+
+-- ─────────────────────── OPTION B — configure the zones ───────────────────────
+-- Replace EVERY 999 and every area name. Just Smash's 9 branches are Sheraton,
+-- Nasr City, New Cairo, Maadi, Sheikh Zayed, Roxy, Alexandria, Marina 5 and
+-- Hadayek Al-Ahram — zones usually mirror the areas those branches deliver into,
+-- which is a business decision, not something derivable from the data.
+--
+-- `aliases` matter more than they look: they are what the bot matches a guest's typed
+-- area against, so include the Arabic and the common misspellings (see luciz's list).
+
+-- update restaurants
+--    set basic_info = jsonb_set(
+--          basic_info,
+--          '{delivery}',
+--          jsonb_build_object(
+--            'enabled',   true,
+--            'paused',    false,
+--            'min_order', 999,                    -- EGP, or null for none
+--            'free_over', 999,                    -- EGP, or null for never free
+--            'eta_enabled',  true,
+--            'rush_pad_min', 10,                  -- minutes added when the kitchen is slammed
+--            'uncovered_message', 'Sorry, we don''t deliver to that area yet — pickup is available 🙏',
+--            'zones', jsonb_build_array(
+--              jsonb_build_object(
+--                'area',    'AREA NAME',
+--                'aliases', jsonb_build_array('alias', 'الاسم بالعربي'),
+--                'fee',     999,                  -- EGP
+--                'eta_min', 999,                  -- minutes
+--                'lat',     30.0000,
+--                'lng',     31.0000
+--              )
+--              -- , one object per area…
+--            )
+--          )
+--        )
+--  where slug = 'ahlan-pilot';
+
+
+-- ─────────────────────────────── verify ───────────────────────────────
+-- select slug,
+--        basic_info->'services'->>'delivery'                as delivery_on,
+--        jsonb_array_length(coalesce(basic_info->'delivery'->'zones', '[]'::jsonb)) as zones
+--   from restaurants order by slug;
+--
+-- Then re-check the console: Insights → Restaurant pre-flight. The
+-- "delivery zones configured" warning should clear.

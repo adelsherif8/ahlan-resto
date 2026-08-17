@@ -1,0 +1,23 @@
+[
+  { "name": "EN new — order intent, then type", "phone": "+201555001101",
+    "turns": ["i want to order", "pickup"],
+    "expect": { "invites the order in the same message": "answer both at once|2 Classic Burgers" },
+    "forbid": { "menu pushed twice": "here'?s the full menu[\\s\\S]*here'?s the full menu" } },
+  { "name": "AR new — order intent, then type", "phone": "+201555001102",
+    "turns": ["عايز اطلب", "دليفري"],
+    "expect": { "arabic invite": "تقدر تقولّي الاتنين" },
+    "forbid": { "levantine or MSA": "شو |حابب|ماذا تود|القائمة|تفضل أخبرني" } },
+  { "name": "FR new — order intent, then type", "phone": "+201555001103",
+    "turns": ["3ayez atlob", "pickup"],
+    "expect": { "franco invite": "Momken te2ool el etnen" },
+    "forbid": { "arabic script": "[\\u0600-\\u06FF]", "english sentence": "what would you like to order" } },
+  { "name": "AR — both in one message", "phone": "+201555001104",
+    "turns": ["عايز اطلب", "دليفري و ٢ كلاسيك برجر"],
+    "forbid": { "levantine or MSA": "شو |حابب|ماذا تود|القائمة" } },
+  { "name": "FR — latin guest must never get an arabic bill", "phone": "+201555001105",
+    "turns": ["3ayez el menu", "3ayez classic burger"],
+    "forbid": { "arabic script": "[\\u0600-\\u06FF]" } },
+  { "name": "EN returning — order intent", "phone": "+201555001106",
+    "seed": { "name": "Adel", "visit_count": 5 }, "turns": ["i want to order", "delivery"],
+    "forbid": { "nudge to a regular": "first time here" } }
+]

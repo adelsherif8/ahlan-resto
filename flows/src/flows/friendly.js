@@ -5,7 +5,7 @@ import { defineFlow } from "../engine/flow.js";
 import { getMenu } from "../services/menucache.js";
 import { isGreetingish, editDistance, findItem } from "../services/fastpaths.js";
 import { chatJSON } from "../services/llm.js";
-import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, publicLink } from "../config.js";
+import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, publicLink, log } from "../config.js";
 import { hoursToday } from "../services/tenant.js";
 import { setSessionFlags, notifyDashboard, getSession } from "../services/chatlog.js";
 import { todayISO } from "../services/availability.js";

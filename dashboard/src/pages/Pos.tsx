@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Plus, Minus, X, Printer, ShoppingCart, User, ParkingSquare,
   Camera, StickyNote, Trash2, Star, Flame, Leaf, Pencil, Eraser, Check,
@@ -14,6 +14,7 @@ import { PageHeader, Btn } from "../components/ui";
 // replaces the base, every delta adds on top.
 
 import { money } from "../lib/format";
+import { usePoll } from "../lib/usePoll";
 const norm = (s: any) => String(s || "").toLowerCase().trim();
 
 function groupChoices(group: any, menu: any[]) {
@@ -153,7 +154,7 @@ export default function Pos() {
       setQueued(still);
     };
     sync();
-    const t = setInterval(sync, 30000);
+    const t = setInterval(sync, 30000);   // offline queue flush — must keep running unattended
     return () => clearInterval(t);
   }, []);
   const dn = (m: any) => (rtl && m?.name_ar ? m.name_ar : m?.name);
@@ -183,17 +184,17 @@ export default function Pos() {
   }, []);
 
   // open-tickets rail: today's live orders at a glance, straight from the board
-  useEffect(() => {
-    const load = () => api.get("/api/orders").then((r) => {
+  // the open-tickets rail: bounded window, and it must keep refreshing — it was
+  // accidentally frozen at page-load state when the old interval was removed
+  const loadOpenTickets = useCallback(() => {
+    api.get("/api/orders", { params: { since_days: 2 } }).then((r) => {
       const today2 = new Date().toLocaleDateString("en-CA");
       setOpenTickets((r.data || []).filter((o: any) =>
         String(o.created_at).slice(0, 10) === today2 &&
         !["served", "delivered", "paid", "cancelled"].includes(o.status)));
     }).catch(() => {});
-    load();
-    const t = setInterval(load, 20000);
-    return () => clearInterval(t);
   }, []);
+  usePoll(loadOpenTickets, 20000);
   useEffect(() => {
     api.get("/api/tables").then((r) => setTables(r.data || [])).catch(() => {});
   }, []);
@@ -345,11 +346,17 @@ export default function Pos() {
     }
     return { amount: round(amount), names };
   }, [cart, posCfg.promos, subtotal]);
+  // Mirrors the API exactly (backend ordersRoutes) and the bot (flows priceOrder):
+  // menu prices INCLUDE VAT, so it is shown as a breakdown of the total, never added on
+  // top — and the discount comes off before service is worked out. The till showing one
+  // number while the receipt stored another was the worst version of this.
   const disc = round(Math.min((discount ? discount.amount : 0) + promo.amount, subtotal));
-  const service = orderType === "dine_in" ? round(subtotal * rateOf("service_charge", "service_charge_pct")) : 0;
-  const vat = round(subtotal * rateOf("tax", "tax_pct", "vat_pct"));
+  const goods = round(subtotal - disc);
+  const service = orderType === "dine_in" ? round(goods * rateOf("service_charge", "service_charge_pct")) : 0;
   const delivery = orderType === "delivery" ? round(Number(payments.delivery_fee) || 0) : 0;
-  const total = round(subtotal - disc + service + vat + delivery);
+  const total = round(goods + service + delivery);
+  const vatRate = rateOf("tax", "tax_pct", "vat_pct");
+  const vat = vatRate > 0 ? round(total - total / (1 + vatRate)) : 0;   // inside `total`, not added to it
   const splitSum = split ? round(split.reduce((s2, x) => s2 + (Number(x.amount) || 0), 0)) : 0;
   const managers = (posCfg.cashiers || []).filter((c2: any) => c2.manager);
   // a discount needs a manager's PIN — but only when managers are configured
@@ -483,7 +490,7 @@ export default function Pos() {
             {parked.length > 0 && <ParkingSquare size={14} className="text-zinc-500" />}
             {parked.map((p) => (
               <button key={p.id} onClick={() => resume(p)} title={new Date(p.at).toLocaleTimeString()}
-                className="rounded-full bg-zinc-800 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-700">
+                className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-700">
                 {p.label}
               </button>
             ))}
@@ -492,18 +499,18 @@ export default function Pos() {
                 <Store size={11} className="ml-1.5 text-zinc-500" />
                 {branches.map((b: any) => (
                   <button key={b.key} onClick={() => pickBranch(b.key)} disabled={!!staffBranch}
-                    className={`rounded-full px-2 py-0.5 text-[11px] ${branchKey === b.key ? "bg-zinc-200 font-semibold text-zinc-900" : "text-zinc-400 hover:text-zinc-200"}`}>
+                    className={`rounded-full px-2 py-0.5 text-xs ${branchKey === b.key ? "bg-zinc-200 font-semibold text-zinc-900" : "text-zinc-400 hover:text-zinc-200"}`}>
                     {b.name}
                   </button>
                 ))}
               </span>
             )}
             <button onClick={() => setSwitching(true)} title="Switch cashier"
-              className="flex items-center gap-1.5 rounded-full border border-zinc-700 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800">
+              className="flex items-center gap-1.5 rounded-full border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
               <UserCog size={12} /> {cashier}
             </button>
             <button onClick={async () => { const { data } = await api.get("/api/orders/shift-report", { params: { branch: branchKey || "all" } }).catch(() => ({ data: null })); if (data) setReport(data); }}
-              title="X report — the day so far" className="flex items-center gap-1.5 rounded-full border border-zinc-700 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800">
+              title="X report — the day so far" className="flex items-center gap-1.5 rounded-full border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
               <Receipt size={12} /> Shift
             </button>
           </div>
@@ -521,20 +528,20 @@ export default function Pos() {
                 className="w-36 rounded-lg border border-zinc-800 bg-zinc-900 py-1.5 pl-8 pr-2 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
             </div>
             {plu && (
-              <button onClick={pluAdd} className="flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-300">
+              <button onClick={pluAdd} className="flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-300">
                 <CornerDownLeft size={10} /> {plu.qty}× {dn(plu.item)}
               </button>
             )}
             <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
               <button onClick={() => { setCat(""); setQ(""); }}
-                className={`shrink-0 rounded-full px-2.5 py-1 ${touch ? "text-xs" : "text-[11px]"} ${!cat && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
+                className={`shrink-0 rounded-full px-2.5 py-1 ${touch ? "text-xs" : "text-xs"} ${!cat && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
                 All
               </button>
               {cats.map((c) => {
                 const count = menu.filter((m) => m.category === c).length;
                 return (
                   <button key={c} onClick={() => { setCat(c); setQ(""); }}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 ${touch ? "text-xs" : "text-[11px]"} ${cat === c && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 ${touch ? "text-xs" : "text-xs"} ${cat === c && !q ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400 hover:text-zinc-200"}`}>
                     <span className="h-2 w-2 rounded-full" style={{ backgroundColor: catColor(cats, c) }} />
                     {c} <span className="text-zinc-600">{count}</span>
                   </button>
@@ -573,7 +580,7 @@ export default function Pos() {
               {saying ? "…" : <><ArrowRight size={13} /> Add</>}
             </button>
           </div>
-          {sayNote && <div className="mb-2 text-[11px] text-amber-300">{sayNote}</div>}
+          {sayNote && <div className="mb-2 text-xs text-amber-300">{sayNote}</div>}
           <div className="min-h-0 flex-1 overflow-y-auto pr-1 pb-16 lg:pb-0">
             {sections.map((sec, si) => (
               <div key={sec.title || si}>
@@ -581,7 +588,7 @@ export default function Pos() {
                   <div className="mb-1.5 mt-3 flex items-center gap-2 first:mt-0">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: catColor(cats, sec.title) }} />
                     <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{sec.title}</span>
-                    <span className="text-[10px] text-zinc-600">{sec.items.length}</span>
+                    <span className="text-xs text-zinc-600">{sec.items.length}</span>
                     <span className="h-px flex-1 bg-zinc-800/80" />
                   </div>
                 )}
@@ -594,12 +601,12 @@ export default function Pos() {
                   style={{ borderTopColor: catColor(cats, m.category), borderTopWidth: 3 }}
                   className="group relative flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 text-left transition hover:border-zinc-500 active:scale-[0.98]">
                   {inCart ? (
-                    <span className="absolute right-1.5 top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1 text-[11px] font-bold text-zinc-950">
+                    <span className="absolute right-1.5 top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1 text-xs font-bold text-zinc-950">
                       {inCart}
                     </span>
                   ) : null}
                   {m.stock_count != null && m.stock_count <= 5 && (
-                    <span className="absolute left-1.5 top-1.5 z-10 rounded bg-red-500/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    <span className="absolute left-1.5 top-1.5 z-10 rounded bg-red-500/90 px-1.5 py-0.5 text-xs font-bold text-white">
                       {m.stock_count} left
                     </span>
                   )}
@@ -614,10 +621,10 @@ export default function Pos() {
                       {m.bestseller ? <Star size={10} className="shrink-0 fill-amber-400 text-amber-400" /> : null}
                     </div>
                     {m.description ? (
-                      <div className="mt-0.5 line-clamp-1 text-[10px] text-zinc-500">{m.description}</div>
+                      <div className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{m.description}</div>
                     ) : null}
                     <div className="mt-auto flex items-center justify-between pt-1">
-                      <span className="text-[11px] tabular-nums text-zinc-400">{fromPrice ? "from " : ""}EGP {money(m.price)}</span>
+                      <span className="text-xs tabular-nums text-zinc-400">{fromPrice ? "from " : ""}EGP {money(m.price)}</span>
                       <span className="flex items-center gap-0.5">
                         {m.spice_level ? Array.from({ length: Math.min(3, Number(m.spice_level)) }, (_, i) => (
                           <Flame key={i} size={9} className="text-red-400" />
@@ -642,7 +649,7 @@ export default function Pos() {
         <div className="flex min-h-0 flex-col rounded-2xl border border-zinc-800 bg-zinc-900/40">
           <div className="border-b border-zinc-800 p-3">
             {queued.length > 0 && (
-              <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-300">
+              <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-300">
                 <CloudOff size={12} /> {queued.length} order{queued.length > 1 ? "s" : ""} queued offline — retrying automatically
               </div>
             )}
@@ -650,7 +657,7 @@ export default function Pos() {
               <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1">
                 {openTickets.slice(0, 10).map((o) => (
                   <button key={o.id} onClick={() => printTicket(o)} title="Tap to reprint"
-                    className="flex shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-200">
+                    className="flex shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200">
                     <TicketIcon size={9} />
                     <span className="font-mono font-bold">{o.code}</span>
                     <span className={o.status === "ready" ? "text-emerald-400" : o.status === "preparing" ? "text-amber-300" : ""}>{o.status}</span>
@@ -668,7 +675,7 @@ export default function Pos() {
                 className="w-32 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-zinc-600" />
             </div>
             {guest && (
-              <div className="mb-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] text-zinc-200">
+              <div className="mb-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs text-zinc-200">
                 {guest.name || guest.wa_profile_name} · {guest.visit_count} visit{Number(guest.visit_count) === 1 ? "" : "s"}
                 {guest.preferences?.addresses?.[0] && orderType === "delivery" && !address && (
                   <button onClick={() => setAddress(guest.preferences.addresses[0].text)} className="ml-1 underline decoration-dotted">
@@ -678,13 +685,13 @@ export default function Pos() {
                 <div className="mt-1 flex flex-wrap gap-1.5">
                   {lastOrder && (
                     <button onClick={reorderLast}
-                      className="flex items-center gap-1 rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800">
+                      className="flex items-center gap-1 rounded-full border border-zinc-600 px-2 py-0.5 text-xs text-zinc-300 hover:bg-zinc-800">
                       <History size={9} /> Same as last: {(lastOrder.items || []).map((i2: any) => `${i2.qty}× ${i2.name}`).join(", ").slice(0, 46)}
                     </button>
                   )}
                   {Number(posCfg.loyalty_every) > 0 && (Number(guest.visit_count) + 1) % Number(posCfg.loyalty_every) === 0 && (
                     <button onClick={() => setDiscOpen(true)}
-                      className="flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
+                      className="flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">
                       <Gift size={9} /> Visit {Number(guest.visit_count) + 1} — {posCfg.loyalty_reward || "reward"} earned
                     </button>
                   )}
@@ -694,7 +701,7 @@ export default function Pos() {
             <div className="flex gap-1">
               {[["dine_in", "Dine-in"], ["pickup", "Pickup"], ["delivery", "Delivery"]].map(([k, l]) => (
                 <button key={k} onClick={() => setOrderType(k)}
-                  className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] ${orderType === k ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>
+                  className={`flex-1 rounded-lg px-2 py-1.5 text-xs ${orderType === k ? "bg-zinc-200 font-semibold text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>
                   {L(l)}
                 </button>
               ))}
@@ -702,7 +709,7 @@ export default function Pos() {
             <div className="mt-1.5 flex gap-1.5">
               {branches.length > 1 && (
                 <select value={branchKey} onChange={(e) => setBranchKey(e.target.value)} disabled={!!staffBranch}
-                  className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-[11px] text-zinc-100">
+                  className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100">
                   <option value="">Branch…</option>
                   {branches.map((b: any) => (<option key={b.key} value={b.key}>{b.name}</option>))}
                 </select>
@@ -710,7 +717,7 @@ export default function Pos() {
               {orderType === "dine_in" && (
                 <span className="flex gap-1">
                   <input value={table} onChange={(e) => setTable(e.target.value)} placeholder="Table"
-                    className="w-14 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-[11px] text-zinc-100" />
+                    className="w-14 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100" />
                   {tables.length > 0 && (
                     <button onClick={() => setTablePick(true)} title="Pick from the floor"
                       className="rounded-lg border border-zinc-800 px-1.5 text-zinc-400 hover:text-zinc-200"><Grid3X3 size={13} /></button>
@@ -718,7 +725,7 @@ export default function Pos() {
                 </span>
               )}
               <select value={pay} onChange={(e) => setPay(e.target.value)}
-                className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-[11px] text-zinc-100">
+                className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100">
                 <option value="cash">Cash</option>
                 <option value="card">Card</option>
                 <option value="instapay">InstaPay</option>
@@ -726,18 +733,18 @@ export default function Pos() {
             </div>
             {orderType === "delivery" && (
               <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address"
-                className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-[11px] text-zinc-100" />
+                className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100" />
             )}
           </div>
 
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
             {upsell && cart.length > 0 && (
               <div className="rounded-lg border border-dashed border-zinc-700 px-2.5 py-2">
-                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-zinc-500">Goes well with {upsell.source}</div>
+                <div className="mb-1.5 text-xs uppercase tracking-wide text-zinc-500">Goes well with {upsell.source}</div>
                 <div className="flex flex-wrap gap-1.5">
                   {upsell.items.map((m: any) => (
                     <button key={m.id} onClick={() => { tapItem(m); setUpsell(null); }}
-                      className="flex items-center gap-1 rounded-full border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800">
+                      className="flex items-center gap-1 rounded-full border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
                       <Plus size={10} /> {m.name} · {money(m.price)}
                     </button>
                   ))}
@@ -761,13 +768,13 @@ export default function Pos() {
                     <span className="tabular-nums text-zinc-300">{money(l.unit * l.qty)}</span>
                   </div>
                   {Object.entries(l.options).filter(([k]) => k !== "slots").map(([k, v]) => optVal(v)).filter(Boolean).map((s, k) => (
-                    <div key={k} className="text-[11px] text-zinc-500">{s}</div>
+                    <div key={k} className="text-xs text-zinc-500">{s}</div>
                   ))}
                   {Array.isArray(l.options.slots) && l.options.slots.map((sl: any, si: number) => (
-                    <div key={si} className="text-[11px] text-zinc-500">{si + 1}) {Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => optVal(x)).filter(Boolean).join(" + ")}{sl?.notes ? ` — ${sl.notes}` : ""}</div>
+                    <div key={si} className="text-xs text-zinc-500">{si + 1}) {Object.entries(sl || {}).filter(([f]) => f !== "notes").map(([, x]) => optVal(x)).filter(Boolean).join(" + ")}{sl?.notes ? ` — ${sl.notes}` : ""}</div>
                   ))}
-                  {l.notes && <div className="flex items-center gap-1 text-[11px] text-amber-300"><StickyNote size={10} /> {l.notes}</div>}
-                  {(l as any).hold && <div className="text-[10px] font-bold uppercase text-amber-400">on hold — fire from the board</div>}
+                  {l.notes && <div className="flex items-center gap-1 text-xs text-amber-300"><StickyNote size={10} /> {l.notes}</div>}
+                  {(l as any).hold && <div className="text-xs font-bold uppercase text-amber-400">on hold — fire from the board</div>}
                 </button>
                 <div className="mt-1 flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -790,7 +797,7 @@ export default function Pos() {
               </div>
             ))}
             {cart.length > 0 && (
-              <button onClick={() => setCart([])} className="flex items-center gap-1 pt-1 text-[11px] text-zinc-600 hover:text-red-400">
+              <button onClick={() => setCart([])} className="flex items-center gap-1 pt-1 text-xs text-zinc-600 hover:text-red-400">
                 <Eraser size={11} /> clear all
               </button>
             )}
@@ -812,25 +819,25 @@ export default function Pos() {
                 </div>
               )}
               {service > 0 && <div className="flex justify-between"><span>Service</span><span className="tabular-nums">{money(service)}</span></div>}
-              {vat > 0 && <div className="flex justify-between"><span>VAT</span><span className="tabular-nums">{money(vat)}</span></div>}
+              {vat > 0 && <div className="flex justify-between text-zinc-500"><span>incl. VAT</span><span className="tabular-nums">{money(vat)}</span></div>}
               {delivery > 0 && <div className="flex justify-between"><span>Delivery</span><span className="tabular-nums">{money(delivery)}</span></div>}
               <div className="flex justify-between pt-1 text-sm font-bold text-zinc-100"><span>{L("TOTAL")}</span><span className="tabular-nums">EGP {money(total)}</span></div>
               {tip > 0 && <div className="flex justify-between text-amber-300"><button onClick={() => setTip(0)} className="flex items-center gap-1">Tip (not in total) <X size={9} /></button><span className="tabular-nums">{money(tip)}</span></div>}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <button onClick={() => setDiscOpen(true)} disabled={!cart.length}
-                className="flex items-center gap-1 rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 disabled:opacity-40">
+                className="flex items-center gap-1 rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-300 disabled:opacity-40">
                 <BadgePercent size={11} /> {L("Discount")}
               </button>
               {[10, 20].map((t2) => (
                 <button key={t2} onClick={() => setTip((x) => x === t2 ? 0 : t2)}
-                  className={`rounded-lg border px-2 py-1 text-[11px] ${tip === t2 ? "border-amber-400/60 text-amber-300" : "border-zinc-700 text-zinc-300"}`}>
+                  className={`rounded-lg border px-2 py-1 text-xs ${tip === t2 ? "border-amber-400/60 text-amber-300" : "border-zinc-700 text-zinc-300"}`}>
                   Tip {t2}
                 </button>
               ))}
               <button onClick={() => setSplit(split ? null : [{ method: pay, amount: String(total) }, { method: pay === "cash" ? "card" : "cash", amount: "" }])}
                 disabled={!cart.length}
-                className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] disabled:opacity-40 ${split ? "border-zinc-400 text-zinc-200" : "border-zinc-700 text-zinc-300"}`}>
+                className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs disabled:opacity-40 ${split ? "border-zinc-400 text-zinc-200" : "border-zinc-700 text-zinc-300"}`}>
                 <SplitSquareHorizontal size={11} /> Split
               </button>
             </div>
@@ -839,16 +846,16 @@ export default function Pos() {
                 {split.map((x, i) => (
                   <div key={i} className="flex items-center gap-1.5">
                     <select value={x.method} onChange={(e) => setSplit((xs) => xs!.map((y, j) => j === i ? { ...y, method: e.target.value } : y))}
-                      className="rounded-lg border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-[11px] text-zinc-100">
+                      className="rounded-lg border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-xs text-zinc-100">
                       <option value="cash">Cash</option><option value="card">Card</option><option value="instapay">InstaPay</option>
                     </select>
                     <input type="number" value={x.amount} placeholder="EGP"
                       onChange={(e) => setSplit((xs) => xs!.map((y, j) => j === i ? { ...y, amount: e.target.value } : y))}
-                      className="w-20 flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-100" />
+                      className="w-20 flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-100" />
                     {split.length > 2 && <button onClick={() => setSplit((xs) => xs!.filter((_, j) => j !== i))} className="text-zinc-600"><X size={11} /></button>}
                   </div>
                 ))}
-                <div className="flex items-center justify-between text-[10px]">
+                <div className="flex items-center justify-between text-xs">
                   <button onClick={() => setSplit((xs) => [...xs!, { method: "cash", amount: "" }])} className="text-zinc-500 hover:text-zinc-300">+ payer</button>
                   <span className={Math.abs(splitSum - total) > 0.5 ? "text-red-400" : "text-emerald-400"}>
                     {money(splitSum)} / {money(total)}
@@ -856,7 +863,7 @@ export default function Pos() {
                 </div>
               </div>
             )}
-            <label className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-400">
+            <label className="mt-2 flex items-center gap-1.5 text-xs text-zinc-400">
               <input type="checkbox" checked={printOnCreate}
                 onChange={(e) => { setPrintOnCreate(e.target.checked); localStorage.setItem("pos_print", e.target.checked ? "on" : "off"); }} />
               <Printer size={11} /> print ticket on create
@@ -881,7 +888,7 @@ export default function Pos() {
       {/* tablet/phone: total + create pinned within thumb reach */}
       <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-zinc-800 bg-zinc-950/95 px-4 py-2.5 backdrop-blur lg:hidden">
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] text-zinc-500">{itemCount} item{itemCount === 1 ? "" : "s"}</div>
+          <div className="text-xs text-zinc-500">{itemCount} item{itemCount === 1 ? "" : "s"}</div>
           <div className="truncate text-sm font-bold tabular-nums">EGP {money(total)}</div>
         </div>
         <button onClick={park} disabled={!cart.length} className="rounded-xl border border-zinc-700 p-2.5 text-zinc-300 disabled:opacity-40"><ParkingSquare size={16} /></button>
@@ -920,7 +927,7 @@ export default function Pos() {
                   <button key={t2.id} onClick={() => { setTable(t2.table_number || t2.name || String(t2.id)); setTablePick(false); }}
                     className={`rounded-xl border py-3 text-sm font-bold ${busy ? "border-amber-500/40 text-amber-300" : "border-zinc-700 text-zinc-200 hover:bg-zinc-800"}`}>
                     {t2.table_number || t2.name}
-                    {busy && <div className="text-[8px] font-normal uppercase">{t2.status}</div>}
+                    {busy && <div className="text-xs font-normal uppercase">{t2.status}</div>}
                   </button>
                 );
               })}
@@ -1010,8 +1017,8 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
                   <Flame key={i} size={10} className="text-red-400" />
                 )) : null}
               </div>
-              {item.description && <div className="mt-0.5 text-[11px] leading-snug text-zinc-400">{item.description}</div>}
-              {item.ingredients && <div className="mt-1 text-[11px] leading-snug text-zinc-500">{item.ingredients}</div>}
+              {item.description && <div className="mt-0.5 text-xs leading-snug text-zinc-400">{item.description}</div>}
+              {item.ingredients && <div className="mt-1 text-xs leading-snug text-zinc-500">{item.ingredients}</div>}
             </div>
             <button onClick={onCancel}><X size={16} className="text-zinc-500 hover:text-zinc-200" /></button>
           </div>
@@ -1020,7 +1027,7 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
               <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-800">
                 <div className="h-full rounded-full transition-all" style={{ width: `${(answered / totalQs) * 100}%`, backgroundColor: "var(--accent)" }} />
               </div>
-              <span className="text-[10px] tabular-nums text-zinc-500">{answered}/{totalQs}</span>
+              <span className="text-xs tabular-nums text-zinc-500">{answered}/{totalQs}</span>
             </div>
           )}
         </div>
@@ -1032,7 +1039,7 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
                 {g.label || g.key}
                 {picked[g.key]
                   ? <Check size={11} className="text-emerald-400" />
-                  : nextGroup?.key === g.key ? <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold normal-case tracking-normal text-amber-300">next</span> : null}
+                  : nextGroup?.key === g.key ? <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold normal-case tracking-normal text-amber-300">next</span> : null}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {groupChoices(g, menu).map((c: any) => (
@@ -1056,7 +1063,7 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
                 </span>
                 <span className="text-sm font-semibold text-zinc-200">Sandwich {si + 1}</span>
                 {sl[(slotsGroup.slot_groups || []).find((sg: any) => !sg.free)?.key] && (
-                  <span className="truncate text-[11px] text-zinc-500">{sl[(slotsGroup.slot_groups || []).find((sg: any) => !sg.free)?.key]}</span>
+                  <span className="truncate text-xs text-zinc-500">{sl[(slotsGroup.slot_groups || []).find((sg: any) => !sg.free)?.key]}</span>
                 )}
               </div>
               {(slotsGroup.slot_groups || []).map((sg: any) => sg.free ? (
@@ -1072,7 +1079,7 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
                     <button key={c.name}
                       onClick={() => setSlots((xs) => xs.map((x, i) => (i === si ? { ...x, [sg.key]: c.name } : x)))}
                       style={norm(sl[sg.key]) === norm(c.name) ? { backgroundColor: "var(--accent)", borderColor: "var(--accent)", color: "var(--accent-contrast)" } : undefined}
-                      className={`truncate rounded-xl border px-2 py-2 text-[11px] transition active:scale-95 ${norm(sl[sg.key]) === norm(c.name) ? "font-semibold shadow-sm" : "border-zinc-700 bg-zinc-900/60 text-zinc-300 hover:border-zinc-500"}`}>
+                      className={`truncate rounded-xl border px-2 py-2 text-xs transition active:scale-95 ${norm(sl[sg.key]) === norm(c.name) ? "font-semibold shadow-sm" : "border-zinc-700 bg-zinc-900/60 text-zinc-300 hover:border-zinc-500"}`}>
                       {c.name}
                     </button>
                   ))}
@@ -1087,7 +1094,7 @@ function OptionWalker({ item, line, presetQty, menu, onCancel, onDone, touch }: 
               const on = notes.split(",").map((x: string) => x.trim()).includes(n);
               return (
                 <button key={n} onClick={() => toggleQuickNote(n)}
-                  className={`rounded-full border px-2 py-1 text-[10px] transition ${on ? "border-amber-400/60 bg-amber-500/15 text-amber-300" : "border-zinc-800 text-zinc-500 hover:text-zinc-300"}`}>
+                  className={`rounded-full border px-2 py-1 text-xs transition ${on ? "border-amber-400/60 bg-amber-500 text-amber-950" : "border-zinc-800 text-zinc-500 hover:text-zinc-300"}`}>
                   {n}
                 </button>
               );
@@ -1148,7 +1155,7 @@ function CashierSwitch({ cashiers, current, onPick, onCancel, rtl }: any) {
             )}
             <input value={freeName} onChange={(e) => setFreeName(e.target.value)} placeholder={current}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-100" />
-            <p className="text-[11px] text-zinc-600">{T("Add cashiers with PINs in Settings → POS to lock this.", "ضيف كاشيرات برقم سري من الإعدادات → POS للقفل.")}</p>
+            <p className="text-xs text-zinc-600">{T("Add cashiers with PINs in Settings → POS to lock this.", "ضيف كاشيرات برقم سري من الإعدادات → POS للقفل.")}</p>
             <Btn onClick={() => onPick((freeName.trim() || current).slice(0, 40))} className="w-full">{T("Switch", "تبديل")}</Btn>
           </div>
         ) : (
@@ -1165,7 +1172,7 @@ function CashierSwitch({ cashiers, current, onPick, onCancel, rtl }: any) {
               <>
                 <input type="password" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN"
                   className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-center text-lg tracking-[0.5em] text-zinc-100" autoFocus />
-                {err && <div className="text-[11px] text-red-400">{err}</div>}
+                {err && <div className="text-xs text-red-400">{err}</div>}
                 <Btn className="w-full" onClick={() => {
                   if (String(pick.pin) === pin) onPick(pick.name);
                   else setErr(rtl ? "الرقم غلط" : "Wrong PIN");
@@ -1209,7 +1216,7 @@ function DiscountModal({ subtotal, needsPin, managerOk, onApply, onCancel }: any
           <input type="password" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Manager PIN"
             className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-center text-sm tracking-[0.4em] text-zinc-100" />
         )}
-        {err && <div className="mb-2 text-[11px] text-red-400">{err}</div>}
+        {err && <div className="mb-2 text-xs text-red-400">{err}</div>}
         <Btn className="w-full" onClick={() => {
           if (!amount) return setErr("Enter an amount");
           if (!reason.trim()) return setErr("A reason is required — it shows on the Z report");
@@ -1314,7 +1321,7 @@ function PinGate({ title, check, onOk, onCancel, rtl }: any) {
           onKeyDown={(e) => { if (e.key === "Enter") (check(pin) ? onOk() : setErr(rtl ? "الرقم غلط" : "Wrong PIN")); }}
           placeholder="PIN"
           className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-center text-lg tracking-[0.5em] text-zinc-100" />
-        {err && <div className="mb-2 text-[11px] text-red-400">{err}</div>}
+        {err && <div className="mb-2 text-xs text-red-400">{err}</div>}
         <Btn className="w-full" onClick={() => (check(pin) ? onOk() : setErr(rtl ? "الرقم غلط" : "Wrong PIN"))}>{rtl ? "تأكيد" : "Confirm"}</Btn>
       </div>
     </div>

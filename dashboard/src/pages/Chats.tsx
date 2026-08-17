@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Send, Bot, BotOff, Instagram, MessageCircle, Search, AlertCircle, ShoppingCart,
@@ -9,6 +9,7 @@ import { api } from "../config/api";
 import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
 import { markSeen, isUnread } from "../lib/unread";
 import { money } from "../lib/format";
+import { usePoll } from "../lib/usePoll";
 import BackLink, { backTrip } from "../components/BackLink";
 
 // ---------- message-content rendering: show what the guest actually saw ----------
@@ -306,8 +307,11 @@ export default function Chats() {
   const loadContext = (sessionId: string) =>
     api.get(`/api/chat/sessions/${encodeURIComponent(sessionId)}/context`).then((r) => setCtx(r.data)).catch(() => setCtx(null));
 
+  // The inbox returns the 300 most recent conversations; searching asks for the wider set
+  // so an older guest is still findable. Without this, typing a name that isn't in the
+  // recent window would silently return nothing.
   const loadSessions = () =>
-    api.get("/api/chat/sessions").then((r) => {
+    api.get("/api/chat/sessions", { params: q.trim() ? { all: 1 } : {} }).then((r) => {
       const rows = [...r.data].sort((a: any, b: any) =>
         (b.needs_attention ? 1 : 0) - (a.needs_attention ? 1 : 0) ||
         String(b.last_message_at || "").localeCompare(String(a.last_message_at || ""))
@@ -316,13 +320,11 @@ export default function Chats() {
     }).catch(() => {});
 
   useEffect(() => {
-    loadSessions();
     api.get("/api/settings").then((r) => setAiName(r.data?.ai?.name || "AI")).catch(() => {});
-    const t = setInterval(loadSessions, 10000);
-    return () => clearInterval(t);
   }, []);
+  usePoll(loadSessions, 10000, [q.trim() ? 1 : 0]);
 
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   useEffect(() => {
     const want = params.get("session");
     if (want && !active && sessions.length) {
@@ -333,12 +335,18 @@ export default function Chats() {
     // one that has waited longest, because "2 conversations need a human" should land you
     // in the conversation, not in front of a list you still have to triage.
     const wantFilter = params.get("filter");
-    if (wantFilter && wantFilter !== filter) setFilter(wantFilter);
-    if (wantFilter === "attention" && !active && sessions.length) {
-      const worst = sessions
-        .filter((s) => s.needs_attention)
-        .sort((a, b) => (b.waiting_min ?? 0) - (a.waiting_min ?? 0))[0];
-      if (worst) setActive(worst);
+    if (wantFilter) {
+      setFilter(wantFilter);
+      if (wantFilter === "attention" && !active && sessions.length) {
+        const worst = sessions
+          .filter((s) => s.needs_attention)
+          .sort((a, b) => (b.waiting_min ?? 0) - (a.waiting_min ?? 0))[0];
+        if (worst) setActive(worst);
+      }
+      // consume it — left in the URL, the sessions poll re-applied it every 10s and
+      // staff could never switch away from the filter they arrived on
+      params.delete("filter");
+      setParams(params, { replace: true });
     }
   }, [sessions, params]);
 
@@ -354,21 +362,20 @@ export default function Chats() {
     return () => clearTimeout(t);
   }, [messages, params]);
 
+  const loadMessages = useCallback((sid: string) =>
+    api.get(`/api/chat/sessions/${encodeURIComponent(sid)}/messages`).then((r) => {
+      setMessages(r.data);
+      markSeen(sid);
+    }).catch(() => {}), []);
+
   useEffect(() => {
     if (!active) return;
     markSeen(active.session_id);
     window.dispatchEvent(new Event("chat-seen"));
-    const load = () =>
-      api.get(`/api/chat/sessions/${encodeURIComponent(active.session_id)}/messages`).then((r) => {
-        setMessages(r.data);
-        markSeen(active.session_id);
-      }).catch(() => {});
-    load();
     loadContext(active.session_id);
-    const t = setInterval(load, 5000);
-    const tc = setInterval(() => loadContext(active.session_id), 20000);
-    return () => { clearInterval(t); clearInterval(tc); };
   }, [active?.session_id]);
+  usePoll(() => { if (active) loadMessages(active.session_id); }, 5000, [active?.session_id]);
+  usePoll(() => { if (active) loadContext(active.session_id); }, 20000, [active?.session_id]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
 

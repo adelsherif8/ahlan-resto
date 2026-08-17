@@ -80,7 +80,13 @@ const CASES = [
     turns: ["a 4x4 for pickup from Maadi",
       "FIRST CHOICE\nSANDWICH: american truck\nNOTES:\n\nSECOND CHOICE\nSANDWICH: american truck\n\nTHIRD CHOICE\nSANDWICH: iconic\n\nFOURTH CHOICE\nSANDWICH: iconic\nNOTES: no pickles",
       "cash", "yes confirm"],
-    expect: [/O-[A-Z2-9]{4}/, /999/, /no pickles/i], forbid: [/which (soda|drink)/i] },
+    // the placement line is the ticket + receipt; the priced bill (999) was shown on the confirm turn
+    expect: [/O-[A-Z2-9]{4}/], forbid: [/which (soda|drink)/i], expect_media: "document" },
+  { id: "bundle4x4bill", needs: "casual", name: "4X4 bundle: confirm screen shows the priced bill + per-slot notes",
+    turns: ["a 4x4 for pickup from Maadi",
+      "FIRST CHOICE\nSANDWICH: american truck\nNOTES:\n\nSECOND CHOICE\nSANDWICH: american truck\n\nTHIRD CHOICE\nSANDWICH: iconic\n\nFOURTH CHOICE\nSANDWICH: iconic\nNOTES: no pickles",
+      "cash"],
+    expect: [/999/, /no pickles/i, /confirm/i], forbid: [/O-[A-Z2-9]{4}/] },
   { id: "bundlepartial", needs: "casual", name: "Half-filled template re-asks only the missing slots",
     turns: ["everything is mix for pickup from Maadi", "FIRST CHOICE\nSANDWICH: iconic"],
     expect: [/second/i, /sandwich/i], forbid: [/O-[A-Z2-9]{4}/, /first choice.*first choice/is] },
@@ -270,8 +276,9 @@ const CASES = [
     turns: ["1 loaded fries", "pickup"],
     expect: [/branch/i, /pay|كاش|cash/i], forbid: [/O-[A-Z2-9]{4}/] },
   // First-timer greeting carries the restaurant's chosen signature dishes (⭐, ≤3, toggleable)
-  { id: "firstsuggest", needs: "casual", name: "First-timer greeting suggests the configured signature dish",
-    msg: "hi", expect: [/⭐/, /american truck/i] },
+  { id: "firstsuggest", needs: "casual", name: "First-timer: signature dish suggested on the menu turn (greetings are free/canned — founder, 2026-08-15)",
+    turns: ["hi", "menu please"],
+    expect: [/⭐/, /american truck/i] },
   // An Arabic bare greeting gets the ARABIC canned welcome — never the English line
   { id: "argreet", needs: "casual", name: "Arabic greeting → Arabic canned welcome",
     msg: "اهلا", expect: [new RegExp(AR)], forbid: [/welcome to|craving|what can i get/i] },
@@ -370,10 +377,34 @@ const CASES = [
 
 let state = { status: "idle", started_at: null, finished_at: null, total: CASES.length, passed: 0, failed: 0, results: [] };
 
+// The finished run is PERSISTED (a synthetic flow_executions row, flow="regression")
+// because a deploy mid-suite restarts the service and wiped the only copy — twice on
+// 2026-08-17. Memory wins while a run is live; otherwise the last persisted run.
+let lastPersisted = null;
+async function persistRun(db, s) {
+  try {
+    const row = { id: `regress_${Date.now()}`, flow: "regression", session_id: "regression", trigger: "ops", status: s.status === "done" ? (s.failed ? "error" : "ok") : "error",
+      error: s.failed ? `${s.failed} case(s) failed` : null, started_at: s.started_at, finished_at: s.finished_at, duration_ms: s.started_at && s.finished_at ? new Date(s.finished_at) - new Date(s.started_at) : null,
+      tokens_in: 0, tokens_out: 0, cost_usd: 0, nodes: [{ name: "summary", status: "ok", ms: 0, output: JSON.stringify({ passed: s.passed, failed: s.failed, total: s.total, results: s.results }) }], children: [] };
+    await db.from("flow_executions").insert(row);
+    lastPersisted = { ...s };
+  } catch (e) { log("regression: persist failed:", e.message); }
+}
+export async function loadLastRegression(db) {
+  if (lastPersisted) return lastPersisted;
+  try {
+    const { data } = await db.from("flow_executions").select("nodes,started_at,finished_at").eq("flow", "regression").order("started_at", { ascending: false }).limit(1);
+    const n = data?.[0]?.nodes?.[0]; if (!n?.output) return null;
+    const o = JSON.parse(n.output);
+    lastPersisted = { status: "done", started_at: data[0].started_at, finished_at: data[0].finished_at, total: o.total, passed: o.passed, failed: o.failed, results: o.results || [], persisted: true };
+    return lastPersisted;
+  } catch { return null; }
+}
 export function regressionStatus() {
   // `total` lets the console show real progress (n/113). It used to hardcode 20,
   // so a full run looked hung a fifth of the way in.
-  return { ...state, suite_size: CASES.length };
+  if (state.status === "idle" && lastPersisted) return { ...lastPersisted, suite_size: CASES.length, live: false };
+  return { ...state, suite_size: CASES.length, live: state.status === "running" };
 }
 
 // Grade EVERYTHING the guest received for their last message, not just the final
@@ -589,5 +620,6 @@ export async function runRegression({ only } = {}) {
   }
   state.finished_at = new Date().toISOString();
   log(`regression: ${state.passed}/${state.passed + state.failed} passed`);
+  try { const tenant = await resolveRestaurant(); await persistRun(tenant.db, state); } catch {}
   return state;
 }

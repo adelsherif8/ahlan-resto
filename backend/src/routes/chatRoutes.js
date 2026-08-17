@@ -28,6 +28,20 @@ const ALLERGEN_HINTS = {
 
 const norm = (s) => String(s || "").trim().toLowerCase();
 
+// The cart guards need the menu, and /context refreshes every 20s while a chat is open —
+// re-reading every dish three times a minute per open conversation. The menu changes on
+// human timescales, so a short per-restaurant cache removes that entirely.
+const menuCache = new Map(); // restaurantId -> { at, rows }
+const MENU_TTL_MS = 60_000;
+async function cachedMenu(req) {
+  const key = req.restaurant?.id || "default";
+  const hit = menuCache.get(key);
+  if (hit && Date.now() - hit.at < MENU_TTL_MS) return hit.rows;
+  const rows = await req.repo.list("menu_items");
+  menuCache.set(key, { at: Date.now(), rows });
+  return rows;
+}
+
 // Which words to hunt for, given what the guest wrote in their allergy list. "tree nuts"
 // and "nut allergy" both resolve to the nut vocabulary; anything unrecognised is still
 // searched literally, so a one-off like "coriander" still works.
@@ -85,13 +99,27 @@ function unitPrice(item) {
 router.get("/sessions", async (req, res, next) => {
   try {
     const slaMin = Number(req.restaurant?.ai?.sla_minutes) || 0;
-    let rows = await req.repo.list("chat_sessions", { order: "last_message_at" });
+    // Polled every 10s by Chats and every 30s by the sidebar, so neither read here may be
+    // unbounded. The inbox is a working queue, not an archive: the most recent conversations
+    // are the ones anyone acts on. `?all=1` lifts the cap for search, the one case that
+    // legitimately needs history (same widen-on-search rule the orders board uses).
+    const wide = req.query.all === "1";
+    let rows = await req.repo.list("chat_sessions", { order: "last_message_at", limit: wide ? 2000 : 300 });
     // regression/test harness sessions never belong in the staff inbox
     rows = rows.filter((r) => !/^web:(regress|convo|test)-/.test(String(r.session_id || "")));
-    // attach the diner's name (guest-confirmed first, WhatsApp profile as fallback)
+    // attach the diner's name (guest-confirmed first, WhatsApp profile as fallback).
+    // Only for the sessions we're returning — this used to pull the ENTIRE diners table
+    // on every poll to label at most a few hundred rows.
     let byPhone = new Map();
     try {
-      const diners = await req.repo.list("diners");
+      const ids = [...new Set(rows.map((r) => r.phone_number || r.session_id).filter(Boolean))];
+      let diners = [];
+      if (req.tenantClient && ids.length) {
+        const { data } = await req.tenantClient.from("diners").select("*").in("phone_number", ids.slice(0, 500));
+        diners = data || [];
+      } else if (!req.tenantClient) {
+        diners = await req.repo.list("diners");     // demo mode: tiny dataset
+      }
       byPhone = new Map(diners.map((d) => [d.phone_number, d]));
     } catch {}
     // latest order per guest today — powers the "just ordered" chip in the inbox
@@ -407,7 +435,7 @@ router.get("/sessions/:sessionId/context", async (req, res, next) => {
       // ---- guards: what staff should know BEFORE this basket becomes a real order.
       // Each is computed from data already on file; none of them guesses.
       try {
-        const menu = await req.repo.list("menu_items");
+        const menu = await cachedMenu(req);
         const byName = new Map(menu.map((m) => [norm(m.name), m]));
         const allergies = (diner?.allergies || []).filter(Boolean);
         const allergy_flags = [], stock_flags = [];

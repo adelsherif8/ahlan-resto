@@ -3,7 +3,7 @@
 // the classification is still real so Executions show true routing + the handoff hints work.
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
-import { MODEL_FAST, MODEL_NANO } from "../config.js";
+import { MODEL_FAST, MODEL_NANO, log } from "../config.js";
 import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath, isGreetingish, isMenuRequest, menuReplyFor } from "../services/fastpaths.js";
 import { wantsBuilder } from "../services/fastpaths.js";
 import { signBuildToken, builderConfig, priceBuild, describeBuild, LAYERS as BUILDER_LAYERS } from "../services/builder.js";
@@ -239,6 +239,23 @@ defineFlow({
       if (isMenuRequest(message)) {
         const menuRows = (await getMenu(db).catch(() => [])).filter((m) => m.available);
         const built = menuRows.length ? menuReplyFor(ctx.tenant.config, menuRows, message, sticky, diner) : null;
+        // No uploaded PDF (Just Smash) → generate the menu PDF here, same cached
+        // builder the order flow uses. Without this the free path only worked for
+        // restaurants with a designed PDF and everyone else woke the model.
+        if (built && !built.pdfUrl) {
+          try {
+            const cfg = ctx.tenant.config;
+            const { menuPdfUrl } = await import("../services/menupdf.js");
+            const { orderedCategories } = await import("../services/categories.js");
+            const pdf = await menuPdfUrl(db, {
+              restaurant: cfg.name, menu: menuRows, categories: orderedCategories(menuRows, cfg).map((c) => c.name),
+              currency: cfg.payments?.currency || "EGP", accent: cfg.basic_info?.brand?.primary || "#111111",
+              tagline: cfg.basic_info?.tagline || "", phone: cfg.basic_info?.phone || "", website: cfg.basic_info?.website || "",
+              logoUrl: cfg.basic_info?.brand?.logo_url || null,
+            });
+            if (pdf?.url) built.pdfUrl = pdf.url;
+          } catch (e) { log("menu fast path: pdf build failed:", e.message); }
+        }
         if (built?.pdfUrl) {
           bump("faq_hits");
           return {

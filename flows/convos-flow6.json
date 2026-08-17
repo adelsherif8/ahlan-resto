@@ -1,0 +1,40 @@
+[
+ {
+  "name": "AR — founder's exact chat: bare dish name → order → type FIRST → options (لو كومبو) → no buttons on 2-question ask → upsell on confirm",
+  "phone": "+2015559001",
+  "turns": ["المنيو", "سيجناتشر برجر", "دليفري", "كومبو كولا", "كاش، بوينت 90"],
+  "expect": {
+   "confirm screen reached": "أكد وهيروح للمطبخ",
+   "upsell line present": "🍟 تحب تضيف"
+  },
+  "forbid": {
+   "product card instead of order": "تحب تجرب معاه|شوف برجر تاني",
+   "english combo in arabic label": "لو Combo"
+  }
+ },
+ {
+  "name": "EN — bare dish name = order, type first, then options",
+  "phone": "+2015559002",
+  "turns": ["signature burger"],
+  "expect": {
+   "type asked first": "How would you like it\\?",
+   "dish on the running bill": "Signature Burger"
+  },
+  "forbid": {
+   "options before type": "Which one:",
+   "product card": "want to try|See burgers"
+  }
+ },
+ {
+  "name": "FR — 2-question message (payment + address) has NO buttons",
+  "phone": "+2015559003",
+  "turns": ["signature burger", "delivery", "combo sprite"],
+  "expect": {
+   "payment asked": "W hatedfa3 ezay|how will you pay",
+   "address asked": "3enwan|delivery address"
+  },
+  "forbid": {
+   "buttons on a 2-question ask": "▸ Cash|▸ Card|▸ كاش"
+  }
+ }
+]

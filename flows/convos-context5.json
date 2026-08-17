@@ -1,0 +1,56 @@
+[
+ {
+  "name": "EN — founder's exact case: milkshakes listed → \"lets add chocolate\" adds the shake, no which-one",
+  "phone": "+2015556001",
+  "turns": ["i want the chicken tenders nashville, medium", "any kind of milkshake?", "lets add chocolate"],
+  "expect": {
+   "milkshake on the bill": "Milkshake Chocolate"
+  },
+  "forbid": {
+   "which-one asked": "Which one did you mean|we've got a few like that"
+  }
+ },
+ {
+  "name": "AR — «عندكو ميلك شيك؟» → «ضيف شوكولاته» adds the shake",
+  "phone": "+2015556002",
+  "turns": ["عايز تشيكن تندرز ناشفيل وسط", "عندكو ميلك شيك؟", "ضيف شوكولاته"],
+  "expect": {
+   "milkshake on the bill": "ميلك شيك شوكولاته|Milkshake Chocolate"
+  },
+  "forbid": {
+   "which-one asked": "تقصد أنهي واحد|عندنا كذا واحد"
+  }
+ },
+ {
+  "name": "FR — \"3andoko milkshake?\" → \"zawed chocolate\" adds the shake",
+  "phone": "+2015556003",
+  "turns": ["3ayez chicken tenders nashville medium", "3andoko milkshake?", "zawed chocolate"],
+  "expect": {
+   "milkshake on the bill": "Milkshake Chocolate"
+  },
+  "forbid": {
+   "which-one asked": "te2sod anhy|3andena kaza wa7ed|Which one did you mean"
+  }
+ },
+ {
+  "name": "EN — NEGATIVE: no milkshake context → bare \"add chocolate\" must STILL ask which one",
+  "phone": "+2015556004",
+  "turns": ["i want the chicken tenders nashville, medium", "add chocolate"],
+  "expect": {
+   "which-one still asked": "Which one did you mean|we've got a few like that"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "EN — vanilla via context: shakes listed → \"the vanilla one\" is the SHAKE not the cookie/cone",
+  "phone": "+2015556005",
+  "turns": ["i want the chicken tenders nashville, medium", "any kind of milkshake?", "the vanilla one please"],
+  "expect": {
+   "vanilla shake on the bill": "Milkshake Vanilla"
+  },
+  "forbid": {
+   "wrong vanilla": "Vanilla Cookie|Vanilla Cone|Vanilla Sunday",
+   "which-one asked": "Which one did you mean|we've got a few like that"
+  }
+ }
+]

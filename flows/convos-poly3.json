@@ -1,0 +1,23 @@
+[
+ {
+  "name": "FR — founder's Nasr City address → now OUTSIDE (Tagamoa-only polygon) → honest no",
+  "phone": "+2015559041",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, ibrahum ibn al mahdi nasr city"],
+  "expect": { "refused": "mabnwaselsh|don't deliver|Tagamoa|New Cairo only" },
+  "forbid": { "priced anyway": "Delivery \\(~[0-9.]+ km\\)" }
+ },
+ {
+  "name": "EN — same street name in TAGAMOA → priced (polygon inside)",
+  "phone": "+2015559042",
+  "turns": ["signature burger", "delivery", "combo cola", "cash, ibrahim ibn al mahdi street villa 12"],
+  "expect": { "priced": "Delivery \\(~[0-9.]+ km\\): [0-9]+ EGP" },
+  "forbid": { "refused": "don't deliver" }
+ },
+ {
+  "name": "AR — Rehab is inside New Cairo → priced by distance (no more flat 35)",
+  "phone": "+2015559043",
+  "turns": ["سيجناتشر برجر", "دليفري", "كومبو كولا", "كاش، الرحاب"],
+  "expect": { "priced": "التوصيل \\(~[0-9.]+ كم\\): [0-9]+ EGP" },
+  "forbid": { "old flat fee": "35 EGP" }
+ }
+]

@@ -1,0 +1,23 @@
+[
+ {
+  "name": "AR — tapping the Arabic category name «حلويات» lists desserts in Arabic",
+  "phone": "+2015559051",
+  "turns": ["حلويات"],
+  "expect": { "arabic header": "🍽 حلويات", "arabic dish names": "كوكي|ايس كريم" },
+  "forbid": { "english header": "🍽 Desserts" }
+ },
+ {
+  "name": "EN — 'Desserts' still works in English",
+  "phone": "+2015559052",
+  "turns": ["Desserts"],
+  "expect": { "english list": "🍽 Desserts", "an item": "Cookie" },
+  "forbid": {}
+ },
+ {
+  "name": "EN — menu request → PDF link (regenerated with new section order)",
+  "phone": "+2015559053",
+  "turns": ["menu please"],
+  "expect": { "pdf attached": "menu-official.pdf|\\.pdf" },
+  "forbid": {}
+ }
+]

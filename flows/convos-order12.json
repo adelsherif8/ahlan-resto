@@ -1,0 +1,178 @@
+[
+ {
+  "name": "AR NEW — \"عايز اطلب\" → \"دليفري\"",
+  "phone": "+2015552001",
+  "turns": [
+   "عايز اطلب",
+   "دليفري"
+  ],
+  "expect": {},
+  "forbid": {
+   "latin sentence": "here'?s the full menu|let'?s get you fed|how would you like it"
+  }
+ },
+ {
+  "name": "AR NEW — \"المنيو\" → \"عايز كلاسيك برجر\"",
+  "phone": "+2015552002",
+  "turns": [
+   "المنيو",
+   "عايز كلاسيك برجر"
+  ],
+  "expect": {},
+  "forbid": {
+   "latin sentence": "here'?s the full menu|let'?s get you fed|how would you like it"
+  }
+ },
+ {
+  "name": "AR RETURNING — \"عايز اطلب\" → \"تيك اواي\"",
+  "phone": "+2015552003",
+  "turns": [
+   "عايز اطلب",
+   "تيك اواي"
+  ],
+  "expect": {},
+  "forbid": {
+   "latin sentence": "here'?s the full menu|let'?s get you fed|how would you like it",
+   "nudge to a regular": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Tarek",
+   "visit_count": 5
+  }
+ },
+ {
+  "name": "AR RETURNING — \"عايز اتنين لودد فرايز\" → \"دليفري\"",
+  "phone": "+2015552004",
+  "turns": [
+   "عايز اتنين لودد فرايز",
+   "دليفري"
+  ],
+  "expect": {},
+  "forbid": {
+   "latin sentence": "here'?s the full menu|let'?s get you fed|how would you like it",
+   "nudge to a regular": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Salma",
+   "visit_count": 5
+  }
+ },
+ {
+  "name": "FR NEW — \"3ayez atlob\" → \"delivery\"",
+  "phone": "+2015552005",
+  "turns": [
+   "3ayez atlob",
+   "delivery"
+  ],
+  "expect": {},
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "FR NEW — \"3ayez el menu\" → \"3ayez classic burger\"",
+  "phone": "+2015552006",
+  "turns": [
+   "3ayez el menu",
+   "3ayez classic burger"
+  ],
+  "expect": {},
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "FR RETURNING — \"3ayez atlob\" → \"pickup\"",
+  "phone": "+2015552007",
+  "turns": [
+   "3ayez atlob",
+   "pickup"
+  ],
+  "expect": {},
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "nudge to a regular": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Adel",
+   "visit_count": 5
+  }
+ },
+ {
+  "name": "FR RETURNING — \"2 loaded fries\" → \"delivery\"",
+  "phone": "+2015552008",
+  "turns": [
+   "2 loaded fries",
+   "delivery"
+  ],
+  "expect": {},
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "nudge to a regular": "first time here|أول مرة|awel marra",
+   "no stale (If delivery) label once type is known": "\\(If delivery\\)|\\(لو دليفري\\)"
+  },
+  "seed": {
+   "name": "Mona",
+   "visit_count": 5
+  }
+ },
+ {
+  "name": "EN NEW — \"i want to order\" → \"delivery\"",
+  "phone": "+2015552009",
+  "turns": [
+   "i want to order",
+   "delivery"
+  ],
+  "expect": {},
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "EN NEW — \"menu please\" → \"i want a classic burger\"",
+  "phone": "+2015552010",
+  "turns": [
+   "menu please",
+   "i want a classic burger"
+  ],
+  "expect": {},
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "EN RETURNING — \"i want to order\" → \"pickup\"",
+  "phone": "+2015552011",
+  "turns": [
+   "i want to order",
+   "pickup"
+  ],
+  "expect": {},
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "nudge to a regular": "first time here|أول مرة|awel marra"
+  },
+  "seed": {
+   "name": "Kareem",
+   "visit_count": 5
+  }
+ },
+ {
+  "name": "EN RETURNING — \"2 loaded fries\" → \"delivery\"",
+  "phone": "+2015552012",
+  "turns": [
+   "2 loaded fries",
+   "delivery"
+  ],
+  "expect": {},
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "nudge to a regular": "first time here|أول مرة|awel marra",
+   "no stale (If delivery) label once type is known": "\\(If delivery\\)|\\(لو دليفري\\)"
+  },
+  "seed": {
+   "name": "Hana",
+   "visit_count": 5
+  }
+ }
+]

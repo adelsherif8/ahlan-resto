@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { api } from "../config/api";
+import { usePoll } from "../lib/usePoll";
 
 type Notif = { id: number; type: string; title: string; body: string; read: boolean; created_at: string };
 
@@ -13,12 +14,9 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const load = () => api.get("/api/dashboard/notifications").then((r) => setItems(r.data.slice(0, 30))).catch(() => {});
-    load();
-    const t = setInterval(load, 12000);
-    return () => clearInterval(t);
-  }, []);
+  usePoll(() => {
+    api.get("/api/dashboard/notifications").then((r) => setItems(r.data.slice(0, 30))).catch(() => {});
+  }, 12000);
 
   useEffect(() => {
     const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };

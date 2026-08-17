@@ -100,8 +100,14 @@ export function Btn({
       type={type || "button"}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-xl px-3.5 py-2 text-sm transition disabled:opacity-40 ${styles} ${className}`}
-      style={variant === "primary" ? { backgroundColor: "var(--accent)", color: "var(--accent-contrast)" } : undefined}
+      className={`rounded-xl px-3.5 py-2 text-sm transition disabled:cursor-not-allowed ${disabled && variant !== "primary" ? "opacity-40" : ""} ${styles} ${className}`}
+      // A disabled primary used to render as the brand colour at 40% — which on a red
+      // brand reads as pink, and as "broken" rather than "not available yet".
+      style={variant === "primary"
+        ? (disabled
+            ? { backgroundColor: "var(--color-zinc-800)", color: "var(--color-zinc-500)" }
+            : { backgroundColor: "var(--accent)", color: "var(--accent-contrast)" })
+        : undefined}
     >
       {children}
     </button>

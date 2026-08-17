@@ -1,0 +1,81 @@
+[
+ {
+  "name": "EN — delivery to AUC (≈1.6 km) → 50 EGP, km shown",
+  "phone": "+2015558001",
+  "turns": [
+   "2 classic burgers sandwich for delivery",
+   "cash, AUC New Cairo, gate 4"
+  ],
+  "expect": {
+   "delivery fee on bill": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "legacy 70 fee": "Delivery[^\\n]*: 70 EGP",
+   "asked for pin": "share your location|Google Maps link 🔗"
+  }
+ },
+ {
+  "name": "EN — delivery to Mivida (~6 km, base+1 extra km) → 56 EGP",
+  "phone": "+2015558002",
+  "turns": [
+   "classic burger sandwich, delivery",
+   "cash, Mivida compound, villa 12"
+  ],
+  "expect": {
+   "fee for 5–6 km band": "Delivery \\(~5\\.[0-9] km\\): 56 EGP|Delivery \\(~6\\.[0-9] km\\): 62 EGP"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "AR — «توصيل لفيستيفال سيتي» (≈11.2 km) → 92 EGP",
+  "phone": "+2015558003",
+  "turns": [
+   "كلاسيك برجر ساندوتش دليفري",
+   "كاش، فيستيفال سيتي مول"
+  ],
+  "expect": {
+   "92 on bill": "92 EGP"
+  },
+  "forbid": {
+   "legacy 70": "70 EGP"
+  }
+ },
+ {
+  "name": "AR — Nasr City is its own zone (not Tagamoa) — must NOT be quoted as Tagamoa distance blindly",
+  "phone": "+2015558004",
+  "turns": [
+   "كلاسيك برجر ساندوتش دليفري",
+   "كاش، مدينة نصر شارع عباس العقاد"
+  ],
+  "expect": {
+   "some delivery answer": "توصيل|دليفري|Delivery"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "FR — Google Maps link (exact pin near Point 90 ≈1.1 km) → 50",
+  "phone": "+2015558005",
+  "turns": [
+   "classic burger sandwich delivery",
+   "cash https://maps.google.com/?q=30.0203,31.4947"
+  ],
+  "expect": {
+   "50 on bill": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "EN — unplaceable address → asks for a pin, never invents a fee",
+  "phone": "+2015558006",
+  "turns": [
+   "classic burger sandwich for delivery",
+   "cash, villa 7 street 12 next to the pharmacy"
+  ],
+  "expect": {
+   "asks for location": "share your location|Google Maps link"
+  },
+  "forbid": {
+   "any fee quoted": "Delivery[^\\n]*: [0-9]+ EGP"
+  }
+ }
+]

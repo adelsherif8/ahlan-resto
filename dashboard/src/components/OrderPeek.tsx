@@ -18,7 +18,7 @@ let inflight: Promise<any[]> | null = null;
 async function allOrders(): Promise<any[]> {
   if (cache && Date.now() - cache.at < 30_000) return cache.rows;
   if (inflight) return inflight;
-  inflight = api.get("/api/orders")
+  inflight = api.get("/api/orders", { params: { since_days: 120 } })
     .then((r) => { cache = { at: Date.now(), rows: r.data || [] }; return cache.rows; })
     .catch(() => [])
     .finally(() => { inflight = null; });

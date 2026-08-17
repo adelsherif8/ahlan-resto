@@ -212,10 +212,19 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // the extractor calls a bare URL "other" and it was handed to chit-chat, which
       // quoted the old flat zone fee.
       const isPin = !!extractMapLink(input.message) || /^\[location\]/i.test(input.message.trim());
+      // A bare word that is one of a draft item's OPTION CHOICES ("medium", "hot",
+      // "combo", «وسط») is an answer, even if the question on the table was the order
+      // TYPE (type-first asks that before the options): the guest is volunteering the
+      // next answer, not chatting. It used to fall to friendly, which invented
+      // "Medium Fries are 60 EGP".
+      const saidOpt = ` ${normName(arOptionWords(input.message))} `;
+      const answersDraftOption = !!loaded.pending?.items?.length && saidOpt.trim().length >= 3 && saidOpt.trim().split(" ").length <= 14
+        && (loaded.pending.items || []).some((it) => (it.option_defs || []).some((g) => groupChoices(g, loaded.menu).some((c) => { const cn = normName(c?.name || ""); return cn.length >= 3 && saidOpt.includes(` ${cn} `); })));
       const answersOpenQuestion = !!loaded.pending?.ambiguous
         || (!!loaded.pending?.items?.length && PAY_ANSWER.test(input.message.trim()))
         || (!!loaded.pending?.items?.length && loaded.pending?.order_type === "delivery" && isPin)
-        || (!!loaded.pending?.items?.length && loaded.pending?.awaiting_location === true);
+        || (!!loaded.pending?.items?.length && loaded.pending?.awaiting_location === true)
+        || answersDraftOption;
       const notAwaiting = !loaded.pending?.awaiting_option && loaded.pending?.awaiting_confirm !== true && !answersOpenQuestion;
       const noOrderContent = e.intent === "other" && !(e.items?.length) && !(e.edits?.length)
         && !e.order_type && !e.address && !e.table_number && !e.payment_method && !e.pickup_time && !named;
@@ -295,6 +304,18 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           let pick = amb0.candidates.filter((c) => { const n = normName(c); return said === n || said.includes(n); });
           if (!pick.length && said.length >= 4) pick = amb0.candidates.filter((c) => normName(c).includes(said));
           if (!pick.length) pick = amb0.candidates.filter((c) => normName(c).split(" ").filter((t) => t.length >= 3).some((t) => said.includes(t)));
+          // ARABIC answer («ناشفيل») against the candidates' Arabic menu names — the
+          // distinguishing Arabic token(s) pick the dish, same as the English path
+          if (!pick.length && /[؀-ۿ]/.test(input.message)) {
+            const arNz2 = (s2) => String(s2 || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
+            const saidAr = ` ${arNz2(input.message).replace(/[^؀-ۿ\s]/g, " ").replace(/\s+/g, " ").trim()} `;
+            const arNameOfC = (c) => arNz2(loaded.menu.find((m) => normName(m.name) === normName(c))?.name_ar || "");
+            const toks = (s2) => s2.split(" ").filter((w) => w.length >= 3 && !/^[٠-٩]+$/.test(w));
+            const shared = new Set(amb0.candidates.map((c) => toks(arNameOfC(c))).reduce((a, b) => a.filter((x) => b.includes(x))));
+            const scored = amb0.candidates.map((c) => ({ c, hits: toks(arNameOfC(c)).filter((w) => !shared.has(w) && saidAr.includes(` ${w} `)).length }));
+            const best = Math.max(0, ...scored.map((s2) => s2.hits));
+            if (best > 0) { const top = scored.filter((s2) => s2.hits === best); if (top.length === 1) pick = [top[0].c]; }
+          }
           // "1" / "2" / "the second one" — people answer a printed list by position.
           if (!pick.length) {
             const nth = /^\D{0,6}([1-9])\D{0,8}$/.exec(input.message.trim())?.[1]
@@ -398,6 +419,43 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             }
           }
         }
+        // THE GUEST'S NUMBER WINS. "3 tenders please" came back qty 1 — the model read
+        // the 3 as the dish's own "3 Pcs" (and once as a note "(3 pieces)"). When the
+        // message carries a leading count right before the dish words and the model
+        // says 1, code restores the guest's count. Only for a single-dish message (a
+        // multi-item message keeps the model's per-item numbers).
+        if ((e.items || []).length === 1 && (Number(e.items[0].qty) || 1) === 1) {
+          const WORD_NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, "واحد": 1, "واحدة": 1, "اتنين": 2, "إتنين": 2, "تلاتة": 3, "ثلاثة": 3, "اربعة": 4, "أربعة": 4, "خمسة": 5, "ستة": 6, wa7ed: 1, etnen: 2, etneen: 2, talata: 3, tlata: 3, arba3a: 4, khamsa: 5, setta: 6 };
+          const msg0 = String(input.message || "").toLowerCase().replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+          const m = msg0.match(/(?:^|[^\p{L}\p{N}])(\d{1,2}|one|two|three|four|five|six|واحدة?|ا?ت?نين|إتنين|تلاتة|ثلاثة|ا?ربعة|أربعة|خمسة|ستة|wa7ed|etne+n|t?lata|arba3a|khamsa|setta)\s*(?:x|×|\*)?\s*(?=[\p{L}])/iu);
+          if (m) {
+            const n = WORD_NUM[m[1]] ?? Number(m[1]);
+            // never confuse the dish's own size number ("3 pcs", "10 pieces", "500 ml")
+            const after = msg0.slice(m.index + m[0].length, m.index + m[0].length + 12);
+            const sizeWord = /^(pcs?|pieces?|piece|قطع|قطعة|ml|g|gm|kg|l)\b/i.test(after.trim());
+            // the number is PART OF THE DISH NAME ("4x4", "4 X 4", "Nuggets 10 pcs",
+            // "Tenders 3 Pcs") when the matched dish name itself contains that number
+            // — a 4x4 bundle is ONE bundle, not four
+            // …but only when the guest TYPED the dish's own numbered name ("4x4",
+            // "tenders 3 pcs") — a leading "3" before "tenders" is a count of three,
+            // even though the dish is "Tenders 3 Pcs"
+            // digit/letter boundaries become spaces so "4x4" reads like the dish "4 X 4"
+            const splitNum = (s2) => normName(String(s2).replace(/(\d)([a-z])/gi, "$1 $2").replace(/([a-z])(\d)/gi, "$1 $2"));
+            const dishN = splitNum(e.items[0].name || "");
+            const msgNorm = ` ${splitNum(msg0)} `;
+            // the guest typed the dish's own numbered name (or its numbered core: "4 x 4",
+            // "tenders 3 pcs", "nuggets 10 pcs") → that number is not a count
+            const dishNumIdx = dishN.search(new RegExp(`(^|[^0-9])${n}([^0-9]|$)`));
+            const numberedCore = dishNumIdx >= 0
+              ? dishN.split(" ").filter((w, i, arr) => { const ni = arr.findIndex((x) => x === String(n)); return ni >= 0 && Math.abs(i - ni) <= 1; }).join(" ")
+              : "";
+            const guestTypedDishNumber = !!numberedCore && numberedCore.includes(String(n)) && msgNorm.includes(` ${numberedCore} `);
+            if (Number.isFinite(n) && n >= 2 && n <= 20 && !sizeWord && !guestTypedDishNumber) {
+              e.items[0].qty = n;
+              if (e.items[0].notes && /^\s*\d+\s*(pcs?|pieces?)\s*$/i.test(e.items[0].notes)) e.items[0].notes = null; // "(3 pieces)" was the count, not a note
+            }
+          }
+        }
         const wanted = (e.items || []).slice(0, 12);
         for (const w of wanted) {
           const n = normName(w.name);
@@ -470,9 +528,17 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             );
             if (!msgN2.includes(hitN) && !namedInArabic && !weOfferedIt && hitN !== normName(answeredAmbiguity || "")) {
               const near = (t) => msgN2.includes(t) || (t.length >= 5 && msgN2.includes(t.slice(0, 5)));
-              const fragToks = hitN.split(" ").filter((t) => t.length >= 3 && near(t));
+              let fragToks = hitN.split(" ").filter((t) => t.length >= 3 && near(t));
+              // ARABIC message: the same test on the Arabic names — «تندرز» alone fits
+              // both tenders dishes and must ASK, exactly like "tenders" does in English
+              // (this guard used to be blind to Arabic, so the model's Classic guess stood)
+              const arFrag = hitArToks.filter((tk) => msgAr.includes(` ${tk} `));
+              const useAr = !fragToks.length && arFrag.length > 0;
+              if (useAr) fragToks = arFrag;
               if (fragToks.length) {
-                const fragHits = loaded.menu.filter((m) => { const n2 = normName(m.name); return fragToks.every((t) => n2.includes(t)); });
+                const fragHits = useAr
+                  ? loaded.menu.filter((m) => m.name_ar && fragToks.every((tk) => arToksOf(m.name_ar).includes(tk)))
+                  : loaded.menu.filter((m) => { const n2 = normName(m.name); return fragToks.every((t) => n2.includes(t)); });
                 if (fragHits.length > 1) {
                   if (loaded.pending?.awaiting_option) continue; // answer fragment, not a dish
                   ambiguous.push({ said: fragToks.join(" "), qty, candidates: fragHits.slice(0, 4).map((m) => m.name) });
@@ -872,8 +938,13 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       let geoPoint = null;
       let placeCandidates = null;
       let outsideArea = null; // the guest NAMED an area we know we don't cover
+      // resolving a typed address to a point only matters when the restaurant USES the
+      // point: drawn/circle zones or distance pricing. A restaurant with neither
+      // (Just Smash: flat fee, no zones) keeps the address as text on the ticket —
+      // no geocoder, no "which place?" for a place it doesn't need to locate.
+      const usesPoint = !!((config.delivery?.zones || []).length || branches.some((b) => (b.delivery_zones || []).length) || pricingOf(config).mode === "distance");
       if (pickedPlace) geoPoint = pickedPlace;
-      else if (orderType === "delivery" && address && mapLink?.lat == null && !sharedPin) {
+      else if (usesPoint && orderType === "delivery" && address && mapLink?.lat == null && !sharedPin) {
         // a point the draft already resolved for THIS address text is reused (no re-geocode)
         const prev = loaded.pending?.delivery_point;
         if (prev && loaded.pending?.address && norm2(loaded.pending.address) === norm2(address) && prev.lat != null) geoPoint = prev;
@@ -1000,9 +1071,18 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // that echoes menu-product words is a swallowed order line — code surfaces it
       // through the same-kind mapping instead of silently losing the guest's drink.
       const MODIFIER_SIG = /(?<![\p{L}])(no|not|without|less|more|extra|only|well|side|add|change|بدون|من غير|زياد|سادة|سبايسي|spicy|hot|mild|حار|بارد)(?![\p{L}])/iu;
+      // words that are OPTION CHOICES of the item ("full meal, medium, french fries,
+      // coca cola") are answers, not swallowed products — leave them for the resolver
+      const isChoiceTalk = (it, nt) => {
+        const words = normName(arOptionWords(nt)).split(" ").filter((w) => w.length >= 3);
+        if (!words.length) return false;
+        const choiceWords = new Set((it.option_defs || []).flatMap((g) => groupChoices(g, loaded.menu).flatMap((c) => normName(c?.name || "").split(" "))).filter((w) => w.length >= 3));
+        const hits = words.filter((w) => choiceWords.has(w)).length;
+        return hits >= Math.ceil(words.length * 0.6);
+      };
       for (const it of items) {
         const nt = String(it.notes || "").trim();
-        if (!nt || MODIFIER_SIG.test(nt)) continue;
+        if (!nt || MODIFIER_SIG.test(nt) || isChoiceTalk(it, nt)) continue;
         const ntN = normName(nt);
         const productish = loaded.menu.some((m) => normName(m.name).split(" ").some((t) => t.length >= 4 && ntN.includes(t)));
         if (productish && !unknown.includes(nt)) { unknown.push(nt); it.notes = null; }
@@ -1074,8 +1154,17 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // "سيجناتشر برجر" → "how would you like it?" comes BEFORE the sandwich/combo
       // questions. Asked exactly once per draft (type_asked), only when the type is
       // still unknown and no option ask is already open. The item stays on the bill.
-      if (config.ai?.ask_type_first === true && !orderType && items.length && !loaded.pending?.type_asked && !loaded.pending?.awaiting_option) {
-        await savePending({ type_asked: true, leadin_shown: true });
+      // (…unless this very message answers an option — "medium" right after we
+      // pinned the tenders — then the option is applied first and the type follows.)
+      const saidOptNow = ` ${normName(arOptionWords(input.message))} `;
+      const answersAnOptionNow = saidOptNow.trim().length >= 3 && saidOptNow.trim().split(" ").length <= 14
+        && items.some((it) => (it.option_defs || []).some((g) => groupChoices(g, loaded.menu).some((c) => { const cn = normName(c?.name || ""); return cn.length >= 3 && saidOptNow.includes(` ${cn} `); })));
+      // Only when the dish OPENS the order (no draft items at the start of the turn) —
+      // a mid-draft addition ("lets add chocolate" onto the tenders) must merge and
+      // continue, never restart with "how would you like it?" and drop the new line.
+      const draftWasEmpty = !(loaded.pending?.items?.length);
+      if (config.ai?.ask_type_first === true && !orderType && items.length && draftWasEmpty && !loaded.pending?.type_asked && !loaded.pending?.awaiting_option && !answersAnOptionNow) {
+        await savePending({ items, type_asked: true, leadin_shown: true });
         return { kind: "ask_fulfillment", type_first: true, first_fulfilment: true, need_type: true, delivery: deliveryOn, notices: outcomeNotices, items, running: runningOf(items) };
       }
 
@@ -1104,6 +1193,62 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const askedItem = step.items[step.ask.index];
         const openGroups = (askedItem?.option_defs || []).filter((g) =>
           g.key !== "slots" && step.ask.keys?.includes(g.key) && groupApplies(g, askedItem.options) && !askedItem.options[g.key]);
+        // CODE FIRST for a per-unit split on a multi-unit line: "hot for the first 2
+        // and mild for the third" — the model gave 3 per-unit answers one run and a
+        // single "Hot" the next. Deterministic: find every choice name in the message
+        // with its unit count (positional/count words), and if they add up to the
+        // line's qty with more than one distinct choice, split the line right here.
+        if (pass === 0 && openGroups.length === 1 && Number(askedItem.qty) > 1) {
+          const g0 = openGroups[0];
+          const saidN = normName(arOptionWords(input.message));
+          // locate every choice mention, then judge each one's count ONLY within its own
+          // segment (up to the next mention) — "hot for the first 2 | and mild for the
+          // third": the "2" belongs to hot, the ordinal to mild
+          const mentions = [];
+          for (const c of groupChoices(g0, loaded.menu)) {
+            const cn = normName(c.name); if (!cn) continue;
+            const key = cn.split(" ")[0]; if (key.length < 3) continue;
+            const idxP = ` ${saidN} `.indexOf(` ${key} `);
+            if (idxP >= 0) mentions.push({ name: c.name, at: idxP, len: key.length });
+          }
+          mentions.sort((a, b) => a.at - b.at);
+          const picked = [];
+          mentions.forEach((m, i) => {
+            // a mention OWNS the gap before it (back to the previous mention's segment
+            // end — for "2 hot and 1 mild" the "1" sits there) and the text after it up
+            // to the next mention ("hot for the first 2 and …")
+            const prevEnd = i > 0 ? mentions[i - 1].at + mentions[i - 1].len : 0;
+            const nextAt = i + 1 < mentions.length ? mentions[i + 1].at : saidN.length;
+            // the previous mention's own trailing count ("first 2") must not leak into
+            // this one: keep only the tail of the gap after any earlier count/ordinal
+            // only a count that sits IMMEDIATELY before this mention belongs to it
+            // ("2 hot", "one mild", "the last one mild"); everything earlier in the gap
+            // is the previous mention's tail
+            const gapAll = saidN.slice(prevEnd, m.at);
+            // "…for the first two, medium…" — that "two" completes the PREVIOUS name's
+            // "first two", it is not medium's count: a count right after "first" binds
+            // backwards. Only a bare count ("2 hot", "one mild") or "the last one" leads.
+            const lead = i === 0
+              // nothing before the first name can belong to anyone else — take it all ("first two hot")
+              ? /(?:(?:the\s+)?(?:first|last|other)\s+)?(?:\d{1,2}|one|two|three|four|five|six)\s*$/i.exec(gapAll)
+              : /(?:(?:the\s+)?(?:last|other)\s+one|(?<!(?:first|last|other)\s{1,3})(?:\d{1,2}|one|two|three|four|five|six))\s*$/i.exec(gapAll);
+            const gapBefore = lead ? lead[0] : "";
+            const seg = `${gapBefore}${saidN.slice(m.at, nextAt)}`;
+            const q = unitsForChoice(seg, gapBefore.length, m.len) ?? 1;
+            for (let k = 0; k < q; k++) picked.push(m.name);
+          });
+          if (new Set(picked).size > 1 && picked.length <= Number(askedItem.qty)) {
+            const perUnit = [...picked];
+            while (perUnit.length < Number(askedItem.qty)) perUnit.push(perUnit[perUnit.length - 1]);
+            const counts = {}; for (const n of perUnit) counts[n] = (counts[n] || 0) + 1;
+            const lines = Object.entries(counts).map(([n, q]) => ({ ...askedItem, qty: q, options: { ...askedItem.options, [g0.key]: n } }));
+            step.items.splice(step.ask.index, 1, ...lines);
+            items = step.items;
+            step = nextQuestion(items, loaded.menu, "", loaded.pending, currency);
+            if (!step.ask) break;
+            continue; // re-evaluate against the next open ask (pass 1)
+          }
+        }
         if (openGroups.length) {
           const lists = openGroups.map((g, i) =>
             `${i + 1}. "${g.label || g.key}": [${groupChoices(g, loaded.menu).map((c) => `"${c.name}"`).join(", ")}]`).join("\n");
@@ -1160,7 +1305,27 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           }
           let appliedAny = false;
           const appliedVals = new Set();
-          openGroups.forEach((g, i) => {
+          // PER-UNIT ANSWERS: one open group, a multi-unit line, and the model returned
+          // one answer PER UNIT ("hot for the first 2 and mild for the third" →
+          // {1:Hot, 2:Hot, 3:Mild}). Keying those by group index applied "Hot" to all
+          // three. When they're all valid choices of that group and not all the same,
+          // split the line like a real ticket (2× Hot, 1× Mild).
+          if (openGroups.length === 1 && Number(askedItem.qty) > 1 && !askedItem.options[openGroups[0].key]) {
+            const g0 = openGroups[0];
+            const vals = Object.keys(answers).sort((a, b) => Number(a) - Number(b)).map((k) => answers[k]).filter((v) => typeof v === "string" && v.trim());
+            const choices = groupChoices(g0, loaded.menu);
+            const canon = vals.map((v) => choices.find((c) => c.name === v.trim() || normName(c.name) === normName(v))?.name || null);
+            if (vals.length >= 2 && vals.length <= Number(askedItem.qty) && canon.every(Boolean) && new Set(canon).size > 1) {
+              const perUnit = [...canon];
+              while (perUnit.length < Number(askedItem.qty)) perUnit.push(perUnit[perUnit.length - 1]); // "hot for the first 2, mild for the rest"
+              const counts = {};
+              for (const n of perUnit) counts[n] = (counts[n] || 0) + 1;
+              const idx = step.items.indexOf(askedItem);
+              const lines = Object.entries(counts).map(([n, q]) => ({ ...askedItem, qty: q, options: { ...askedItem.options, [g0.key]: n } }));
+              if (idx >= 0) { step.items.splice(idx, 1, ...lines); appliedAny = true; lines.forEach((l) => appliedVals.add(l.options[g0.key])); }
+            }
+          }
+          if (!appliedAny) openGroups.forEach((g, i) => {
             const a = answers[String(i + 1)];
             if (!a || typeof a !== "string") return;
             const valid = groupChoices(g, loaded.menu).find((c) => c.name === a.trim() || normName(c.name) === normName(a));
@@ -1216,6 +1381,9 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
             // means the sauce): those markers bypass the guard.
             const weakMarker = marker === "no" || marker === "بلاش";
             if (weakMarker && nameToks.some((t2) => t2 === wTok || (t2.length > 3 && wTok.length > 3 && editDistance(t2, wTok) <= 1))) continue;
+            // "no I want the truck meal" / "no, give me X" — a correction, not a removal:
+            // a weak marker followed by an ORDERING verb is the guest changing their mind
+            if (weakMarker && /^(i want|i d like|i'd like|i would like|give me|get me|make it|i meant|actually|3ayez|3ayza|3awez|hat|hatli|عايز|عايزة|عاوز|هات|هاتلي|خلي|اقصد|أقصد|قصدي)\b/iu.test(what)) continue;
             // A MENU ITEM after the marker is an order edit, never an ingredient:
             // "don't add classic burger, add ranch sandwich instead" swaps items —
             // the extractor's edits own that; a note here would mangle the order.
@@ -1445,10 +1613,16 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           const hasDessert = items.some((it) => DESSERT.test(`${catOf(it)} ${it.name}`));
           const pool = loaded.menu.filter((m) => m.available !== false && !have.has(m.id) && Number(m.price) > 0 && !(m.options || []).length && !SKIP_CAT.test(m.category || "") && !SKIP_CAT.test(m.name || "") && !/sauce|صوص|cup/i.test(m.name || ""));
           const best = (re) => pool.filter((m) => re.test(`${m.category || ""}`)).sort((a, b) => (Number(!!b.bestseller) - Number(!!a.bestseller)) || (Number(a.price) - Number(b.price)))[0];
+          // the restaurant's own pairing (pairs_with) is offered regardless — they chose
+          // it for that dish; the "no side on a combo" rule only shapes the AUTO picks
           const seedIsSide = seed && SIDE.test(`${seed.category || ""} ${seed.name}`);
-          const sidePick = !hasSide ? (seedIsSide ? seed : best(SIDE)) : null;
-          picks = [sidePick, !hasDessert ? best(DESSERT) : null, !hasDrink ? best(DRINK) : null].filter(Boolean).slice(0, 3);
-          if (!picks.length && seed && !seedIsSide) picks = [seed];
+          const seedIsDessert = seed && DESSERT.test(`${seed.category || ""} ${seed.name}`);
+          const seedIsDrink = seed && DRINK.test(`${seed.category || ""} ${seed.name}`);
+          const sidePick = seedIsSide ? seed : (!hasSide ? best(SIDE) : null);
+          const dessertPick = seedIsDessert ? seed : (!hasDessert ? best(DESSERT) : null);
+          const drinkPick = seedIsDrink ? seed : (!hasDrink ? best(DRINK) : null);
+          picks = [sidePick, dessertPick, drinkPick].filter(Boolean).slice(0, 3);
+          if (seed && !picks.includes(seed)) picks = [seed, ...picks].slice(0, 3);
         } else if (!picks.length && seed) picks = [seed];
         return picks.length ? picks.map((m) => `${m.name} (${m.price} ${currency})`) : null;
       };
@@ -2098,7 +2272,9 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // splits "Combo cola zero" and mislabels the tail a "question" — friendly then sends a
     // second, contradictory message). Real mixed turns carry items/edits; pure questions
     // mid-ask go through the question-intent handoff instead.
-    const sideAllowed = !!(e.items?.length || e.edits?.length) || !awaitingAtTurnStart;
+    // never on a menu request — the answer IS the menu; a stitched friendly line above
+    // it ("تحت أمرك — تحب تعرف إيه؟") read as the bot not understanding
+    const sideAllowed = (!!(e.items?.length || e.edits?.length) || !awaitingAtTurnStart) && outcome.kind !== "menu_request";
     if (sideQ.length >= 4 && sideAllowed) {
       const side = await f.flow("friendly", { message: sideQ, diner, history: input.history, precheck: input.precheck, classification });
       if (side?.reply) {
@@ -2524,13 +2700,15 @@ function nextQuestion(items, menu, message, pending, currency = "EGP") {
       if (strict.length === 1 && need2 === 1) it2.options[g.key] = strict[0].name;
     }
   }
-  // notes that only restate applied choices are ticket noise — drop them
+  // notes that only restate applied choices are ticket noise — drop them. Order-type
+  // and payment words that the extractor swept into the note ("pickup, full meal,
+  // medium…") are noise too — they live in their own fields.
   for (const it2 of out) {
     if (!it2.notes) continue;
     const chosen = normName(Object.values(it2.options).filter((v) => typeof v === "string").join(" "));
-    const FILLER = new Set(["and", "with", "a", "an", "the", "please", "و", "مع"]);
+    const FILLER = new Set(["and", "with", "a", "an", "the", "please", "و", "مع", "pickup", "pick", "up", "delivery", "dine", "in", "takeaway", "cash", "card", "visa", "instapay", "for", "from", "to"]);
     const words = normName(arOptionWords(it2.notes)).split(" ").filter((w) => w && !FILLER.has(w));
-    if (words.length && words.every((w) => chosen.includes(w))) it2.notes = null;
+    if (!words.length || words.every((w) => chosen.includes(w))) it2.notes = null;
   }
 
   // ---- a filled bundle template answers its slots ----

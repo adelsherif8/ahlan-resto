@@ -5,6 +5,7 @@ import { api } from "../config/api";
 import { Card, PageHeader, Pill, Empty } from "../components/ui";
 
 import { money } from "../lib/format";
+import { usePoll } from "../lib/usePoll";
 
 // Overview = the one screen a manager reads in ten seconds. Three rules hold it together:
 //
@@ -54,15 +55,12 @@ export default function Overview() {
   }, []);
 
   useEffect(() => {
-    const load = () => {
-      api.get("/api/dashboard/kpis").then((r) => setKpis(r.data)).catch(() => {});
-      api.get("/api/orders").then((r) => setOrders(r.data || [])).catch(() => {});
-    };
-    load();
     api.get("/api/dashboard/agent-stats").then((r) => setAgent(r.data)).catch(() => {});
-    const t = setInterval(load, 15000);
-    return () => clearInterval(t);
   }, []);
+  usePoll(() => {
+    api.get("/api/dashboard/kpis").then((r) => setKpis(r.data)).catch(() => {});
+    api.get("/api/orders", { params: { since_days: 62 } }).then((r) => setOrders(r.data || [])).catch(() => {});
+  }, 15000);
 
   if (!kpis) return <Empty text="Loading…" />;
   const casual = rtype === "casual";

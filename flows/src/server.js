@@ -2,12 +2,12 @@ import { orderedCategories } from "./services/categories.js";
 import express from "express";
 import cors from "cors";
 import { PORT, log, llmReady, PUBLIC_BASE } from "./config.js";
-import { resolveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, resolveRestaurantBySlug, resolveAllRestaurants, recordServiceBoot, listServiceBoots } from "./services/tenant.js";
+import { resolveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, resolveRestaurantBySlug, resolveAllRestaurants, recordServiceBoot, listServiceBoots, upsertCostDaily, readCostDaily } from "./services/tenant.js";
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
 import { metrics, bump } from "./services/metrics.js";
-import { runRegression, regressionStatus } from "./services/regression.js";
+import { runRegression, regressionStatus, loadLastRegression } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
 import { TRACE_MAX_AGE_D as TRACE_RETENTION_D, TRACE_ERROR_MAX_AGE_D as TRACE_ERROR_RETENTION_D } from "./flows/janitor.js";
 import { getSession, logMessage } from "./services/chatlog.js";
@@ -945,7 +945,13 @@ app.post("/api/ops/run-regression", opsAuth, (req, res) => {
   runRegression({ only }); // async — poll status
   res.json({ started: true, only: only || "all" });
 });
-app.get("/api/ops/regression", opsAuth, (_req, res) => res.json(regressionStatus()));
+app.get("/api/ops/regression", opsAuth, async (_req, res) => {
+  const live = regressionStatus();
+  if (live.status !== "idle") return res.json(live);
+  // nothing running: show the last persisted run (survives deploys/restarts)
+  try { const t = await resolveRestaurant(); await loadLastRegression(t.db); } catch {}
+  res.json(regressionStatus());
+});
 
 // Manual triggers mirror the schedulers: no restaurant named = run for EVERY tenant,
 // so a hand-run never silently skips a restaurant the way the old single-slug version did.
@@ -1085,18 +1091,29 @@ app.get("/api/executions", opsAuth, async (req, res) => {
   // `since` = only runs newer than this ISO timestamp. Live tail polls every 3s and was
   // refetching all 100 rows each time; with `since` a quiet poll returns [].
   const since = req.query.since ? String(req.query.since) : null;
-  const mem = listExecutions({ flow, limit }).filter((e) => !since || e.started_at > since);
+  const restaurant = req.query.restaurant ? String(req.query.restaurant) : null;
+  const status = req.query.status ? String(req.query.status) : null;
+  const search = req.query.q ? String(req.query.q).trim() : null;
+
+  // the in-memory ring gets the same filters, so a just-finished run isn't shown when it
+  // doesn't match (and isn't hidden when it does)
+  const mem = listExecutions({ flow, limit })
+    .filter((e) => !since || e.started_at > since)
+    .filter((e) => !status || e.status === status)
+    .filter((e) => !search || [e.session_id, e.id, e.error].some((v) => String(v || "").toLowerCase().includes(search.toLowerCase())));
   let merged = mem;
   try {
     // EVERY restaurant's executions, not just the default tenant's — tests and
     // guests run on different schemas, and reading one blinded ops to the rest.
-    const tenants = await resolveAllRestaurants();
+    const all = await resolveAllRestaurants();
+    // one restaurant selected → don't even open the other schemas
+    const tenants = restaurant ? all.filter((t) => (t.config?.slug || null) === restaurant) : all;
     const perTenant = await Promise.all(tenants.map((t) =>
-      listExecutionsDb(t.db, { flow, limit, since })
+      listExecutionsDb(t.db, { flow, limit, since, status, q: search })
         .then((rows) => rows.map((e) => ({ ...e, restaurant: t.config?.slug || null })))
         .catch(() => [])));
     const seen = new Set(mem.map((e) => e.id));
-    merged = [...mem, ...perTenant.flat().filter((e) => !seen.has(e.id))]
+    merged = [...mem.filter((e) => !restaurant || e.restaurant === restaurant), ...perTenant.flat().filter((e) => !seen.has(e.id))]
       .sort((a, b) => (a.started_at < b.started_at ? 1 : -1))
       .slice(0, limit);
   } catch {}
@@ -1234,12 +1251,21 @@ const ROLLUP_SAMPLE = 400;  // per tenant, node-level query
  * Returns null if ANY tenant lacks trusted aggregates: mixing an exact tenant with a
  * capped one produces a total that is wrong in a way nobody can see.
  */
-async function rollupViaSql(tenants, since) {
+async function rollupViaSql(tenants, since, until = null) {
+  // Previous-period comparison comes free: ask ops_rollup_days for a window twice as long
+  // and split it in JS. "$26.70" alone says nothing; "$26.70, +18% on the previous 14
+  // days" is the number someone can act on. No extra round trip.
+  const spanMs = (until ? new Date(until) : new Date()).getTime() - new Date(since).getTime();
+  const prevSince = new Date(new Date(since).getTime() - spanMs).toISOString();
+  const sinceDay = since.slice(0, 10);
+  // `until` trims the tail client-side: the SQL functions take a start only, and adding a
+  // second parameter would mean re-running 033/035/037. Day buckets make this exact.
+  const inRange = (day) => !until || String(day) <= until.slice(0, 10);
+  const failures = [];   // why the exact path could not be used, per tenant
   const per = await mapLimit(tenants, 6, async (t) => {
-    if (!(await costRpcTrusted(t))) return null;
+    if (!(await costRpcTrusted(t))) { failures.push(`${t.schema}: aggregates are v1 or missing (run migrations 033/035)`); return null; }
     const slug = t.config?.slug || null;
-    const [totals, days, flows, slowest, costliest, sample] = await Promise.all([
-      oneRow(tryRpc(t, "ops_rollup_totals", { p_since: since })),
+    let [days, flows, slowest, costliest] = await Promise.all([
       tryRpc(t, "ops_rollup_days", { p_since: since }).catch(() => null),
       tryRpc(t, "ops_rollup_flows", { p_since: since }).catch(() => null),
       // top-N needs real rows, but only ten of them
@@ -1247,19 +1273,59 @@ async function rollupViaSql(tenants, since) {
         .gte("started_at", since).order("duration_ms", { ascending: false }).limit(10),
       t.db.from("flow_executions").select("id,flow,session_id,duration_ms,cost_usd,started_at")
         .gte("started_at", since).order("cost_usd", { ascending: false }).limit(10),
-      // per-model / per-step still need node payloads, so they stay sampled
-      t.db.from("flow_executions").select("flow,nodes")
-        .gte("started_at", since).order("started_at", { ascending: false }).limit(ROLLUP_SAMPLE),
     ]);
-    if (!totals || !days || !flows) return null;
+    // Per-model and per-step used to load here. They expand `nodes` jsonb and cost 5.2s
+    // and 6.4s on the busy schema — 11.6 of the page's ~15 seconds — to fill a table
+    // behind a tab and a table behind a collapsed section. They now live on
+    // /api/ops/breakdown and are fetched only when something actually shows them.
+    if (!days || !flows) {
+      failures.push(`${t.schema}: ${!days ? "ops_rollup_days" : "ops_rollup_flows"} did not return (usually a statement timeout on a large window)`);
+      return null;
+    }
+    // Totals are SUMMED FROM THE DAY BUCKETS rather than fetched from ops_rollup_totals.
+    // That call was the one thing on this endpoint that timed out on the busy schema — a
+    // single global percentile_cont sorts every row and count(distinct session_id) hashes
+    // all of them, with no GROUP BY to divide the work. It took the whole exact path down
+    // with it and the page silently showed the capped $13 instead of $27.
+    // Money, runs, errors and tokens sum exactly. Sessions are the sum of per-day distinct
+    // counts, so a conversation spanning midnight is counted twice — flagged, not hidden.
+    const nn = (x) => Number(x) || 0;
+    const sumDays = (rows) => {
+      const runs = rows.reduce((a, d) => a + nn(d.runs), 0);
+      return {
+        runs,
+        errors: rows.reduce((a, d) => a + nn(d.errors), 0),
+        sessions: rows.reduce((a, d) => a + nn(d.sessions), 0),
+        cost_usd: rows.reduce((a, d) => a + nn(d.cost_usd), 0),
+        tokens_in: rows.reduce((a, d) => a + nn(d.tokens_in), 0),
+        tokens_out: rows.reduce((a, d) => a + nn(d.tokens_out), 0),
+        avg_ms: runs ? Math.round(rows.reduce((a, d) => a + nn(d.avg_ms) * nn(d.runs), 0) / runs) : 0,
+        p95_ms: rows.reduce((mx, d) => Math.max(mx, nn(d.p95_ms)), 0),
+      };
+    };
+    let totals = sumDays(days.filter((d) => String(d.day) >= sinceDay));
+    // …and fetch the comparison window SEPARATELY, tolerating failure. Folding it into
+    // the main call doubled the range, which was slow enough on the busy schema to fail —
+    // and because the main path is all-or-nothing, a missing comparison silently dropped
+    // the whole rollup back to the capped row-reading fallback ($13.11 for a $26.74
+    // window). A nice-to-have must never be able to break the primary number.
+    const prevRows = await tryRpc(t, "ops_rollup_days", { p_since: prevSince }).catch(() => null);
+    const prevDays = Array.isArray(prevRows) ? prevRows.filter((d) => String(d.day) < sinceDay) : null;
+    if (until) {
+      days = days.filter((d) => inRange(d.day));
+      totals = sumDays(days);      // a bounded range must never report the open-ended total
+    }
     return {
       slug, name: t.config?.name || slug, totals, days, flows,
+      prevDays,
       slowest: (slowest.data || []).map((r) => ({ ...r, restaurant: slug })),
       costliest: (costliest.data || []).map((r) => ({ ...r, restaurant: slug })),
-      sample: sample.data || [],
     };
   });
-  if (per.some((p) => !p)) return null;
+  // Deliberately all-or-nothing: mixing one exact tenant with one capped tenant yields a
+  // total that is neither, and nobody could tell from looking. But the caller is told
+  // exactly what failed, so the console can name it instead of blaming a stale deploy.
+  if (per.some((p) => !p)) return { failed: true, reason: failures.join(" · ") || "unknown" };
 
   const num = (x) => (typeof x === "number" && isFinite(x) ? x : Number(x) || 0);
   const money = (x) => Math.round(x * 1e6) / 1e6;
@@ -1288,6 +1354,7 @@ async function rollupViaSql(tenants, since) {
   const allTotals = per.map((p) => p.totals);
   const t = merge(allTotals, () => "all")[0] || { runs: 0, errors: 0, sessions: 0, cost_usd: 0, tokens_in: 0, tokens_out: 0, avg_ms: 0, p95_ms: 0 };
 
+  const prev = merge(per.flatMap((p) => p.prevDays || []), () => "prev")[0] || null;
   const byDay = merge(per.flatMap((p) => p.days), (r) => String(r.day))
     .map((b) => ({ ...b, day: b.key })).sort((a, b) => (a.day < b.day ? 1 : -1));
   const byFlow = merge(per.flatMap((p) => p.flows), (r) => r.flow)
@@ -1297,28 +1364,21 @@ async function rollupViaSql(tenants, since) {
     return { restaurant: p.slug, name: p.name, readable: true, reason: null, counted: num(p.totals.runs), capped: false, ...b };
   }).sort((a, b) => b.cost_usd - a.cost_usd);
 
-  // per-model and per-step, from the sampled node payloads
-  const models = new Map(), steps = new Map();
-  let sampled = 0;
-  for (const p of per) {
-    for (const r of p.sample) {
-      sampled++;
-      for (const n of Array.isArray(r.nodes) ? r.nodes : []) {
-        if (!n?.name) continue;
-        const sk = `${r.flow}|${n.name}`;
-        let s = steps.get(sk);
-        if (!s) steps.set(sk, (s = { flow: r.flow, node: n.name, calls: 0, ms: [], cost_usd: 0, errors: 0 }));
-        s.calls++; s.ms.push(num(n.ms)); s.cost_usd += num(n.cost_usd);
-        if (n.status === "error" || n.error) s.errors++;
-        if (!n.model) continue;
-        let mm = models.get(n.model);
-        if (!mm) models.set(n.model, (mm = { model: n.model, calls: 0, tokens_in: 0, tokens_out: 0, cost_usd: 0, ms: [] }));
-        mm.calls++; mm.tokens_in += num(n.tokens_in); mm.tokens_out += num(n.tokens_out);
-        mm.cost_usd += num(n.cost_usd); mm.ms.push(num(n.ms));
-      }
-    }
-  }
   const p95 = (xs) => { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); return Math.round(s[Math.min(s.length - 1, Math.floor(s.length * 0.95))]); };
+
+  const sumBy = (rows, keyFields, numFields) => {
+    const m = new Map();
+    for (const r of rows) {
+      const k = keyFields.map((f) => r[f]).join("|");
+      let b = m.get(k);
+      if (!b) { b = {}; for (const f of keyFields) b[f] = r[f]; for (const f of numFields) b[f] = 0; b._calls = 0; b._msW = 0; b.p95_ms = 0; m.set(k, b); }
+      for (const f of numFields) b[f] += num(r[f]);
+      b._calls += num(r.calls);
+      b._msW += num(r.avg_ms) * num(r.calls);
+      b.p95_ms = Math.max(b.p95_ms, num(r.p95_ms));
+    }
+    return [...m.values()].map((b) => ({ ...b, avg_ms: b._calls ? Math.round(b._msW / b._calls) : 0, _calls: undefined, _msW: undefined }));
+  };
   const lead = (rows) => rows.map((r) => ({ id: r.id, flow: r.flow, restaurant: r.restaurant, session_id: r.session_id, duration_ms: r.duration_ms, cost_usd: r.cost_usd, started_at: r.started_at }));
 
   return {
@@ -1330,15 +1390,39 @@ async function rollupViaSql(tenants, since) {
       cost_usd: money(t.cost_usd),
       tokens_in: num(t.tokens_in), tokens_out: num(t.tokens_out),
       sessions: num(t.sessions),
+      sessions_approx: true,   // summed per-day distincts; a midnight-spanning chat counts twice
       cost_per_session: t.sessions ? money(t.cost_usd / t.sessions) : 0,
       avg_ms: num(t.avg_ms), p95_ms: num(t.p95_ms),
     },
+    // A comparison is only offered when the previous window is actually comparable.
+    // Traces are purged, so asking for "the 14 days before last" returns the handful of
+    // error rows that survive — $0.0005 against $26.74, which rendered as "+5,025,386%".
+    // Thin coverage means NO delta and a stated reason, never a spectacular fiction.
+    previous: (() => {
+      const curDays = byDay.length;
+      const prevDayCount = new Set(per.flatMap((p) => (p.prevDays || []).map((d) => String(d.day)))).size;
+      void 0;
+      const anyPrevRead = per.some((p) => Array.isArray(p.prevDays));
+      if (!anyPrevRead) return { comparable: false, reason: "the previous period took too long to read" };
+      if (!prev || prev.runs <= 0) return null;
+      if (curDays && prevDayCount < curDays * 0.6) {
+        return { comparable: false, reason: `only ${prevDayCount} of ~${curDays} days survive in the previous period (traces are purged)` };
+      }
+      if (num(prev.runs) < num(t.runs) * 0.05) {
+        return { comparable: false, reason: "the previous period has too few runs to compare against" };
+      }
+      return {
+        comparable: true,
+        cost_usd: money(prev.cost_usd), runs: num(prev.runs), sessions: num(prev.sessions),
+        days: prevDayCount, from: prevSince.slice(0, 10), to: sinceDay,
+      };
+    })(),
     by_day: byDay, by_flow: byFlow, by_restaurant: byRestaurant,
-    by_model: [...models.values()].map((m) => ({ ...m, cost_usd: money(m.cost_usd), avg_ms: m.calls ? Math.round(m.ms.reduce((a, b) => a + b, 0) / m.calls) : 0, ms: undefined })).sort((a, b) => b.cost_usd - a.cost_usd),
-    slow_steps: [...steps.values()].map((s) => ({ flow: s.flow, node: s.node, calls: s.calls, errors: s.errors, cost_usd: money(s.cost_usd), avg_ms: Math.round(s.ms.reduce((a, b) => a + b, 0) / (s.calls || 1)), p95_ms: p95(s.ms) })).sort((a, b) => b.avg_ms - a.avg_ms).slice(0, 12),
+    // fetched separately, on demand — see /api/ops/breakdown
+    by_model: null,
+    slow_steps: null,
     slowest: lead(per.flatMap((p) => p.slowest)).sort((a, b) => num(b.duration_ms) - num(a.duration_ms)).slice(0, 10),
     costliest: lead(per.flatMap((p) => p.costliest)).sort((a, b) => num(b.cost_usd) - num(a.cost_usd)).slice(0, 10),
-    sampled_runs: sampled,
   };
 }
 
@@ -1346,17 +1430,30 @@ app.get("/api/ops/rollup", opsAuth, async (req, res) => {
   // Capped at the janitor's trace retention (TRACE_MAX_AGE_D = 14). Asking for 30 days
   // returned 14 days of rows under a 30-day label — the exact silent truncation this
   // endpoint reports elsewhere. `retention_days` is echoed so the UI can say why.
+  // `from`/`to` (YYYY-MM-DD) win over `hours`, so the console can offer real date ranges
+  // and calendar months rather than only rolling windows.
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.from || "")) ? String(req.query.from) : null;
+  const to = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.to || "")) ? String(req.query.to) : null;
   const hours = Math.min(Number(req.query.hours) || 24, 24 * TRACE_RETENTION_D);
-  const since = new Date(Date.now() - hours * 3600_000).toISOString();
+  const since = from ? `${from}T00:00:00.000Z` : new Date(Date.now() - hours * 3600_000).toISOString();
+  const until = to ? `${to}T23:59:59.999Z` : null;
   try {
     const tenants = await resolveAllRestaurants();
 
     // Preferred path: Postgres does the arithmetic, with no row cap. The paging path
     // below stays as the fallback for a schema without the v2 aggregates — it works,
     // but it truncates at ROLLUP_ROWS per restaurant and says so.
-    const sql = await cached(`rollup:sql:${hours}`, 45_000, () => rollupViaSql(tenants, since));
-    if (sql) {
-      return res.json({ available: true, window_hours: hours, retention_days: TRACE_RETENTION_D, row_cap: null, ...sql });
+    const sql = await cached(`rollup:sql:${since}:${until || ""}`, 45_000, () => rollupViaSql(tenants, since, until));
+    if (sql?.failed) log(`ops rollup: exact path unavailable — ${sql.reason}`);
+    if (sql && !sql.failed) {
+      return res.json({
+        available: true,
+        window_hours: hours,
+        from: from || since.slice(0, 10), to: to || null,   // what was actually queried
+        retention_days: TRACE_RETENTION_D,
+        row_cap: null,
+        ...sql,
+      });
     }
 
     const per = await Promise.all(tenants.map(async (t) => {
@@ -1445,8 +1542,12 @@ app.get("/api/ops/rollup", opsAuth, async (req, res) => {
 
     const byDay = [...bucket(rows, (r) => String(r.started_at).slice(0, 10), seed).entries()]
       .map(([day, b]) => ({ day, ...shape(b) })).sort((a, b) => (a.day < b.day ? 1 : -1));
+    // Per-flow cost is deliberately NULL here. A flow's own spend lives in its nodes,
+    // which this path never reads; charging root rows instead put the whole chain on
+    // `respond` and printed "$0.0000" against master/order/friendly. A missing number
+    // the UI explains beats a confident wrong one. The SQL path (035) attributes properly.
     const byFlow = [...bucket(rows, (r) => r.flow, seed).entries()]
-      .map(([flow, b]) => ({ flow, ...shape(b) })).sort((a, b) => b.cost_usd - a.cost_usd || b.runs - a.runs);
+      .map(([flow, b]) => ({ flow, ...shape(b), cost_usd: null })).sort((a, b) => b.runs - a.runs);
     const byRestaurantRuns = bucket(rows, (r) => r.restaurant, seed);
     // the roster lists EVERY tenant, including ones with no runs in the window —
     // a restaurant that went quiet is exactly what you want to notice here
@@ -1489,6 +1590,9 @@ app.get("/api/ops/rollup", opsAuth, async (req, res) => {
     res.json({
       available: true,
       window_hours: hours,
+      aggregated: false,
+      aggregate_error: sql?.failed ? sql.reason : null,   // why, so the UI stops guessing
+      flow_cost_available: false,          // see byFlow above
       retention_days: TRACE_RETENTION_D,   // why a longer window isn't offered
       truncated,
       row_cap: ROLLUP_ROWS,
@@ -1660,7 +1764,7 @@ app.get("/api/ops/insights", opsAuth, async (req, res) => {
         // NOTE: no month-window ops_rollup_totals here. On the busy schema it hit the 8s
         // statement timeout (one global percentile + count(distinct) over 41k rows), and
         // ops_spend_split already returns the month's cost — one call instead of two.
-        const [win, mtdSplit, mtdOrders, dl, waiting] = await Promise.all([
+        const [win, mtdSplit, mtdOrders, dl, oldest, waiting] = await Promise.all([
           trusted ? oneRow(tryRpc(t, "ops_rollup_totals", { p_since: since })) : null,
           // migration 034: guest spend vs our own test spend. Profit must not be charged
           // for the regression suite — on the pilot that is 94% of the bill.
@@ -1668,6 +1772,11 @@ app.get("/api/ops/insights", opsAuth, async (req, res) => {
           oneRow(tryRpc(t, "ops_order_stats", { p_since: monthStart })),
           // head counts: a number for the table, never the list (that's the drill-down)
           t.db.from("routing_failures").select("id", { count: "exact", head: true }).gte("created_at", since),
+          // The oldest trace that still exists. The janitor purges successful runs at
+          // TRACE_MAX_AGE_D, so on the 17th nothing before the 3rd survives — a
+          // month-to-date cost is a FLOOR, and saying otherwise cost real credibility
+          // (reported $26.68 against a real OpenAI bill of $33.57 for August).
+          t.db.from("flow_executions").select("started_at").order("started_at", { ascending: true }).limit(1),
           t.db.from("chat_sessions").select("id", { count: "exact", head: true }).eq("needs_attention", true),
         ]);
         // fallback when migration 033 isn't in: counts only, no row-scanning fan-out
@@ -1685,6 +1794,8 @@ app.get("/api/ops/insights", opsAuth, async (req, res) => {
           } : fb.window,
           dead_letters: dl.count ?? 0,
           handoffs_open: waiting.count ?? 0,
+          traces_from: oldest.data?.[0]?.started_at || null,   // cost before this is deleted
+          retention_days: TRACE_RETENTION_D,
           mtd: {
             cost_usd: round6(Number(mtdSplit?.cost_total ?? fb?.mtdCost ?? 0)),
             // when 034 isn't in, guest cost is unknown rather than zero — the console
@@ -1916,6 +2027,7 @@ app.get("/api/ops/preflight", opsAuth, async (_req, res) => {
   try {
     const out = await cached("preflight", 60_000, async () => {
       const tenants = await resolveAllRestaurants();
+      const wpidOwner = tenants.find((x) => x.record?.wpid)?.config?.slug || null;
       const rows = await Promise.all(tenants.map(async (t) => {
         const c = t.config || {};
         const bi = c.basic_info || {};
@@ -1934,7 +2046,11 @@ app.get("/api/ops/preflight", opsAuth, async (_req, res) => {
         add(menuCount > 0, "error", "menu has items", `${menuCount} items`);
         add(availCount > 0, "error", "something is available to sell", `${availCount} of ${menuCount} available`);
         add(Object.keys(c.hours || {}).length > 0, "error", "opening hours set", Object.keys(c.hours || {}).length ? "set" : "empty — the bot can't say if you're open");
-        add(!!bi.phone || !!bi.hotline, "warn", "contact number set", bi.hotline || bi.phone || "none");
+        // contact lives at basic_info.contact.phone (and restaurants.phone_number) — an
+        // earlier version read bi.phone/bi.hotline, which do not exist, and warned on
+        // every restaurant that had a perfectly good hotline
+        const contact = bi.contact?.phone || bi.contact?.hotline || t.record?.phone_number || bi.contact?.email;
+        add(!!contact, "warn", "contact number set", contact || "none");
 
         const services = bi.services || {};
         const delivery = c.delivery || {};
@@ -1948,7 +2064,12 @@ app.get("/api/ops/preflight", opsAuth, async (_req, res) => {
         add((c.faqs || []).length > 0, "info", "FAQs present", `${(c.faqs || []).length} entries`);
         add(!!bi.brand?.primary, "info", "brand colour set", bi.brand?.primary || "default amber");
         add(Array.isArray(bi.branches) && bi.branches.length > 0, "warn", "branches listed", `${(bi.branches || []).length} branches`);
-        add(!!t.record?.wpid, "warn", "WhatsApp number linked", t.record?.wpid ? "linked" : "no wpid — WhatsApp routing falls back");
+        // There is ONE WhatsApp number on the platform, so exactly one restaurant holds
+        // the wpid and everyone else legitimately has none. Warning on each of them told
+        // the founder to "fix" something that was already correct.
+        if (t.record?.wpid) add(true, "info", "WhatsApp number linked", `wpid ${t.record.wpid}`);
+        else if (wpidOwner) add(true, "info", "WhatsApp number linked", `not this one — the number is routed to ${wpidOwner}`);
+        else add(false, "warn", "WhatsApp number linked", "no restaurant has a wpid — inbound WhatsApp cannot be routed");
         add(!!t.record?.plan, "info", "billing plan set", t.record?.plan || "unset — ops shows a guess");
 
         return {
@@ -1961,6 +2082,203 @@ app.get("/api/ops/preflight", opsAuth, async (_req, res) => {
       return { available: true, restaurants: rows };
     });
     res.json(out);
+  } catch (e) {
+    res.json({ available: false, reason: e.message, restaurants: [] });
+  }
+});
+
+/**
+ * Snapshot per-day cost into the control plane (migration 039) so it outlives the trace
+ * purge. Idempotent: re-snapshotting a day upserts it. Runs hourly from the janitor
+ * sweep and can be triggered by hand for a backfill of whatever still exists.
+ */
+async function snapshotCosts(days = 3) {
+  const since = new Date(Date.now() - days * 86400_000).toISOString();
+  const tenants = await resolveAllRestaurants();
+  const rows = [];
+  for (const t of tenants) {
+    const slug = t.config?.slug;
+    if (!slug) continue;
+    if (!(await costRpcTrusted(t))) continue;      // never snapshot a double-counted figure
+    const [byDay, split, orders] = await Promise.all([
+      tryRpc(t, "ops_rollup_days", { p_since: since }).catch(() => null),
+      oneRow(tryRpc(t, "ops_spend_split", { p_since: since })),
+      oneRow(tryRpc(t, "ops_order_stats", { p_since: since })),
+    ]);
+    if (!Array.isArray(byDay)) continue;
+    // the guest/test split and orders are window-wide, not per-day; they are apportioned
+    // by each day's share of the window's cost, which is exact when the split is 0/100
+    // (the common case) and a reasonable attribution otherwise
+    const windowCost = byDay.reduce((s, d) => s + (Number(d.cost_usd) || 0), 0) || 1;
+    for (const d of byDay) {
+      const share = (Number(d.cost_usd) || 0) / windowCost;
+      rows.push({
+        restaurant: slug,
+        day: String(d.day).slice(0, 10),
+        runs: Number(d.runs) || 0,
+        errors: Number(d.errors) || 0,
+        sessions: Number(d.sessions) || 0,
+        cost_usd: Math.round((Number(d.cost_usd) || 0) * 1e6) / 1e6,
+        cost_guest_usd: split ? Math.round((Number(split.cost_guest) || 0) * share * 1e6) / 1e6 : null,
+        cost_test_usd: split ? Math.round(((Number(split.cost_regression) || 0) + (Number(split.cost_web) || 0)) * share * 1e6) / 1e6 : null,
+        tokens_in: Number(d.tokens_in) || 0,
+        tokens_out: Number(d.tokens_out) || 0,
+        orders_billable: orders ? Math.round((Number(orders.orders_billable) || 0) * share) : null,
+        order_value_egp: orders ? Math.round((Number(orders.value_billable) || 0) * share * 100) / 100 : null,
+        snapshot_at: new Date().toISOString(),
+      });
+    }
+  }
+  const { error } = await upsertCostDaily(rows);
+  return { days_written: rows.length, restaurants: tenants.length, error };
+}
+
+// Backfill / force a snapshot. `days` is bounded by what still exists to be read.
+app.post("/api/ops/snapshot-costs", opsAuth, async (req, res) => {
+  const days = Math.min(Math.max(Number(req.body?.days) || 3, 1), TRACE_ERROR_RETENTION_D);
+  try {
+    res.json({ ok: true, days, ...(await snapshotCosts(days)) });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// HISTORY — months that no longer exist in flow_executions, from the 039 snapshots.
+// This is the ONLY way to answer "what did July cost": the traces are long gone.
+app.get("/api/ops/history", opsAuth, async (req, res) => {
+  const months = Math.min(Math.max(Number(req.query.months) || 6, 1), 36);
+  const from = new Date(Date.now() - months * 31 * 86400_000).toISOString().slice(0, 10);
+  const { rows, error } = await readCostDaily({ from });
+  if (error) return res.json({ available: false, reason: error, months: [], days: [] });
+
+  const byMonth = new Map();
+  for (const r of rows) {
+    const key = String(r.day).slice(0, 7);
+    let b = byMonth.get(key);
+    if (!b) byMonth.set(key, (b = { month: key, runs: 0, errors: 0, sessions: 0, cost_usd: 0, cost_guest_usd: 0, cost_test_usd: 0, orders_billable: 0, order_value_egp: 0, days: 0, restaurants: new Set(), first_day: r.day, last_day: r.day }));
+    b.runs += r.runs; b.errors += r.errors; b.sessions += r.sessions;
+    b.cost_usd += Number(r.cost_usd) || 0;
+    b.cost_guest_usd += Number(r.cost_guest_usd) || 0;
+    b.cost_test_usd += Number(r.cost_test_usd) || 0;
+    b.orders_billable += Number(r.orders_billable) || 0;
+    b.order_value_egp += Number(r.order_value_egp) || 0;
+    b.restaurants.add(r.restaurant);
+    if (r.day < b.first_day) b.first_day = r.day;
+    if (r.day > b.last_day) b.last_day = r.day;
+  }
+  const money = (x) => Math.round(x * 1e6) / 1e6;
+  res.json({
+    available: true,
+    retention_days: TRACE_RETENTION_D,
+    months: [...byMonth.values()].map((b) => ({
+      ...b,
+      cost_usd: money(b.cost_usd), cost_guest_usd: money(b.cost_guest_usd), cost_test_usd: money(b.cost_test_usd),
+      order_value_egp: Math.round(b.order_value_egp * 100) / 100,
+      // a month whose snapshots start after the 1st was already partly purged when first
+      // captured — the console must present it as a floor, not as the month's bill
+      days_covered: new Set(rows.filter((r) => String(r.day).slice(0, 7) === b.month).map((r) => r.day)).size,
+      restaurants: [...b.restaurants],
+    })).sort((a, b) => (a.month < b.month ? 1 : -1)),
+    days: rows,
+  });
+});
+
+// BREAKDOWN — per-model and per-step spend, on demand. Split out of /api/ops/rollup
+// because these two expand the `nodes` jsonb and took 5.2s and 6.4s on the busy schema —
+// 11.6 of the page's 15 seconds — to populate a table behind a tab and one behind a
+// collapsed section. Nothing should pay for a view nobody opened.
+app.get("/api/ops/breakdown", opsAuth, async (req, res) => {
+  const kind = req.query.kind === "step" ? "step" : "model";
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.from || "")) ? String(req.query.from) : null;
+  // Clamped to BREAKDOWN_MAX_H regardless of what the page is showing. These queries scan
+  // and expand jsonb; over 14 days the step variant exceeded even a 25s timeout, so it paid
+  // the full timeout AND THEN sampled — 28.7s to produce an estimate. Per-step averages and
+  // per-model mix barely move week to week, and the question ("which step is slow, which
+  // model costs most") is answered fine by a shorter window — stated, not hidden.
+  const BREAKDOWN_MAX_H = 24 * 5;
+  const asked = Math.min(Number(req.query.hours) || 168, 24 * TRACE_RETENTION_D);
+  const hours = Math.min(asked, BREAKDOWN_MAX_H);
+  const clamped = hours < asked;
+  const since = from && !clamped ? `${from}T00:00:00.000Z` : new Date(Date.now() - hours * 3600_000).toISOString();
+  const fn = kind === "step" ? "ops_step_stats" : "ops_model_stats";
+
+  try {
+    const out = await cached(`breakdown:${kind}:${since}`, 60_000, async () => {
+      const tenants = await resolveAllRestaurants();
+      const per = await mapLimit(tenants, 4, (t) => tryRpc(t, fn, { p_since: since }).catch(() => null));
+      const exact = per.every((r) => Array.isArray(r));
+      const money = (x) => Math.round(x * 1e6) / 1e6;
+      const num = (x) => Number(x) || 0;
+
+      if (!exact) {
+        // fallback: sample the node payloads, as the rollup used to. Shares stay honest,
+        // amounts do not, and the caller is told which it got.
+        const rows = [];
+        for (const t of tenants) {
+          const { data } = await t.db.from("flow_executions").select("flow,nodes")
+            .gte("started_at", since).order("started_at", { ascending: false }).limit(ROLLUP_SAMPLE);
+          for (const r of data || []) for (const n of Array.isArray(r.nodes) ? r.nodes : []) rows.push({ flow: r.flow, n });
+        }
+        const m = new Map();
+        for (const { flow, n } of rows) {
+          if (kind === "model" ? !n?.model : !n?.name) continue;
+          const key = kind === "model" ? n.model : `${flow}|${n.name}`;
+          let b = m.get(key);
+          if (!b) m.set(key, (b = kind === "model"
+            ? { model: n.model, calls: 0, tokens_in: 0, tokens_out: 0, cost_usd: 0, ms: 0 }
+            : { flow, node: n.name, calls: 0, errors: 0, cost_usd: 0, ms: 0 }));
+          b.calls++; b.ms += num(n.ms); b.cost_usd += num(n.cost_usd);
+          if (kind === "model") { b.tokens_in += num(n.tokens_in); b.tokens_out += num(n.tokens_out); }
+          else if (n.status === "error" || n.error) b.errors++;
+        }
+        const list = [...m.values()].map((b) => ({ ...b, cost_usd: money(b.cost_usd), avg_ms: b.calls ? Math.round(b.ms / b.calls) : 0, ms: undefined }));
+        return { available: true, kind, exact: false, window_hours: hours, clamped, asked_hours: asked, sampled_runs: ROLLUP_SAMPLE * tenants.length, rows: list.sort((a, b) => b.cost_usd - a.cost_usd).slice(0, 20) };
+      }
+
+      // exact: merge one row per model / per step across tenants
+      const m = new Map();
+      for (const rows of per) for (const r of rows) {
+        const key = kind === "model" ? r.model : `${r.flow}|${r.node}`;
+        let b = m.get(key);
+        if (!b) m.set(key, (b = kind === "model"
+          ? { model: r.model, calls: 0, tokens_in: 0, tokens_out: 0, tokens_cached: 0, cost_usd: 0, _msW: 0, p95_ms: 0 }
+          : { flow: r.flow, node: r.node, calls: 0, errors: 0, cost_usd: 0, _msW: 0, p95_ms: 0 }));
+        b.calls += num(r.calls); b.cost_usd += num(r.cost_usd);
+        b._msW += num(r.avg_ms) * num(r.calls);
+        b.p95_ms = Math.max(b.p95_ms, num(r.p95_ms));
+        if (kind === "model") { b.tokens_in += num(r.tokens_in); b.tokens_out += num(r.tokens_out); b.tokens_cached += num(r.tokens_cached); }
+        else b.errors += num(r.errors);
+      }
+      const list = [...m.values()].map((b) => ({
+        ...b, cost_usd: money(b.cost_usd),
+        avg_ms: b.calls ? Math.round(b._msW / b.calls) : 0, _msW: undefined,
+      }));
+      return {
+        available: true, kind, exact: true, window_hours: hours, clamped, asked_hours: asked, sampled_runs: null,
+        rows: list.sort((a, b) => (kind === "model" ? b.cost_usd - a.cost_usd : b.avg_ms - a.avg_ms)).slice(0, 20),
+      };
+    });
+    res.json(out);
+  } catch (e) {
+    res.json({ available: false, reason: e.message, kind, rows: [] });
+  }
+});
+
+// RESTAURANTS — the full roster for filter dropdowns. Deriving the options from the rows
+// on screen meant a restaurant with no runs in the current page never appeared as an
+// option at all, so it could not be selected to go and find them.
+app.get("/api/ops/restaurants", opsAuth, async (_req, res) => {
+  try {
+    const rows = await cached("ops:restaurants", 60_000, async () => {
+      const tenants = await resolveAllRestaurants();
+      return tenants.map((t) => ({
+        slug: t.config?.slug || null,
+        name: t.config?.name || t.config?.slug || null,
+        schema: t.schema,
+        plan: t.record?.plan || null,
+      })).filter((r) => r.slug);
+    });
+    res.json({ available: true, restaurants: rows });
   } catch (e) {
     res.json({ available: false, reason: e.message, restaurants: [] });
   }
@@ -2029,6 +2347,11 @@ startFlushWorker(flushHandler);
 // hourly janitor
 setInterval(async () => {
   try {
+    // Snapshot cost history FIRST — the janitor is what deletes the traces it is
+    // computed from. Do it after, and the day the purge runs is the day the number is
+    // lost forever (that is how July became unrecoverable: 36 error rows and $0.0005
+    // survive from a month the bot worked through).
+    await snapshotCosts(3).catch((e) => log("cost snapshot:", e.message));
     for (const tenant of await resolveAllRestaurants()) {
       await runFlow("janitor", { sessionId: "janitor", tenant, trigger: "schedule" }, {}).catch((e) => log(`janitor ${tenant.record.slug}:`, e.message));
     }
@@ -2036,6 +2359,10 @@ setInterval(async () => {
     log("janitor error:", e.message);
   }
 }, 3600_000);
+
+// One snapshot shortly after boot, so a restart-heavy day still records itself and a
+// fresh deploy does not wait an hour to start keeping history.
+setTimeout(() => { snapshotCosts(3).catch(() => {}); }, 90_000).unref?.();
 
 // reservation reminders every 15 min (T-3h window, WA-window aware)
 setInterval(async () => {

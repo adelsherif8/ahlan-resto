@@ -1,0 +1,34 @@
+[
+ {
+  "name": "EN — vague address → asked for pin → sends Maps link near AUC → 50 EGP and continues",
+  "phone": "+2015558007",
+  "turns": [
+   "classic burger sandwich for delivery",
+   "cash, villa 7 street 12 next to the pharmacy",
+   "https://maps.google.com/?q=30.0192,31.5037"
+  ],
+  "expect": {
+   "fee computed after pin": "Delivery \\(~[0-9.]+ km\\): 50 EGP",
+   "address kept": "villa 7"
+  },
+  "forbid": {
+   "asked again": "share your location"
+  }
+ },
+ {
+  "name": "AR — «عنوان مش واضح» → pin → outside all zones (Maadi) → honest no",
+  "phone": "+2015558008",
+  "turns": [
+   "كلاسيك برجر ساندوتش دليفري",
+   "كاش، شارع ٩ جنب الصيدلية",
+   "https://maps.google.com/?q=29.9602,31.2569"
+  ],
+  "expect": {
+   "out of zone in arabic": "بنوصل|مبنوصلش|منوصلش"
+  },
+  "forbid": {
+   "a fee anyway": "دليفري[^\\n]*: [0-9]+ EGP|Delivery[^\\n]*: [0-9]+ EGP",
+   "latin refusal": "mabnwaselsh|don't deliver"
+  }
+ }
+]

@@ -3,6 +3,70 @@ import { requireAuth } from "../middleware/auth.js";
 import { restaurantContext } from "../middleware/restaurantContext.js";
 import { FLOWS_URL, FLOWS_OPS_TOKEN, log } from "../config/env.js";
 
+// The kitchen is where an allergy actually matters — the person holding the pan. The Chats
+// panel warns whoever is TALKING to the guest; nothing warned whoever was COOKING.
+//
+// This runs on a 5-second poll, so both lookups are cached per restaurant: the menu and the
+// guests' allergy lists change on human timescales, not per request.
+const cache = new Map();   // restaurantId -> { at, menu, allergies }
+const CACHE_TTL_MS = 60_000;
+
+const ALLERGEN_HINTS = {
+  nut: ["nut", "peanut", "almond", "cashew", "hazelnut", "pistachio", "walnut", "pecan", "nutella", "praline", "مكسرات", "فستق", "لوز", "بندق", "سوداني"],
+  dairy: ["milk", "cheese", "cream", "butter", "yoghurt", "yogurt", "labneh", "ghee", "mozzarella", "cheddar", "لبن", "جبن", "جبنة", "كريمة", "زبدة", "حليب"],
+  gluten: ["wheat", "flour", "bread", "bun", "pasta", "dough", "breadcrumb", "crouton", "batter", "قمح", "دقيق", "خبز", "عيش", "مكرونة"],
+  egg: ["egg", "mayo", "mayonnaise", "aioli", "meringue", "بيض", "مايونيز"],
+  shellfish: ["shrimp", "prawn", "crab", "lobster", "calamari", "squid", "جمبري", "استاكوزا", "كابوريا"],
+  fish: ["fish", "tuna", "salmon", "anchovy", "سمك", "تونة", "سلمون"],
+  sesame: ["sesame", "tahini", "tahina", "halva", "سمسم", "طحينة", "حلاوة"],
+  soy: ["soy", "soya", "tofu", "edamame", "صويا", "توفو"],
+  mushroom: ["mushroom", "truffle", "مشروم"],
+};
+const norm = (v) => String(v || "").trim().toLowerCase();
+
+function allergenTokens(allergy) {
+  const a = norm(allergy);
+  if (!a) return [];
+  const out = new Set([a]);
+  for (const [key, words] of Object.entries(ALLERGEN_HINTS))
+    if (a.includes(key) || words.some((w) => a.includes(w))) words.forEach((w) => out.add(w));
+  return [...out];
+}
+
+async function allergyContext(req) {
+  const key = req.restaurant?.id || "default";
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit;
+  const [menu, diners] = await Promise.all([
+    req.repo.list("menu_items").catch(() => []),
+    req.repo.list("diners").catch(() => []),
+  ]);
+  const entry = {
+    at: Date.now(),
+    menu: new Map(menu.map((m) => [norm(m.name), m])),
+    allergies: new Map(diners.filter((d) => d.allergies?.length).map((d) => [d.phone_number, d.allergies])),
+  };
+  cache.set(key, entry);
+  return entry;
+}
+
+// A hit means "check before you cook this", never "this is safe" — ingredient lists are
+// free text somebody typed, so silence proves nothing.
+function flagAllergies(order, ctx) {
+  const allergies = ctx.allergies.get(order.phone_number);
+  if (!allergies?.length) return null;
+  const flags = [];
+  for (const it of order.items || []) {
+    const m = ctx.menu.get(norm(it.name));
+    const hay = norm(`${it.name} ${m?.ingredients || ""} ${m?.ingredients_ar || ""} ${m?.description || ""}`);
+    for (const a of allergies) {
+      const hitTok = allergenTokens(a).find((t) => t.length > 2 && hay.includes(t));
+      if (hitTok) flags.push({ item: it.name, allergy: a });
+    }
+  }
+  return { list: allergies, flags };
+}
+
 const router = Router();
 router.use(requireAuth, restaurantContext);
 
@@ -28,10 +92,43 @@ router.get("/", async (req, res, next) => {
     // branch scoping: staff locked to their branch; managers may filter via ?branch=
     const branch = req.user?.branch || (req.query.branch && req.query.branch !== "all" ? req.query.branch : null);
     if (branch) where.branch = branch;
-    const rows = await req.repo.list("orders", { where, order: "created_at" });
+    // The kitchen board polls this every 5 seconds and is deliberately never hidden, so
+    // "every order ever" is the most expensive query in the product. Callers say how far
+    // back they need; open tickets are always included whatever their age, so a ticket
+    // carried over from Saturday never disappears off the board.
+    const days = Number(req.query.since_days) || 0;
+    let rows;
+    if (days > 0 && req.tenantClient) {
+      const since = new Date(Date.now() - days * 86400000).toISOString();
+      const base = () => {
+        let q = req.tenantClient.from("orders").select("*");
+        for (const [k, v] of Object.entries(where)) q = q.eq(k, v);
+        return q;
+      };
+      const [recent, open] = await Promise.all([
+        base().gte("created_at", since).order("created_at", { ascending: false }).limit(2000),
+        base().in("status", ["pending", "accepted", "preparing", "ready", "out_for_delivery", "dispatched"])
+          .order("created_at", { ascending: false }).limit(500),
+      ]);
+      const seen = new Set();
+      rows = [...(recent.data || []), ...(open.data || [])].filter((o) => {
+        if (seen.has(o.id)) return false;
+        seen.add(o.id); return true;
+      });
+    } else {
+      rows = await req.repo.list("orders", { where, order: "created_at" });
+    }
     // test-suite orders never reach the kitchen board (same rule as the chat inbox)
     const isTest = (v) => /^web:(regress|convo|test)-/i.test(String(v || ""));
-    res.json(rows.filter((r) => !isTest(r.phone_number) && !isTest(r.diner_name) && !isTest(r.session_id)));
+    const clean = rows.filter((r) => !isTest(r.phone_number) && !isTest(r.diner_name) && !isTest(r.session_id));
+
+    // the ticket the kitchen reads carries the guest's allergies with it
+    let ctx = null;
+    try { ctx = await allergyContext(req); } catch {}
+    res.json(ctx ? clean.map((o) => {
+      const a = flagAllergies(o, ctx);
+      return a ? { ...o, guest_allergies: a.list, allergy_flags: a.flags } : o;
+    }) : clean);
   } catch (e) { next(e); }
 });
 
@@ -46,13 +143,21 @@ router.post("/", async (req, res, next) => {
     const round = (n) => Math.round(n * 100) / 100;
     const rateOf = (...keys) => { for (const k of keys) { const v = Number(p[k]); if (Number.isFinite(v) && v > 0) return v > 1 ? v / 100 : v; } return 0; };
     const subtotal = round(items.reduce((s, i) => s + Number(i.price || 0) * Number(i.qty || 1), 0));
-    const service_charge = order_type === "dine_in" ? round(subtotal * rateOf("service_charge", "service_charge_pct")) : 0;
-    const tax = round(subtotal * rateOf("tax", "tax_pct", "vat_pct"));
-    const delivery_fee = order_type === "delivery" ? round(Number(p.delivery_fee) || 0) : 0;
-    // discount applies to the subtotal before charges, clamped so the bill can
-    // never go negative; the tip rides separately and never changes the total
+
+    // VAT is INCLUSIVE — the same model the bot uses (flows priceOrder). Menu prices
+    // already contain it, so it is EXTRACTED from the total for the receipt, never added
+    // on top. This till used to add it, which meant an identical cart cost ~14% more at
+    // the counter than the same order placed on WhatsApp.
+    //
+    // Discount comes off the goods FIRST, and the charges follow the discounted amount —
+    // otherwise a fully comped meal still billed service and tax on food given away.
     const disc = Math.min(Math.max(round(Number(discount) || 0), 0), subtotal);
-    const total = round(subtotal - disc + service_charge + tax + delivery_fee);
+    const goods = round(subtotal - disc);
+    const service_charge = order_type === "dine_in" ? round(goods * rateOf("service_charge", "service_charge_pct")) : 0;
+    const delivery_fee = order_type === "delivery" ? round(Number(p.delivery_fee) || 0) : 0;
+    const total = round(goods + service_charge + delivery_fee);
+    const rate = rateOf("tax", "tax_pct", "vat_pct");
+    const tax = rate > 0 ? round(total - total / (1 + rate)) : 0;   // breakdown, already inside `total`
     // split payments must add up to the bill — reject silent mismatches
     const pays = Array.isArray(payments)
       ? payments.map((x) => ({ method: String(x.method || "cash"), amount: round(Number(x.amount) || 0) })).filter((x) => x.amount > 0)

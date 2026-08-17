@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { api, session } from "../config/api";
 import { Card, PageHeader, Empty, Btn, Input, ArmButton } from "../components/ui";
+import { usePoll } from "../lib/usePoll";
 
 const STATES = ["free", "reserved", "seated", "bill", "cleaning", "blocked"];
 const CLEANING_AUTO_CLEAR_MIN = 15;
@@ -79,11 +80,7 @@ export default function FloorMap() {
   const loadWaitlist = () =>
     api.get("/api/waitlist").then((r) => setWaitlist((r.data || []).filter((w: any) => ["waiting", "notified"].includes(w.status)))).catch(() => {});
 
-  useEffect(() => {
-    load(); loadBookings(); loadWaitlist();
-    const t = setInterval(() => { load(); loadBookings(); loadWaitlist(); }, 10000);
-    return () => clearInterval(t);
-  }, []);
+  usePoll(() => { load(); loadBookings(); loadWaitlist(); }, 10000);
 
   async function setState(table: any, status: string, note?: string | null) {
     cleared.current.delete(table.id);

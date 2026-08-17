@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import DeliveryMap from "./DeliveryMap";
 import { api } from "../config/api";
 import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
 
@@ -21,10 +22,33 @@ export default function Settings() {
   }, [tab]);
 
 
+  // A settings page with 16 separate Save buttons and no dirty tracking loses work
+  // silently: edit a section, switch tab or navigate away, and it's gone with nothing said.
+  const [saved0, setSaved0] = useState<any | null>(null);   // last known server state
   useEffect(() => {
-    api.get("/api/settings").then((r) => setConfig(r.data)).catch(() => {});
+    api.get("/api/settings").then((r) => { setConfig(r.data); setSaved0(r.data); }).catch(() => {});
     api.get("/api/settings/suggested-faqs").then((r) => setSuggested(r.data)).catch(() => {});
   }, []);
+
+  const SECTION_OF_TAB: Record<string, string[]> = {
+    info: ["basic_info"], charges: ["payments"], ai: ["ai"], branding: ["basic_info"],
+    menu: ["menu_config"], delivery: ["basic_info"], builder: ["menu_config"],
+    reservations: ["reservation_policy"], offers: ["ai"], pos: ["pos"], promos: ["pos"], faqs: ["faqs"],
+  };
+  const isDirty = (section: string) =>
+    !!saved0 && JSON.stringify(config?.[section] ?? null) !== JSON.stringify(saved0?.[section] ?? null);
+  const dirtySections = saved0
+    ? ["basic_info", "hours", "payments", "ai", "menu_config", "pos", "faqs", "reservation_policy", "sections"].filter(isDirty)
+    : [];
+  const tabDirty = (t: string) => (SECTION_OF_TAB[t] || []).some(isDirty);
+
+  // the browser-level guard, for a refresh or a closed tab
+  useEffect(() => {
+    if (!dirtySections.length) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirtySections.length]);
 
   async function actOnSuggestion(id: string, action: "approve" | "dismiss") {
     const { data } = await api.post(`/api/settings/suggested-faqs/${id}`, { action, answer: answers[id] || undefined }).catch((e) => {
@@ -40,9 +64,14 @@ export default function Settings() {
   if (!config) return <Empty text="Loading…" />;
 
   async function saveSection(section: string, value: any) {
-    await api.put(`/api/settings/${section}`, value);
-    setSaved(section);
-    setTimeout(() => setSaved(""), 2000);
+    try {
+      await api.put(`/api/settings/${section}`, value);
+      setSaved0((s0: any) => ({ ...(s0 || {}), [section]: JSON.parse(JSON.stringify(value)) }));
+      setSaved(section);
+      setTimeout(() => setSaved(""), 2000);
+    } catch (e: any) {
+      alert(e?.response?.data?.error || "Couldn't save — nothing was changed on the server.");
+    }
   }
 
   const bi = config.basic_info || {};
@@ -59,6 +88,9 @@ export default function Settings() {
   const dzones: any[] = dv.zones || [];
   const setDelivery = (patch: any) => upd("basic_info", { delivery: { ...dv, ...patch } });
   const setZone = (i: number, patch: any) => setDelivery({ zones: dzones.map((z, j) => (j === i ? { ...z, ...patch } : z)) });
+  const pr = dv.pricing || {};
+  const setPricing = (patch: any) => setDelivery({ pricing: { ...pr, ...patch } });
+  const branchesCfg: any[] = Array.isArray(bi.branches) ? bi.branches : [];
 
 
 
@@ -84,9 +116,12 @@ export default function Settings() {
           {SECTIONS.map(([k, label]) => (
             <button key={k} onClick={() => { setTab(k); window.location.hash = k; }}
               className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition ${tab === k ? "bg-zinc-800 font-semibold text-zinc-100" : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"}`}>
-              {label}
+              <span className="flex items-center gap-1.5">
+                {label}
+                {tabDirty(k) && <span title="Unsaved changes in this section" className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
+              </span>
               {k === "faqs" && suggested.length > 0 && (
-                <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">{suggested.length}</span>
+                <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-xs font-bold text-amber-300">{suggested.length}</span>
               )}
             </button>
           ))}
@@ -95,8 +130,14 @@ export default function Settings() {
       <div className="min-w-0 max-w-3xl flex-1">
       <PageHeader title="Settings" subtitle={`${config.name} · ${config.slug}`} />
 
+      {dirtySections.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <b>Unsaved changes</b> in {dirtySections.map((x) => x.replace("_", " ")).join(", ")} — each section has its own Save button.
+        </div>
+      )}
+
       {tab === "info" && <Card className="p-5">
-        <SectionTitle title="Restaurant info" saved={saved === "basic_info"} onSave={() => saveSection("basic_info", config.basic_info)} />
+        <SectionTitle title="Restaurant info" saved={saved === "basic_info"} onSave={() => saveSection("basic_info", config.basic_info)}  dirty={isDirty("basic_info")} />
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Name"><Input value={bi.name || ""} onChange={(e) => upd("basic_info", { name: e.target.value })} /></Field>
           <Field label="Restaurant type (sets the whole experience)">
@@ -139,7 +180,7 @@ export default function Settings() {
       </Card>}
 
       {tab === "charges" && <Card className="p-5">
-        <SectionTitle title="Charges (applied to every bill & receipt)" saved={saved === "payments"} onSave={() => saveSection("payments", config.payments)} />
+        <SectionTitle title="Charges (applied to every bill & receipt)" saved={saved === "payments"} onSave={() => saveSection("payments", config.payments)}  dirty={isDirty("payments")} />
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="VAT %">
             <Input type="number" value={pctVal(config.payments?.tax)} placeholder="14"
@@ -157,7 +198,7 @@ export default function Settings() {
       </Card>}
 
       {tab === "ai" && <Card className="p-5">
-        <SectionTitle title="AI host" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai)} />
+        <SectionTitle title="AI host" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai)}  dirty={isDirty("ai")} />
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Bot name"><Input value={ai.name || ""} onChange={(e) => upd("ai", { name: e.target.value })} /></Field>
           <Field label="Chat enabled">
@@ -240,7 +281,7 @@ export default function Settings() {
       </Card>}
 
       {tab === "branding" && <Card className="p-5">
-        <SectionTitle title="Branding (your colors & logo — applied across the dashboard)" saved={saved === "basic_info_brand"} onSave={() => saveSection("basic_info", config.basic_info)} />
+        <SectionTitle title="Branding (your colors & logo — applied across the dashboard)" saved={saved === "basic_info"} onSave={() => saveSection("basic_info", config.basic_info)}  dirty={isDirty("basic_info")} />
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Brand color">
             <div className="flex items-center gap-2">
@@ -279,7 +320,7 @@ export default function Settings() {
       </Card>}
 
       {tab === "menu" && <Card className="p-5">
-        <SectionTitle title="Menu display (how the bot shows the menu)" saved={saved === "menu_config"} onSave={() => saveSection("menu_config", config.menu_config || {})} />
+        <SectionTitle title="Menu display (how the bot shows the menu)" saved={saved === "menu_config"} onSave={() => saveSection("menu_config", config.menu_config || {})}  dirty={isDirty("menu_config")} />
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="When a guest asks for the menu">
             <div className="flex gap-1 rounded-full bg-zinc-900 p-1">
@@ -300,10 +341,12 @@ export default function Settings() {
           )}
         </div>
         <p className="mt-2 text-xs text-zinc-500">List: categories the guest taps. One message: the whole menu as text. PDF: your designed menu file, sent as a document.</p>
+
+        <UpsellSettings config={config} upd={upd} />
       </Card>}
 
       {tab === "delivery" && <Card className="p-5">
-        <SectionTitle title="Delivery coverage" saved={saved === "basic_info"} onSave={() => saveSection("basic_info", config.basic_info)} />
+        <SectionTitle title="Delivery coverage" saved={saved === "basic_info"} onSave={() => saveSection("basic_info", config.basic_info)}  dirty={isDirty("basic_info")} />
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Delivery enabled"><Toggle on={dv.enabled !== false} onClick={() => setDelivery({ enabled: dv.enabled === false })} /></Field>
           <Field label="Paused right now (kitchen slammed → pickup only)"><Toggle on={!!dv.paused} onClick={() => setDelivery({ paused: !dv.paused })} /></Field>
@@ -334,11 +377,56 @@ export default function Settings() {
             </div>
           ))}
         </div>
-        <p className="mt-3 text-xs text-zinc-500">Fee in EGP, ETA in minutes. Aliases let guests say the area in Arabic, English or Franco (comma-separated). The bot quotes these exact fees and the order bill matches. For multiple branches, each branch can also carry its own zones (advanced).</p>
+        <p className="mt-3 text-xs text-zinc-500">Aliases let guests say the area in Arabic, English or Franco (comma-separated). ETA in minutes. The bot quotes exact fees and the order bill matches.</p>
+
+        {/* HOW THE FEE IS COMPUTED — per restaurant */}
+        <div className="mt-6 mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">How the delivery fee is calculated</div>
+        <div className="mb-3 flex gap-1">
+          {([["zone_fixed", "Fixed per zone", "each zone above has its own fee"], ["flat_in_zone", "One flat fee", "same fee anywhere inside your area"], ["distance", "By distance", "base fee up to N km from the branch, then per extra km"]] as const).map(([k, l, d]) => (
+            <button key={k} type="button" onClick={() => setPricing({ mode: k })} title={d}
+              className={`flex-1 rounded-lg px-2 py-2 text-xs font-medium ${(pr.mode || "zone_fixed") === k ? "bg-zinc-200 text-zinc-900" : "bg-zinc-800/70 text-zinc-400"}`}>{l}</button>
+          ))}
+        </div>
+        {(pr.mode || "zone_fixed") === "flat_in_zone" && (
+          <div className="grid gap-3 md:grid-cols-3"><Field label="Flat delivery fee (EGP)"><Input type="number" value={pr.flat_fee ?? ""} onChange={(e) => setPricing({ flat_fee: Number(e.target.value) || 0 })} placeholder="40" /></Field></div>
+        )}
+        {pr.mode === "distance" && (
+          <div className="grid gap-3 md:grid-cols-4">
+            <Field label="Base fee (EGP)"><Input type="number" value={pr.base_fee ?? ""} onChange={(e) => setPricing({ base_fee: Number(e.target.value) || 0 })} placeholder="50" /></Field>
+            <Field label="…covers up to (km)"><Input type="number" step="0.5" value={pr.base_km ?? ""} onChange={(e) => setPricing({ base_km: Number(e.target.value) || 0 })} placeholder="5" /></Field>
+            <Field label="Then per extra km (EGP)"><Input type="number" value={pr.per_km ?? ""} onChange={(e) => setPricing({ per_km: Number(e.target.value) || 0 })} placeholder="6" /></Field>
+            <Field label="Partial km">
+              <select className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200" value={pr.round_km || "up"} onChange={(e) => setPricing({ round_km: e.target.value })}>
+                <option value="up">round up (5.2 → 6 km)</option><option value="nearest">round to nearest</option><option value="exact">charge exact (5.2 → 51.2)</option>
+              </select>
+            </Field>
+            <p className="text-xs text-zinc-500 md:col-span-4">Example with these numbers: {Number(pr.base_km) || 5} km or less → {Number(pr.base_fee) || 50} EGP · {(Number(pr.base_km) || 5) + 1} km → {(Number(pr.base_fee) || 50) + (Number(pr.per_km) || 6)} EGP · {(Number(pr.base_km) || 5) + 5} km → {(Number(pr.base_fee) || 50) + 5 * (Number(pr.per_km) || 6)} EGP. Distance is measured from the branch pin (straight line × 1.3 road factor, free — no maps API). Needs the branch pin on the map below.</p>
+          </div>
+        )}
+
+        {/* THE MAP */}
+        <div className="mt-6 mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">Coverage map — draw where you deliver</div>
+        <p className="text-xs text-zinc-500">The bot checks every address against this boundary (exact, no guessing). Landmarks and districts help it place addresses guests type ("Point 90", "Narges 4") without any paid maps service.</p>
+        <DeliveryMap
+          zones={dzones}
+          branches={branchesCfg}
+          landmarks={Array.isArray(dv.landmarks) ? dv.landmarks : []}
+          pricing={pr}
+          onChange={(patch) => {
+            if (patch.branches) upd("basic_info", { branches: patch.branches, delivery: { ...dv, ...(patch.zones ? { zones: patch.zones } : {}), ...(patch.landmarks ? { landmarks: patch.landmarks } : {}) } });
+            else setDelivery({ ...(patch.zones ? { zones: patch.zones } : {}), ...(patch.landmarks ? { landmarks: patch.landmarks } : {}) });
+          }}
+        />
+
+        <div className="mt-5 grid gap-3 md:grid-cols-1">
+          <Field label="Areas you're often asked about but DON'T cover (comma-separated — the bot says no straight away instead of asking for a pin)" full>
+            <Input value={(dv.outside_areas || []).join(", ")} onChange={(e) => setDelivery({ outside_areas: e.target.value.split(",").map((s: string) => s.trim()).filter(Boolean) })} placeholder="maadi, المعادي, nasr city, مدينة نصر, zamalek, heliopolis (leave empty for the Cairo default list)" />
+          </Field>
+        </div>
       </Card>}
 
       {tab === "builder" && <Card className="p-5">
-        <SectionTitle title="Build your own (3D sandwich builder)" saved={saved === "menu_config"} onSave={() => saveSection("menu_config", config.menu_config || {})} />
+        <SectionTitle title="Build your own (3D sandwich builder)" saved={saved === "menu_config"} onSave={() => saveSection("menu_config", config.menu_config || {})}  dirty={isDirty("menu_config")} />
         {(() => {
           const byo = (config.menu_config || {}).build_your_own || {};
           const layers = byo.layers || {};
@@ -377,7 +465,7 @@ export default function Settings() {
                 const CAT_NAME: Record<string, string> = { bread: "Buns & wraps", protein: "Protein", cheese: "Cheese", veggie: "Veggies", sauce: "Sauces" };
                 return (
                   <div key={cat} className="mb-4">
-                    <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-zinc-500">{CAT_NAME[cat]}</div>
+                    <div className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">{CAT_NAME[cat]}</div>
                     <div className="grid gap-3 md:grid-cols-4">
                       {inCat.map((c) => (
                         <Field key={c.key} label={c.name}>
@@ -411,7 +499,7 @@ export default function Settings() {
         })()}
 
         <div className="mt-6 border-t border-zinc-800 pt-5">
-          <SectionTitle title="Button wording" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai || {})} />
+          <SectionTitle title="Button wording" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai || {})}  dirty={isDirty("ai")} />
           <p className="mb-2 text-xs text-zinc-500">
             The tappable buttons the bot sends. Change the words to your own voice — the bot still
             recognises a tap either way. Leave blank for the default.
@@ -431,7 +519,7 @@ export default function Settings() {
         {/* These used to be four English lines hardcoded in the Chats page — every
             restaurant inherited the same voice and none could change a word of it. */}
         <div className="mt-6 border-t border-zinc-800 pt-5">
-          <SectionTitle title="Staff quick replies" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai || {})} />
+          <SectionTitle title="Staff quick replies" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai || {})}  dirty={isDirty("ai")} />
           <p className="mb-2 text-xs text-zinc-500">
             One-tap replies staff send from the Chats page — your words, your language.
             Use <code className="rounded bg-zinc-800 px-1">{"{name}"}</code> for the guest's name
@@ -446,7 +534,7 @@ export default function Settings() {
       </Card>}
 
       {tab === "reservations" && <Card className="p-5">
-        <SectionTitle title="Reservation policy" saved={saved === "reservation_policy"} onSave={() => saveSection("reservation_policy", config.reservation_policy)} />
+        <SectionTitle title="Reservation policy" saved={saved === "reservation_policy"} onSave={() => saveSection("reservation_policy", config.reservation_policy)}  dirty={isDirty("reservation_policy")} />
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Slot size (min)"><Input type="number" value={rp.slot_minutes || 30} onChange={(e) => upd("reservation_policy", { slot_minutes: Number(e.target.value) })} /></Field>
           <Field label="Grace period (min)"><Input type="number" value={rp.grace_minutes || 15} onChange={(e) => upd("reservation_policy", { grace_minutes: Number(e.target.value) })} /></Field>
@@ -464,7 +552,7 @@ export default function Settings() {
       </Card>}
 
       {tab === "offers" && <Card className="mb-5 p-5">
-        <SectionTitle title="Offers (the bot may mention ONLY these)" saved={saved === "ai_offers"} onSave={() => saveSection("ai", config.ai)} />
+        <SectionTitle title="Offers (the bot may mention ONLY these)" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai)}  dirty={isDirty("ai")} />
         <div className="space-y-2">
           {(ai.offers || []).map((o: string, i: number) => (
             <div key={i} className="flex gap-2">
@@ -479,7 +567,7 @@ export default function Settings() {
       </Card>}
 
       {tab === "offers" && <Card className="p-5">
-        <SectionTitle title="Tonight's specials (the bot pitches these — auto-expire on the date)" saved={saved === "ai_specials"} onSave={() => saveSection("ai", config.ai)} />
+        <SectionTitle title="Tonight's specials (the bot pitches these — auto-expire on the date)" saved={saved === "ai"} onSave={() => saveSection("ai", config.ai)}  dirty={isDirty("ai")} />
         <div className="space-y-2">
           {(ai.specials || []).map((s: any, i: number) => (
             <div key={i} className="flex gap-2">
@@ -497,7 +585,7 @@ export default function Settings() {
       </Card>}
 
       {tab === "pos" && <Card className="p-5">
-        <SectionTitle title="POS cashiers (PIN switch on the register; ★ manager approves discounts)" saved={saved === "pos"} onSave={() => saveSection("pos", config.pos || {})} />
+        <SectionTitle title="POS cashiers (PIN switch on the register; ★ manager approves discounts)" saved={saved === "pos"} onSave={() => saveSection("pos", config.pos || {})}  dirty={isDirty("pos")} />
         <div className="space-y-2">
           {((config.pos?.cashiers || []) as any[]).map((c: any, i: number) => (
             <div key={i} className="flex gap-2">
@@ -571,7 +659,7 @@ export default function Settings() {
       </Card>}
 
       {tab === "promos" && <Card className="p-5">
-        <SectionTitle title="Promotions (the POS applies these automatically at checkout)" saved={saved === "pos_promos"} onSave={() => saveSection("pos", config.pos || {})} />
+        <SectionTitle title="Promotions (the POS applies these automatically at checkout)" saved={saved === "pos"} onSave={() => saveSection("pos", config.pos || {})}  dirty={isDirty("pos")} />
         <div className="space-y-3">
           {((config.pos?.promos || []) as any[]).map((p: any, i: number) => {
             const set = (patch: any) => { const promos = [...(config.pos?.promos || [])]; promos[i] = { ...p, ...patch }; upd("pos", { promos }); };
@@ -585,7 +673,7 @@ export default function Settings() {
                     <option value="order_pct">% off orders over X</option>
                   </select>
                   <button type="button" onClick={() => set({ active: p.active === false })}
-                    className={`rounded-full px-2.5 py-1 text-[11px] ${p.active !== false ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-800 text-zinc-500"}`}>
+                    className={`rounded-full px-2.5 py-1 text-xs ${p.active !== false ? "bg-emerald-500 text-emerald-950" : "bg-zinc-800 text-zinc-500"}`}>
                     {p.active !== false ? "active" : "paused"}
                   </button>
                   <Btn variant="danger" className="ml-auto px-2.5 py-1 text-xs" onClick={() => upd("pos", { promos: (config.pos?.promos || []).filter((_: any, j: number) => j !== i) })}>✕</Btn>
@@ -639,7 +727,7 @@ export default function Settings() {
       )}
 
       {tab === "faqs" && <Card className="p-5">
-        <SectionTitle title="FAQs (the bot answers from these)" saved={saved === "faqs"} onSave={() => saveSection("faqs", config.faqs)} />
+        <SectionTitle title="FAQs (the bot answers from these)" saved={saved === "faqs"} onSave={() => saveSection("faqs", config.faqs)}  dirty={isDirty("faqs")} />
         <div className="space-y-3">
           {(config.faqs || []).map((f: any, i: number) => (
             <div key={i} className="grid gap-2 md:grid-cols-2">
@@ -674,15 +762,44 @@ function pctIn(s: string): number {
   return n / 100; // the field is always a percentage
 }
 
-function SectionTitle({ title, onSave, saved }: { title: string; onSave: () => void; saved: boolean }) {
+function SectionTitle({ title, onSave, saved, dirty }: { title: string; onSave: () => void; saved: boolean; dirty?: boolean }) {
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <div className="mb-4 flex items-center justify-between gap-2">
       <h2 className="text-sm font-semibold text-zinc-200">{title}</h2>
       <div className="flex items-center gap-2">
-        {saved && <span className="text-xs text-emerald-400">Saved ✓</span>}
-        <Btn variant="ghost" className="px-3 py-1.5 text-xs" onClick={onSave}>Save</Btn>
+        {saved && <span className="text-xs text-emerald-500">Saved ✓</span>}
+        {!saved && dirty && <span className="text-xs font-medium text-amber-600">unsaved</span>}
+        <Btn variant={dirty ? "primary" : "ghost"} className="px-3 py-1.5 text-xs" onClick={onSave}>
+          {dirty ? "Save changes" : "Save"}
+        </Btn>
       </div>
     </div>
+  );
+}
+
+// ADD-ONS on the confirm screen — code picks real items, never invented (menu_config.upsell)
+function UpsellSettings({ config, upd }: { config: any; upd: (section: string, patch: any) => void }) {
+  const mc = config.menu_config || {};
+  const up = mc.upsell || {};
+  const setUp = (patch: any) => upd("menu_config", { upsell: { ...up, ...patch } });
+  return (
+    <>
+      <div className="mt-6 mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Add-on suggestions ("🍟 Add a side / dessert / drink?")</div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Field label="Suggest add-ons"><Toggle on={up.enabled !== false} onClick={() => setUp({ enabled: up.enabled === false })} /></Field>
+        <Field label="Where">
+          <select className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200" value={up.placement || "confirm"} onChange={(e) => setUp({ placement: e.target.value })}>
+            <option value="confirm">On the confirm screen (above the Confirm button)</option>
+            <option value="payment">With the payment question</option>
+          </select>
+        </Field>
+        <Field label="Auto-pick when no list below"><Toggle on={up.auto !== false} onClick={() => setUp({ auto: up.auto === false })} /></Field>
+        <Field label="Your own list (comma-separated dish names — up to 3 shown; empty = auto: best side / dessert / drink that fits the order)" full>
+          <Input value={(up.items || []).join(", ")} onChange={(e) => setUp({ items: e.target.value.split(",").map((s: string) => s.trim()).filter(Boolean) })} placeholder="Loaded Fries, Triple Chocolate Chip Cookie, Milkshake Chocolate" />
+        </Field>
+      </div>
+      <p className="mt-2 text-xs text-zinc-500">Only real menu items at their real prices, once per order, in the guest's language. Auto mode skips a side/drink when the order already has a combo, and never suggests sauces, kids' items or dishes with option questions.</p>
+    </>
   );
 }
 
@@ -690,7 +807,7 @@ function Field({ label, children, full }: { label: string; children: React.React
   return (
     <label className={`block ${full ? "md:col-span-2" : ""}`}>
       <span className="mb-1 block text-xs text-zinc-500">{label}</span>
-      {children}
+      <span className="block [&_input]:w-full [&_select]:w-full [&_textarea]:w-full">{children}</span>
     </label>
   );
 }

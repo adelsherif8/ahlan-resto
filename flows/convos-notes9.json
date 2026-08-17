@@ -1,0 +1,100 @@
+[
+ {
+  "name": "EN — founder's exact case: sandwich without the bbq",
+  "phone": "+2015554001",
+  "turns": ["i want the smoky bbq burger", "sandwich but without the bbq"],
+  "expect": {
+   "removal survives with its words": "no bbq"
+  },
+  "forbid": {
+   "bare mystery note": "· no\\)"
+  }
+ },
+ {
+  "name": "EN — phantom removal: classic has no ranch",
+  "phone": "+2015554002",
+  "turns": ["i want a classic burger", "sandwich, no ranch please"],
+  "expect": {
+   "told it already comes without it": "already comes without ranch"
+  },
+  "forbid": {
+   "phantom note on the bill": "· no ranch"
+  }
+ },
+ {
+  "name": "EN — pickup ETA honest + no Net Amount in chat bill",
+  "phone": "+2015554003",
+  "turns": ["classic burger sandwich for pickup", "cash, coming in 20 min"],
+  "expect": {
+   "bill shown": "Classic Burger",
+   "vat note stays": "VAT inclusive|شاملة الضريبة"
+  },
+  "forbid": {
+   "net amount row in chat": "Net Amount|الصافي",
+   "inflated eta": "about 4[0-9] min|about [5-9][0-9] min"
+  }
+ },
+ {
+  "name": "AR — «ساندوتش بس من غير البصل» (smoky HAS onion rings — keep it)",
+  "phone": "+2015554004",
+  "turns": ["عايز سموكي باربيكيو برجر", "ساندوتش بس من غير البصل"],
+  "expect": {
+   "removal survives": "بصل"
+  },
+  "forbid": {
+   "bare mystery note": "· no\\)"
+  }
+ },
+ {
+  "name": "AR — phantom: «من غير مشروم» on classic (no mushroom in it)",
+  "phone": "+2015554005",
+  "turns": ["عايز كلاسيك برجر", "ساندوتش من غير مشروم"],
+  "expect": {
+   "told it already comes without it": "أصلاً مفيهوش"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "AR — bill shows total only, no الصافي row",
+  "phone": "+2015554006",
+  "turns": ["عايز كلاسيك برجر ساندوتش تيك اواي", "كاش وهاجي بعد 20 دقيقة"],
+  "expect": {
+   "vat note stays": "شاملة الضريبة|VAT inclusive"
+  },
+  "forbid": {
+   "net amount row": "الصافي|Net Amount"
+  }
+ },
+ {
+  "name": "FR — \"sandwich bas men gheir el basal\" (smoky HAS onions — keep)",
+  "phone": "+2015554007",
+  "turns": ["3ayez smoky bbq burger", "sandwich bas men gheir el basal"],
+  "expect": {
+   "removal survives": "basal|onion"
+  },
+  "forbid": {
+   "bare mystery note": "· no\\)"
+  }
+ },
+ {
+  "name": "FR — phantom: \"men gheir mashroom\" on classic",
+  "phone": "+2015554008",
+  "turns": ["3ayez classic burger", "sandwich we men gheir mashroom"],
+  "expect": {
+   "told it already comes without it": "aslan mafihoosh|أصلاً مفيهوش|already comes without"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "FR — pickup + bill: no Net Amount",
+  "phone": "+2015554009",
+  "turns": ["3ayez classic burger sandwich pickup", "cash w hagi ba3d 20 min"],
+  "expect": {
+   "bill shown": "Classic Burger"
+  },
+  "forbid": {
+   "net amount row": "Net Amount|الصافي",
+   "inflated eta": "about 4[0-9] min|7awaly 4[0-9]"
+  }
+ }
+]

@@ -234,7 +234,7 @@ cd dashboard && npm run build
 npx wrangler pages deploy dist --project-name munadim-dashboard   # → app.munadim.com   (the one guests/staff use)
 vercel --prod                                                     # → ahlan-resto.vercel.app (secondary)
 ```
-`vercel --prod` alone leaves `app.munadim.com` on the old bundle — it looks like a clean deploy and changes nothing staff can see. Wrangler needs `CLOUDFLARE_API_TOKEN` (or an interactive `wrangler login`); it cannot deploy from a non-interactive session.
+`vercel --prod` alone leaves `app.munadim.com` on the old bundle — it looks like a clean deploy and changes nothing staff can see. Wrangler reads `CLOUDFLARE_API_TOKEN` from `dashboard/.env` (git-ignored; set 2026-08-17) — export it before the command: `export $(grep CLOUDFLARE_API_TOKEN dashboard/.env)`. Use Node ≥22 (`export PATH=/opt/homebrew/bin:$PATH`). Verify by grepping the served bundle at app.munadim.com for a new string.
 
 **Verify what actually shipped**, don't trust "Ready" — hash the served bundle against something new in your change:
 ```bash

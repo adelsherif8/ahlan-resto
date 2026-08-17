@@ -57,11 +57,14 @@ function snapshot(value) {
 }
 
 let seq = 0;
-function newExecution(flowName, sessionId, trigger) {
+function newExecution(flowName, sessionId, trigger, restaurant = null) {
   const exec = {
     id: `ex_${Date.now()}_${++seq}`,
     flow: flowName,
     session_id: sessionId,
+    // Tagged here so a just-finished run in the in-memory ring carries its restaurant.
+    // Without it those rows showed a blank badge and slipped through a restaurant filter.
+    restaurant,
     trigger,
     status: "running",
     error: null,
@@ -83,7 +86,7 @@ function newExecution(flowName, sessionId, trigger) {
 export async function runFlow(name, ctx, input, parentExec = null) {
   const def = registry.get(name);
   if (!def) throw new Error(`Unknown flow: ${name}`);
-  const exec = newExecution(name, ctx.sessionId || "unknown", parentExec ? `sub:${parentExec.flow}` : ctx.trigger || "webhook");
+  const exec = newExecution(name, ctx.sessionId || "unknown", parentExec ? `sub:${parentExec.flow}` : ctx.trigger || "webhook", ctx?.tenant?.config?.slug || null);
   if (parentExec) {
     exec.parent_id = parentExec.id;
     parentExec.children.push({ flow: name, execution_id: exec.id });
@@ -162,28 +165,80 @@ function persistExecution(ctx, exec) {
   const db = ctx?.tenant?.db;
   if (!db) return;
   const { _currentNode, ...row } = exec;
-  db.from("flow_executions")
-    .upsert({
-      id: row.id, flow: row.flow, session_id: row.session_id, trigger: row.trigger,
-      status: row.status, error: row.error, started_at: row.started_at,
-      finished_at: row.finished_at, duration_ms: row.duration_ms,
-      tokens_in: row.tokens_in, tokens_out: row.tokens_out, cost_usd: row.cost_usd,
-      nodes: row.nodes, children: row.children, parent_id: row.parent_id,
-    })
-    .then(({ error }) => {
-      if (error && !persistExecution.warned) {
-        persistExecution.warned = true;
-        log("execution persistence unavailable (run migration 003):", error.message);
-      }
-    });
+  // This run's OWN cost, excluding sub-flows. `cost_usd` deliberately includes children
+  // (the `flow:` helper rolls them up so a parent shows the true cost of the turn), which
+  // means summing cost_usd across rows counts one LLM call once per level of nesting —
+  // it read $78.81 for a month that cost $33.57. Storing the own-cost here makes every
+  // aggregate a plain sum over an indexed range: correct by construction, and it removed
+  // a 12-second jsonb expansion from the read path. See migrations 035 and 040.
+  const own = (row.nodes || []).reduce(
+    (a, n) => ({
+      cost: a.cost + (Number(n?.cost_usd) || 0),
+      tin: a.tin + (Number(n?.tokens_in) || 0),
+      tout: a.tout + (Number(n?.tokens_out) || 0),
+    }),
+    { cost: 0, tin: 0, tout: 0 }
+  );
+  const base = {
+    id: row.id, flow: row.flow, session_id: row.session_id, trigger: row.trigger,
+    status: row.status, error: row.error, started_at: row.started_at,
+    finished_at: row.finished_at, duration_ms: row.duration_ms,
+    tokens_in: row.tokens_in, tokens_out: row.tokens_out, cost_usd: row.cost_usd,
+    nodes: row.nodes, children: row.children, parent_id: row.parent_id,
+  };
+  const withOwn = {
+    ...base,
+    own_cost_usd: round6(own.cost), own_tokens_in: own.tin, own_tokens_out: own.tout,
+  };
+
+  // The own_* columns arrive with migration 040. If flows ships before the migration runs,
+  // PostgREST rejects the ENTIRE upsert for an unknown column — which would silently stop
+  // persisting every trace on every tenant. So a failure of that shape falls back to the
+  // old shape…
+  //
+  // …but the fallback EXPIRES. It used to latch for the life of the process, which meant a
+  // container that started before the migration kept writing NULL own_cost_usd forever —
+  // 164 such rows appeared during one deploy's overlap window, because the old container
+  // was still serving. A transient condition must never become a permanent one: retry the
+  // full payload every RETRY_OWN_MS so any process heals itself after the migration lands.
+  const RETRY_OWN_MS = 5 * 60_000;
+  const skipOwn = persistExecution.noOwnAt && Date.now() - persistExecution.noOwnAt < RETRY_OWN_MS;
+  const write = (payload) => db.from("flow_executions").upsert(payload);
+  write(skipOwn ? base : withOwn).then(({ error }) => {
+    if (!error) {
+      if (!skipOwn) persistExecution.noOwnAt = null;   // column is there — stop skipping
+      return;
+    }
+    const missingColumn = /column .* does not exist|own_cost_usd|own_tokens/i.test(String(error.message));
+    if (missingColumn && !skipOwn) {
+      persistExecution.noOwnAt = Date.now();
+      log(`flow_executions has no own_cost_usd column — writing without it, retrying in ${RETRY_OWN_MS / 60000}min. Run migration 040.`);
+      write(base).then(({ error: e2 }) => {
+        if (e2 && !persistExecution.warned) {
+          persistExecution.warned = true;
+          log("execution persistence unavailable (run migration 003):", e2.message);
+        }
+      });
+      return;
+    }
+    if (!persistExecution.warned) {
+      persistExecution.warned = true;
+      log("execution persistence unavailable (run migration 003):", error.message);
+    }
+  });
 }
 
 // DB-backed reads (merged with the in-memory ring by the server)
-export async function listExecutionsDb(db, { flow, limit = 50, since = null } = {}) {
+export async function listExecutionsDb(db, { flow, limit = 50, since = null, status = null, q: search = null } = {}) {
   try {
     let q = db.from("flow_executions").select("id,flow,session_id,trigger,status,error,started_at,finished_at,duration_ms,tokens_in,tokens_out,cost_usd,children,parent_id").order("started_at", { ascending: false }).limit(limit);
     if (flow) q = q.eq("flow", flow);
     if (since) q = q.gt("started_at", since); // incremental polling — see /api/executions
+    // Filters belong HERE, not in the browser. Filtering the 60 rows that happened to be
+    // fetched meant picking a restaurant with no rows in that page returned nothing at
+    // all, while thousands of matching runs sat in the table unqueried.
+    if (status) q = q.eq("status", status);
+    if (search) q = q.or(`session_id.ilike.%${search}%,id.ilike.%${search}%,error.ilike.%${search}%`);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return (data || []).map((e) => ({ ...e, nodes: [] , _db: true }));

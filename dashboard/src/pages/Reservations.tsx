@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, MessageCircle } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Pill, Btn, Input, Select, Empty } from "../components/ui";
+import { usePoll } from "../lib/usePoll";
 
 const NEXT_ACTIONS: Record<string, { label: string; to: string }[]> = {
   pending: [{ label: "Confirm", to: "confirmed" }, { label: "Cancel", to: "cancelled" }],
@@ -29,9 +30,8 @@ export default function Reservations() {
     const loadLive = () => api.get("/api/reservations/live").then((r) => setLive(r.data)).catch(() => {});
     loadLive();
     api.get("/api/tables").then((r) => setTables(r.data || [])).catch(() => {});
-    const t = setInterval(() => { loadLive(); load(); }, 10000);
-    return () => clearInterval(t);
   }, [date]);
+  usePoll(() => { api.get("/api/reservations/live").then((r) => setLive(r.data)).catch(() => {}); load(); }, 10000, [date]);
 
   const ENDED = ["cancelled", "no_show", "completed"];
   const filtered = useMemo(

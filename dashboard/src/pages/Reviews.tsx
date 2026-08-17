@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import OrderPeek from "../components/OrderPeek";
 import { api } from "../config/api";
 import { Card, PageHeader, Btn, Input, Empty } from "../components/ui";
+import { usePoll } from "../lib/usePoll";
 
 function ago(iso: string) {
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -35,11 +36,7 @@ export default function Reviews() {
   const [form, setForm] = useState({ rating: "5", comments: "", phone_number: "", order_code: "" });
 
   const load = (f = filter) => api.get(`/api/reviews?filter=${f}`).then((r) => setData(r.data)).catch(() => {});
-  useEffect(() => {
-    load();
-    const t = setInterval(() => load(), 20000);
-    return () => clearInterval(t);
-  }, [filter]);
+  usePoll(() => load(filter), 20000, [filter]);
 
   async function patch(id: string, body: any) {
     setBusy(id);

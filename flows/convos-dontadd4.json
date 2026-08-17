@@ -1,0 +1,42 @@
+[
+ {
+  "name": "EN — \"dont add pickles\" is a removal note",
+  "phone": "+2015554010",
+  "turns": ["i want the smoky bbq burger", "sandwich, dont add pickles"],
+  "expect": {
+   "removal note lands": "no pickles"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "EN — founder's case: \"dont add classic burger add chicken ranch instead\" = swap, not a note",
+  "phone": "+2015554011",
+  "turns": ["i want a classic burger", "no dont add classic burger add the chicken ranch instead"],
+  "expect": {
+   "swapped item appears": "Chicken Ranch"
+  },
+  "forbid": {
+   "item name mangled into a note": "no classic burger|· no classic"
+  }
+ },
+ {
+  "name": "AR — «ما تضيفش مخلل» removal note",
+  "phone": "+2015554012",
+  "turns": ["عايز سموكي باربيكيو برجر", "ساندوتش وما تضيفش مخلل"],
+  "expect": {
+   "removal note lands": "مخلل"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "EN — mid-order QUESTION about ingredients is answered, never a note",
+  "phone": "+2015554013",
+  "turns": ["i want a classic burger", "does it come without onion?"],
+  "expect": {
+   "gets an answer mentioning onion": "onion"
+  },
+  "forbid": {
+   "question became a kitchen note": "· no onion|· no it"
+  }
+ }
+]

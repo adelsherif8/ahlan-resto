@@ -130,8 +130,34 @@ export async function resolveAllRestaurants() {
 export async function recordServiceBoot(service = "flows", note = null) {
   if (!control) return;
   const env = process.env.RAILWAY_ENVIRONMENT || (process.env.NODE_ENV === "production" ? "production" : "local");
+  // A developer restarting locally is not a deploy. Writing those rows buried the real
+  // deploy history in noise (11 "restarts" in a week, most of them a laptop).
+  // OPS_RECORD_LOCAL_BOOTS=1 opts back in if you ever want them.
+  if (env === "local" && process.env.OPS_RECORD_LOCAL_BOOTS !== "1") return;
   const { error } = await control.from("service_boots").insert({ service, env, note });
   if (error) log(`service_boots unavailable (${error.message}) — run migration 033 for deploy markers`);
+}
+
+/**
+ * Daily cost history (migration 039). Written while flow_executions still exists, because
+ * the janitor deletes it at 14 days and this becomes the only record. Upsert on
+ * (restaurant, day), so snapshotting the same day repeatedly corrects it instead of
+ * duplicating it.
+ */
+export async function upsertCostDaily(rows) {
+  if (!control || !rows.length) return { error: null };
+  const { error } = await control.from("cost_daily").upsert(rows, { onConflict: "restaurant,day" });
+  if (error) log(`cost_daily unavailable (${error.message}) — run migration 039 for cost history`);
+  return { error: error?.message || null };
+}
+
+export async function readCostDaily({ from, to } = {}) {
+  if (!control) return { rows: [], error: "control plane not configured" };
+  let q = control.from("cost_daily").select("*").order("day", { ascending: false });
+  if (from) q = q.gte("day", from);
+  if (to) q = q.lte("day", to);
+  const { data, error } = await q;
+  return { rows: data || [], error: error?.message || null };
 }
 
 export async function listServiceBoots(sinceIso, limit = 60) {

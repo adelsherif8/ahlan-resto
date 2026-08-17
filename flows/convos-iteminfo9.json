@@ -1,0 +1,110 @@
+[
+ {
+  "name": "EN — founder's exact typo: \"what is inisde teh truffle shroom\"",
+  "phone": "+2015553001",
+  "turns": ["what is inisde teh truffle shroom"],
+  "expect": {
+   "instant fact card with price": "Truffle Shroom Burger.*210",
+   "real ingredients from DB": "Beef Patty",
+   "photo in same message": "🖼IMAGE"
+  },
+  "forbid": {
+   "asks about the photo": "want to see a photo|would you like a photo"
+  }
+ },
+ {
+  "name": "EN — follow-up style: \"wat about the Smoky BBQ Burger\"",
+  "phone": "+2015553002",
+  "turns": ["what is inisde teh truffle shroom", "wat about the Smoky BBQ Burger"],
+  "expect": {
+   "smoky card with price": "Smoky BBQ Burger.*— \\d+",
+   "photo in same message": "🖼IMAGE"
+  },
+  "forbid": {
+   "asks about the photo": "want to see a photo|would you like a photo"
+  }
+ },
+ {
+  "name": "EN — clean phrasing still works: \"whats in the classic burger\"",
+  "phone": "+2015553003",
+  "turns": ["whats in the classic burger"],
+  "expect": {
+   "classic card": "Classic Burger.*190",
+   "photo in same message": "🖼IMAGE"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "AR — «فيه ايه في الترافل شروم» (with ال)",
+  "phone": "+2015553004",
+  "turns": ["فيه ايه في الترافل شروم"],
+  "expect": {
+   "arabic name + ar ingredients": "ترافل شروم برجر",
+   "arabic ingredients text": "لحم بقري",
+   "photo in same message": "🖼IMAGE"
+  },
+  "forbid": {
+   "english sentence": "beef patty|would you like|here'?s"
+  }
+ },
+ {
+  "name": "AR — «مكونات كلاسيك برجر»",
+  "phone": "+2015553005",
+  "turns": ["مكونات كلاسيك برجر"],
+  "expect": {
+   "arabic card": "كلاسيك برجر",
+   "photo in same message": "🖼IMAGE"
+  },
+  "forbid": {
+   "english sentence": "beef patty|would you like"
+  }
+ },
+ {
+  "name": "AR — «السموكي باربيكيو فيه ايه»",
+  "phone": "+2015553006",
+  "turns": ["السموكي باربيكيو فيه ايه"],
+  "expect": {
+   "arabic smoky card": "سموكي باربيكيو برجر",
+   "photo in same message": "🖼IMAGE"
+  },
+  "forbid": {
+   "english sentence": "beef patty|would you like"
+  }
+ },
+ {
+  "name": "FR — \"el classic burger feh eh\"",
+  "phone": "+2015553007",
+  "turns": ["el classic burger feh eh"],
+  "expect": {
+   "card with price": "Classic Burger.*190",
+   "photo in same message": "🖼IMAGE"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "FR — \"wat about el truffle shroom\"",
+  "phone": "+2015553008",
+  "turns": ["wat about el truffle shroom"],
+  "expect": {
+   "truffle card": "Truffle Shroom Burger.*210",
+   "photo in same message": "🖼IMAGE"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "FR — \"3ayez a3raf el smoky bbq feh eh\"",
+  "phone": "+2015553009",
+  "turns": ["3ayez a3raf el smoky bbq feh eh"],
+  "expect": {
+   "smoky card": "Smoky BBQ Burger",
+   "photo in same message": "🖼IMAGE"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ }
+]

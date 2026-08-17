@@ -22,9 +22,11 @@ async function aiCount(sid) {
   return (data || []).length;
 }
 async function aiSince(sid, n) {
-  const { data } = await db.from("chat_messages").select("message,created_at").eq("session_id", sid)
+  const { data } = await db.from("chat_messages").select("message,media_type,created_at").eq("session_id", sid)
     .eq("sender", "ai").order("created_at", { ascending: true });
-  return (data || []).slice(n).map((m) => m.message);
+  // An image attached to the SAME row prints as 🖼IMAGE on that reply — assertions can
+  // demand the one-bubble merge ("expect": {"photo in same message": "🖼IMAGE"}).
+  return (data || []).slice(n).map((m) => m.media_type === "image" ? `${m.message} 🖼IMAGE` : m.message);
 }
 async function seedDiner(sid, seed) {
   const { data: d } = await db.from("diners").select("id").eq("phone_number", sid).maybeSingle();
@@ -59,6 +61,7 @@ for (const c of convos) {
   let sawInterim = false;
   for (const turn of c.turns) {
     const before = await aiCount(c.phone);
+    const turnStart = Date.now();
     await fetch(`${BASE}/api/web/send`, {
       method: "POST",
       headers: { "x-ops-token": TOKEN, "Content-Type": "application/json" },
@@ -75,9 +78,18 @@ for (const c of convos) {
       if (real.length && now.length === out.length) { stable++; if (stable >= 2) break; } else stable = 0;
       out = now;
     }
-    if (out.some((m) => INTERIM.test(String(m).trim()))) sawInterim = true;
+    if (out.some((m) => INTERIM.test(String(m).trim()))) {
+      sawInterim = true;
+      // WHY was it slow? Read the trace for this exact turn and attribute the time.
+      const { data: ex } = await db.from("flow_executions").select("duration_ms,nodes,error")
+        .eq("session_id", c.phone).eq("flow", "respond").order("started_at", { ascending: false }).limit(1);
+      const nodes = (ex?.[0]?.nodes || []).filter((n) => n.ms > 200).sort((a, b) => b.ms - a.ms).slice(0, 4);
+      console.log(`   ⏱ FILLER SENT — respond took ${ex?.[0]?.duration_ms}ms${ex?.[0]?.error ? ` · ERROR: ${String(ex[0].error).slice(0, 90)}` : ""}`);
+      for (const n of nodes) console.log(`        ${String(n.ms).padStart(6)}ms ${n.name}${n.model ? ` [${n.model} in:${n.tokens_in} out:${n.tokens_out}]` : ""}`);
+    }
     out = out.filter((m) => !INTERIM.test(String(m).trim()));
-    console.log(`\n👤 ${turn}`);
+    const tookMs = Date.now() - turnStart;
+    console.log(`\n👤 ${turn}   ⏲ ${tookMs}ms`);
     if (!out.length) { console.log("🤖 (NO REPLY)"); failures++; }
     for (const m of out) console.log(`🤖 ${m.replace(/\n/g, "\n   ")}`);
     lastTurnText = out.join("\n");

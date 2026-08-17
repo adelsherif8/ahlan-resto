@@ -1,0 +1,55 @@
+[
+ {
+  "name": "EN — combo order → add-ons offers the dish's own pairing (Loaded Fries) + a dessert → guest adds cookie → confirm re-shown",
+  "phone": "+2015559031",
+  "turns": [
+   "signature burger",
+   "delivery",
+   "combo cola",
+   "cash, point 90 mall",
+   "triple chocolate chip cookie"
+  ],
+  "expect": {
+   "add-ons line on first confirm": "🍟 Add",
+   "cookie now on the bill": "Triple Chocolate Chip Cookie[^\\n]*80 EGP",
+   "still a confirm screen": "confirm and I'll send"
+  },
+  "forbid": {
+   "order placed prematurely": "Ticket|confirmed —|🎫",
+   "a drink pushed on a combo": "🍟[^\\n]*Soft Drink"
+  }
+ },
+ {
+  "name": "AR — sandwich (no combo) → offers side + dessert + drink, Arabic names",
+  "phone": "+2015559032",
+  "turns": [
+   "كلاسيك برجر",
+   "تيك اواي",
+   "ساندوتش",
+   "كاش دلوقتي"
+  ],
+  "expect": {
+   "add-ons in arabic": "تحب تضيف حاجة؟",
+   "a side offered": "لودد فرايز|بطاطس",
+   "a dessert offered": "كوكي|ايس كريم"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "FR — 'akked' after add-ons places the order without adding anything",
+  "phone": "+2015559033",
+  "turns": [
+   "classic burger",
+   "pickup",
+   "sandwich",
+   "cash, gay delwa2ty",
+   "akked"
+  ],
+  "expect": {
+   "placed": "🎫"
+  },
+  "forbid": {
+   "an add-on snuck onto the ticket": "Loaded Fries|Cookie|Milkshake"
+  }
+ }
+]
