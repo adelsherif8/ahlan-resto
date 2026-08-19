@@ -272,7 +272,7 @@
   ],
   "complete": "answered",
   "forbid": {
-   "تذكرة تانية": "🎫[\\s\\S]*🎫[\\s\\S]*🎫"
+   "تذكرة تانية": "receipts\\/[\\s\\S]*receipts\\/"
   },
   "answered": [
    "🎫",

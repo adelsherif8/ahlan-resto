@@ -32,7 +32,11 @@ export async function sessionPrecheck(db, sessionId, history) {
   // "same wrong answer" loop is prevented upstream now (order-flow handoff + per-session
   // lock), so exact-match is the safe, sufficient backstop here.
   const aiTurns = (history || []).filter((h) => h.role === "ai").map((h) => h.message);
-  const repeatedTwice = aiTurns.length >= 2 && aiTurns.at(-1) === aiTurns.at(-2);
+  // …except the ORDER STATUS CARD: "where's my order?" then "how long?" legitimately get
+  // the same card twice — that is the answer, not the bot stuck (it tripped a human
+  // handoff on the guest's next word, "can I cancel?").
+  const isStatusCard = (m) => /🎫 \*[A-Z]{1,3}-[A-Z0-9]{3,6}\*/u.test(String(m || "")) && /[⬜✅]/u.test(String(m || ""));
+  const repeatedTwice = aiTurns.length >= 2 && aiTurns.at(-1) === aiTurns.at(-2) && !isStatusCard(aiTurns.at(-1));
   const repeatedThrice = aiTurns.length >= 3 && repeatedTwice && aiTurns.at(-2) === aiTurns.at(-3);
   if (repeatedTwice) out.loop_detected = true;
 

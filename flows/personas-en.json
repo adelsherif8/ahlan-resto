@@ -355,7 +355,7 @@
   },
   "forbid": {
    "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
-   "second ticket": "🎫[\\s\\S]*🎫[\\s\\S]*🎫"
+   "second ticket": "receipts\\/[\\s\\S]*receipts\\/"
   },
   "answered": [
    "🎫",

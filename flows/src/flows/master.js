@@ -470,6 +470,23 @@ defineFlow({
           return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (menu item + order-type wording)" } };
         }
       }
+      // AFTER A PLACED ORDER, "where's my order?" / "how long?" / "can I cancel?" belong
+      // to the ORDER flow (status card / ETA / cancel-with-staff) — never chit-chat, which
+      // once answered "the place is closed" and then invented a cancellation. Code reads
+      // the words; the recent-order check is the order flow's own.
+      {
+        const ORDER_WORD = /(?<![\p{L}\p{N}])(order|el order|my order|delivery|el akl|el talab|الاوردر|الأوردر|الطلب|طلبي|الاكل|الأكل|ticket)(?![\p{L}\p{N}])/iu;
+        const STATUS_Q = /(?<![\p{L}\p{N}])(where|where'?s|status|track|tracking|how long|eta|is it ready|فين|وصل|هيوصل|لسه|حالة|امتى|إمتى|كام دقيقة|هياخد|fein|feen|fen|wasal|lesa|lessa|emta|hayakhod|ad eh|2ad eh|kam d2i2a)(?![\p{L}\p{N}])/iu;
+        const CANCEL_Q = /(?<![\p{L}\p{N}])(cancel|alghy|alghi|algha|el3'i|الغي|ألغي|الغى|إلغاء|الغاء|بلاش الاوردر|بلاش الطلب)(?![\p{L}\p{N}])/iu;
+        const asksStatus = STATUS_Q.test(message) && (ORDER_WORD.test(message) || message.trim().length <= 20);
+        const asksCancel = CANCEL_Q.test(message) && message.trim().length <= 60;
+        if ((asksStatus || asksCancel) && !/(table|reservation|booking|حجز|ترابيزة)/i.test(message)) {
+          const { data: recent } = await db.from("orders").select("id").eq("phone_number", ctx.sessionId).gte("created_at", new Date(Date.now() - 6 * 3600e3).toISOString()).limit(1);
+          if (recent?.length || precheck.active_flow === "order") {
+            return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: `rule (${asksCancel ? "cancel" : "status"} question with a recent order)` } };
+          }
+        }
+      }
       // A FULL menu item name plus an ordering cue — a want-verb ("3ayez", «عايز», "i
       // want", "hat"), a count ("2 …"), a format word (sandwich/combo/meal) or a removal
       // ("men gheir mekhalel", «بدون بصل», "no onion") — is an ORDER. The classifier once

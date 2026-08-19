@@ -238,6 +238,21 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // mid-configuring an item. The extractor flags it as intent "question"; a bare
       // option/branch/payment answer is never flagged that way. This is the fix for
       // "بتوصلوا المعادي؟" jumping to payment while a burger awaited its options.
+      // STATUS / CANCEL ARE CODE'S TO HEAR. "fein el order?" and "hayakhod ad eh?" after a
+      // placed order came back as intent "question" and were handed to chit-chat, which
+      // had nothing to say; «كارت وجاي دلوقتي» (card, coming now) mid-draft came back as
+      // "status" and the guest was told "no order in progress" one step from confirming.
+      const STATUS_Q = /(?<![\p{L}\p{N}])(where|where'?s|status|track|tracking|how long|eta|is it ready|فين|وصل|هيوصل|لسه|حالة|امتى|إمتى|كام دقيقة|هياخد|fein|feen|fen|wasal|lesa|lessa|emta|hayakhod|ad eh|2ad eh|kam d2i2a)(?![\p{L}\p{N}])/iu;
+      const ORDER_WORD = /(?<![\p{L}\p{N}])(order|el order|my order|delivery|el akl|el talab|الاوردر|الأوردر|الطلب|طلبي|الاكل|الأكل|ticket)(?![\p{L}\p{N}])/iu;
+      const CANCEL_Q = /(?<![\p{L}\p{N}])(cancel|alghy|alghi|algha|الغي|ألغي|الغى|إلغاء|الغاء|بلاش الاوردر|بلاش الطلب)(?![\p{L}\p{N}])/iu;
+      const msgS = String(input.message || "").trim();
+      if (loaded.openOrder && !loaded.pending?.items?.length && !(e.items?.length) && !(e.edits?.length)) {
+        if (STATUS_Q.test(msgS) && (ORDER_WORD.test(msgS) || msgS.length <= 20)) e.intent = "status";
+        if (CANCEL_Q.test(msgS) && msgS.length <= 60) e.intent = "cancel_order";
+        // the status card / cancel answer IS the answer — no chit-chat "side answer" on top
+        if (e.intent === "status" || e.intent === "cancel_order") e.question = null;
+      }
+      if (e.intent === "status" && loaded.pending?.items?.length && !STATUS_Q.test(msgS)) e.intent = "order";
       if (e.intent === "question") return { kind: "handoff_to_friendly" };
       // Belt-and-suspenders: an "other" message carrying zero order content, when we're
       // not waiting on a specific answer, is chit-chat/a question too → hand it off.
@@ -1770,6 +1785,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           [/مشروم|فطر|mashroom|mashrum/iu, "mushroom"], [/كاتشب|katshab|ketchup/iu, "ketchup"], [/مسطردة|مستردة|mostarda/iu, "mustard"], [/خيار|khyar|5yar/iu, "cucumber"],
         ];
         const REMOVE_NOTE = /(?:no|without|hold the|بدون|من غير|بلاش|مفيش|men gheir|min gheir|bedoon|bdoon)\s+([\p{L}][\p{L} ]{1,23})/giu;
+        const toldAlready = new Set(); // one "already comes without X" per dish+ingredient, whatever script(s) the note carried
         for (const it of items || []) {
           if (!it.notes) continue;
           const row = loaded.menu.find((m) => m.id === it.id) || loaded.menu.find((m) => normName(m.name) === normName(it.name));
@@ -1788,6 +1804,9 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
             if (en.length < 3 || /sauce|صوص|صلصة|bread|bun|خبز/.test(en)) return full;
             if (hay.includes(en)) return full; // the dish HAS it — real removal, keep
             changed = true;
+            const key = `${it.id || it.name}:${AR2EN_ING.find(([rx]) => rx.test(said))?.[1] || en}`;
+            if (toldAlready.has(key) || (/ranch|رانش/i.test(said) && toldAlready.has(`${it.id || it.name}:ranch`))) return "";
+            toldAlready.add(key); if (/ranch|رانش/i.test(said)) toldAlready.add(`${it.id || it.name}:ranch`);
             outcomeNotices.push(L2(
               `Good news — the ${it.name} already comes without ${said} 👌`,
               `على فكرة — الـ${dishDisp(it.name)} أصلاً مفيهوش ${said} 👌`,
@@ -2268,6 +2287,8 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     }, { input: { outcome_kind: outcome.kind } });
 
     const fallback = {
+      too_late_to_cancel: L2("The order is confirmed and with the kitchen 👨‍🍳 — it can't be cancelled from chat; the team has been pinged and can help at the counter or on the phone.", "الطلب متأكد وفي المطبخ 👨‍🍳 — مش هينفع يتلغي من الشات؛ بلغنا الفريق وهيساعدوك على الكاونتر أو التليفون.", "El order met2aked w fel kitchen 👨‍🍳 — mesh hayenfa3 yetlghy men el chat; balaghna el team."),
+      order_status: L2("On it — here's where your order is 👇", "حاضر — ده وضع طلبك دلوقتي 👇", "7ader — da wad3 orderak delwa2ty 👇"),
       order_placed: L2(`🎫 Order ${outcome.code} is in — about ${outcome.eta_minutes} min!`, `🎫 طلبك ${outcome.code} اتسجل — حوالي ${outcome.eta_minutes} دقيقة!`, `🎫 Orderak ${outcome.code} etsagel — 7awaly ${outcome.eta_minutes} d2ee2a!`),
       // Once they've told us the TYPE and already have the menu, don't hand it over
       // again — acknowledge and ask the one thing still missing.
@@ -2653,7 +2674,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     const interrogative = /[?؟]/.test(String(input.message || "")) || /(^|\s)(do|does|did|is|are|can|could|would|how|what|when|where|which|why|any|هل|بتوصلوا|بتوصل|بتوصلو|بكام|كام|فين|امتى|إمتى|ازاي|إزاي|ليه|ايه|إيه|فيه|ممكن|عندكم|عندكوا|3andoko|3andokom|3andak|bekam|kam|fen|emta|ezay|leh|eh|momken|fi|feh)(?=\s|$)/iu.test(String(input.message || ""));
     const norm3 = (x) => normName(arOptionWords(String(x || ""))) || String(x || "").replace(/[ً-ْـ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
     const sideIsPlace = !!sideQ && ((outcome.address && (norm3(outcome.address).includes(norm3(sideQ)) || norm3(sideQ).includes(norm3(outcome.address)))) || !!matchLandmark(config, streetCore(sideQ)));
-    const sideAllowed = (!!(e.items?.length || e.edits?.length) || !awaitingAtTurnStart) && outcome.kind !== "menu_request" && interrogative && !sideIsPlace;
+    const sideAllowed = (!!(e.items?.length || e.edits?.length) || !awaitingAtTurnStart) && !["menu_request", "order_status", "too_late_to_cancel", "no_open_order", "order_placed"].includes(outcome.kind) && interrogative && !sideIsPlace;
     if (sideQ.length >= 4 && sideAllowed) {
       const side = await f.flow("friendly", { message: sideQ, diner, history: input.history, precheck: input.precheck, classification });
       if (side?.reply) {
