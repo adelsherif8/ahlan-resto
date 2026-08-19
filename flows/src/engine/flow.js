@@ -27,6 +27,21 @@ export function listFlows() {
   }));
 }
 
+/**
+ * Is this session ours rather than a guest's? Cost figures are dominated by our own
+ * traffic — on 2026-08-17 the friendly card read $6.35 across 1,048 runs, of which real
+ * guests were 4 turns and $0.01; the rest was five regression-suite passes (~700 runs
+ * each) and fixture conversations. Anything that isn't a real WhatsApp number is test:
+ *   web:regress-*        the 113-case suite
+ *   web:convo-* / test-* the conversation harness
+ *   any other web:*      the ops Test Chat — a browser, never a guest
+ *   +201555*             every fixture phone
+ */
+export function isTestSession(sessionId) {
+  const s = String(sessionId || "");
+  return s.startsWith("web:") || /^\+?201555/.test(s);
+}
+
 export function listExecutions({ flow, limit = 50 } = {}) {
   let rows = executions;
   if (flow) rows = rows.filter((e) => e.flow === flow);
@@ -42,6 +57,7 @@ function execSummary(e) {
   const { _currentNode, ...rest } = e;
   return {
     ...rest,
+    is_test: isTestSession(e.session_id),
     nodes: e.nodes.map((n) => ({ ...n, input: undefined, output: undefined })),
   };
 }
@@ -241,7 +257,7 @@ export async function listExecutionsDb(db, { flow, limit = 50, since = null, sta
     if (search) q = q.or(`session_id.ilike.%${search}%,id.ilike.%${search}%,error.ilike.%${search}%`);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    return (data || []).map((e) => ({ ...e, nodes: [] , _db: true }));
+    return (data || []).map((e) => ({ ...e, is_test: isTestSession(e.session_id), nodes: [], _db: true }));
   } catch {
     return [];
   }
@@ -250,7 +266,7 @@ export async function listExecutionsDb(db, { flow, limit = 50, since = null, sta
 export async function getExecutionDb(db, id) {
   try {
     const { data } = await db.from("flow_executions").select("*").eq("id", id).maybeSingle();
-    return data || null;
+    return data ? { ...data, is_test: isTestSession(data.session_id) } : null;
   } catch {
     return null;
   }

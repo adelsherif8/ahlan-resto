@@ -406,7 +406,11 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     const out = llmOut.value || {};
     const LV = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
     const L2F = (en, ar, fr) => (LV === "ar" ? ar : LV === "fr" ? fr : en);
-    let reply = (out.reply || L2F("One second! 🙌", "لحظة واحدة! 🙌", "Le7za wa7da! 🙌")).slice(0, 3500);
+    // an EMPTY model reply must never become "One second!" — that's the SLA filler's
+    // wording, promises a follow-up that never comes, and the guest waits forever.
+    // Say something that invites the next message instead.
+    if (!out.reply) log("friendly: model returned an empty reply — using code fallback");
+    let reply = (out.reply || L2F("Happy to help — what would you like? 😊", "تحت أمرك — تحب إيه؟ 😊", "Ta7t amrak — te7eb eh? 😊")).slice(0, 3500);
     // FINAL SCRIPT GUARANTEE: the re-asks above fix nearly every slip; if the model
     // STILL answered in the wrong script, the wrong-script text is never sent. A
     // short code line in the guest's language + a hand to the menu beats a reply

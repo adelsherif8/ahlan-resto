@@ -144,6 +144,9 @@ defineFlow({
 
     const message = await f.node("sanitize", async () => {
       return raw
+        // a transcribed voice note arrives as "[voice] …" — the marker is metadata, not
+        // words; fast paths and the classifier must see the transcript alone
+        .replace(/^\s*\[voice\]\s*/i, "")
         .replace(/```/g, "'''")
         .replace(/<\/?(system|assistant|instructions?)>/gi, "")
         .replace(/\b(ignore (all|previous|above) instructions?)\b/gi, "[redacted]")
@@ -167,6 +170,20 @@ defineFlow({
       const sticky = input.stickyLanguage || null;
       const closer = detectCloser(message, sticky);
       if (closer) { bump("closer_hits"); return closer; }
+      // A bare pin / Maps link with NO order in progress: acknowledge the location and
+      // invite the order — code, no model. It used to be greeted like "hi", and the
+      // location sat unused so delivery asked for the address again.
+      const bareLoc = (/https?:\/\/[^\s]*(google\.[a-z.]+\/maps|maps\.google|maps\.app\.goo\.gl|goo\.gl\/maps|waze\.com)/i.test(message) || /^\[shared location\]|^\[location\]/i.test(message))
+        && !/\p{L}{4,}/u.test(message.replace(/https?:\/\/\S+/g, "").replace(/^\[shared location\][^(]*/i, ""));
+      if (bareLoc && input.precheck?.active_flow !== "order") {
+        bump("faq_hits");
+        // a bare URL carries no language: follow the sticky one; with none, greet in
+        // both scripts so neither an Arabic nor a Latin guest gets a foreign line
+        const lg = input.stickyLanguage || null;
+        const reply = lg === "ar" ? "وصلني اللوكيشن 📍 تحب تطلب إيه؟" : lg === "franco" ? "Wasalny el location 📍 te7eb totlob eh?" : lg === "en" ? "Got your location 📍 What would you like to order?" : "Got your location 📍 What would you like to order?\nوصلني اللوكيشن 📍 تحب تطلب إيه؟";
+        return { kind: "location_ack", language: lg || "en", reply };
+      }
+
       // A4: a brand-new guest saying only "hi" → warm canned welcome, 0 LLM (~instant).
       // Returning/known guests fall through to the LLM greeting (usual/birthday/welcome-back
       // — enforced by the suite), and anyone who says more than a bare greeting also falls through.
@@ -415,6 +432,10 @@ defineFlow({
       if (precheck.active_flow === "order" && (message.match(/^\s*[\p{L} ]{2,24}:/gmu) || []).length >= 2) {
         return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (filled template inside an active order)" } };
       }
+      // A bare pin / Maps link with NO order in progress: acknowledge the location in
+      // code and invite the order — it used to be greeted like "hi" (and the location
+      // sat unused, so delivery asked for the address again).
+
       // A message that is JUST a dish name ("سيجناتشر برجر", "classic burger") is an
       // ORDER, not a question — the guest is picking, the way people answer a menu.
       // Friendly used to send a product card + photo and ask "want to try it?".

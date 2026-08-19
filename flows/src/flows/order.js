@@ -125,7 +125,7 @@ Return JSON only:
  "reorder_ref": "<ONLY with intent repeat_last: if they point at a SPECIFIC past order — a weekday ('same as last Tuesday'), a dish ('the truffle one I got'), 'my first order' — put that phrase here; a plain 'the usual'/'same as last time' leaves this null>"|null,
  "question": "<people mix ordering and chatting in ONE message: 'add a J special, and is the jalapeno bites spicy?' — the NON-order part (a question, asking for a suggestion, chit-chat) goes here so it gets ANSWERED alongside the order step; null when the whole message is order actions. NEVER put it in notes. If the ENTIRE message is a question with no order content, use intent 'question' instead>"|null}
 BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); menu entries read "English name / Arabic name" — BOTH refer to the SAME dish and you ALWAYS return the ENGLISH name; match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/GARBLED word (voice notes!) is SKIPPED, never guessed — but a CLEARLY named product we don't carry ("a cola zero", "red bull") goes into items AS THE GUEST SAID IT (code reports it as unavailable — silently dropping it loses part of the order); if the RECENT CONVERSATION shows the guest already AGREED to a specific dish we recommended ("thats nice i want this" after we pitched it) and it is NOT already in the draft, include that dish in items too — to the guest it's ALREADY on their order and dropping it loses it ("also I want X" means X in ADDITION to it); never duplicate a dish the draft already has; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item — BUT a bare "no" + item + OPTION word ("no, nashville slaw combo, the other is not") is NEVER removal: it's correcting WHICH item has that option → edits op "set_option" per item. DIRECTION MATTERS: the item NAMED WITH the option RECEIVES it — "no, nashville slaw combo, the other is not" = Nashville Slaw GETS combo ([{op:"set_option", item:"Nashville Slaw", option:"combo"}]) and "the other" (the other draft item) gets the opposite ({op:"set_option", item:"<the other item>", option:"sandwich"}); NEVER swap them; removal needs remove-words (remove/take off/شيل/didn't order); an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا" → op add, "remove the fries"/"شيل البطاطس" → op remove, "make it 2"/"خليهم ٢"/"actually just one" → op set_qty with qty, "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel/scrap the WHOLE order or start over ("cancel it all", "cancel this order", "start over", "forget the whole thing", "الغي الاوردر", "بلاش كله", "من الأول") — removing ONE item is edits op "remove", never cancel_order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
+Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); menu entries read "English name / Arabic name" — BOTH refer to the SAME dish and you ALWAYS return the ENGLISH name; match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/GARBLED word (voice notes!) is SKIPPED, never guessed — but a CLEARLY named product we don't carry ("a cola zero", "red bull") goes into items AS THE GUEST SAID IT (code reports it as unavailable — silently dropping it loses part of the order); if the RECENT CONVERSATION shows the guest already AGREED to a specific dish we recommended ("thats nice i want this" after we pitched it) and it is NOT already in the draft, include that dish in items too — to the guest it's ALREADY on their order and dropping it loses it ("also I want X" means X in ADDITION to it); never duplicate a dish the draft already has; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item — BUT a bare "no" + item + OPTION word ("no, nashville slaw combo, the other is not") is NEVER removal: it's correcting WHICH item has that option → edits op "set_option" per item. DIRECTION MATTERS: the item NAMED WITH the option RECEIVES it — "no, nashville slaw combo, the other is not" = Nashville Slaw GETS combo ([{op:"set_option", item:"Nashville Slaw", option:"combo"}]) and "the other" (the other draft item) gets the opposite ({op:"set_option", item:"<the other item>", option:"sandwich"}); NEVER swap them; removal needs remove-words (remove/take off/شيل/didn't order); an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا"/"zawed coke" → op add, "remove the fries"/"شيل البطاطس"/"sheel el batates" → op remove, "make it 2"/"خليهم ٢"/"khaleehom etnen"/"actually just one" → op set_qty with qty, "change the drink to fanta"/"غيّر المشروب فانتا"/"ghayar el mashroob fanta" (a drink/size/format CHOICE of an item already on the order) → op set_option with option = the choice (never a replace of dishes), "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel/scrap the WHOLE order or start over ("cancel it all", "cancel this order", "start over", "forget the whole thing", "الغي الاوردر", "بلاش كله", "من الأول") — removing ONE item is edits op "remove", never cancel_order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
       return chatJSON(MODEL_FAST, sys, input.message, { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
@@ -136,6 +136,26 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       const wordless = !/\p{L}/u.test(String(input.message || "").replace(/https?:\/\/\S+/g, "").replace(/^\[location\]/i, ""));
       if (wordless && e.question) e.question = null;
       if (wordless && e.intent === "question") e.intent = "other";
+    }
+    // FRANCO / ARABIC EDIT COMMANDS, DETERMINISTIC. The model still misses "khaleehom
+    // etnen" / "sheel el batates" / "ghayar el mashroob fanta" often enough that a
+    // guest saw their change narrated by chit-chat and applied nowhere. Code reads the
+    // three common shapes when a draft exists and the model returned no edits.
+    if (loaded.pending?.items?.length && !(e.edits?.length) && !(e.items?.length)) {
+      const msgL = String(input.message || "").toLowerCase();
+      const NUM = { "1": 1, "2": 2, "3": 3, "4": 4, wa7ed: 1, wa7da: 1, etnen: 2, etneen: 2, tnen: 2, talata: 3, tlata: 3, arba3a: 4, "واحد": 1, "واحدة": 1, "اتنين": 2, "إتنين": 2, "تلاتة": 3, "ثلاثة": 3, "اربعة": 4, "أربعة": 4, "٢": 2, "٣": 3, "٤": 4 };
+      let m1;
+      if ((m1 = /(?:khalee?h(?:om|a|o)?|khali(?:hom|ha|h)?|خلي(?:هم|ها|ه)?|make (?:it|them))\s+(?:bas\s+|بس\s+|just\s+)?(\d|wa7ed|wa7da|etne+n|tnen|t?lata|arba3a|واحدة?|ا?تنين|إتنين|تلاتة|ثلاثة|ا?ربعة|أربعة|[٢٣٤])/iu.exec(msgL))) {
+        const q = NUM[m1[1]] ?? Number(m1[1]);
+        if (q >= 1 && q <= 20) e.edits = [{ op: "set_qty", item: loaded.pending.items.length === 1 ? null : (loaded.pending.items[0]?.name || null), qty: q }];
+      } else if ((m1 = /(?:sheel|shil|shel|remove|take off|شيل|شيلي|امسح)\s+(?:el\s+|the\s+|ال)?([a-z\p{L}][a-z\p{L} ]{2,30})/iu.exec(msgL))) {
+        // resolve the spoken thing ("batates", «البطاطس») to the DRAFT line it names
+        const what = normName(arOptionWords(m1[1].trim()));
+        const line = loaded.pending.items.find((it) => { const n = normName(it.name); return n === what || n.includes(what) || what.split(" ").some((w) => w.length >= 4 && n.includes(w)); });
+        e.edits = [{ op: "remove", item: line?.name || m1[1].trim() }];
+      } else if ((m1 = /(?:ghayy?ar|change|switch|badd?el|غيّر|غير|بدّل|بدل)\s+(?:el\s+|the\s+|ال)?([a-z\p{L}][a-z\p{L} ]{2,20}?)\s+(?:to\s+|le\s+|لـ|ل)?([a-z\p{L}][a-z\p{L} ]{2,25})$/iu.exec(msgL.trim()))) {
+        e.edits = [{ op: "set_option", item: loaded.pending.items.length === 1 ? null : (loaded.pending.items[0]?.name || null), option: m1[2].trim() }];
+      }
     }
     // PICKUP TIME IS CODE'S TO HEAR. "cash, coming now" came back with pickup_time
     // null and the guest was asked "when are you passing by?" again — the answer he'd
@@ -207,7 +227,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // content and was handed to the chit-chat brain before the payment matcher ever
       // ran. Live 14 Aug: the guest answered the payment question, the bot wished him a
       // good meal, and no order was ever created.
-      const PAY_ANSWER = /^\W*(cash|card|visa|instapay|online|link|كاش|كارت|فيزا|انستاباي|اونلاين|أونلاين|لينك)\b/i;
+      const PAY_ANSWER = /^\W*(cash|card|visa|instapay|online|link|كاش|كارت|فيزا|بطاقة|انستاباي|إنستاباي|اونلاين|أونلاين|لينك)(?![\p{L}])/iu;
       // A Maps link / shared pin with a delivery draft open IS the address answer —
       // the extractor calls a bare URL "other" and it was handed to chit-chat, which
       // quoted the old flat zone fee.
@@ -220,7 +240,20 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       const saidOpt = ` ${normName(arOptionWords(input.message))} `;
       const answersDraftOption = !!loaded.pending?.items?.length && saidOpt.trim().length >= 3 && saidOpt.trim().split(" ").length <= 14
         && (loaded.pending.items || []).some((it) => (it.option_defs || []).some((g) => groupChoices(g, loaded.menu).some((c) => { const cn = normName(c?.name || ""); return cn.length >= 3 && saidOpt.includes(` ${cn} `); })));
+      // A Franco/Arabic EDIT VERB with a draft open is order content, whatever the
+      // extractor called it — "khaleehom etnen", "zawed …", "sheel …", "ghayar …",
+      // «خليهم اتنين», «زود», «شيل», «غيّر». These were handed to chit-chat, which
+      // narrated the change ("Gotcha, changing the drink…") and applied nothing.
+      const EDIT_VERB = /(?<![\p{L}])(khalee?h(om|a)?|khali(hom|ha)?|zawe?d(li)?|zawed|sheel|shil|shel|ghayy?ar|ghayar|badd?el|3ayez a?ghayar|make (it|them)|change|switch|remove|take off|add|خلي(هم|ها|ه)?|زود|زوّد|شيل|شيلي|غيّر|غير|بدّل|بدل|ضيف|أضف)(?![\p{L}])/iu;
+      const isEditCommand = !!loaded.pending?.items?.length && EDIT_VERB.test(input.message) && input.message.trim().length <= 60;
+      // A DELIVERY draft with NO ADDRESS yet: a short non-command message is the address
+      // ("point tes3een", «بوينت ٩٠», "villa 12 narges 4") — the model calls place
+      // names "other" and they were handed to chit-chat, which answered nothing.
+      const awaitingAddress = !!loaded.pending?.items?.length && loaded.pending?.order_type === "delivery" && !loaded.pending?.address && !loaded.pending?.delivery_point && !loaded.pending?.map_link;
+      const shortNonCommand = input.message.trim().length >= 3 && input.message.trim().length <= 120 && !/[?؟]\s*$/.test(input.message.trim()) && !BARE_YES.test(input.message.trim());
       const answersOpenQuestion = !!loaded.pending?.ambiguous
+        || (awaitingAddress && shortNonCommand)
+        || isEditCommand
         || (!!loaded.pending?.items?.length && PAY_ANSWER.test(input.message.trim()))
         || (!!loaded.pending?.items?.length && loaded.pending?.order_type === "delivery" && isPin)
         || (!!loaded.pending?.items?.length && loaded.pending?.awaiting_location === true)
@@ -384,13 +417,74 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             // Chocolate" — every word of the name present counts as named.
             const lastToksEn = new Set(normName(lastAi).split(" ").filter(Boolean));
             const lastToksAr = new Set(lastAr.split(/[^؀-ۿ]+/).filter(Boolean));
+            // "offered" = every word of the dish name appears in our last message. A
+            // ONE-word dish ("Fries") is only offered when it appears as its own bullet /
+            // bold name — the word "fries" inside "Combo (fries + drink)" on the bill made
+            // the whole menu item "Fries" count as offered, and "add loaded fries" was
+            // then rewritten to plain Fries.
+            const lastLcRaw = String(lastAi).toLowerCase();
             const offered = loaded.menu.filter((m) => {
               if (m.available === false) return false;
               const enT = normName(m.name).split(" ").filter((t) => t.length >= 2);
+              if (enT.length === 1) {
+                const nm = String(m.name).toLowerCase();
+                return lastLcRaw.includes(`*${nm}*`) || lastLcRaw.includes(`• ${nm}`) || new RegExp(`(^|\\n)\\s*[•\\-]?\\s*${nm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(lastLcRaw);
+              }
               if (enT.length && enT.every((t) => lastToksEn.has(t))) return true;
               const arT = arNz(m.name_ar || "").split(/\s+/).filter((t) => t.length >= 2 && !/^[٠-٩]+$/.test(t));
               return arT.length > 0 && arT.every((t) => lastToksAr.has(t));
             });
+            // and NEVER override a dish the guest typed in full — "add loaded fries" IS Loaded Fries
+            const typedFull = (e.items || []).some((it) => { const n = normName(it.name); return n && normName(arOptionWords(input.message)).includes(n); });
+            if (typedFull) offered.length = 0;
+            // "add one" / "one of those" / "ok get me that" / «هات واحد» right after we
+            // named EXACTLY ONE dish (a price answer, a suggestion) → that dish. With
+            // several named, the guest's other words must single one out (below).
+            // "ok add one, cash, now" / «طيب زود واحدة، كاش دلوقتي» — the referent is at the
+            // START; whatever follows (payment, time) is other answers, not a dish
+            // (no \b after Arabic — JS word boundaries are ASCII-only; use a letter lookahead)
+            const anaphora = /^\W*(?:ok(?:ay)?|great|tamam|تمام|طيب|ماشي|yes|aywa|ايوه|أيوة)?\W*(?:add|get me|give me|i want|i ll take|ill take|hat|hatli|zawed|zawed li|عايز|هات|هاتلي|زود|زوّد|ضيف|زودلي)?\W*(?:one|1|واحد|واحدة|wa7ed|wa7da|it|that|this|those|these|ده|دي|دول|da|di|dol)(?![\p{L}\p{N}])(?:\s+of\s+(?:those|these|them))?/iu;
+            // judged on the FIRST clause ("great, one of those as a sandwich" | "and a classic
+            // burger for me") — a named dish in a later clause is an extra line, not the referent
+            const firstClause = input.message.trim().split(/\s*(?:,|،|\band\b|\bw\b|\bو\b|\bplus\b|\bكمان\b)\s*/iu)[0] || input.message.trim();
+            const isAnaphora = anaphora.test(firstClause) && !loaded.menu.some((m) => normName(firstClause).includes(normName(m.name)));
+            // when OUR last message named several dishes but the guest's PREVIOUS message
+            // asked about exactly one of them («اللودد فرايز بكام؟» → "add one"), the
+            // referent is that one, not the padding around it
+            if (isAnaphora) {
+              // the dish the guest asked about in THEIR previous message is the referent —
+              // it beats whatever we listed around it (the model once answered a Loaded
+              // Fries price question by talking about Buffalo Chicken Fries)
+              const prevGuest = String([...(input.history || [])].reverse().find((h) => h.role === "guest")?.message || "").toLowerCase();
+              const pgN = normName(arOptionWords(prevGuest)); const pgAr = arNz(prevGuest);
+              const askedAbout = loaded.menu.filter((m) => m.available !== false && ((normName(m.name).length >= 4 && pgN.includes(normName(m.name))) || (m.name_ar && arNz(m.name_ar).length >= 4 && pgAr.includes(arNz(m.name_ar)))));
+              if (askedAbout.length === 1) { offered.length = 0; offered.push(askedAbout[0]); }
+            }
+            if (offered.length === 1 && isAnaphora) {
+              const qty = Math.min(Math.max(Math.round(Number(e.items?.[0]?.qty || e.edits?.[0]?.qty) || 1), 1), 20);
+              const msgN = normName(arOptionWords(input.message));
+              const namedExtras = (e.items || []).filter((it) => { const n = normName(it.name); return n && n !== normName(offered[0].name) && (msgN.includes(n) || n.split(" ").filter((w) => w.length >= 4).every((w) => msgN.includes(w))); });
+              e.items = [{ name: offered[0].name, qty, notes: null }, ...namedExtras];
+              if (Array.isArray(e.edits)) e.edits = e.edits.filter((ed) => ed?.op !== "add" && ed?.op !== "replace");
+              if (Array.isArray(e.edits)) e.edits = e.edits.filter((ed) => ed?.op !== "add" && ed?.op !== "replace");
+              answeredAmbiguity = offered[0].name;
+            }
+            // "one of those" with SEVERAL dishes named and no distinguishing word: the
+            // extractor's guess must be one of them, or we ask which — it once picked a
+            // beef burger for a daughter who doesn't eat beef, right after we listed
+            // three chicken dishes
+            if (offered.length >= 2 && isAnaphora) {
+              const offeredN = new Set(offered.map((m) => normName(m.name)));
+              const guessed = [...(e.items || []).map((it) => normName(it.name)), ...(e.edits || []).filter((ed) => ed?.op === "add" && ed.item).map((ed) => normName(ed.item))];
+              const inList = guessed.filter((n) => offeredN.has(n));
+              if (guessed.length && !inList.length) {
+                // keep dishes the guest literally NAMED elsewhere in the message; drop the guess
+                const msgN = normName(arOptionWords(input.message));
+                const named = (e.items || []).filter((it) => { const n = normName(it.name); return n && (msgN.includes(n) || n.split(" ").filter((w) => w.length >= 4).every((w) => msgN.includes(w))); });
+                ambiguous.push({ said: firstClause.slice(0, 30), qty: 1, candidates: offered.slice(0, 4).map((m) => m.name) });
+                e.items = named.length ? named : null;
+              }
+            }
             if (offered.length >= 2) {
               const said = normName(arOptionWords(input.message));
               const saidAr = arNz(input.message);
@@ -427,11 +521,14 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         if ((e.items || []).length === 1 && (Number(e.items[0].qty) || 1) === 1) {
           const WORD_NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, "واحد": 1, "واحدة": 1, "اتنين": 2, "إتنين": 2, "تلاتة": 3, "ثلاثة": 3, "اربعة": 4, "أربعة": 4, "خمسة": 5, "ستة": 6, wa7ed: 1, etnen: 2, etneen: 2, talata: 3, tlata: 3, arba3a: 4, khamsa: 5, setta: 6 };
           const msg0 = String(input.message || "").toLowerCase().replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
-          const m = msg0.match(/(?:^|[^\p{L}\p{N}])(\d{1,2}|one|two|three|four|five|six|واحدة?|ا?ت?نين|إتنين|تلاتة|ثلاثة|ا?ربعة|أربعة|خمسة|ستة|wa7ed|etne+n|t?lata|arba3a|khamsa|setta)\s*(?:x|×|\*)?\s*(?=[\p{L}])/iu);
+          // Franco digits-as-letters ("3ayez"=عايز, "7aga", "2ahwa") are NOT counts:
+          // blank every digit that is immediately followed by a letter with no space
+          const msgQ = msg0.replace(/(?<![\p{L}\p{N}])[2357](?=[a-z])/giu, "");
+          const m = msgQ.match(/(?:^|[^\p{L}\p{N}])(\d{1,2}|one|two|three|four|five|six|واحدة?|ا?ت?نين|إتنين|تلاتة|ثلاثة|ا?ربعة|أربعة|خمسة|ستة|wa7ed|etne+n|t?lata|arba3a|khamsa|setta)\s*(?:x|×|\*)?\s*(?=[\p{L}])/iu);
           if (m) {
             const n = WORD_NUM[m[1]] ?? Number(m[1]);
             // never confuse the dish's own size number ("3 pcs", "10 pieces", "500 ml")
-            const after = msg0.slice(m.index + m[0].length, m.index + m[0].length + 12);
+            const after = msgQ.slice(m.index + m[0].length, m.index + m[0].length + 12);
             const sizeWord = /^(pcs?|pieces?|piece|قطع|قطعة|ml|g|gm|kg|l)\b/i.test(after.trim());
             // the number is PART OF THE DISH NAME ("4x4", "4 X 4", "Nuggets 10 pcs",
             // "Tenders 3 Pcs") when the matched dish name itself contains that number
@@ -442,7 +539,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             // digit/letter boundaries become spaces so "4x4" reads like the dish "4 X 4"
             const splitNum = (s2) => normName(String(s2).replace(/(\d)([a-z])/gi, "$1 $2").replace(/([a-z])(\d)/gi, "$1 $2"));
             const dishN = splitNum(e.items[0].name || "");
-            const msgNorm = ` ${splitNum(msg0)} `;
+            const msgNorm = ` ${splitNum(msgQ)} `;
             // the guest typed the dish's own numbered name (or its numbered core: "4 x 4",
             // "tenders 3 pcs", "nuggets 10 pcs") → that number is not a count
             const dishNumIdx = dishN.search(new RegExp(`(^|[^0-9])${n}([^0-9]|$)`));
@@ -743,7 +840,8 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         // an option between items, applied by code against the item's real choice lists.
         // Ambiguous matches set nothing (the walk re-asks) — never a guess.
         const applyOptionTo = (it, want) => {
-          const w = normName(want || "");
+          // the wanted choice may be Arabic/Franco («فانتا», "kombo") — map to the menu's words first
+          const w = normName(arOptionWords(want || ""));
           if (!w || !it) return false;
           for (const g of it.option_defs || []) {
             if (g.key === "slots") continue;
@@ -778,6 +876,22 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           return enOk || arOk;
         };
         for (const ed of (e.edits || []).slice(0, 6)) {
+          // "change the drink to fanta" — the model wrote replace Soft Drink→Fanta (two
+          // DISHES). If the incoming value is a CHOICE of an option group on a draft
+          // item (the combo's drink), it's that option changing, not a dish swap.
+          if ((ed?.op === "replace" || ed?.op === "add") && (ed.with || ed.item)) {
+            const val = normName(ed.with || ed.item);
+            const host = items.find((it) => (it.option_defs || []).some((g) => g.key !== "slots" && groupChoices(g, loaded.menu).some((c) => normName(c.name) === val || normName(c.name).split(" ")[0] === val)));
+            if (host && !items.some((it) => normName(it.name) === val)) {
+              const g = (host.option_defs || []).find((g2) => groupChoices(g2, loaded.menu).some((c) => normName(c.name) === val || normName(c.name).split(" ")[0] === val));
+              const c = groupChoices(g, loaded.menu).find((c2) => normName(c2.name) === val || normName(c2.name).split(" ")[0] === val);
+              if (g && c && (ed.op === "replace" || /(?<![\p{L}])(change|switch|make it|instead|بدل|غير|غيّر|khaleeh|ghayar)(?![\p{L}])/iu.test(input.message))) {
+                host.options = { ...(host.options || {}), [g.key]: c.name };
+                outcomeNotices.push(L2(`${g.label || g.key} → *${c.name}* ✅`, `${arLabel(g.label || g.key)} → *${arWord(c.name)}* ✅`, `${g.label || g.key} → *${c.name}* ✅`));
+                continue;
+              }
+            }
+          }
           if ((ed?.op === "add" && ed.item && !guestNamed(ed.item)) || (ed?.op === "replace" && ed.with && !guestNamed(ed.with))) {
             log(`order: dropped model edit ${ed.op} → "${ed.with || ed.item}" — the guest never named it`);
             continue;
@@ -996,8 +1110,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         // demand a pin yet. Handled after savePending exists (var hoisted).
         var whichPlace = !placed && placeCandidates?.length ? placeCandidates : null;
         if (whichPlace) { /* fallthrough to the block below */ }
-        else if (outsideArea) return { kind: "no_delivery_area", items, branch: branchInfo?.name || null };
-        else if (dq.available && dq.covered === false && dq.has_zones && placed) return { kind: "no_delivery_area", items, branch: branchInfo?.name || null };
+        // an honest "we don't deliver there" must KEEP THE DRAFT — "ok pickup then" is
+        // the next message, and losing the items re-sent the menu instead (deferred
+        // until savePending exists, like need_pin)
+        else if (outsideArea || (dq.available && dq.covered === false && dq.has_zones && placed)) { var refuseArea = true; }
         if (dq.covered && dq.min_order && !dq.meets_min) return { kind: "below_min_order", items, min_order: dq.min_order };
         // Ask for a pin when (a) the address couldn't be placed at all, or (b) it's in a
         // covered zone but the restaurant prices by DISTANCE and we have no point.
@@ -1044,6 +1160,11 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // Distance-priced and we couldn't place the typed address on the map: the fee
       // can't be computed honestly, so ask for a pin/Maps link instead of inventing a
       // number. The address text is kept — the pin only adds precision.
+      if (typeof refuseArea !== "undefined" && refuseArea) {
+        // items kept, delivery type + address cleared so the guest's "pickup then" lands cleanly
+        await savePending({ items, order_type: null, address: null, map_link: null, delivery_point: null, awaiting_option: null, awaiting_location: false, place_candidates: null, type_asked: true });
+        return { kind: "no_delivery_area", items, running: runningOf(items), branch: branchInfo?.name || null };
+      }
       if (typeof whichPlace !== "undefined" && whichPlace && items.length) {
         await savePending({ address, awaiting_option: null, awaiting_location: true, place_candidates: whichPlace.map((c) => ({ lat: c.lat, lng: c.lng, label: c.label, source: c.source })) });
         return { kind: "which_place", items, running, candidates: whichPlace.map((c) => c.label), notices: outcomeNotices };
@@ -1074,6 +1195,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // words that are OPTION CHOICES of the item ("full meal, medium, french fries,
       // coca cola") are answers, not swallowed products — leave them for the resolver
       const isChoiceTalk = (it, nt) => {
+        // "combo with soft drink" / "as a meal with cola" — describes the SERVING FORMAT
+        // (a choice), never a separate product; the mover once turned it into a 50 EGP
+        // "Soft Drink" line next to a combo that already includes a drink
+        if (/(?<![\p{L}])(combo|meal|كومبو|وجبة|wagba|kombo)(?![\p{L}])/iu.test(nt) && (it.option_defs || []).some((g) => groupChoices(g, loaded.menu).some((c) => /combo|meal|كومبو|وجبة/i.test(c?.name || "")))) return true;
         const words = normName(arOptionWords(nt)).split(" ").filter((w) => w.length >= 3);
         if (!words.length) return false;
         const choiceWords = new Set((it.option_defs || []).flatMap((g) => groupChoices(g, loaded.menu).flatMap((c) => normName(c?.name || "").split(" "))).filter((w) => w.length >= 3));
@@ -1157,8 +1282,11 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // (…unless this very message answers an option — "medium" right after we
       // pinned the tenders — then the option is applied first and the type follows.)
       const saidOptNow = ` ${normName(arOptionWords(input.message))} `;
-      const answersAnOptionNow = saidOptNow.trim().length >= 3 && saidOptNow.trim().split(" ").length <= 14
-        && items.some((it) => (it.option_defs || []).some((g) => groupChoices(g, loaded.menu).some((c) => { const cn = normName(c?.name || ""); return cn.length >= 3 && saidOptNow.includes(` ${cn} `); })));
+      // any message that CONTAINS a choice word of a draft item ("…burger sandwich, no
+      // pickles…", "combo cola") is answering an option inline — the resolver must run
+      // before the type ask, else "sandwich" said up front is asked again two turns later
+      const answersAnOptionNow = saidOptNow.trim().length >= 3
+        && items.some((it) => (it.option_defs || []).some((g) => groupChoices(g, loaded.menu).some((c) => { const cn = normName(c?.name || ""); const first = cn.split(" ")[0]; return (cn.length >= 3 && saidOptNow.includes(` ${cn} `)) || (first.length >= 4 && saidOptNow.includes(` ${first} `)); })));
       // Only when the dish OPENS the order (no draft items at the start of the turn) —
       // a mid-draft addition ("lets add chocolate" onto the tenders) must merge and
       // continue, never restart with "how would you like it?" and drop the new line.
@@ -1166,6 +1294,86 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       if (config.ai?.ask_type_first === true && !orderType && items.length && draftWasEmpty && !loaded.pending?.type_asked && !loaded.pending?.awaiting_option && !answersAnOptionNow) {
         await savePending({ items, type_asked: true, leadin_shown: true });
         return { kind: "ask_fulfillment", type_first: true, first_fulfilment: true, need_type: true, delivery: deliveryOn, notices: outcomeNotices, items, running: runningOf(items) };
+      }
+
+      // UP-FRONT SPLIT: "2 signature burgers, one combo with cola one sandwich, the
+      // sandwich no pickles" — a multi-unit line whose message assigns DIFFERENT choices
+      // to different units. Code parses "one/1/wa7ed/واحد <choice>" segments and splits
+      // the line (with any per-segment removal note) instead of leaving the whole
+      // sentence as a note. Only when the segments' units add up to the line's qty.
+      for (let li = 0; li < items.length; li++) {
+        const it = items[li];
+        if (!(Number(it.qty) > 1) || !(it.option_defs || []).length) continue;
+        const said = normName(arOptionWords(input.message));
+        const g0 = (it.option_defs || []).find((g) => g.key !== "slots" && !g.when && groupChoices(g, loaded.menu).length);
+        if (!g0 || it.options?.[g0.key]) continue;
+        const choices = groupChoices(g0, loaded.menu);
+        // a segment = a count immediately followed by a CHOICE word ("one combo…", "1 sandwich…")
+        const firstWords = choices.map((c) => normName(c.name).split(" ")[0]).filter((w) => w.length >= 3);
+        const CNT = "(?:\\d{1,2}|one|two|three|wa7ed|etnen|واحد|اتنين)";
+        const segRe = new RegExp(`(?:^|[\\s,،]|\\band\\b|\\bw\\b|و)\\s*(${CNT.slice(3, -1)})\\s+(${firstWords.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b(.*?)(?=(?:[\\s,،]|\\band\\b|\\bw\\b|و)\\s*${CNT}\\s+(?:${firstWords.join("|")})\\b|$)`, "giu");
+        const N = { one: 1, two: 2, three: 3, wa7ed: 1, etnen: 2, "واحد": 1, "اتنين": 2 };
+        const segs = [];
+        let m;
+        while ((m = segRe.exec(said))) {
+          const q = N[m[1]] ?? Number(m[1]);
+          const hit = choices.find((c) => normName(c.name).split(" ")[0] === m[2]);
+          if (hit && q >= 1) segs.push({ q, choice: hit.name, tail: `${m[2]} ${m[3] || ""}`.trim() });
+        }
+        const total = segs.reduce((a, s2) => a + s2.q, 0);
+        if (segs.length >= 2 && new Set(segs.map((s2) => s2.choice)).size > 1 && total === Number(it.qty)) {
+          const lines = segs.map((s2) => {
+            const line = { ...it, qty: s2.q, options: { ...(it.options || {}), [g0.key]: s2.choice }, notes: null };
+            // a removal stated for THIS segment ("the sandwich no pickles") rides on that line
+            const rm = new RegExp(`${normName(s2.choice).split(" ")[0]}[^,،]*?(?:no|without|men gheir|بدون|من غير)\\s+([a-z\\p{L}][a-z\\p{L} ]{2,20}?)(?=\\s*(?:,|،|\\band\\b|\\bw\\b|و|$))`, "iu").exec(said);
+            if (rm) line.notes = `no ${normName(arOptionWords(rm[1].trim())).replace(/^(the|el)\\s+/, "")}`;
+            // a drink named right after the combo word ("combo with cola") answers the drink group
+            const drinkG = (it.option_defs || []).find((g) => g.when && groupApplies(g, line.options));
+            if (drinkG) { const dc = groupChoices(drinkG, loaded.menu).find((c) => s2.tail.includes(normName(c.name).split(" ")[0]) || (normName(c.name).includes("cola") && /\bcola\b/.test(s2.tail))); if (dc) line.options[drinkG.key] = dc.name; }
+            return line;
+          });
+          items.splice(li, 1, ...lines);
+          li += lines.length - 1;
+        }
+      }
+      // A NOTE that is really an option answer ("sandwich", "combo", «كومبو») — kept as a
+      // note when a turn was cut short (an out-of-zone refusal saved the draft before
+      // the resolver ran) — becomes the option, so the choice isn't re-asked forever.
+      for (const it of items) {
+        if (!it.notes) continue;
+        const parts = String(it.notes).split(/\s*[,·،]\s*/).filter(Boolean);
+        const keep = [];
+        for (const part of parts) {
+          const pn = normName(arOptionWords(part));
+          let used = false;
+          for (const g of it.option_defs || []) {
+            if (g.key === "slots" || it.options?.[g.key] || !groupApplies(g, it.options || {})) continue;
+            const chs = groupChoices(g, loaded.menu);
+            // a note naming SEVERAL choices of one group ("spicy for first two, mild for
+            // third") is a per-unit split for the resolver, never a single answer
+            const named = chs.filter((o) => { const on = normName(o.name); const f = on.split(" ")[0]; return f.length >= 3 && new RegExp(`(^|\\s)${f}(\\s|$)`).test(pn); });
+            if (named.length > 1 && Number(it.qty) > 1) { used = false; break; }
+            const c = chs.find((o) => { const on = normName(o.name); return on === pn || (pn.length >= 4 && on.split(" ")[0] === pn); });
+            if (c) { it.options = { ...(it.options || {}), [g.key]: c.name }; used = true; break; }
+          }
+          if (!used) keep.push(part);
+        }
+        it.notes = keep.length ? keep.join(" · ") : null;
+      }
+      // Stored option values are upgraded to the CANONICAL choice name ("Combo" →
+      // "Combo (fries + drink)") so pricing, the bill and every downstream check read
+      // the real name — a short form kept from an inline answer priced a combo as a
+      // sandwich (190 instead of 260).
+      for (const it of items) {
+        for (const g of it.option_defs || []) {
+          const v = it.options?.[g.key];
+          if (typeof v !== "string" || !v) continue;
+          const opts = groupChoices(g, loaded.menu);
+          const vn = normName(v);
+          if (opts.some((o) => normName(o.name) === vn)) continue;
+          const canon = opts.find((o) => normName(o.name).startsWith(vn + " ")) || opts.find((o) => vn.startsWith(normName(o.name) + " "));
+          if (canon) it.options[g.key] = canon.name;
+        }
       }
 
       // 2) OPTIONS — finish configuring every item.
@@ -1348,6 +1556,20 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // against the dish's real ingredient text (DB), never guessed: the phantom
       // removal is stripped from the kitchen note and the guest is told the dish
       // already comes without it.
+      // Notes that say the same thing in two scripts ("no onion · no بصل", "no pickles ·
+      // no mekhalel") collapse to one — the extractor translates, and code re-reads the raw
+      // message, so both used to land on the ticket.
+      for (const it of items || []) {
+        if (!it.notes) continue;
+        const parts = String(it.notes).split(/\s*·\s*|\s*,\s*(?=no |without |من غير|بدون)/).map((x) => x.trim()).filter(Boolean);
+        const seen = new Set(); const kept = [];
+        for (const part of parts) {
+          const key = normName(arOptionWords(part)).replace(/^(no|without|men gheir|bedoon)\s+/, "no ").replace(/\b(the|el)\b\s*/g, "").replace(/s\b/g, "").trim();
+          if (!key || seen.has(key)) continue;
+          seen.add(key); kept.push(part);
+        }
+        it.notes = kept.join(" · ") || null;
+      }
       // Conversational residue is not a kitchen note: "no the smokey" (picking a
       // dish) once landed as a literal note "no" and printed as "(Sandwich · no)".
       const FILLER_NOTE = /^(yes|yeah|yep|no|nah|ok(ay)?|sure|tamam|تمام|طيب|اوكي|أوكي|لا|اه|أه|ايوه|أيوة|ماشي)[\s!.،,]*$/iu;
@@ -1361,7 +1583,9 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // Words that are part of the dish/option names are skipped — "no the smokey"
       // picks a dish, it doesn't strip the smoke.
       {
-        const RM = /(no|without|hold the|don'?t add|dont add|do not add|بدون|من غير|بلاش|متضفش|ما تضيفش|matdefsh|ma tdefsh|men gheir|min gheir|bedoon|bdoon)\s+((?:the |el )?[\p{L}][\p{L} ]{0,23})/giu;
+        // each removal ends at the next conjunction / removal marker / comma — "من غير مخلل
+        // ومن غير بصل" is TWO removals, not one 24-char note
+        const RM = /(no|without|hold the|don'?t add|dont add|do not add|بدون|من غير|بلاش|متضفش|ما تضيفش|matdefsh|ma tdefsh|men gheir|min gheir|bedoon|bdoon)\s+((?:the |el )?[\p{L}][\p{L} ]{0,23}?)(?=\s*(?:,|،|\.|;|\band\b|\bw\b|\bwith\b|\bbut\b|\bbas\b|و(?=من|بدون|بلاش|ال)|\bno\b|\bwithout\b|\bmen gheir\b|\bbedoon\b|من غير|بدون|بلاش|$))/giu;
         const awIdx = loaded.pending?.awaiting_option?.index;
         const target = (awIdx != null && items[awIdx]) || (items.length === 1 ? items[0] : null);
         // A question is never a kitchen note: "does the classic come without onion?"
@@ -1519,7 +1743,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         const loc = freshLocation(diner);
         const near = loc ? nearestBranches(branches, loc.lat, loc.lng, 3).map((b) => `${b.name} (${b.km} km)`) : null;
         return {
-          kind: "ask_fulfillment", items, running, first_fulfilment: firstFulfilment, notices: outcomeNotices,
+          kind: "ask_fulfillment", items, running: runningOf(items), first_fulfilment: firstFulfilment, notices: outcomeNotices,
           need_type: needType, delivery: deliveryOn, need_pickup_time: needPickupTime, prep_min: prepMin,
           need_payment: !!foldPay, pay_methods: foldPay || [],
           need_branch: needBranch, branches: branches.map((b) => b.name), nearest: near,
@@ -1567,9 +1791,18 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         }
         return null;
       })();
+      // a pay word at the START of the message counts even with more after it — «كارت
+      // وجاي دلوقتي», "cash w gay ba3d 20 d2ee2a": the model sometimes drops payment
+      // when a time rides in the same breath
+      const leadPay = (() => {
+        const m0 = /^\W*(cash|card|visa|instapay|online|كاش|كارت|فيزا|بطاقة|انستاباي|إنستاباي|اونلاين|أونلاين)(?![\p{L}])/iu.exec(input.message.trim());
+        if (!m0) return null;
+        const w = m0[1].toLowerCase();
+        return /card|visa|كارت|فيزا|بطاقة/.test(w) ? "card" : /cash|كاش/.test(w) ? "cash" : "instapay";
+      })();
       const payment = ["cash", "card", "instapay"].includes(String(e.payment_method || "").toLowerCase())
         ? String(e.payment_method).toLowerCase()
-        : offeredPay || (input.message.trim().length <= 14 && PAY_WORD[bare]) || loaded.pending?.payment_method || null;
+        : offeredPay || leadPay || (input.message.trim().length <= 14 && PAY_WORD[bare]) || loaded.pending?.payment_method || null;
       // ONE add-on offer per order — CODE picks it, never the model, always a real menu
       // item at its real price. Source order: the restaurant's own list
       // (menu_config.upsell.items) → the dish's pairs_with → auto: the cheapest
@@ -2442,7 +2675,12 @@ function itemPrice(item) {
   for (const g of item.option_defs || []) {
     const chosen = picked[g.key];
     for (const name of Array.isArray(chosen) ? chosen : [chosen].filter(Boolean)) {
-      const c = (g.choices || []).find((x) => normName(x.name) === normName(name));
+      const nn = normName(name);
+      const c = (g.choices || []).find((x) => normName(x.name) === nn)
+        // a stored short form ("Combo") for a longer choice ("Combo (fries + drink)") —
+        // the resolver sometimes keeps the guest's word; the PRICE must still be the combo's
+        || (g.choices || []).find((x) => nn && normName(x.name).startsWith(nn + " "))
+        || (g.choices || []).find((x) => nn && nn.startsWith(normName(x.name) + " "));
       if (!c) continue;
       if (c.price != null) base = Number(c.price);
       if (c.delta) delta += Number(c.delta);
@@ -2617,6 +2855,10 @@ function distinctTokens(opts) {
 // "ميديام فرنش فرايز وكوكاكولا" (voice notes especially) matches NOTHING and
 // every question gets re-asked. Longest-first so "كوكا كولا دايت" wins over "كولا".
 const AR_OPTION_WORDS = [
+  ["فانتا", "fanta"], ["سبرايت", "sprite"], ["كولا دايت", "coca cola diet"], ["بيبسي دايت", "coca cola diet"], ["بيبسي", "coca cola"], ["كولا", "coca cola"],
+  ["سفن اب", "sprite"], ["سفن أب", "sprite"], ["ميرندا", "fanta"], ["مياه", "water"], ["مية", "water"],
+  ["ساندوتش", "sandwich"], ["سندوتش", "sandwich"], ["ساندويتش", "sandwich"], ["كومبو", "combo"], ["وجبة", "meal"], ["وجبه", "meal"],
+  ["حار", "hot"], ["حارة", "hot"], ["سبايسي", "hot"], ["خفيف", "mild"], ["وسط", "medium"], ["متوسط", "medium"], ["صغير", "small"], ["كبير", "large"],
   ["كوكا كولا دايت", "coca cola diet"], ["كوكاكولا دايت", "coca cola diet"],
   ["كوكا كولا", "coca cola"], ["كوكاكولا", "coca cola"], ["كولا دايت", "coca cola diet"],
   ["فرنش فرايز", "french fries"], ["بطاطس عادية", "french fries"], ["فرنشايز", "french fries"],
@@ -2635,9 +2877,28 @@ const AR_OPTION_WORDS = [
   ["ساندوتش بس", "sandwich only"], ["ساندويتش بس", "sandwich only"], ["ساندوتش لوحده", "sandwich only"],
   ["ساندوتش", "sandwich"], ["ساندويتش", "sandwich"], ["وجبة", "meal"],
 ];
+// Arabic COUNT / POSITION words used when splitting units ("حار للأول اتنين وخفيف
+// للتالت") — mapped to the English forms the splitter and unitsForChoice understand.
+// Order matters: longer phrases first.
+const AR_COUNT_WORDS = [
+  ["للأول اتنين", "for the first 2"], ["للاول اتنين", "for the first 2"], ["لأول اتنين", "for the first 2"], ["لاول اتنين", "for the first 2"],
+  ["للأول تلاتة", "for the first 3"], ["للاول تلاتة", "for the first 3"], ["للأول واحد", "for the first 1"], ["للاول واحد", "for the first 1"],
+  ["للتاني", "for the second"], ["للثاني", "for the second"], ["للتالت", "for the third"], ["للثالث", "for the third"], ["للرابع", "for the fourth"], ["للباقي", "for the rest"], ["للأخير", "for the last"], ["للاخير", "for the last"],
+  ["الأول", "the first"], ["الاول", "the first"], ["التاني", "the second"], ["الثاني", "the second"], ["التالت", "the third"], ["الثالث", "the third"], ["الأخير", "the last"], ["الاخير", "the last"], ["الباقي", "the rest"],
+  ["اتنين", "2"], ["إتنين", "2"], ["تلاتة", "3"], ["ثلاثة", "3"], ["تلاته", "3"], ["اربعة", "4"], ["أربعة", "4"], ["واحد", "1"], ["واحدة", "1"],
+];
+// Franco food words guests actually type — mapped to the English the menu uses
+const FRANCO_FOOD_WORDS = [
+  ["batates", "fries"], ["bataates", "fries"], ["mashroob", "drink"], ["mashrob", "drink"], ["3aseer", "juice"], ["3asir", "juice"],
+  ["gebna", "cheese"], ["gebnah", "cheese"], ["basal", "onion"], ["mekhalel", "pickles"], ["me5alel", "pickles"], ["tamatem", "tomato"],
+  ["7ar", "hot"], ["7arr", "hot"], ["khafif", "mild"], ["metwaset", "medium"], ["wast", "medium"],
+  ["sandawetsh", "sandwich"], ["sandwetsh", "sandwich"], ["kombo", "combo"], ["wagba", "meal"],
+];
 function arOptionWords(message) {
   let m = String(message || "");
   for (const [ar, en] of AR_OPTION_WORDS) m = m.split(ar).join(` ${en} `);
+  for (const [fr, en] of FRANCO_FOOD_WORDS) m = m.replace(new RegExp(`(?<![a-z0-9])${fr}(?![a-z0-9])`, "gi"), ` ${en} `);
+  for (const [ar, en] of AR_COUNT_WORDS) m = m.split(ar).join(` ${en} `);
   return m;
 }
 

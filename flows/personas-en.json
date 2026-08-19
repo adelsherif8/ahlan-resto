@@ -1,0 +1,458 @@
+[
+ {
+  "id": "en01",
+  "name": "one-liner: everything in one message",
+  "phone": "+2015560101",
+  "turns": [
+   "2 signature burger combo with cola, delivery to point 90 mall, cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "2 combos on the bill": "2× \\*Signature Burger\\*[^\\n]*Combo",
+   "delivery fee from distance": "Delivery \\(~[0-9.]+ km\\): 50 EGP",
+   "cola chosen": "Coca - Cola"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en02",
+  "name": "the asker: 3 questions then orders",
+  "phone": "+2015560102",
+  "turns": [
+   "what time do you close?",
+   "does the classic burger have onion?",
+   "do you deliver to rehab?",
+   "ok classic burger sandwich no onion, delivery to rehab, cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "hours answered": "close|open|pm|am|:\\d\\d",
+   "onion answered": "onion",
+   "rehab answered": "rehab|yes|deliver",
+   "no onion on ticket": "no onion",
+   "delivery priced": "Delivery \\(~[0-9.]+ km\\)"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en03",
+  "name": "the changer: qty, remove, swap drink",
+  "phone": "+2015560103",
+  "turns": [
+   "classic burger combo sprite for pickup",
+   "actually make it 2",
+   "add loaded fries",
+   "no wait remove the fries",
+   "change the drink to fanta",
+   "cash, coming in 20 min"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "2 classics": "2× \\*Classic Burger\\*",
+   "fanta": "Fanta"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  },
+  "forbid_last": {
+   "fries still there": "• 1× \\*(Loaded Fries|لودد فرايز)\\*",
+   "sprite still there": "Sprite\\)"
+  }
+ },
+ {
+  "id": "en04",
+  "name": "the picky one: real + phantom removals",
+  "phone": "+2015560104",
+  "turns": [
+   "smoky bbq burger sandwich, no pickles no onion, sauce on the side, and no ranch",
+   "pickup",
+   "card, coming now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "pickles removed": "no pickles",
+   "onion removed": "no onion",
+   "sauce note": "sauce on the side",
+   "phantom ranch refused": "already comes without ranch"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en05",
+  "name": "the family: split spice + kids + shake, dine-in",
+  "phone": "+2015560105",
+  "turns": [
+   "3 chicken tenders nashville, hot for the first 2 and mild for the third, plus 2 little luciz nuggets and a chocolate milkshake, dine in",
+   "cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "2 hot": "2× \\*Chicken Tenders 3 Pcs Nashville\\*[^\\n]*Hot",
+   "1 mild": "1× \\*Chicken Tenders 3 Pcs Nashville\\*[^\\n]*Mild",
+   "nuggets": "2× \\*Little Luci'z Nuggets 4 pcs\\*",
+   "shake": "Milkshake Chocolate"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en06",
+  "name": "bare answers only",
+  "phone": "+2015560106",
+  "turns": [
+   "signature burger",
+   "delivery",
+   "combo",
+   "cola",
+   "https://maps.google.com/?q=30.0203,31.4947",
+   "cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "combo": "Combo",
+   "cola": "Coca - Cola",
+   "fee from pin": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en07",
+  "name": "address struggler: vague → place → pin",
+  "phone": "+2015560107",
+  "turns": [
+   "classic burger sandwich for delivery",
+   "cash, villa 7 street 12 next to the pharmacy",
+   "levels mall",
+   "https://maps.google.com/?q=30.0221,31.4903"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "priced": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "asked for pin twice": "share your location[\\s\\S]*share your location"
+  }
+ },
+ {
+  "id": "en08",
+  "name": "returning regular: the usual + one more",
+  "phone": "+2015560108",
+  "turns": [
+   "hi",
+   "the usual",
+   "add a cookie",
+   "pickup, cash, now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "usual rebuilt": "Signature Burger",
+   "cookie added": "Cookie"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  },
+  "seed": {
+   "name": "Omar",
+   "visit_count": 6,
+   "orders": [
+    {
+     "items": [
+      {
+       "name": "Signature Burger",
+       "qty": 1,
+       "options": {
+        "format": "Sandwich"
+       },
+       "price": 240
+      }
+     ],
+     "total": 240,
+     "order_type": "pickup"
+    }
+   ]
+  }
+ },
+ {
+  "id": "en09",
+  "name": "wrong turns: menu + price mid-order",
+  "phone": "+2015560109",
+  "turns": [
+   "classic burger sandwich for pickup",
+   "send me the menu",
+   "how much is the loaded fries?",
+   "ok add one, cash, now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "menu sent": "menu",
+   "price answered": "Loaded Fries[^\\n]*100|100 EGP",
+   "draft kept + fries added": "1× \\*Loaded Fries\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en10",
+  "name": "out of zone → pickup",
+  "phone": "+2015560110",
+  "turns": [
+   "classic burger sandwich for delivery to maadi degla street 9",
+   "ok pickup then",
+   "cash, in 20 min"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "honest no": "don't deliver",
+   "pickup order": "Pickup"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "delivery fee charged": "Delivery \\(~"
+  }
+ },
+ {
+  "id": "en13",
+  "name": "negotiator",
+  "phone": "+2015560113",
+  "turns": [
+   "signature burger combo cola delivery to point 90",
+   "any discount?",
+   "why is delivery 50, make it 30",
+   "fine, cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "fee unchanged": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "invented discount": "\\b(10|15|20)% off|discount applied"
+  }
+ },
+ {
+  "id": "en14",
+  "name": "impatient repeater",
+  "phone": "+2015560114",
+  "turns": [
+   "classic burger sandwich pickup",
+   "classic burger sandwich pickup",
+   "??",
+   "hello?",
+   "cash now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "one classic only": "1× \\*Classic Burger\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "duplicated": "2× \\*Classic Burger\\*"
+  }
+ },
+ {
+  "id": "en15",
+  "name": "wrong-restaurant guest",
+  "phone": "+2015560115",
+  "turns": [
+   "do you have pizza?",
+   "any branch in alexandria?",
+   "ok then a classic burger sandwich pickup, cash, now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "no pizza": "don't have|no pizza|not on|only",
+   "order placed anyway": "1× \\*Classic Burger\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "invented pizza": "Margherita|pizza[^\\n]*EGP"
+  }
+ },
+ {
+  "id": "en16",
+  "name": "allergy guest",
+  "phone": "+2015560116",
+  "turns": [
+   "im allergic to mushrooms, is the truffle shroom ok for me?",
+   "ok give me the classic burger sandwich instead, pickup, cash, now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "warned about mushroom": "mushroom",
+   "classic ordered": "1× \\*Classic Burger\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en17",
+  "name": "group splitter",
+  "phone": "+2015560117",
+  "turns": [
+   "2 signature burgers, one combo with cola one sandwich, the sandwich with no pickles",
+   "pickup",
+   "cash, now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "combo line": "1× \\*Signature Burger\\*[^\\n]*Combo",
+   "sandwich line": "1× \\*Signature Burger\\*[^\\n]*Sandwich",
+   "no pickles on one": "no pickles"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en19",
+  "name": "button tapper (labels only)",
+  "phone": "+2015560119",
+  "turns": [
+   "Order now",
+   "Delivery",
+   "signature burger",
+   "Combo (fries + drink)",
+   "Coca - Cola",
+   "https://maps.google.com/?q=30.0203,31.4947",
+   "Cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "combo": "Combo",
+   "cola": "Coca - Cola",
+   "fee": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en20",
+  "name": "status chaser after ordering",
+  "phone": "+2015560120",
+  "turns": [
+   "classic burger sandwich pickup, cash, now",
+   "confirm",
+   "where's my order?",
+   "how long?",
+   "can i cancel?"
+  ],
+  "complete": "answered",
+  "expect": {
+   "ticket": "🎫"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "second ticket": "🎫[\\s\\S]*🎫[\\s\\S]*🎫"
+  },
+  "answered": [
+   "🎫",
+   "received|preparing|on it|ready",
+   "cancel|team|counter"
+  ]
+ },
+ {
+  "id": "en21",
+  "name": "typo machine",
+  "phone": "+2015560121",
+  "turns": [
+   "signture brger sandwch pikup",
+   "cassh, comming now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "signature resolved": "1× \\*Signature Burger\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en22",
+  "name": "upsell taker",
+  "phone": "+2015560122",
+  "turns": [
+   "classic burger sandwich pickup, cash, now",
+   "yes add the loaded fries",
+   "and a cookie",
+   "confirm"
+  ],
+  "complete": "ticket",
+  "expect": {
+   "fries on ticket": "Loaded Fries",
+   "cookie on ticket": "Cookie"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "fries twice": "Loaded Fries[\\s\\S]*Loaded Fries[\\s\\S]*Loaded Fries"
+  }
+ },
+ {
+  "id": "en23",
+  "name": "pickup-time juggler",
+  "phone": "+2015560123",
+  "turns": [
+   "classic burger sandwich pickup, cash",
+   "coming in 30 min",
+   "actually in an hour",
+   "no now",
+   "confirm"
+  ],
+  "complete": "ticket",
+  "expect": {
+   "one ticket": "🎫"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "two tickets": "🎫[\\s\\S]*🎫"
+  }
+ },
+ {
+  "id": "en24",
+  "name": "pin-only guest",
+  "phone": "+2015560124",
+  "turns": [
+   "https://maps.google.com/?q=30.0203,31.4947",
+   "signature burger combo cola delivery",
+   "cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "fee from the earlier pin": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "asked for address": "delivery address\\? Send it like this"
+  }
+ },
+ {
+  "id": "en25",
+  "name": "polite over-explainer",
+  "phone": "+2015560125",
+  "turns": [
+   "hi so my kids are visiting this weekend and my daughter doesnt eat beef, what would you suggest for her? and is it spicy?",
+   "great, one of those as a sandwich and a classic burger sandwich for me, pickup, cash, now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "suggested a chicken dish": "Chicken|Ranch|Nashville|Tenders|Twist",
+   "two lines": "1× \\*Classic Burger\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "invented dish": "veggie|falafel|salad burger"
+  }
+ }
+]

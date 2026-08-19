@@ -155,6 +155,13 @@ defineFlow({
       // guest shared their location → remember the point so we can name the nearest branch
       const loc = input.event?.location;
       if (loc?.lat && loc?.lng) await saveGuestLocation(db, ctx.sessionId, loc.lat, loc.lng);
+      // a PASTED Maps link is a location too — remember it the same way, so a guest who
+      // sends the pin first and orders after isn't asked for the address again
+      else {
+        const { extractMapLink, resolveMapLink } = await import("../services/branches.js");
+        const url = extractMapLink(finalText);
+        if (url) { const r = await resolveMapLink(url).catch(() => null); if (r?.lat != null) await saveGuestLocation(db, ctx.sessionId, r.lat, r.lng); }
+      }
       return { logged: true, text: finalText.slice(0, 120), wa_profile_name: event.profileName || null };
     }, { input: { sessionId: ctx.sessionId, media: norm.media } });
 

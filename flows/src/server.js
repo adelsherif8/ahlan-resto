@@ -4,7 +4,7 @@ import cors from "cors";
 import { PORT, log, llmReady, PUBLIC_BASE } from "./config.js";
 import { resolveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, resolveRestaurantBySlug, resolveAllRestaurants, recordServiceBoot, listServiceBoots, upsertCostDaily, readCostDaily } from "./services/tenant.js";
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
-import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb } from "./engine/flow.js";
+import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb, isTestSession } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
 import { metrics, bump } from "./services/metrics.js";
 import { runRegression, regressionStatus, loadLastRegression } from "./services/regression.js";
@@ -1067,20 +1067,52 @@ app.get("/api/flows", opsAuth, async (_req, res) => {
   try {
     const dbRows = await cached("flows:dbrows", 30_000, async () => {
       const tenants = await resolveAllRestaurants();
-      const perTenant = await Promise.all(tenants.map((t) => listExecutionsDb(t.db, { limit: 300 }).catch(() => [])));
+      const perTenant = await Promise.all(tenants.map(async (t) => {
+        // Two reads on purpose. The newest 300 rows are almost entirely OURS — five suite
+        // passes a day at ~700 runs each bury real guests entirely, so a real-only slice
+        // is fetched as well or the cards would show 0 real runs while real ones existed.
+        const [recent, realOnly] = await Promise.all([
+          listExecutionsDb(t.db, { limit: 300 }).catch(() => []),
+          t.db.from("flow_executions")
+            .select("id,flow,session_id,trigger,status,error,started_at,duration_ms,tokens_in,tokens_out,cost_usd,parent_id")
+            .not("session_id", "like", "web:%")
+            .not("session_id", "like", "+201555%")
+            .order("started_at", { ascending: false }).limit(300)
+            .then(({ data }) => (data || []).map((e) => ({ ...e, is_test: false, nodes: [] })))
+            .catch(() => []),
+        ]);
+        const seen = new Set(recent.map((e) => e.id));
+        return [...recent, ...realOnly.filter((e) => !seen.has(e.id))];
+      }));
       return perTenant.flat();
     });
     const seen = new Set(mem.map((e) => e.id));
     execs = [...mem, ...dbRows.filter((e) => !seen.has(e.id))];
   } catch {}
+  // Split real guests from our own traffic. The top-level fields stay where every caller
+  // expects them but now mean REAL ONLY — showing a cumulative figure that is 99% test
+  // made the friendly card read $6.35 when guests had cost $0.01.
+  const stats = (rows) => {
+    const n = rows.length;
+    const sum = (f) => rows.reduce((a, r) => a + (Number(r[f]) || 0), 0);
+    const cost = sum("cost_usd");
+    return {
+      runs: n,
+      ok: rows.filter((r) => r.status === "ok").length,
+      errors: rows.filter((r) => r.status === "error").length,
+      cost_usd: Math.round(cost * 1e6) / 1e6,
+      avg_ms: n ? Math.round(sum("duration_ms") / n) : 0,
+      avg_cost_per_run: n ? Math.round((cost / n) * 1e6) / 1e6 : 0,
+      avg_tokens_in: n ? Math.round(sum("tokens_in") / n) : 0,
+      avg_tokens_out: n ? Math.round(sum("tokens_out") / n) : 0,
+    };
+  };
   res.json(
     flows.map((fl) => {
-      const runs = execs.filter((e) => e.flow === fl.name);
-      const ok = runs.filter((r) => r.status === "ok").length;
-      const errors = runs.filter((r) => r.status === "error").length;
-      const cost = runs.reduce((s, r) => s + (r.cost_usd || 0), 0);
-      const avgMs = runs.length ? Math.round(runs.reduce((s, r) => s + (r.duration_ms || 0), 0) / runs.length) : 0;
-      return { ...fl, runs: runs.length, ok, errors, cost_usd: Math.round(cost * 1e6) / 1e6, avg_ms: avgMs };
+      const mine = execs.filter((e) => e.flow === fl.name);
+      const real = stats(mine.filter((e) => !(e.is_test ?? isTestSession(e.session_id))));
+      const test = stats(mine.filter((e) => (e.is_test ?? isTestSession(e.session_id))));
+      return { ...fl, ...real, real, test };
     })
   );
 });
@@ -1117,7 +1149,7 @@ app.get("/api/executions", opsAuth, async (req, res) => {
       .sort((a, b) => (a.started_at < b.started_at ? 1 : -1))
       .slice(0, limit);
   } catch {}
-  res.json(merged);
+  res.json(merged.map((e) => ({ ...e, is_test: e.is_test ?? isTestSession(e.session_id) })));
 });
 
 // PostgREST returns at most 1000 rows per request, silently. Every ops read that
@@ -1198,6 +1230,7 @@ app.get("/api/ops/health", opsAuth, async (req, res) => {
       if (r.status !== "error" && !nodes.length) continue;
       failures.push({
         id: r.id, flow: r.flow, session_id: r.session_id, trigger: r.trigger, restaurant: r.restaurant || null,
+        is_test: isTestSession(r.session_id),   // so Health can default to real guests too
         at: r.started_at, duration_ms: r.duration_ms,
         fatal: r.status === "error", // false = a step failed but the run recovered
         error: String(r.error || nodes[0]?.error || "unknown").slice(0, 600),
@@ -2264,6 +2297,88 @@ app.get("/api/ops/breakdown", opsAuth, async (req, res) => {
   }
 });
 
+/**
+ * COST SUMMARY — what real guests actually cost, per tenant, with our own traffic kept
+ * separate, plus a naive monthly projection.
+ *
+ * One `respond` row IS one guest turn, and its cost_usd already contains every sub-flow
+ * it spawned (master → friendly/order). A turn's cost is therefore that single row —
+ * summing its children as well counts the same LLM call two or three times, which is how
+ * a $26 month once read $78. Nothing else is summed here.
+ */
+app.get("/api/ops/cost-summary", opsAuth, async (req, res) => {
+  const days = Math.min(Math.max(Number(req.query.days) || 7, 1), TRACE_RETENTION_D);
+  const since = new Date(Date.now() - days * 86400_000).toISOString();
+  try {
+    const out = await cached(`cost-summary:${days}`, 60_000, async () => {
+      const tenants = await resolveAllRestaurants();
+      const r6 = (x) => Math.round(x * 1e6) / 1e6;
+
+      const shape = (list) => {
+        const turns = list.length;
+        const sum = (f) => list.reduce((a, r) => a + (Number(r[f]) || 0), 0);
+        const cost = sum("cost_usd");
+        const conversations = new Set(list.map((r) => r.session_id).filter(Boolean)).size;
+        const perConvo = conversations ? cost / conversations : 0;
+        const convosPerDay = conversations / days;
+        return {
+          turns,
+          errors: list.filter((r) => r.status === "error").length,
+          cost_usd: r6(cost),
+          avg_cost_per_turn: turns ? r6(cost / turns) : 0,
+          conversations,
+          avg_turns_per_conversation: conversations ? Math.round((turns / conversations) * 10) / 10 : 0,
+          avg_cost_per_conversation: r6(perConvo),
+          conversations_per_day: Math.round(convosPerDay * 100) / 100,
+          avg_tokens_in: turns ? Math.round(sum("tokens_in") / turns) : 0,
+          avg_tokens_out: turns ? Math.round(sum("tokens_out") / turns) : 0,
+          avg_ms: turns ? Math.round(sum("duration_ms") / turns) : 0,
+          // deliberately naive: today's conversation rate held for 30 days. With almost no
+          // real traffic this is nearly zero — that is the honest answer, not a bug.
+          expected_monthly_cost: r6(perConvo * convosPerDay * 30),
+        };
+      };
+
+      const rows = await mapLimit(tenants, 6, async (t) => {
+        const turns = await pageAll((from, to) => t.db.from("flow_executions")
+          .select("session_id,cost_usd,duration_ms,tokens_in,tokens_out,status")
+          .eq("flow", "respond")                       // one row = one guest turn
+          .gte("started_at", since)
+          .order("started_at", { ascending: false }).range(from, to), 20000);
+        const all = turns.rows || [];
+        return {
+          restaurant: t.config?.slug || null,
+          name: t.config?.name || t.config?.slug || null,
+          capped: turns.capped || false,
+          real: shape(all.filter((r) => !isTestSession(r.session_id))),
+          test: shape(all.filter((r) => isTestSession(r.session_id))),
+        };
+      });
+
+      const total = (key) => {
+        const lists = rows.map((r) => r[key]);
+        const cost = lists.reduce((a, x) => a + x.cost_usd, 0);
+        const turns = lists.reduce((a, x) => a + x.turns, 0);
+        const conversations = lists.reduce((a, x) => a + x.conversations, 0);
+        const perConvo = conversations ? cost / conversations : 0;
+        return {
+          turns, cost_usd: r6(cost), conversations,
+          avg_cost_per_turn: turns ? r6(cost / turns) : 0,
+          avg_cost_per_conversation: r6(perConvo),
+          avg_turns_per_conversation: conversations ? Math.round((turns / conversations) * 10) / 10 : 0,
+          conversations_per_day: Math.round((conversations / days) * 100) / 100,
+          expected_monthly_cost: r6(perConvo * (conversations / days) * 30),
+        };
+      };
+
+      return { available: true, window_days: days, since, restaurants: rows, totals: { real: total("real"), test: total("test") } };
+    });
+    res.json(out);
+  } catch (e) {
+    res.json({ available: false, reason: e.message, window_days: days, restaurants: [] });
+  }
+});
+
 // RESTAURANTS — the full roster for filter dropdowns. Deriving the options from the rows
 // on screen meant a restaurant with no runs in the current page never appeared as an
 // option at all, so it could not be selected to go and find them.
@@ -2311,7 +2426,7 @@ app.get("/api/executions/:id", opsAuth, async (req, res) => {
     } catch {}
   }
   if (!e) return res.status(404).json({ error: "Not found" });
-  res.json(e);
+  res.json({ ...e, is_test: e.is_test ?? isTestSession(e.session_id) });
 });
 
 // ================= workers =================

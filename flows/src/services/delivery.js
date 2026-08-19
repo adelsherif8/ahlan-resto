@@ -146,7 +146,7 @@ function editDist(a, b) {
 }
 const arNz = (s) => String(s || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
 function landmarkCandidates(config, text) {
-  const t = norm(arNz(text));
+  const t = norm(arNz(String(text || "").replace(/(^|\s)(?:ل|لـ|ف|في|عند|على|ع|بـ|ب)(?=[\u0621-\u064A]{3,})/gu, "$1")));
   if (!t) return [];
   const lms = config?.basic_info?.delivery?.landmarks || config?.delivery?.landmarks || [];
   const out = [];
@@ -244,6 +244,10 @@ async function fetchJson(url, ms = 5000) {
 export function streetCore(text) {
   let s = String(text || "");
   s = s.replace(/https?:\/\/\S+/g, " ");
+  // Arabic prepositions glued to the place ("لبوينت ٩٠" = to Point 90, "فالرحاب" = in Rehab)
+  s = s.replace(/(^|\s)(?:ل|لـ|ف|في|عند|على|ع|بـ|ب)(?=[\u0621-\u064A]{3,})/gu, "$1");
+  // Franco prepositions before the place ("le point 90", "fel rehab", "fi narges", "3and el AUC")
+  s = s.replace(/(^|\s)(?:le|la|lel|fel|fil|fi|f|3and|3ala|ala|3al|be|bel)\s+(?=[a-z0-9])/gi, "$1");
   s = s.replace(/(?:^|[,،\s])(?:villa|فيلا|فيللا|building|bldg|عمارة|عماره|flat|apt|apartment|شقة|شقه|floor|الدور|دور|gate|بوابة|بوابه|block|بلوك|no\.?|رقم)\s*[#:]?\s*[0-9٠-٩]+[a-z]?/giu, " ");
   s = s.replace(/(?:next to|beside|near|behind|in front of|opposite|جنب|بجوار|بجانب|خلف|امام|أمام|قدام|قصاد|قريب من|عند)\s+.+$/iu, " ");
   s = s.replace(/[,،]+/g, " ").replace(/\s+/g, " ").trim();
@@ -315,7 +319,15 @@ export function namesOutsideArea(config, text) {
   const covered = branchList(config).concat([null]).flatMap((b) => zonesFor(config, b)).flatMap((z) => [z.area, ...(z.aliases || [])]).map((a) => norm(arNz(a)));
   return list.find((a) => a && t.includes(` ${a} `) && !covered.some((c) => c && (c === a || c.includes(a)))) || null;
 }
-export async function resolvePlace(config, text, { cityHint = "" } = {}) {
+// hard cap on the whole resolution (a slow geocoder must never push a turn past the
+// 15s SLA filler — a voice-note address hung 100s); on timeout → { none } → pin ask
+export async function resolvePlace(config, text, opts = {}) {
+  let timer;
+  const cap = new Promise((resolve) => { timer = setTimeout(() => resolve({ none: true, timeout: true }), 6500); });
+  try { return await Promise.race([resolvePlaceInner(config, text, opts), cap]); }
+  finally { clearTimeout(timer); }
+}
+async function resolvePlaceInner(config, text, { cityHint = "" } = {}) {
   const raw = String(text || "").replace(/[?؟]|\b(maybe|probably|i think|ya3ny|yemken|يمكن|تقريبا|تقريباً)\b/gi, "").trim();
   if (raw.length < 2) return { none: true };
   const outside = namesOutsideArea(config, raw);

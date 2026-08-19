@@ -1,0 +1,290 @@
+[
+ {
+  "id": "fr01",
+  "name": "one-liner Franco",
+  "phone": "+2015560301",
+  "turns": [
+   "3ayez 2 signature burger combo cola delivery point 90 cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "2 combos": "2× \\*Signature Burger\\*[^\\n]*Combo",
+   "fee": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr03",
+  "name": "el changer",
+  "phone": "+2015560303",
+  "turns": [
+   "classic burger combo sprite pickup",
+   "khaleehom etnen",
+   "zawed loaded fries",
+   "la2 sheel el batates",
+   "ghayar el mashroob fanta",
+   "cash w gay ba3d 20 d2ee2a"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "2 classics": "2× \\*Classic Burger\\*",
+   "fanta": "Fanta"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  },
+  "forbid_last": {
+   "fries still": "• 1× \\*(Loaded Fries|لودد فرايز)\\*"
+  }
+ },
+ {
+  "id": "fr04",
+  "name": "el da2ee2: removals",
+  "phone": "+2015560304",
+  "turns": [
+   "smoky bbq burger sandwich men gheir mekhalel w men gheir basal w men gheir ranch",
+   "pickup",
+   "card w gay delwa2ty"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "pickle removed": "pickle|mekhalel",
+   "onion removed": "onion|basal",
+   "phantom ranch": "already comes without ranch|aslan mafihoosh"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr06",
+  "name": "bare answers",
+  "phone": "+2015560306",
+  "turns": [
+   "signature burger",
+   "delivery",
+   "combo",
+   "cola",
+   "https://maps.google.com/?q=30.0203,31.4947",
+   "cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "combo": "Combo",
+   "fee": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr07",
+  "name": "el 3enwan el sa3b",
+  "phone": "+2015560307",
+  "turns": [
+   "classic burger sandwich delivery",
+   "cash, villa 7 share3 12 gamb el saydaleya",
+   "levels mall",
+   "https://maps.google.com/?q=30.0221,31.4903"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "priced": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr09",
+  "name": "menu w se3r fel nos",
+  "phone": "+2015560309",
+  "turns": [
+   "classic burger sandwich pickup",
+   "eb3atli el menu",
+   "el loaded fries bekam?",
+   "tamam zawed wa7da, cash delwa2ty"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "menu": "menu",
+   "price": "100",
+   "fries added": "1× \\*Loaded Fries\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr11",
+  "name": "mixed franco + arabic words",
+  "phone": "+2015560311",
+  "turns": [
+   "3ayez classic burger combo bas men gheir basal, delivery le point 90",
+   "cola",
+   "cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "combo": "Combo",
+   "no onion": "no onion|no basal",
+   "fee": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr12",
+  "name": "voice note franco",
+  "phone": "+2015560312",
+  "turns": [
+   "[voice] aywa ya3ny 3ayez ah signature burger aywa combo w ma3ah coca cola w howa delivery",
+   "[voice] point tes3een",
+   "[voice] cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "signature": "1× \\*Signature Burger\\*",
+   "point 90": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr14",
+  "name": "impatient",
+  "phone": "+2015560314",
+  "turns": [
+   "classic burger sandwich pickup",
+   "classic burger sandwich pickup",
+   "??",
+   "hello?",
+   "cash delwa2ty"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "one classic": "1× \\*Classic Burger\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "duplicated": "2× \\*Classic Burger\\*"
+  }
+ },
+ {
+  "id": "fr17",
+  "name": "group splitter",
+  "phone": "+2015560317",
+  "turns": [
+   "2 signature burger, wa7ed combo cola w wa7ed sandwich, el sandwich men gheir mekhalel",
+   "pickup",
+   "cash delwa2ty"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "combo line": "1× \\*Signature Burger\\*[^\\n]*Combo",
+   "sandwich line": "1× \\*Signature Burger\\*[^\\n]*Sandwich",
+   "no pickles": "no pickle|no mekhalel"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr20",
+  "name": "status chaser",
+  "phone": "+2015560320",
+  "turns": [
+   "classic burger sandwich pickup, cash, delwa2ty",
+   "akked",
+   "fein el order?",
+   "hayakhod ad eh?",
+   "momken alghy?"
+  ],
+  "complete": "answered",
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "second ticket": "🎫[\\s\\S]*🎫[\\s\\S]*🎫"
+  },
+  "answered": [
+   "🎫",
+   "received|preparing|ready|on it|shaghal",
+   "cancel|team|counter|alghy|el fare2"
+  ]
+ },
+ {
+  "id": "fr21",
+  "name": "typo machine franco",
+  "phone": "+2015560321",
+  "turns": [
+   "signture brger sandwch pikup",
+   "cassh, gay delwa2ty"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "signature": "1× \\*Signature Burger\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr22",
+  "name": "upsell taker",
+  "phone": "+2015560322",
+  "turns": [
+   "classic burger sandwich pickup, cash, delwa2ty",
+   "aywa zawed el loaded fries",
+   "w cookie",
+   "akked"
+  ],
+  "complete": "ticket",
+  "expect": {
+   "fries": "Loaded Fries",
+   "cookie": "Cookie"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "fr23",
+  "name": "pickup-time juggler",
+  "phone": "+2015560323",
+  "turns": [
+   "classic burger sandwich pickup, cash",
+   "gay ba3d nos sa3a",
+   "la2 ba3d sa3a",
+   "la2 delwa2ty",
+   "akked"
+  ],
+  "complete": "ticket",
+  "expect": {
+   "one ticket": "🎫"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "two tickets": "🎫[\\s\\S]*🎫"
+  }
+ },
+ {
+  "id": "fr24",
+  "name": "pin first",
+  "phone": "+2015560324",
+  "turns": [
+   "https://maps.google.com/?q=30.0203,31.4947",
+   "signature burger combo cola delivery",
+   "cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "fee": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ }
+]
