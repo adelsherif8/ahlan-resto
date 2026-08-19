@@ -1,6 +1,6 @@
 [
  {
-  "name": "EN — combo order → add-ons offers the dish's own pairing (Loaded Fries) + a dessert → guest adds cookie → confirm re-shown",
+  "name": "EN — combo order → add-ons offers the dish's own pairing (Loaded Fries) + a dessert → guest adds cookie → confirm re-shown (add-ons offered ONCE per order — not repeated)",
   "phone": "+2015559031",
   "turns": [
    "signature burger",
@@ -10,7 +10,6 @@
    "triple chocolate chip cookie"
   ],
   "expect": {
-   "add-ons line on first confirm": "🍟 Add",
    "cookie now on the bill": "Triple Chocolate Chip Cookie[^\\n]*80 EGP",
    "still a confirm screen": "confirm and I'll send"
   },

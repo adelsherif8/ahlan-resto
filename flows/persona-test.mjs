@@ -59,9 +59,17 @@ for (const c of convos) {
   const startedAt = new Date().toISOString();
   const transcript = [];   // [{guest, bot:[...]}]
   const problems = [];
-  const guestLang = langOf(c.turns.join(" "));
+  const guestLang = langOf(c.turns.map((t) => (typeof t === "object" ? t.say : t)).join(" "));
   const askedQuestions = [];
-  for (const turn of c.turns) {
+  for (const t of c.turns) {
+    // a CONDITIONAL turn {if, say} is only sent when our last reply matches `if` —
+    // e.g. answer a which-one only if it was asked (the model may already have got it)
+    let turn = t;
+    if (t && typeof t === "object") {
+      const lastBot = transcript.length ? transcript[transcript.length - 1].bot.join("\n") : "";
+      if (!new RegExp(t.if, "i").test(lastBot)) continue;
+      turn = t.say;
+    }
     const before = await aiCount(c.phone);
     const t0 = Date.now();
     await fetch(`${BASE}/api/web/send`, { method: "POST", headers: { "x-ops-token": TOKEN, "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: c.phone, message: turn, restaurant: SLUG }) });

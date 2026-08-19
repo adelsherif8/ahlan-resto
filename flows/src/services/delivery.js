@@ -126,7 +126,8 @@ export function matchLandmark(config, text) {
   for (const lm of lms) {
     if (typeof lm?.lat !== "number" || typeof lm?.lng !== "number") continue;
     const names = [lm.name, ...(lm.aliases || [])].map(norm).filter((a) => a.length >= 3);
-    const hit = names.find((a) => t === a || t.includes(a));
+    // whole-token containment only — "auc" must never fire inside "sauce"
+    const hit = names.find((a) => t === a || ` ${t} `.includes(` ${a} `));
     if (hit && (!best || hit.length > best.len)) best = { lat: lm.lat, lng: lm.lng, label: lm.name, len: hit.length };
   }
   return best ? { lat: best.lat, lng: best.lng, source: "landmark", label: best.label } : null;

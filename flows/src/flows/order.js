@@ -7,7 +7,7 @@ import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, publicLink, log } from "../config.js";
 import { notifyDashboard, setSessionFlags } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
-import { deliveryQuote, geocodeAddress, pricingOf, resolvePlace } from "../services/delivery.js";
+import { deliveryQuote, geocodeAddress, matchLandmark, pricingOf, resolvePlace, streetCore } from "../services/delivery.js";
 import { editDistance } from "../services/fastpaths.js";
 import { getMenu } from "../services/menucache.js";
 import { fmtMoney } from "../services/format.js";
@@ -155,6 +155,22 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         e.edits = [{ op: "remove", item: line?.name || m1[1].trim() }];
       } else if ((m1 = /(?:ghayy?ar|change|switch|badd?el|غيّر|غير|بدّل|بدل)\s+(?:el\s+|the\s+|ال)?([a-z\p{L}][a-z\p{L} ]{2,20}?)\s+(?:to\s+|le\s+|لـ|ل)?([a-z\p{L}][a-z\p{L} ]{2,25})$/iu.exec(msgL.trim()))) {
         e.edits = [{ op: "set_option", item: loaded.pending.items.length === 1 ? null : (loaded.pending.items[0]?.name || null), option: m1[2].trim() }];
+      }
+    }
+    // "غيّر المشروب فانتا" came back as op "remove Soft Drink" (and once as an item). A
+    // CHANGE verb followed by a word that IS a choice on a draft line is set_option,
+    // whatever the model called it — code checks the word against the real choices.
+    if (loaded.pending?.items?.length && !(e.edits || []).some((ed) => ed?.op === "set_option")) {
+      const msgL2 = String(input.message || "").toLowerCase().trim();
+      const m2 = /(?:^|\s)(?:ghayy?ar|change|switch|badd?el|غيّر|غير|بدّل|بدل)\s+(?:el\s+|the\s+|ال)?([a-z\p{L}][a-z\p{L} ]{2,20}?)\s+(?:to\s+|le\s+|لـ|ل)?([a-z\p{L}][a-z\p{L} ]{2,25})$/iu.exec(msgL2);
+      if (m2 && msgL2.length <= 60) {
+        const want = normName(arOptionWords(m2[2].trim()));
+        const w0 = want.split(" ")[0] || "";
+        const fits = loaded.pending.items.some((it) => (it.option_defs || []).some((g) => groupChoices(g, loaded.menu).some((c) => {
+          const cn = normName(c.name); const c0 = cn.split(" ")[0] || "";
+          return cn === want || (w0.length >= 4 && c0 === w0) || (want.includes("cola") && cn.includes("cola") && !cn.includes("diet"));
+        })));
+        if (fits) { e.edits = [{ op: "set_option", item: loaded.pending.items.length === 1 ? null : (loaded.pending.items[0]?.name || null), option: m2[2].trim() }]; e.items = null; }
       }
     }
     // PICKUP TIME IS CODE'S TO HEAR. "cash, coming now" came back with pickup_time
@@ -391,7 +407,12 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               return n && n !== normName(pick[0]) && !amb0.candidates.some((c) => normName(c) === n)
                 && (said.includes(n) || n.split(" ").filter((t) => t.length >= 4).some((t) => said.includes(t)));
             });
-            e.items = [{ name: pick[0], qty, notes: e.items?.[0]?.notes || null }, ...others];
+            // the model's "note" is often just the guest's own pick word ("chocolate")
+            // — a note that names (part of) the picked dish is no note; kept, it became
+            // a phantom which-one for "chocolate" right after the pick
+            const pn0 = normName(e.items?.[0]?.notes || "");
+            const noteOk = pn0 && !normName(pick[0]).includes(pn0) && !amb0.candidates.some((c) => normName(c).includes(pn0));
+            e.items = [{ name: pick[0], qty, notes: noteOk ? e.items[0].notes : null }, ...others];
             // The model's own reading of the same word may also sit in `edits` ("add
             // Chocolate SAUCE" for "zawed chocolate") and would be applied on top of
             // the pick — the answer to our list is the whole message, drop those.
@@ -407,7 +428,17 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         // OUR text (verifiable), never by trusting the model harder.
         {
           const lastAi = String([...(input.history || [])].reverse().find((h) => h.role === "ai")?.message || "");
-          const shortReply = input.message.trim().split(/\s+/).filter(Boolean).length <= 6;
+          // "great, one of those as a sandwich and a classic burger for me, pickup, cash,
+          // now" — the referent is the FIRST clause; a long message that OPENS with an
+          // anaphora is judged on that clause, not skipped for its length (skipping let
+          // the model's guess — J'S Special Burger for a no-beef daughter — stand)
+          const wholeShort = input.message.trim().split(/\s+/).filter(Boolean).length <= 6;
+          const firstClause0 = input.message.trim().split(/\s*(?:,|،|\band\b|\bw\b|\bو\b|\bplus\b|\bكمان\b)\s*/iu)[0] || input.message.trim();
+          const ANAPH0 = /^\W*(?:ok(?:ay)?|great|tamam|تمام|طيب|ماشي|yes|aywa|ايوه|أيوة)?\W*(?:add|get me|give me|i want|i ll take|ill take|hat|hatli|zawed|zawed li|عايز|هات|هاتلي|زود|زوّد|ضيف|زودلي)?\W*(?:one|1|واحد|واحدة|wa7ed|wa7da|it|that|this|those|these|ده|دي|دول|da|di|dol)(?![\p{L}\p{N}])/iu;
+          const clauseShort = !wholeShort && ANAPH0.test(firstClause0) && firstClause0.split(/\s+/).filter(Boolean).length <= 8;
+          const shortReply = wholeShort || clauseShort;
+          // what we judge the referent on: the whole (short) message, or just its opening clause
+          const refText = wholeShort ? input.message : firstClause0;
           if (lastAi && shortReply && !amb0?.candidates?.length && !loaded.pending?.awaiting_option) {
             const lastLc = lastAi.toLowerCase();
             const arNz = (s2) => String(s2 || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
@@ -435,7 +466,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               return arT.length > 0 && arT.every((t) => lastToksAr.has(t));
             });
             // and NEVER override a dish the guest typed in full — "add loaded fries" IS Loaded Fries
-            const typedFull = (e.items || []).some((it) => { const n = normName(it.name); return n && normName(arOptionWords(input.message)).includes(n); });
+            const typedFull = (e.items || []).some((it) => { const n = normName(it.name); return n && normName(arOptionWords(refText)).includes(n); });
             if (typedFull) offered.length = 0;
             // "add one" / "one of those" / "ok get me that" / «هات واحد» right after we
             // named EXACTLY ONE dish (a price answer, a suggestion) → that dish. With
@@ -458,10 +489,25 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               const prevGuest = String([...(input.history || [])].reverse().find((h) => h.role === "guest")?.message || "").toLowerCase();
               const pgN = normName(arOptionWords(prevGuest)); const pgAr = arNz(prevGuest);
               const askedAbout = loaded.menu.filter((m) => m.available !== false && ((normName(m.name).length >= 4 && pgN.includes(normName(m.name))) || (m.name_ar && arNz(m.name_ar).length >= 4 && pgAr.includes(arNz(m.name_ar)))));
-              if (askedAbout.length === 1) { offered.length = 0; offered.push(askedAbout[0]); }
+              // «اللودد فرايز» matches BOTH "Loaded Fries" and plain "Fries" (the Arabic
+              // word maps to "fries") — the longer, more specific name is what they asked
+              // about; a name contained in another match is dropped
+              const askedSpecific = askedAbout.filter((m) => !askedAbout.some((o) => o !== m && normName(o.name).includes(normName(m.name)) && normName(o.name) !== normName(m.name)));
+              if (askedSpecific.length === 1) { offered.length = 0; offered.push(askedSpecific[0]); }
             }
+            // the COUNT is the guest's word in the clause ("add one" = 1, "two of those" = 2),
+            // never the model's qty — it wrote 2 for "ok add one" (one MORE Classic Burger,
+            // in its reading) and two Loaded Fries landed on the bill
+            const anaphQty = (() => {
+              const NUMW = { one: 1, two: 2, three: 3, four: 4, wa7ed: 1, wa7da: 1, etnen: 2, etneen: 2, talata: 3, tlata: 3, arba3a: 4, "واحد": 1, "واحدة": 1, "اتنين": 2, "إتنين": 2, "تلاتة": 3, "ثلاثة": 3, "اربعة": 4, "أربعة": 4 };
+              const mq = /(?:^|[^\p{L}\p{N}])(\d{1,2}|[٠-٩]{1,2}|one|two|three|four|wa7ed|wa7da|etne+n|t?lata|arba3a|واحدة?|ا?تنين|إتنين|تلاتة|ثلاثة|ا?ربعة|أربعة)(?![\p{L}\p{N}])/iu.exec(firstClause);
+              if (!mq) return 1;
+              const raw = mq[1].replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+              const n = NUMW[raw.toLowerCase()] ?? Number(raw);
+              return Number.isFinite(n) && n >= 1 && n <= 20 ? n : 1;
+            })();
             if (offered.length === 1 && isAnaphora) {
-              const qty = Math.min(Math.max(Math.round(Number(e.items?.[0]?.qty || e.edits?.[0]?.qty) || 1), 1), 20);
+              const qty = anaphQty;
               const msgN = normName(arOptionWords(input.message));
               const namedExtras = (e.items || []).filter((it) => { const n = normName(it.name); return n && n !== normName(offered[0].name) && (msgN.includes(n) || n.split(" ").filter((w) => w.length >= 4).every((w) => msgN.includes(w))); });
               e.items = [{ name: offered[0].name, qty, notes: null }, ...namedExtras];
@@ -486,8 +532,8 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               }
             }
             if (offered.length >= 2) {
-              const said = normName(arOptionWords(input.message));
-              const saidAr = arNz(input.message);
+              const said = normName(arOptionWords(refText));
+              const saidAr = arNz(refText);
               const STOP = new Set(["the", "one", "please", "add", "lets", "let", "and", "with", "of", "a", "an", "me", "want", "get", "make", "it", "that", "this", "ok", "yes"]);
               const saidToks = said.split(" ").filter((t) => t.length >= 3 && !STOP.has(t));
               const arSaidToks = saidAr.split(/\s+/).filter((t) => t.length >= 3);
@@ -502,11 +548,14 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               const best = scored[0];
               const unique = best && (scored.length === 1 || scored[1].hits < best.hits);
               if (unique) {
-                const qty = Math.min(Math.max(Math.round(Number(e.items?.[0]?.qty || e.edits?.[0]?.qty) || 1), 1), 20);
+                const qty = isAnaphora ? anaphQty : Math.min(Math.max(Math.round(Number(e.items?.[0]?.qty || e.edits?.[0]?.qty) || 1), 1), 20);
                 const notes = (e.items || []).find((it) => normName(it.name) === normName(best.m.name))?.notes || null;
                 // the pick replaces whatever the model guessed for THIS reply — a short
-                // reply to our list carries no other dish
-                e.items = [{ name: best.m.name, qty, notes }];
+                // reply to our list carries no other dish; a longer message keeps the
+                // dishes the guest NAMED in its later clauses
+                const msgN2 = normName(arOptionWords(input.message));
+                const extras = wholeShort ? [] : (e.items || []).filter((it) => { const n = normName(it.name); return n && n !== normName(best.m.name) && (msgN2.includes(n) || n.split(" ").filter((w) => w.length >= 4).every((w) => msgN2.includes(w))); });
+                e.items = [{ name: best.m.name, qty, notes }, ...extras];
                 if (Array.isArray(e.edits)) e.edits = e.edits.filter((ed) => ed?.op !== "add" && ed?.op !== "replace");
                 answeredAmbiguity = best.m.name;
               }
@@ -552,6 +601,31 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               if (e.items[0].notes && /^\s*\d+\s*(pcs?|pieces?)\s*$/i.test(e.items[0].notes)) e.items[0].notes = null; // "(3 pieces)" was the count, not a note
             }
           }
+        }
+        // MID-ORDER, a REMOVAL in the message, and a NEW dish the guest never named:
+        // that's the model reading the removed ingredient as a dish — "sandwich we men
+        // gheir mashroom" came back with a Truffle SHROOM Burger added and the "no
+        // mushroom" pinned to it. The dish is dropped; the removal lands on the draft.
+        if (loaded.pending?.items?.length && Array.isArray(e.items) && e.items.length && !answeredAmbiguity
+          && /(no|without|hold the|don'?t add|dont add|بدون|من غير|بلاش|men gheir|min gheir|bedoon|bdoon)\s+\p{L}/iu.test(String(input.message || ""))) {
+          const saidN = normName(arOptionWords(input.message));
+          const saidAr = String(input.message || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
+          const GENERIC = new Set(["burger", "sandwich", "chicken", "meal", "combo", "cup", "sauce", "fries", "pcs", "classic"]);
+          e.items = e.items.filter((w) => {
+            const n = normName(w.name);
+            if (!n) return true;
+            if (loaded.pending.items.some((it) => normName(it.name) === n)) return true;   // already on the draft — an edit, kept
+            const row = loaded.menu.find((m) => normName(m.name) === n) || loaded.menu.find((m) => normName(m.name).includes(n));
+            if (!row) return true;                                                          // unknown-dish path owns it
+            const en = normName(row.name);
+            const toks = en.split(" ").filter((t) => t.length >= 4 && !GENERIC.has(t));
+            // whole tokens only — "shroom" sits inside "mashroom" (the removed ingredient!)
+            const enOk = saidN.includes(en) || toks.some((t) => ` ${saidN} `.includes(` ${t} `) || (t.length >= 5 && saidN.split(" ").some((x) => editDistance(x, t) <= 1)));
+            const ar = String(row.name_ar || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
+            const arOk = !!ar && ar.split(/\s+/).filter((t) => t.length >= 3 && !/^[٠-٩]+$/.test(t)).some((t) => saidAr.includes(t));
+            if (!enOk && !arOk) { log(`order: dropped model item "${w.name}" — never named, message carries a removal`); return false; }
+            return true;
+          });
         }
         const wanted = (e.items || []).slice(0, 12);
         for (const w of wanted) {
@@ -870,7 +944,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const guestNamed = (dish) => {
           const row = findMenuItem(dish);
           const en = normName(row?.name || dish || "");
-          const enOk = !!en && (saidForEdits.includes(en) || en.split(" ").filter((t) => t.length >= 4).some((t) => saidForEdits.includes(t) || (t.length >= 5 && saidForEdits.split(" ").some((w) => editDistance(w, t) <= 1))));
+          const enOk = !!en && (saidForEdits.includes(en) || en.split(" ").filter((t) => t.length >= 4).some((t) => ` ${saidForEdits} `.includes(` ${t} `) || (t.length >= 5 && saidForEdits.split(" ").some((w) => editDistance(w, t) <= 1))));
           const ar = String(row?.name_ar || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
           const arOk = !!ar && ar.split(/\s+/).filter((t) => t.length >= 3 && !/^[٠-٩]+$/.test(t)).some((t) => saidArForEdits.includes(t));
           return enOk || arOk;
@@ -924,7 +998,15 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             if (existing) existing.qty = Math.min(existing.qty + q, 20);
             else items.push({ id: hit.id, name: hit.name, qty: q, price: Number(hit.price), notes: null, options: {}, option_defs: hit.options || [] });
           } else {
-            const idx = items.findIndex((it) => normName(it.name).includes(target) || target.includes(normName(it.name)));
+            let idx = items.findIndex((it) => normName(it.name).includes(target) || target.includes(normName(it.name)));
+            // set_option naming the CHOICE's own product ("Soft Drink" for «غيّر المشروب
+            // فانتا») — the target is the draft line whose choices carry that option,
+            // not a dish called Soft Drink (which isn't on the order → "couldn't find")
+            if (idx < 0 && ed.op === "set_option" && ed.option) {
+              const want = normName(arOptionWords(String(ed.option)));
+              const w0 = want.split(" ")[0] || "";
+              idx = items.findIndex((it) => (it.option_defs || []).some((g) => g.key !== "slots" && groupChoices(g, loaded.menu).some((c) => { const cn = normName(c.name); return cn === want || (w0.length >= 4 && cn.split(" ")[0] === w0) || (want.includes("cola") && cn.includes("cola") && !cn.includes("diet")); })));
+            }
             if (idx < 0) { editMisses.push(String(ed.item || "").trim()); continue; }
             if (ed.op === "remove") items.splice(idx, 1);
             else if (ed.op === "set_option") applyOptionTo(items[idx], ed.option);
@@ -997,6 +1079,14 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // addresses they've used before — offered back instead of made to retype
       const saved = savedAddresses(diner);
       let address = (e.address && String(e.address).trim()) || loaded.pending?.address || null;
+      // A LANDMARK the restaurant listed, written in a delivery message, IS the address —
+      // even when the model filed it under order notes ("delivery point 90" for
+      // «دليفري بوينت ٩٠») or nowhere. Code checks the message against the landmark
+      // table (instant, no network) instead of asking for an address it was given.
+      if (!address && (e.order_type === "delivery" || loaded.pending?.order_type === "delivery" || /(delivery|دليفري|ديليفري|توصيل|deliver)/i.test(input.message))) {
+        const lm = matchLandmark(config, streetCore(input.message)) || (e.notes ? matchLandmark(config, streetCore(e.notes)) : null);
+        if (lm) { address = lm.label; if (e.notes && matchLandmark(config, streetCore(e.notes))) e.notes = null; }
+      }
       // they tapped/typed one of their saved ones (WhatsApp truncates button titles,
       // so a prefix counts) or said "same as last time" with only one on file
       // "same/usual" explicitly names the ask; a bare "yes" is just as much an answer
@@ -1341,9 +1431,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // the resolver ran) — becomes the option, so the choice isn't re-asked forever.
       for (const it of items) {
         if (!it.notes) continue;
-        const parts = String(it.notes).split(/\s*[,·،]\s*/).filter(Boolean);
+        const queue = String(it.notes).split(/\s*[,·،]\s*/).filter(Boolean);
         const keep = [];
-        for (const part of parts) {
+        for (let qi = 0; qi < queue.length && qi < 12; qi++) {
+          const part = queue[qi];
           const pn = normName(arOptionWords(part));
           let used = false;
           for (const g of it.option_defs || []) {
@@ -1355,6 +1446,28 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             if (named.length > 1 && Number(it.qty) > 1) { used = false; break; }
             const c = chs.find((o) => { const on = normName(o.name); return on === pn || (pn.length >= 4 && on.split(" ")[0] === pn); });
             if (c) { it.options = { ...(it.options || {}), [g.key]: c.name }; used = true; break; }
+            // COMPOUND note — "sandwich no pickles" / "as a sandwich" / "combo with cola":
+            // exactly one choice word inside it → that choice is set; what's left (minus
+            // filler) stays a note ("no pickles") or is re-read for the next group
+            // ("with cola" → the combo drink). It used to sit whole as a note and the
+            // choice was asked again — twice — after the guest had already said it.
+            // (a COUNT before the choice — "1 mild", "2 hot" — is a per-unit split for the
+            // resolver, never filler: promoting "1 mild" set Mild on all three tenders)
+            const lead = pn.replace(/^(?:(?:as an?|as|the|a|an|make it|please)\s+)+/, "");
+            if (/^\d/.test(lead)) { keep.push(part); used = true; break; }
+            // …and never when the WHOLE note splits units of this group ("hot for the
+            // first 2, mild for the third" — two choices across the parts, or a per-unit
+            // marker in the remainder): the resolver's splitter owns that note
+            const wholeN = normName(arOptionWords(String(it.notes)));
+            const groupSplit = Number(it.qty) > 1 && chs.filter((o) => { const f0 = normName(o.name).split(" ")[0]; return f0.length >= 3 && new RegExp(`(^|\\s)${f0}(\\s|$)`).test(wholeN); }).length > 1;
+            const restHasUnit = /(^|\s)(for|first|second|third|fourth|rest|last|other|others|\d+)(\s|$)/.test(pn.replace(/^(?:(?:as an?|as|the|a|an|make it|please)\s+)+/, "").split(" ").slice(1).join(" "));
+            if (named.length === 1 && !groupSplit && !restHasUnit && (lead === normName(named[0].name).split(" ")[0] || lead.startsWith(`${normName(named[0].name).split(" ")[0]} `))) {
+              const f = normName(named[0].name).split(" ")[0];
+              it.options = { ...(it.options || {}), [g.key]: named[0].name };
+              const rest = pn.replace(new RegExp(`(^|\\s)${f}(\\s|$)`), " ").replace(/(^|\s)(as an?|as|the|a|an|make it|please|with|and|w|el)(?=\s|$)/g, " ").replace(/\s+/g, " ").trim();
+              if (rest.length >= 3) queue.push(rest);
+              used = true; break;
+            }
           }
           if (!used) keep.push(part);
         }
@@ -2507,7 +2620,14 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // mid-ask go through the question-intent handoff instead.
     // never on a menu request — the answer IS the menu; a stitched friendly line above
     // it ("تحت أمرك — تحب تعرف إيه؟") read as the bot not understanding
-    const sideAllowed = (!!(e.items?.length || e.edits?.length) || !awaitingAtTurnStart) && outcome.kind !== "menu_request";
+    // "cash, Levels Mall" came back with question:"Levels Mall" — the ADDRESS, not a
+    // question — and friendly invented "we don't deliver to Levels Mall" on top of a
+    // correctly priced bill. A "question" with no question mark / question word, or
+    // one that is the address we just took (or a listed landmark), is not asked.
+    const interrogative = /[?؟]/.test(String(input.message || "")) || /(^|\s)(do|does|did|is|are|can|could|would|how|what|when|where|which|why|any|هل|بتوصلوا|بتوصل|بتوصلو|بكام|كام|فين|امتى|إمتى|ازاي|إزاي|ليه|ايه|إيه|فيه|ممكن|عندكم|عندكوا|3andoko|3andokom|3andak|bekam|kam|fen|emta|ezay|leh|eh|momken|fi|feh)(?=\s|$)/iu.test(String(input.message || ""));
+    const norm3 = (x) => normName(arOptionWords(String(x || ""))) || String(x || "").replace(/[ً-ْـ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+    const sideIsPlace = !!sideQ && ((outcome.address && (norm3(outcome.address).includes(norm3(sideQ)) || norm3(sideQ).includes(norm3(outcome.address)))) || !!matchLandmark(config, streetCore(sideQ)));
+    const sideAllowed = (!!(e.items?.length || e.edits?.length) || !awaitingAtTurnStart) && outcome.kind !== "menu_request" && interrogative && !sideIsPlace;
     if (sideQ.length >= 4 && sideAllowed) {
       const side = await f.flow("friendly", { message: sideQ, diner, history: input.history, precheck: input.precheck, classification });
       if (side?.reply) {

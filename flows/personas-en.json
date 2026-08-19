@@ -443,7 +443,15 @@
   "phone": "+2015560125",
   "turns": [
    "hi so my kids are visiting this weekend and my daughter doesnt eat beef, what would you suggest for her? and is it spicy?",
-   "great, one of those as a sandwich and a classic burger sandwich for me, pickup, cash, now"
+   "great, one of those as a sandwich and a classic burger sandwich for me, pickup, cash, now",
+   {
+    "if": "Which one did you mean|which one",
+    "say": "the chicken ranch"
+   },
+   {
+    "if": "Which one:|Quick choices",
+    "say": "sandwich"
+   }
   ],
   "complete": "confirm",
   "expect": {

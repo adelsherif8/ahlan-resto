@@ -1,8 +1,11 @@
 [
  {
-  "name": "EN — Nashville tenders now ask spice level",
+  "name": "EN — Nashville tenders now ask spice level (after the type-first fulfilment ask)",
   "phone": "+2015555001",
-  "turns": ["i want the chicken tenders nashville"],
+  "turns": [
+   "i want the chicken tenders nashville",
+   "pickup"
+  ],
   "expect": {
    "spice question asked": "Spice Level",
    "choices offered": "Mild"
@@ -10,9 +13,12 @@
   "forbid": {}
  },
  {
-  "name": "AR — «عايز تشيكن تندرز ناشفيل» asks spice in Arabic",
+  "name": "AR — «عايز تشيكن تندرز ناشفيل» asks spice in Arabic (after the type-first fulfilment ask)",
   "phone": "+2015555002",
-  "turns": ["عايز تشيكن تندرز ناشفيل"],
+  "turns": [
+   "عايز تشيكن تندرز ناشفيل",
+   "تيك اواي"
+  ],
   "expect": {
    "spice question asked": "مستوى الحرارة",
    "choices in arabic": "خفيف"
@@ -20,9 +26,12 @@
   "forbid": {}
  },
  {
-  "name": "FR — \"3ayez el chicken tenders nashville\" asks spice",
+  "name": "FR — \"3ayez el chicken tenders nashville\" asks spice (after the type-first fulfilment ask)",
   "phone": "+2015555003",
-  "turns": ["3ayez el chicken tenders nashville"],
+  "turns": [
+   "3ayez el chicken tenders nashville",
+   "pickup"
+  ],
   "expect": {
    "spice question asked": "Spice Level",
    "choices offered": "Mild"
