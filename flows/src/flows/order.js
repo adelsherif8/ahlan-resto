@@ -1382,6 +1382,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // continue, never restart with "how would you like it?" and drop the new line.
       const draftWasEmpty = !(loaded.pending?.items?.length);
       if (config.ai?.ask_type_first === true && !orderType && items.length && draftWasEmpty && !loaded.pending?.type_asked && !loaded.pending?.awaiting_option && !answersAnOptionNow) {
+        tidyNotes(items); // the first bill must read as clean as the last
         await savePending({ items, type_asked: true, leadin_shown: true });
         return { kind: "ask_fulfillment", type_first: true, first_fulfilment: true, need_type: true, delivery: deliveryOn, notices: outcomeNotices, items, running: runningOf(items) };
       }
@@ -1415,8 +1416,17 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const lines = segs.map((s2) => {
             const line = { ...it, qty: s2.q, options: { ...(it.options || {}), [g0.key]: s2.choice }, notes: null };
             // a removal stated for THIS segment ("the sandwich no pickles") rides on that line
-            const rm = new RegExp(`${normName(s2.choice).split(" ")[0]}[^,،]*?(?:no|without|men gheir|بدون|من غير)\\s+([a-z\\p{L}][a-z\\p{L} ]{2,20}?)(?=\\s*(?:,|،|\\band\\b|\\bw\\b|و|$))`, "iu").exec(said);
-            if (rm) line.notes = `no ${normName(arOptionWords(rm[1].trim())).replace(/^(the|el)\\s+/, "")}`;
+            // searched in the RAW message (commas intact — normName had stripped them, so
+            // "one combo cola, one sandwich, the sandwich no pickles" pinned the pickles
+            // removal on the COMBO too); a span that crosses another choice word is not
+            // this segment's removal
+            const rawSaid = arOptionWords(String(input.message || "")).toLowerCase();
+            const cw = normName(s2.choice).split(" ")[0];
+            const others = choices.map((c) => normName(c.name).split(" ")[0]).filter((w) => w.length >= 3 && w !== cw);
+            const rmRe = new RegExp(`${cw}[^,،]*?(?:no|without|men gheir|min gheir|بدون|من غير)\\s+([a-z\\p{L}][a-z\\p{L} ]{2,20}?)(?=\\s*(?:,|،|\\.|\\band\\b|\\bw\\b|و|$))`, "giu");
+            let rm; let rmHit = null;
+            while ((rm = rmRe.exec(rawSaid))) { const span = rm[0].toLowerCase(); if (!others.some((w) => new RegExp(`(^|\\s)${w}(\\s|$)`).test(normName(span.slice(cw.length)).replace(new RegExp(`\\s(no|without|men gheir|min gheir)\\s.*$`), "")))) { rmHit = rm; break; } }
+            if (rmHit) line.notes = `no ${normName(arOptionWords(rmHit[1].trim())).replace(/^(the|el)\\s+/, "")}`;
             // a drink named right after the combo word ("combo with cola") answers the drink group
             const drinkG = (it.option_defs || []).find((g) => g.when && groupApplies(g, line.options));
             if (drinkG) { const dc = groupChoices(drinkG, loaded.menu).find((c) => s2.tail.includes(normName(c.name).split(" ")[0]) || (normName(c.name).includes("cola") && /\bcola\b/.test(s2.tail))); if (dc) line.options[drinkG.key] = dc.name; }
@@ -1672,17 +1682,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // Notes that say the same thing in two scripts ("no onion · no بصل", "no pickles ·
       // no mekhalel") collapse to one — the extractor translates, and code re-reads the raw
       // message, so both used to land on the ticket.
-      for (const it of items || []) {
-        if (!it.notes) continue;
-        const parts = String(it.notes).split(/\s*·\s*|\s*,\s*(?=no |without |من غير|بدون)/).map((x) => x.trim()).filter(Boolean);
-        const seen = new Set(); const kept = [];
-        for (const part of parts) {
-          const key = normName(arOptionWords(part)).replace(/^(no|without|men gheir|bedoon)\s+/, "no ").replace(/\b(the|el)\b\s*/g, "").replace(/s\b/g, "").trim();
-          if (!key || seen.has(key)) continue;
-          seen.add(key); kept.push(part);
-        }
-        it.notes = kept.join(" · ") || null;
-      }
+      tidyNotes(items);
       // Conversational residue is not a kitchen note: "no the smokey" (picking a
       // dish) once landed as a literal note "no" and printed as "(Sandwich · no)".
       const FILLER_NOTE = /^(yes|yeah|yep|no|nah|ok(ay)?|sure|tamam|تمام|طيب|اوكي|أوكي|لا|اه|أه|ايوه|أيوة|ماشي)[\s!.،,]*$/iu;
@@ -2765,6 +2765,24 @@ function unitsForChoice(said, at, len) {
   return null;
 }
 
+// Ticket notes, tidied: "without X" reads "no X" (one wording on every ticket), the
+// same removal in two scripts/spellings ("no pickles · no mekhalel", "no onion · no
+// بصل") collapses to one, empty fragments go. Runs before EVERY bill render — the
+// type-first opener once printed "no pickles · no onions · · no mekhalel · no basal".
+function tidyNotes(items) {
+  for (const it of items || []) {
+    if (!it?.notes) continue;
+    const parts = String(it.notes).split(/\s*·\s*|\s*,\s*(?=no |without |من غير|بدون)/).map((x) => x.trim()).filter(Boolean);
+    const seen = new Set(); const kept = [];
+    for (const part0 of parts) {
+      const part = part0.replace(/^(without|men gheir|min gheir|bedoon|bdoon)\s+/i, "no ").replace(/^no\s+(the|el)\s+/i, "no ");
+      const key = normName(arOptionWords(part)).replace(/^(no|without|men gheir|bedoon)\s+/, "no ").replace(/\b(the|el)\b\s*/g, "").replace(/s\b/g, "").trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key); kept.push(part);
+    }
+    it.notes = kept.join(" · ") || null;
+  }
+}
 function groupChoices(group, menu) {
   if (group.from_category) {
     // staff type this free-form in the dashboard — treat it as a literal

@@ -470,6 +470,24 @@ defineFlow({
           return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (menu item + order-type wording)" } };
         }
       }
+      // A FULL menu item name plus an ordering cue — a want-verb ("3ayez", «عايز», "i
+      // want", "hat"), a count ("2 …"), a format word (sandwich/combo/meal) or a removal
+      // ("men gheir mekhalel", «بدون بصل», "no onion") — is an ORDER. The classifier once
+      // filed "smoky bbq burger sandwich men gheir mekhalel w men gheir basal" as chat and
+      // friendly narrated the order without placing it. Never with a question mark / price word.
+      if (!/[?؟]/.test(message) && !/(بكام|how much|price|سعر|what'?s in|فيه ايه|ingredients|مكونات)/i.test(message)) {
+        const CUE = /(?<![\p{L}\p{N}])(3ayez|3ayza|3awez|3awza|hat|hatli|i want|i'?d like|get me|give me|can i get|عايز|عايزة|عاوز|عاوزة|هات|هاتلي|ابعتلي|sandwich|sandawetsh|combo|kombo|meal|wagba|ساندوتش|ساندويتش|كومبو|وجبة|men gheir|min gheir|bedoon|without|بدون|من غير|بلاش)(?![\p{L}\p{N}])|(?:^|\s)(\d{1,2}|[٠-٩]{1,2}|one|two|three|wa7ed|etnen|واحد|اتنين|تلاتة)\s+\p{L}/iu;
+        if (CUE.test(message) && message.trim().length <= 160) {
+          const names = await menuNames(db);
+          const { getMenu } = await import("../services/menucache.js");
+          const rows = await getMenu(db).catch(() => []);
+          const nz = (s2) => String(s2 || "").toLowerCase().replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+          const said = ` ${nz(message)} `;
+          const full = (n) => { const x = nz(n); return x.split(" ").length >= 2 && said.includes(` ${x} `); };
+          const hit = names.some(full) || rows.filter((m) => m.available && m.name_ar).some((m) => full(m.name_ar) || full(String(m.name_ar).replace(/\s*[٠-٩0-9]+\s*قطع$/, "")));
+          if (hit) return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (full menu item name + ordering cue)" } };
+        }
+      }
       const system = `Classify a WhatsApp message to a trendy Cairo restaurant. Reply JSON only.
 Buckets:
 - "reservation": wants/asks about booking, changing, cancelling a table ("table for 4", "احجزلي", "cancel my booking")
