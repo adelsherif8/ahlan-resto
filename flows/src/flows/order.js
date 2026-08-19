@@ -185,6 +185,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
     }
     // was an option question open when this turn STARTED? (act mutates pending later)
     const awaitingAtTurnStart = !!loaded.pending?.awaiting_option;
+    // the draft as it stood when this turn started — the confirm gate compares against
+    // it (act merges new lines into loaded.pending before the gate runs)
+    const draftIdsAtStart = new Set((loaded.pending?.items || []).map((p) => p.id));
+    const editsAtStart = (e.edits || []).some((ed) => ["add", "remove", "set_qty", "replace", "set_option"].includes(String(ed?.op || "")));
     // "أنا بقولك عايز المنيو مش عايز أختار" got the same ask three times — a bare
     // menu request ALWAYS wins, mid-question or not. Draft and open ask stay put.
     const bareMsg = String(input.message || "").replace(/^\[voice\]\s*/i, "").trim();
@@ -994,6 +998,24 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             const hit = findMenuItem(ed.item);
             if (!hit) { unknown.push(ed.item); continue; }
             const q = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20);
+            // "and a cookie" — the model guessed Vanilla Cookie in `edits` while the same
+            // word was already turned into a which-one from `items`; the guess landed on
+            // the bill NEXT TO the question. A which-one already open for this dish owns
+            // it, and a fragment that fits several dishes is asked, never added.
+            const hn = normName(hit.name);
+            if (ambiguous.some((a) => (a.candidates || []).some((c) => normName(c) === hn))) continue;
+            {
+              const msgN3 = normName(arOptionWords(input.message));
+              const lastAi3 = String([...(input.history || [])].reverse().find((h) => h.role === "ai")?.message || "").toLowerCase();
+              const offeredNow = lastAi3.includes(String(hit.name).toLowerCase()) || (hit.name_ar && lastAi3.includes(String(hit.name_ar)));
+              if (!msgN3.includes(hn) && !offeredNow && hn !== normName(answeredAmbiguity || "")) {
+                const frag = hn.split(" ").filter((t) => t.length >= 3 && ` ${msgN3} `.includes(` ${t} `));
+                if (frag.length) {
+                  const fits = loaded.menu.filter((m) => m.available !== false && frag.every((t) => normName(m.name).split(" ").includes(t)));
+                  if (fits.length > 1) { ambiguous.push({ said: frag.join(" "), qty: q, candidates: fits.slice(0, 4).map((m) => m.name) }); continue; }
+                }
+              }
+            }
             const existing = items.find((it) => it.id === hit.id && !Object.keys(it.options || {}).length);
             if (existing) existing.qty = Math.min(existing.qty + q, 20);
             else items.push({ id: hit.id, name: hit.name, qty: q, price: Number(hit.price), notes: null, options: {}, option_defs: hit.options || [] });
@@ -1993,7 +2015,11 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // intent=confirm, which would otherwise place the order the moment they pick a
       // payment method, before they've ever seen a total.
       const AFFIRM = /(?<![\p{L}\p{N}])(yes|yeah|yep|confirm|confirmed|ok|okay|sure|go ahead|tamam|تمام|اكيد|أكيد|ماشي|maashi|mashy|aywa|ayw[ae]|ايوه|أيوة|اه|akke?d|aked|akid|ekked|أكد|اكد|أكّد|اكّد|تأكيد|تاكيد|كمل|كمّل|kamel|kammel)(?![\p{L}\p{N}])/iu;
-      const confirmed = loaded.pending?.awaiting_confirm === true &&
+      // …and a "yes" that CHANGES the order in the same breath ("yes add the loaded
+      // fries") confirms nothing — the bill they said yes to is not the bill they'll
+      // get. Apply the change, show the new total, and let them confirm THAT.
+      const changedThisTurn = editsAtStart || items.some((it) => it?.id && !draftIdsAtStart.has(it.id));
+      const confirmed = loaded.pending?.awaiting_confirm === true && !changedThisTurn &&
         (e.intent === "confirm" || (input.message.trim().length <= 24 && AFFIRM.test(input.message)));
       if (!confirmed) {
         const upsell = upsellPlacement === "confirm" ? pickUpsell() : null;

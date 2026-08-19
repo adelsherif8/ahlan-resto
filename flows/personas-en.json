@@ -387,6 +387,10 @@
    "classic burger sandwich pickup, cash, now",
    "yes add the loaded fries",
    "and a cookie",
+   {
+    "if": "Which one did you mean",
+    "say": "the triple chocolate one"
+   },
    "confirm"
   ],
   "complete": "ticket",
@@ -396,7 +400,7 @@
   },
   "forbid": {
    "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
-   "fries twice": "Loaded Fries[\\s\\S]*Loaded Fries[\\s\\S]*Loaded Fries"
+   "fries twice": "2× \\*Loaded Fries|1× \\*Loaded Fries\\*[^\\n]*\\n(?:[^―\\n]*\\n)*?1× \\*Loaded Fries"
   }
  },
  {
