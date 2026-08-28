@@ -1,0 +1,66 @@
+---
+// The reference site's scroll architecture, our content and sections:
+// fixed hero on a 175vh runway (opening, copy swap, drift, shrink-away exit),
+// one pinned arithmetic dial, one-shot entrances, fixed pill nav, sticky CTA.
+import Base from '../../layouts/Base.astro';
+import HeaderPill from '../../components/HeaderPill.astro';
+import HeroCinema from '../../components/HeroCinema.astro';
+import SectionMark from '../../components/SectionMark.astro';
+import Problem from '../../components/ProblemMix.astro';
+import WhatIs from '../../components/WhatIsPanels.astro';
+import DineIn from '../../components/DineInAnimated.astro';
+import Steps from '../../components/StepsAnimated.astro';
+import Understands from '../../components/UnderstandsBento.astro';
+import Trust from '../../components/TrustBar.astro';
+import PinnedMath from '../../components/PinnedMath.astro';
+import Pricing from '../../components/PricingCalc.astro';
+import Objections from '../../components/ObjectionsSticky.astro';
+import Closing from '../../components/ClosingChat.astro';
+import Footer from '../../components/FooterGiant.astro';
+import StickyCta from '../../components/StickyCta.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="منادم — سينما" description="Cinema scroll edition" path="/preview/cinema">
+  <HeaderPill t={t} lang="ar" />
+  <HeroCinema t={t} lang="ar" />
+
+  <main class="relative z-50 bg-semna">
+    <div class="container-page pt-16 md:pt-20" data-rise><SectionMark n="01" label="المشكلة" /></div>
+    <Problem t={t} />
+
+    <div class="container-page pt-10" data-rise><SectionMark n="02" label="القناة" /></div>
+    <WhatIs t={t} />
+
+    <div class="container-page pt-10" data-rise><SectionMark n="03" label="الصالة" /></div>
+    <DineIn t={t} />
+
+    <div class="surface-deep">
+      <div class="container-page pt-16" data-rise><SectionMark n="04" label="إزاي بيبدأ" /></div>
+      <Steps t={t} />
+    </div>
+
+    <div class="container-page pt-16" data-rise><SectionMark n="05" label="بيفهم إزاي" /></div>
+    <Understands t={t} />
+
+    <Trust t={t} />
+
+    <PinnedMath t={t} />
+    <Pricing t={t} />
+
+    <div class="container-page pt-16" data-rise><SectionMark n="07" label="أسئلة" /></div>
+    <Objections t={t} />
+
+    <Closing t={t} />
+  </main>
+
+  <Footer t={t} lang="ar" />
+  <StickyCta t={t} />
+
+  <script>
+    import { initCinema } from '../../scripts/cinema';
+    import { initPinnedMath } from '../../scripts/pinned-math';
+    initCinema();
+    initPinnedMath();
+  </script>
+</Base>

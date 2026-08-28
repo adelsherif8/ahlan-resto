@@ -251,3 +251,16 @@ html[lang='ar'] * { letter-spacing: 0 !important; }
 .page-dark .calc-range::-webkit-slider-thumb { background: var(--brass); border-color: #1D1917; }
 .page-dark .calc-range::-moz-range-thumb { background: var(--brass); border-color: #1D1917; }
 /* the WhatsApp surfaces keep their own colours — that's the customer's phone */
+
+
+/* ── Cinema hero: word masks + the two-line crossfade slot ─────────────── */
+.hw { display: inline-block; overflow: hidden; margin-inline-end: 0.22em; }
+.hw i { display: inline-block; font-style: normal; transform: translateY(110%); will-change: transform; }
+.hero-sub { position: absolute; inset: 0; opacity: 0; }
+/* the fixed hero sits above the page until it lifts away */
+.hero-cinema { will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+  .hw i { transform: none; }
+  .hero-sub { position: relative; opacity: 1; }
+  .hero-sub + .hero-sub { display: none; }
+}

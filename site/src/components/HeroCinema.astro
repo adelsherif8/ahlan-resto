@@ -1,0 +1,95 @@
+---
+/** The cinema hero — the reference's mechanic, our content.
+    The hero is position:fixed; a 175vh spacer supplies the scroll runway.
+    On load the frame opens from an inset card to full bleed. On scroll:
+    the two halves of the confrontational line swap in the same slot, the
+    copy drifts up and fades, then the whole frame shrinks back into a card
+    and lifts away — handing the page to the sections underneath. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+import PhoneChat from './PhoneChat';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t } = Astro.props;
+
+// the sub splits into two lines that crossfade in one slot
+const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
+// the headline masks up word by word
+const words = t.hero.h1.split(' ');
+---
+
+<div id="hero" class="hero-cinema fixed inset-0 z-40 flex flex-col bg-semna">
+  <div id="hero-area" class="relative flex min-h-0 flex-1 items-center justify-center p-4">
+    <!-- the frame: starts a card, opens to full bleed -->
+    <div
+      id="hero-frame"
+      class="relative h-[46vh] w-[42vw] overflow-hidden rounded-[20px] bg-semna will-change-transform"
+    >
+      <!-- the mark's circle, ambient -->
+      <div
+        class="pointer-events-none absolute start-1/2 top-1/2 h-[62rem] w-[62rem] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-brass-deep/20 rtl:translate-x-1/2"
+        aria-hidden="true"
+      >
+      </div>
+
+      <div class="container-page relative flex h-full items-center">
+        <div class="grid w-full items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+          <div id="hero-copy" class="relative z-10 max-w-[40rem] will-change-transform">
+            <h1 class="max-w-[17ch] text-ink">
+              {words.map((w) => (
+                <span class="hw"><i>{w}</i></span>
+              ))}
+            </h1>
+
+            <!-- the two halves crossfade in one slot — nothing reflows -->
+            <div class="hero-subs relative mt-7 min-h-[3.4em] max-w-[32rem] border-s-2 border-karkadeh/50 ps-5">
+              <p id="sub1" class="hero-sub text-[1.15rem] font-medium leading-relaxed text-karkadeh sm:text-[1.3rem]">
+                {subA}.
+              </p>
+              <p id="sub2" class="hero-sub text-[1.15rem] font-medium leading-relaxed text-karkadeh sm:text-[1.3rem]">
+                {subB}.
+              </p>
+            </div>
+
+            <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
+              <a
+                href={WA_LINK}
+                class="btn-primary inline-flex items-center justify-center !px-9 !py-4 text-[1.08rem] shadow-[0_10px_28px_-12px_rgba(140,29,47,0.7)]"
+              >{t.hero.ctaPrimary}</a>
+              <a
+                href="#pricing"
+                class="group inline-flex min-h-[44px] items-center gap-2 text-[1rem] font-medium text-ink/65 transition-colors hover:text-karkadeh"
+              >
+                {t.hero.ctaSecondary}
+                <span aria-hidden="true" class="transition-transform group-hover:-translate-x-1 rtl:-scale-x-100">←</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="relative hidden justify-self-center lg:block">
+            <div class="rotate-[-4deg]">
+              <PhoneChat
+                client:visible
+                rtlChat={true}
+                restaurant={t.hero.restaurant}
+                status={t.hero.chatStatus}
+                demoLabel={t.hero.demoLabel}
+                replayLabel={t.hero.replay}
+                chat={t.hero.chat}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- scroll hint -->
+      <div id="hero-hint" class="pointer-events-none absolute bottom-6 end-6 flex items-center gap-2 text-[0.85rem] text-ink/45">
+        <span>انزل</span>
+        <span aria-hidden="true" class="inline-block animate-bounce">↓</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- the runway the fixed hero scrolls against -->
+<div class="hero-spacer h-[175vh]"></div>
