@@ -162,6 +162,8 @@
 
   /* ───────────────────── the one pinned section ─────────────────────── */
 
+  window.addEventListener('load', function () { ScrollTrigger.refresh(); });
+
   ScrollTrigger.create({
     trigger: '#scale-pin',
     start: 'top top',

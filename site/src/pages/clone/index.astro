@@ -136,13 +136,33 @@ const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
               </article>
             ))}
           </div>
-          <aside class="bar">
-            <div>
-              <h3>{t.steps.items[0]!.title}</h3>
-              <p>{t.steps.items[0]!.body} {t.steps.items[1]!.body}</p>
+          <!-- the dragging arithmetic, in this stylesheet -->
+          <div class="calc" id="calc">
+            <div class="calc__inputs">
+              <label class="calc__field">
+                <span class="calc__label">{t.pricing.picker.aov}</span>
+                <span class="calc__num num" id="c-aov">150</span>
+                <input type="range" id="c-aov-r" min="80" max="400" step="10" value="150" aria-label={t.pricing.picker.aov} />
+              </label>
+              <label class="calc__field">
+                <span class="calc__label">{t.pricing.picker.orders}</span>
+                <span class="calc__num num" id="c-ord">600</span>
+                <input type="range" id="c-ord-r" min="100" max="3000" step="50" value="600" aria-label={t.pricing.picker.orders} />
+              </label>
             </div>
-            <a class="btn btn--dark" href={WA_LINK}>{t.hero.ctaPrimary} <span aria-hidden="true">←</span></a>
-          </aside>
+            <div class="calc__out">
+              <div class="calc__box calc__box--bad">
+                <span class="calc__k">{t.pricing.picker.appSide}</span>
+                <span class="calc__v num" id="c-app">18,000</span>
+              </div>
+              <div class="calc__box">
+                <span class="calc__k">{t.pricing.picker.ourSide} <b id="c-plan" dir="ltr">Start</b></span>
+                <span class="calc__v num" id="c-ours">6,200</span>
+              </div>
+            </div>
+            <p class="calc__diff">{t.pricing.picker.diff} <b class="num" id="c-diff">11,800</b> {t.pricing.picker.egp} {t.pricing.perMonth}</p>
+            <p class="calc__note">{t.pricing.picker.assumption}</p>
+          </div>
         </div>
       </section>
 

@@ -6,6 +6,9 @@
 
 @import './tokens.css';
 @import './fonts.css';
+/* clone.css declares @layer clone; ordering it FIRST means Tailwind's
+   utilities win over the cloned stylesheet's element resets. */
+@layer clone, theme, base, components, utilities;
 @import 'tailwindcss';
 
 /* Map brand tokens into Tailwind's theme so utilities like bg-ink,
