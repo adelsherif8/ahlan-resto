@@ -1,15 +1,34 @@
 ---
 /**
- * The reference site's design, section for section, with Munadim's content
- * and palette. Their CSS (styles/clone.css) and their choreography
- * (scripts/clone.js) drive it; only the tokens, type and copy are ours.
+ * The reference site's choreography (fixed hero that opens and lifts away,
+ * one pinned reveal, quiet entrances, pill nav, sticky pill) carrying
+ * Munadim's content in Munadim's light palette. One stylesheet
+ * (styles/clone.css), one script (public/js/clone.js) — no framework islands,
+ * so nothing fights the scroll rig.
+ *
+ * Funnel order: hero → the arithmetic (pinned) → what an order produces →
+ * what it understands → the dining room → 3 steps → trust band → price +
+ * calculator → questions → closing.
  */
 import { ar as t } from '../../content/ar';
 import { WA_LINK, WA_NUMBER_DISPLAY, CONTACT_EMAIL } from '../../lib/const';
-import '../../styles/clone.css';  // …then the reference design wins on everything else
+import '../../styles/fonts.css';
+import '../../styles/clone.css';
 
 const heroWords = t.hero.h1.split(' ');
 const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
+const rec = t.whatIs.panels.receipt;
+const tk = t.whatIs.panels.ticket;
+const pf = t.whatIs.panels.profile;
+const sc = t.dineIn.scene;
+const jr = t.steps.journey;
+const qrCells = [
+  '1111111 01 1111111','1000001 10 1000001','1011101 01 1011101','1011101 11 1011101',
+  '1011101 00 1011101','1000001 01 1000001','1111111 10 1111111','0000000 11 0000000',
+  '1101011 01 0110110','0010110 10 1001011','1111111 00 0110101','1000001 11 1010010',
+  '1011101 01 0101101','1011101 10 1110010','1011101 01 0011101','1000001 11 1100010',
+  '1111111 00 0101011',
+];
 ---
 
 <!doctype html>
@@ -58,9 +77,9 @@ const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
         </div>
         <div class="hero__area" id="hero-area">
           <div class="hero__frame" id="hero-frame">
-            <!-- their video slot: ours is the conversation, the one image we can honestly show -->
             <div class="hero__stage">
-              <div class="chat" dir="rtl">
+              <!-- the conversation: their video slot. Bubbles land one by one as you scroll. -->
+              <div class="chat" id="hero-chat" dir="rtl">
                 <div class="chat__top">
                   <span class="chat__av">{t.hero.restaurant.trim().charAt(0)}</span>
                   <span class="chat__who"><b>{t.hero.restaurant}</b><span>{t.hero.chatStatus}</span></span>
@@ -96,6 +115,7 @@ const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
             <div class="hero__veil"></div>
           </div>
           <div class="hero__copy" id="hero-copy">
+            <p class="hero__kicker">{t.hero.demoLabel} · {t.hero.restaurant}</p>
             <h1 class="hero__title" id="hero-title">
               <span class="ln">
                 {heroWords.map((w) => <span class="w"><i>{w}</i></span>)}
@@ -105,27 +125,283 @@ const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
               <p class="hero__sub" id="sub1">{subA}.</p>
               <p class="hero__sub" id="sub2">{subB}.</p>
             </div>
+            <div class="hero__cta">
+              <a class="btn btn--yellow" href={WA_LINK}>{t.hero.ctaPrimary} <span aria-hidden="true">←</span></a>
+              <a class="hero__more" href="#pricing">{t.hero.ctaSecondary}</a>
+            </div>
           </div>
           <p class="hero__hint" id="hero-hint">[ انزل ]</p>
         </div>
       </div>
       <div class="hero-spacer"></div>
 
-      <!-- ════════════ 2 · PLANS — their "sizes" pattern ════════════ -->
-      <section class="sec sec--dark" id="pricing">
+      <!-- ═══ 2 · THE ARITHMETIC — their pinned reveal ═══ -->
+      <section class="scale" id="problem">
+        <div class="scale__pin" id="scale-pin">
+          <div class="wrap scale__head">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [01] {t.pricing.mathH3}</p>
+            <h2 class="mega mega--md">{t.problem.h2}</h2>
+            <p class="lede">{t.problem.p2}</p>
+          </div>
+          <div class="wrap dial">
+            <div class="dial__main">
+              <span class="dial__k">{t.pricing.picker.orders}</span>
+              <span class="dial__v num" id="m-orders">300</span>
+              <div class="dial__rail"><span id="m-fill"></span></div>
+              <div class="dial__stops num"><span>300</span><span>1,000</span><span>2,500</span></div>
+            </div>
+            <div class="readout">
+              <div class="ro ro--bad">
+                <span class="ro__k">{t.pricing.picker.appSide}</span>
+                <span class="ro__v"><b class="num" id="m-app">9,000</b> {t.pricing.picker.egp}</span>
+                <span class="ro__bar"><i id="m-bar-app"></i></span>
+              </div>
+              <div class="ro">
+                <span class="ro__k">{t.pricing.picker.ourSide} <b id="m-plan2" dir="ltr">Start</b></span>
+                <span class="ro__v"><b class="num" id="m-ours">3,500</b> {t.pricing.picker.egp}</span>
+                <span class="ro__bar"><i id="m-bar-ours"></i></span>
+              </div>
+              <div class="ro ro--fit">
+                <span class="ro__k">{t.pricing.picker.diff}</span>
+                <span class="ro__v"><b class="num" id="m-diff">5,500</b> {t.pricing.picker.egp} {t.pricing.perMonth}</span>
+              </div>
+            </div>
+          </div>
+          <div class="wrap scale__foot">
+            <p>{t.pricing.mathClose}</p>
+            <a class="btn btn--yellow" href="#pricing">{t.hero.ctaSecondary} <span aria-hidden="true">↓</span></a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ 3 · WHAT ONE ORDER PRODUCES — the rail panels ═══ -->
+      <section class="sec sec--paper" id="outputs">
+        <div class="wrap">
+          <header class="sec-head sec-head--row">
+            <div>
+              <p class="eyebrow"><span class="eyebrow__rule"></span> [02] كل أوردر بيطلع منه 3 حاجات</p>
+              <h2 class="mega">{t.whatIs.h2}</h2>
+            </div>
+            <p class="lede">{t.whatIs.p1} {t.whatIs.p2}</p>
+          </header>
+          <div class="rail">
+            <div class="rail__line" aria-hidden="true"></div>
+            <!-- 1 · the receipt on WhatsApp -->
+            <article class="panel">
+              <span class="panel__n num">01</span>
+              <h3>{t.whatIs.panels.p1}</h3>
+              <div class="panel__art">
+                <div class="wa">
+                  <div class="wa__b wa__b--out"><span>{rec.headline}</span></div>
+                  <div class="wa__b wa__b--out">
+                    <b>{rec.title}</b>
+                    <span>{rec.place}</span>
+                    <span class="wa__meta num">{rec.meta}</span>
+                    <span>{rec.item}</span>
+                    <span class="wa__meta num">{rec.breakdown}</span>
+                    <b>{rec.total}</b>
+                    <span>{rec.payEta}</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+            <!-- 2 · the ticket for the kitchen -->
+            <article class="panel">
+              <span class="panel__n num">02</span>
+              <h3>{t.whatIs.panels.p2}</h3>
+              <div class="panel__art">
+                <div class="ticket num" dir="ltr">
+                  <b>{tk.head}</b>
+                  <span class="ticket__code">{tk.code}</span>
+                  <span>{tk.customer}</span>
+                  <hr />
+                  <span class="ticket__row"><span>{tk.item}</span><span>{tk.price}</span></span>
+                  {tk.mods.map((m) => <span class="ticket__mod">{m}</span>)}
+                  <hr />
+                  <span class="ticket__row ticket__total"><span>{tk.totalLabel}</span><span>{tk.total}</span></span>
+                  <span class="ticket__mod">{tk.payment}</span>
+                </div>
+              </div>
+            </article>
+            <!-- 3 · the customer, on record -->
+            <article class="panel">
+              <span class="panel__n num">03</span>
+              <h3>{t.whatIs.panels.p3}</h3>
+              <div class="panel__art">
+                <div class="record">
+                  <div class="record__head">
+                    <span class="record__av">{pf.name.charAt(0)}</span>
+                    <span><b>{pf.name}</b><span class="num" dir="ltr">{pf.phone}</span></span>
+                    <span class="record__badge">{pf.badge}</span>
+                  </div>
+                  <div class="record__stats">
+                    {pf.stats.map((s) => <span><b class="num">{s.value}</b><small>{s.label}</small></span>)}
+                  </div>
+                  {pf.rows.slice(0, 2).map((r) => <div class="record__row"><span>{r.label}</span><b>{r.text}</b></div>)}
+                  <div class="record__row"><span>{pf.notesLabel}</span><b>{pf.notes[0]}</b></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ 4 · WHAT IT UNDERSTANDS — the bento ═══ -->
+      <section class="sec" id="features">
         <div class="wrap">
           <header class="sec-head">
-            <p class="eyebrow"><span class="eyebrow__rule"></span> [01] الباقات والسعر</p>
-            <h2 class="mega">{t.pricing.h2}</h2>
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [03] بيفهم إزاي</p>
+            <h2 class="mega">{t.understands.h2}</h2>
+          </header>
+          <div class="bento">
+            {t.understands.table.pairs.map((p, i) => (
+              <article class:list={['tile', i < 2 && 'tile--wide']}>
+                <h3>{p.head}</h3>
+                <span class="tile__k">{t.understands.table.sends}</span>
+                <div class="tile__in">
+                  {p.input.kind === 'voice' && (
+                    <span class="chat__voice">
+                      <span class="chat__wave">{[5,9,14,8,12,17,10,6,12,16,9,5,8,13].map((h) => <i style={`height:${h}px`}></i>)}</span>
+                      <b class="num">{p.input.duration}</b>
+                    </span>
+                  )}
+                  {p.input.kind === 'location' && <span>📍 {p.input.text}</span>}
+                  {p.input.kind === 'text' && <span dir="auto">{p.input.text}</span>}
+                </div>
+                <span class="tile__k">{t.understands.table.gets}</span>
+                <dl class="tile__out">
+                  {p.fields.map((f) => <div><dt>{f.label}</dt><dd>{f.value}</dd></div>)}
+                </dl>
+              </article>
+            ))}
+            <a class="tile tile--cta" href={WA_LINK}>
+              <h3>{t.closing.askMore}</h3>
+              <span class="btn btn--yellow btn--sm">{t.nav.cta} <span aria-hidden="true">←</span></span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ 5 · THE DINING ROOM — the divided strip ═══ -->
+      <section class="sec sec--steel" id="dinein">
+        <div class="wrap dine">
+          <header class="sec-head dine__copy">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [04] الصالة</p>
+            <h2 class="mega mega--md">{t.dineIn.h2}</h2>
+            <p class="lede">{t.dineIn.p1}</p>
+            <p class="lede">{t.dineIn.p2}</p>
+          </header>
+          <div class="strip" id="strip">
+            <div class="strip__cell">
+              <span class="strip__n num">1</span>
+              <div class="tent">
+                <div class="qr" aria-hidden="true">
+                  {qrCells.map((row) => <span>{row.split('').map((c) => <i class:list={[c === '1' && 'on']}></i>)}</span>)}
+                </div>
+                <span class="tent__t">{t.dineIn.qr.scan}</span>
+                <span class="tent__tbl num">{sc.chips[0]}</span>
+              </div>
+              <p>{sc.step1}</p>
+            </div>
+            <div class="strip__cell">
+              <span class="strip__n num">2</span>
+              <div class="wa wa--phone">
+                {sc.chat.map((m) => <div class:list={['wa__b', m.from === 'out' ? 'wa__b--out' : 'wa__b--in']}><span>{m.text}</span></div>)}
+              </div>
+              <p>{sc.step2}</p>
+            </div>
+            <div class="strip__cell">
+              <span class="strip__n num">3</span>
+              <div class="record">
+                <div class="record__head">
+                  <span class="record__av">{sc.guestName.charAt(0)}</span>
+                  <span><b>{sc.guestName}</b><span class="num" dir="ltr">{sc.guestPhone}</span></span>
+                </div>
+                <div class="record__chips">{sc.chips.map((c) => <span>{c}</span>)}</div>
+                <div class="record__row"><span class="num">{sc.orderCode}</span><b>{sc.orderItem}</b></div>
+                <div class="record__row"><span>{sc.orderMeta}</span><b class="num">{sc.orderTotal}</b></div>
+              </div>
+              <p>{sc.step3}</p>
+            </div>
+          </div>
+          <p class="dine__captured">✓ {sc.captured}</p>
+        </div>
+      </section>
+
+      <!-- ═══ 6 · 3 STEPS — the journey ═══ -->
+      <section class="sec" id="how">
+        <div class="wrap">
+          <header class="sec-head sec-head--row">
+            <div>
+              <p class="eyebrow"><span class="eyebrow__rule"></span> [05] إزاي بيبدأ</p>
+              <h2 class="mega">{t.steps.h2}</h2>
+            </div>
+            <p class="lede">{jr.orderFrom}. {t.steps.items[2]!.body}</p>
+          </header>
+          <ol class="steps" id="steps">
+            <div class="steps__line" aria-hidden="true"><i id="steps-fill"></i></div>
+            {t.steps.items.map((s, i) => (
+              <li>
+                <span class="steps__n num">{i + 1}</span>
+                <h3>{s.title}</h3>
+                <p>{s.body}</p>
+                <div class="steps__art">
+                  {i === 0 && (
+                    <div class="menu">
+                      <b>{jr.menuTitle}</b>
+                      {jr.menuItems.map((m) => <span><span>{m.name}</span><span class="num">{m.price}</span></span>)}
+                    </div>
+                  )}
+                  {i === 1 && <div class="chips">{jr.setupChips.map((c) => <span>{c}</span>)}</div>}
+                  {i === 2 && (
+                    <div class="order">
+                      <b class="num">{jr.orderTitle}</b>
+                      <span>{jr.orderItem}</span>
+                      <small>{jr.orderFrom}</small>
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <!-- ═══ 7 · TRUST — the karkadeh band ═══ -->
+      <section class="deals" id="trust">
+        <div class="wrap">
+          <header class="sec-head deals__head">
+            <p class="eyebrow eyebrow--onlight"><span class="eyebrow__rule eyebrow__rule--dark"></span> [06] ليه منادم</p>
+            <h2 class="mega mega--dark">{t.trust.pre} <b class="num deals__big">{t.trust.num}</b> {t.trust.post}</h2>
+          </header>
+          <div class="grid grid--3">
+            {t.trust.facts.map((f, i) => (
+              <article class="deal">
+                <span class="deal__n num">{String(i + 1).padStart(2, '0')}</span>
+                <h3>{f.head}</h3>
+                <p>{f.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ 8 · PRICE + THE DRAGGING ARITHMETIC ═══ -->
+      <section class="sec" id="pricing">
+        <div class="wrap">
+          <header class="sec-head sec-head--row">
+            <div>
+              <p class="eyebrow"><span class="eyebrow__rule"></span> [07] السعر</p>
+              <h2 class="mega">{t.pricing.h2}</h2>
+            </div>
             <p class="lede">{t.pricing.includesAll} {t.pricing.setup}</p>
           </header>
           <div class="cards--3">
             {t.pricing.plans.map((p, i) => (
-              <article class="card">
+              <article class:list={['card', i === 1 && 'card--pop']} data-plan={p.name}>
                 <div class="card__body">
-                  <div class="card__rule"><span style={`width:${[40, 70, 100][i]}%`}></span></div>
-                  <h3 class="card__size" dir="ltr">{p.monthly}<small>جنيه / شهر</small></h3>
                   <p class="card__name" dir="ltr">{p.name}</p>
+                  <h3 class="card__size num" dir="ltr">{p.monthly}<small>{t.pricing.perMonth}</small></h3>
                   <p class="card__desc">{p.fits}</p>
                   <dl class="spec">
                     <div><dt>{t.pricing.rows.included}</dt><dd class="num">{p.included}</dd></div>
@@ -136,7 +412,6 @@ const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
               </article>
             ))}
           </div>
-          <!-- the dragging arithmetic, in this stylesheet -->
           <div class="calc" id="calc">
             <div class="calc__inputs">
               <label class="calc__field">
@@ -159,144 +434,25 @@ const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
                 <span class="calc__k">{t.pricing.picker.ourSide} <b id="c-plan" dir="ltr">Start</b></span>
                 <span class="calc__v num" id="c-ours">6,200</span>
               </div>
+              <div class="calc__box calc__box--diff">
+                <span class="calc__k">{t.pricing.picker.diff}</span>
+                <span class="calc__v num" id="c-diff">11,800</span>
+                <span class="calc__k">{t.pricing.picker.egp} {t.pricing.perMonth}</span>
+              </div>
             </div>
-            <p class="calc__diff">{t.pricing.picker.diff} <b class="num" id="c-diff">11,800</b> {t.pricing.picker.egp} {t.pricing.perMonth}</p>
             <p class="calc__note">{t.pricing.picker.assumption}</p>
           </div>
         </div>
       </section>
 
-      <!-- ═══ 3 · THE PIN — their scale reveal, our arithmetic ═══ -->
-      <section class="scale" id="scale">
-        <div class="scale__pin" id="scale-pin">
-          <div class="wrap scale__head">
-            <p class="eyebrow"><span class="eyebrow__rule"></span> [02] {t.pricing.mathH3}</p>
-            <h2 class="mega">{t.problem.h2}</h2>
-          </div>
-          <div class="scale__stage">
-            <div class="wrap dial">
-              <div class="dial__main">
-                <span class="dial__k">{t.pricing.picker.orders}</span>
-                <span class="dial__v num" id="m-orders">300</span>
-                <span class="dial__plan" id="m-plan" dir="ltr">Start</span>
-                <div class="dial__rail"><span id="m-fill"></span></div>
-                <div class="dial__stops num"><span>300</span><span>1,000</span><span>2,500</span></div>
-              </div>
-              <div class="readout">
-                <div class="ro"><span class="ro__k">{t.pricing.picker.appSide}</span><span class="ro__v ro__v--bad"><b class="num" id="m-app">9,000</b> {t.pricing.picker.egp}</span></div>
-                <div class="ro"><span class="ro__k">{t.pricing.picker.ourSide} <b id="m-plan2" dir="ltr">Start</b></span><span class="ro__v"><b class="num" id="m-ours">3,500</b> {t.pricing.picker.egp}</span></div>
-                <div class="ro ro--fit"><span class="ro__k">{t.pricing.picker.diff}</span><span class="ro__v ro__v--fit"><b class="num" id="m-diff">5,500</b> {t.pricing.picker.egp}</span></div>
-              </div>
-            </div>
-            <div class="scale__foot">
-              <p>{t.pricing.picker.assumption}</p>
-              <a class="btn btn--yellow" href={WA_LINK}>{t.nav.cta} <span aria-hidden="true">←</span></a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═══════ 4 · WHAT IT UNDERSTANDS — their tile grid ═══════ -->
-      <section class="sec sec--dark" id="features">
-        <div class="wrap">
-          <header class="sec-head">
-            <p class="eyebrow"><span class="eyebrow__rule"></span> [03] بيفهم إزاي</p>
-            <h2 class="mega">{t.understands.h2}</h2>
-            <p class="lede">{t.whatIs.p2}</p>
-          </header>
-          <div class="grid grid--3">
-            {t.understands.table.pairs.map((p, i) => (
-              <a class:list={['tile', i === 0 && 'tile--wide']} href={WA_LINK}>
-                <div class="tile__in">
-                  <h3>{p.head}</h3>
-                  <p>{p.input.kind === 'voice' ? `فويس نوت ${p.input.duration}` : p.input.text}</p>
-                  <span class="tile__price">{p.fields[0]!.value}<small> — {p.fields[0]!.label}</small></span>
-                </div>
-              </a>
-            ))}
-            <a class="tile tile--full" href={WA_LINK}>
-              <div class="tile__in">
-                <h3>{t.dineIn.scene.step1}</h3>
-                <p>{t.dineIn.p2}</p>
-                <span class="tile__price">{t.dineIn.scene.captured}</span>
-              </div>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═════════ 5 · THE ACCENT BAND — their "deals" ═════════ -->
-      <section class="deals" id="deals">
-        <div class="wrap">
-          <header class="sec-head">
-            <p class="eyebrow eyebrow--onlight"><span class="eyebrow__rule eyebrow__rule--dark"></span> [04] ليه منادم</p>
-            <h2 class="mega mega--dark">{t.whatIs.h2}</h2>
-          </header>
-          <div class="grid grid--3">
-            {t.trust.facts.map((f, i) => (
-              <article class="deal">
-                <span class="deal__n">{String(i + 1).padStart(2, '0')}</span>
-                <h3>{f.head}</h3>
-                <p>{f.body}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <!-- ══════════ 6 · HOW IT STARTS — their steps ══════════ -->
-      <section class="sec sec--dark" id="how">
-        <div class="wrap">
-          <header class="sec-head">
-            <p class="eyebrow"><span class="eyebrow__rule"></span> [05] إزاي بيبدأ</p>
-            <h2 class="mega">{t.steps.h2}</h2>
-          </header>
-          <ol class="steps">
-            {t.steps.items.map((s, i) => (
-              <li><span class="steps__n">{i + 1}</span><h3>{s.title}</h3><p>{s.body}</p></li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      <!-- ═════ 7 · THE THREE OUTPUTS — their "grades" ═════ -->
-      <section class="sec sec--steel" id="outputs">
-        <div class="wrap">
-          <header class="sec-head">
-            <p class="eyebrow"><span class="eyebrow__rule"></span> [06] كل أوردر بيطلع منه</p>
-            <h2 class="mega">{t.whatIs.h2}</h2>
-            <p class="lede">{t.whatIs.p1}</p>
-          </header>
-          <div class="grid grid--3">
-            <article class="grade">
-              <h3>{t.whatIs.panels.p1}</h3>
-              <p>{t.whatIs.panels.receipt.total} · {t.whatIs.panels.receipt.payEta}</p>
-            </article>
-            <article class="grade">
-              <h3>{t.whatIs.panels.p2}</h3>
-              <p class="num" dir="ltr">{t.whatIs.panels.ticket.code} · {t.whatIs.panels.ticket.item}</p>
-            </article>
-            <article class="grade">
-              <h3>{t.whatIs.panels.p3}</h3>
-              <p>{t.whatIs.flow.captured}</p>
-            </article>
-          </div>
-          <aside class="bar bar--quiet">
-            <div>
-              <h3>{t.trust.facts[0]!.head}</h3>
-              <p>{t.trust.facts[0]!.body}</p>
-            </div>
-            <a class="btn btn--yellow" href={WA_LINK}>{t.closing.cta} <span aria-hidden="true">←</span></a>
-          </aside>
-        </div>
-      </section>
-
-      <!-- ════════════════ 8 · FAQ — their accordion ════════════════ -->
-      <section class="sec sec--dark" id="faq">
-        <div class="wrap">
-          <header class="sec-head">
-            <p class="eyebrow"><span class="eyebrow__rule"></span> [07] أسئلة</p>
-            <h2 class="mega">{t.objections.h2}</h2>
+      <!-- ═══ 9 · QUESTIONS — sticky heading, their accordion ═══ -->
+      <section class="sec sec--steel" id="faq">
+        <div class="wrap faq__grid">
+          <header class="sec-head faq__head">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [08] أسئلة</p>
+            <h2 class="mega mega--md">{t.objections.h2}</h2>
+            <p class="lede">{t.closing.askMore}</p>
+            <a class="btn btn--yellow" href={WA_LINK}>{t.nav.cta} <span aria-hidden="true">←</span></a>
           </header>
           <div class="faq" id="faq-list">
             {t.objections.items.map((o, i) => (
@@ -311,22 +467,47 @@ const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
         </div>
       </section>
 
-      <!-- ═══════════════ 9 · THE CLOSING — their quote ═══════════════ -->
+      <!-- ═══ 10 · CLOSING — ink, with the composer ═══ -->
       <section class="qs" id="quote">
         <div class="wrap qs__in">
-          <header class="sec-head">
-            <p class="eyebrow"><span class="eyebrow__rule"></span> [08] {t.closing.cta}</p>
+          <div>
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [09] {t.closing.cta}</p>
             <h2 class="mega">{t.closing.h2}</h2>
             <p class="lede">{t.closing.p}</p>
-          </header>
-          <div class="qs__cta">
-            <a class="btn btn--yellow" href={WA_LINK}>{t.closing.cta} <span aria-hidden="true">←</span></a>
-            <a class="qs__tel num" href={WA_LINK} dir="ltr">{WA_NUMBER_DISPLAY}</a>
-            <a class="qs__mail" href={`mailto:${CONTACT_EMAIL}`} dir="ltr">{CONTACT_EMAIL}</a>
+            <div class="qs__cta">
+              <a class="btn btn--yellow" href={WA_LINK}>{t.closing.cta} <span aria-hidden="true">←</span></a>
+              <a class="qs__tel num" href={WA_LINK} dir="ltr">{WA_NUMBER_DISPLAY}</a>
+            </div>
+            <p class="qs__micro">{t.closing.micro} · <a href={`mailto:${CONTACT_EMAIL}`} dir="ltr">{CONTACT_EMAIL}</a></p>
           </div>
-          <p class="qs__micro">{t.closing.micro}</p>
+          <a class="composer" href={WA_LINK} aria-label={t.closing.cta}>
+            <div class="composer__top">
+              <span class="composer__av">م</span>
+              <span><b>منادم</b><span>{t.hero.chatStatus}</span></span>
+            </div>
+            <div class="composer__body">
+              <div class="wa__b wa__b--in"><span>{t.closing.askMore}</span></div>
+              <div class="wa__b wa__b--out"><span>{t.closing.prefill}</span></div>
+            </div>
+            <div class="composer__bar">
+              <span class="composer__field">{t.closing.prefill}</span>
+              <span class="composer__send" aria-hidden="true">➤</span>
+            </div>
+          </a>
         </div>
       </section>
+
+      <footer class="foot">
+        <div class="wrap foot__in">
+          <span class="foot__word" aria-hidden="true">MUNADIM</span>
+          <div class="foot__row">
+            <span>{t.footer.tagline}</span>
+            <a href={`mailto:${CONTACT_EMAIL}`} dir="ltr">{CONTACT_EMAIL}</a>
+            <a href="/en" dir="ltr">{t.nav.toggle.label}</a>
+            <span class="num">{t.footer.rights}</span>
+          </div>
+        </div>
+      </footer>
     </main>
 
     <!-- sticky pill -->
