@@ -1,0 +1,42 @@
+---
+/** The one accent-colour section — the reference gives its whole "offers"
+    band to yellow; ours goes to karkadeh and carries the arithmetic. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<section class="bg-karkadeh">
+  <div class="container-page py-16 md:py-24">
+    <div class="flex items-center gap-3" data-rise>
+      <span class="h-px w-8 bg-semna/60" aria-hidden="true"></span>
+      <span class="num text-[0.78rem] font-medium tracking-[0.14em] text-semna">[01]</span>
+      <span class="label-cap text-semna/70">الحسبة</span>
+    </div>
+
+    <h2 class="mt-6 max-w-[17ch] text-semna" data-rise>{t.problem.h2}</h2>
+
+    <div class="mt-12 grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
+      <div class="max-w-[36rem]" data-rise>
+        <p class="text-[1.1rem] leading-relaxed text-semna/90">{t.problem.p1}</p>
+        <p class="mt-4 text-[1.25rem] font-semibold leading-relaxed text-semna">{t.problem.p2}</p>
+      </div>
+
+      <!-- the number, at the scale the band deserves -->
+      <div class="flex items-end gap-4" data-rise>
+        <span class="num text-[5rem] font-medium leading-[0.85] text-semna sm:text-[7rem]">30</span>
+        <div class="pb-3">
+          <div class="num text-[1.5rem] font-medium leading-none text-semna/70" dir="ltr">/ 150</div>
+          <p class="mt-2 max-w-[11rem] text-[0.95rem] leading-snug text-semna/80">{t.problem.bar.app}</p>
+        </div>
+      </div>
+    </div>
+
+    <a
+      href={WA_LINK}
+      class="mt-12 inline-flex min-h-[56px] items-center justify-center rounded-full bg-semna px-9 text-[1.05rem] font-semibold text-karkadeh transition-colors hover:bg-white"
+      data-rise
+    >{t.nav.cta}</a>
+  </div>
+</section>

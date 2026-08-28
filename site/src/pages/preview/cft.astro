@@ -1,0 +1,62 @@
+---
+// The reference site's structure and motion, in Munadim's colours and content:
+// fixed pill nav · monumental hero · numbered eyebrows · one accent band ·
+// a pinned scrollytelling section · tall sections · scroll-linked reveals ·
+// sticky CTA that yields to the closing ask.
+import Base from '../../layouts/Base.astro';
+import HeaderPill from '../../components/HeaderPill.astro';
+import Hero from '../../components/Hero.astro';
+import AccentBand from '../../components/AccentBand.astro';
+import SectionMark from '../../components/SectionMark.astro';
+import WhatIs from '../../components/WhatIsPanels.astro';
+import PinnedDineIn from '../../components/PinnedDineIn.astro';
+import Steps from '../../components/StepsAnimated.astro';
+import Understands from '../../components/UnderstandsBento.astro';
+import Trust from '../../components/TrustBar.astro';
+import Pricing from '../../components/PricingCalc.astro';
+import Objections from '../../components/ObjectionsSticky.astro';
+import Closing from '../../components/ClosingChat.astro';
+import Footer from '../../components/FooterGiant.astro';
+import StickyCta from '../../components/StickyCta.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="منادم — بنية جديدة" description="CFT-structure edition" path="/preview/cft">
+  <HeaderPill t={t} lang="ar" />
+  <Hero t={t} lang="ar" />
+  <main>
+    <AccentBand t={t} />
+
+    <div class="container-page pt-16 md:pt-24" data-rise><SectionMark n="02" label="القناة" /></div>
+    <WhatIs t={t} />
+
+    <PinnedDineIn t={t} />
+
+    <div class="surface-deep">
+      <div class="container-page pt-16 md:pt-24" data-rise><SectionMark n="04" label="إزاي بيبدأ" /></div>
+      <Steps t={t} />
+    </div>
+
+    <div class="container-page pt-16 md:pt-24" data-rise><SectionMark n="05" label="بيفهم إزاي" /></div>
+    <Understands t={t} />
+
+    <Trust t={t} />
+
+    <div class="surface-deep">
+      <div class="container-page pt-16 md:pt-24" data-rise><SectionMark n="06" label="السعر" /></div>
+      <Pricing t={t} />
+    </div>
+
+    <div class="container-page pt-16 md:pt-24" data-rise><SectionMark n="07" label="أسئلة" /></div>
+    <Objections t={t} />
+
+    <Closing t={t} />
+  </main>
+  <Footer t={t} lang="ar" />
+  <StickyCta t={t} />
+
+  <script>
+    import { initScrollMotion } from '../../scripts/scroll-motion';
+    initScrollMotion();
+  </script>
+</Base>
