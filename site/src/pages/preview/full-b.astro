@@ -1,0 +1,34 @@
+---
+// Full page with bold hero B
+import Base from '../../layouts/Base.astro';
+import HeaderPill from '../../components/HeaderPill.astro';
+import Hero from '../../components/HeroBoldB.astro';
+import Problem from '../../components/ProblemMix.astro';
+import WhatIs from '../../components/WhatIsPanels.astro';
+import DineIn from '../../components/DineInAnimated.astro';
+import Steps from '../../components/StepsAnimated.astro';
+import Understands from '../../components/UnderstandsBento.astro';
+import Trust from '../../components/TrustBar.astro';
+import Pricing from '../../components/PricingCalc.astro';
+import Objections from '../../components/ObjectionsSticky.astro';
+import Closing from '../../components/ClosingChat.astro';
+import Footer from '../../components/FooterGiant.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="منادم — الصفحة الكاملة (B)" description="Full page with hero B" path="/preview/full-b">
+  <HeaderPill t={t} lang="ar" />
+  <main>
+    <Hero t={t} lang="ar" />
+    <Problem t={t} />
+    <WhatIs t={t} />
+    <DineIn t={t} />
+    <Steps t={t} />
+    <Understands t={t} />
+    <Trust t={t} />
+    <Pricing t={t} />
+    <Objections t={t} />
+    <Closing t={t} />
+  </main>
+  <Footer t={t} lang="ar" />
+</Base>
