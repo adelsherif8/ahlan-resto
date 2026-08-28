@@ -1,0 +1,323 @@
+---
+/**
+ * The reference site's design, section for section, with Munadim's content
+ * and palette. Their CSS (styles/clone.css) and their choreography
+ * (scripts/clone.js) drive it; only the tokens, type and copy are ours.
+ */
+import { ar as t } from '../../content/ar';
+import { WA_LINK, WA_NUMBER_DISPLAY, CONTACT_EMAIL } from '../../lib/const';
+import '../../styles/clone.css';  // …then the reference design wins on everything else
+
+const heroWords = t.hero.h1.split(' ');
+const [subA, subB] = t.hero.sub.split('.').map((s) => s.trim()).filter(Boolean);
+---
+
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{t.meta.title}</title>
+    <meta name="description" content={t.meta.description} />
+    <link rel="icon" type="image/svg+xml" href="/brand/08-favicon.svg" />
+    <link rel="preload" href="/fonts/amiri-v30-arabic-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/ibm-plex-sans-arabic-v15-arabic_latin-regular.woff2" as="font" type="font/woff2" crossorigin />
+  </head>
+  <body>
+    <a class="skip" href="#main">تخطَّ للمحتوى</a>
+
+    <!-- ═══════════════════════ PRELOADER ═══════════════════════ -->
+    <div class="pre" id="pre">
+      <div class="pre__top">
+        <p class="pre__brand">قناة الطلبات المباشرة<br />لمطعمك.</p>
+        <p class="pre__count">تحميل<br /><span id="pre-n">0</span>%</p>
+      </div>
+      <div class="pre__mark">
+        <span class="pre__word"><b>م</b><b>ُ</b><b>ن</b><b>ا</b><b>د</b><b>م</b></span>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════ NAV ═══════════════════════════ -->
+    <header class="nav" id="nav">
+      <div class="nav__pill">
+        <a class="nav__brand" href="#main" aria-label="Munadim">
+          <img src="/brand/21-lockup-horizontal-light-nobg.svg" alt="Munadim" width="120" height="40" />
+        </a>
+        <nav class="nav__links" aria-label="Primary">
+          {t.nav.links.map((l) => <a href={l.href}>{l.label}</a>)}
+        </nav>
+        <a class="btn btn--yellow btn--sm" href={WA_LINK}>{t.nav.cta}</a>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- ═══════════════════ 1 · HERO ══════════════════════ -->
+      <div class="hero" id="hero">
+        <div class="hero__bar" id="hero-bar">
+          <img src="/brand/20-lockup-horizontal-dark-nobg.svg" alt="" width="120" height="40" />
+        </div>
+        <div class="hero__area" id="hero-area">
+          <div class="hero__frame" id="hero-frame">
+            <!-- their video slot: ours is the conversation, the one image we can honestly show -->
+            <div class="hero__stage">
+              <div class="chat" dir="rtl">
+                <div class="chat__top">
+                  <span class="chat__av">{t.hero.restaurant.trim().charAt(0)}</span>
+                  <span class="chat__who"><b>{t.hero.restaurant}</b><span>{t.hero.chatStatus}</span></span>
+                  <span class="chat__demo">{t.hero.demoLabel}</span>
+                </div>
+                <div class="chat__body">
+                  {t.hero.chat.map((m) => (
+                    <div class:list={['chat__b', m.from === 'out' ? 'chat__b--out' : 'chat__b--in']}>
+                      {m.voice && (
+                        <span class="chat__voice">
+                          <span class="chat__wave">
+                            {[5,9,14,8,12,17,10,6,12,16,9,5,8,13,18,11,7,10].map((h) => <i style={`height:${h}px`}></i>)}
+                          </span>
+                          <b class="num">{m.voice.duration}</b>
+                        </span>
+                      )}
+                      {m.bill && (
+                        <span>
+                          {m.bill.lines.map((l) => (
+                            <span class="chat__bill"><span>{l.label}</span><b>{l.price}</b></span>
+                          ))}
+                          <span class="chat__bill chat__sum"><span>{m.bill.total.label}</span><b>{m.bill.total.price}</b></span>
+                          {m.bill.after && <span>{m.bill.after}</span>}
+                        </span>
+                      )}
+                      {m.text && <span>{m.text}</span>}
+                      <span class="chat__t">{m.time}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div class="hero__veil"></div>
+          </div>
+          <div class="hero__copy" id="hero-copy">
+            <h1 class="hero__title" id="hero-title">
+              <span class="ln">
+                {heroWords.map((w) => <span class="w"><i>{w}</i></span>)}
+              </span>
+            </h1>
+            <div class="hero__subs">
+              <p class="hero__sub" id="sub1">{subA}.</p>
+              <p class="hero__sub" id="sub2">{subB}.</p>
+            </div>
+          </div>
+          <p class="hero__hint" id="hero-hint">[ انزل ]</p>
+        </div>
+      </div>
+      <div class="hero-spacer"></div>
+
+      <!-- ════════════ 2 · PLANS — their "sizes" pattern ════════════ -->
+      <section class="sec sec--dark" id="pricing">
+        <div class="wrap">
+          <header class="sec-head">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [01] الباقات والسعر</p>
+            <h2 class="mega">{t.pricing.h2}</h2>
+            <p class="lede">{t.pricing.includesAll} {t.pricing.setup}</p>
+          </header>
+          <div class="cards--3">
+            {t.pricing.plans.map((p, i) => (
+              <article class="card">
+                <div class="card__body">
+                  <div class="card__rule"><span style={`width:${[40, 70, 100][i]}%`}></span></div>
+                  <h3 class="card__size" dir="ltr">{p.monthly}<small>جنيه / شهر</small></h3>
+                  <p class="card__name" dir="ltr">{p.name}</p>
+                  <p class="card__desc">{p.fits}</p>
+                  <dl class="spec">
+                    <div><dt>{t.pricing.rows.included}</dt><dd class="num">{p.included}</dd></div>
+                    <div><dt>{t.pricing.rows.overage}</dt><dd>{p.overage}</dd></div>
+                  </dl>
+                  <a class="card__link" href={WA_LINK}>{t.nav.cta} <span aria-hidden="true">←</span></a>
+                </div>
+              </article>
+            ))}
+          </div>
+          <aside class="bar">
+            <div>
+              <h3>{t.steps.items[0]!.title}</h3>
+              <p>{t.steps.items[0]!.body} {t.steps.items[1]!.body}</p>
+            </div>
+            <a class="btn btn--dark" href={WA_LINK}>{t.hero.ctaPrimary} <span aria-hidden="true">←</span></a>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ═══ 3 · THE PIN — their scale reveal, our arithmetic ═══ -->
+      <section class="scale" id="scale">
+        <div class="scale__pin" id="scale-pin">
+          <div class="wrap scale__head">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [02] {t.pricing.mathH3}</p>
+            <h2 class="mega">{t.problem.h2}</h2>
+          </div>
+          <div class="scale__stage">
+            <div class="wrap dial">
+              <div class="dial__main">
+                <span class="dial__k">{t.pricing.picker.orders}</span>
+                <span class="dial__v num" id="m-orders">300</span>
+                <span class="dial__plan" id="m-plan" dir="ltr">Start</span>
+                <div class="dial__rail"><span id="m-fill"></span></div>
+                <div class="dial__stops num"><span>300</span><span>1,000</span><span>2,500</span></div>
+              </div>
+              <div class="readout">
+                <div class="ro"><span class="ro__k">{t.pricing.picker.appSide}</span><span class="ro__v ro__v--bad"><b class="num" id="m-app">9,000</b> {t.pricing.picker.egp}</span></div>
+                <div class="ro"><span class="ro__k">{t.pricing.picker.ourSide} <b id="m-plan2" dir="ltr">Start</b></span><span class="ro__v"><b class="num" id="m-ours">3,500</b> {t.pricing.picker.egp}</span></div>
+                <div class="ro ro--fit"><span class="ro__k">{t.pricing.picker.diff}</span><span class="ro__v ro__v--fit"><b class="num" id="m-diff">5,500</b> {t.pricing.picker.egp}</span></div>
+              </div>
+            </div>
+            <div class="scale__foot">
+              <p>{t.pricing.picker.assumption}</p>
+              <a class="btn btn--yellow" href={WA_LINK}>{t.nav.cta} <span aria-hidden="true">←</span></a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════ 4 · WHAT IT UNDERSTANDS — their tile grid ═══════ -->
+      <section class="sec sec--dark" id="features">
+        <div class="wrap">
+          <header class="sec-head">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [03] بيفهم إزاي</p>
+            <h2 class="mega">{t.understands.h2}</h2>
+            <p class="lede">{t.whatIs.p2}</p>
+          </header>
+          <div class="grid grid--3">
+            {t.understands.table.pairs.map((p, i) => (
+              <a class:list={['tile', i === 0 && 'tile--wide']} href={WA_LINK}>
+                <div class="tile__in">
+                  <h3>{p.head}</h3>
+                  <p>{p.input.kind === 'voice' ? `فويس نوت ${p.input.duration}` : p.input.text}</p>
+                  <span class="tile__price">{p.fields[0]!.value}<small> — {p.fields[0]!.label}</small></span>
+                </div>
+              </a>
+            ))}
+            <a class="tile tile--full" href={WA_LINK}>
+              <div class="tile__in">
+                <h3>{t.dineIn.scene.step1}</h3>
+                <p>{t.dineIn.p2}</p>
+                <span class="tile__price">{t.dineIn.scene.captured}</span>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ 5 · THE ACCENT BAND — their "deals" ═════════ -->
+      <section class="deals" id="deals">
+        <div class="wrap">
+          <header class="sec-head">
+            <p class="eyebrow eyebrow--onlight"><span class="eyebrow__rule eyebrow__rule--dark"></span> [04] ليه منادم</p>
+            <h2 class="mega mega--dark">{t.whatIs.h2}</h2>
+          </header>
+          <div class="grid grid--3">
+            {t.trust.facts.map((f, i) => (
+              <article class="deal">
+                <span class="deal__n">{String(i + 1).padStart(2, '0')}</span>
+                <h3>{f.head}</h3>
+                <p>{f.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ 6 · HOW IT STARTS — their steps ══════════ -->
+      <section class="sec sec--dark" id="how">
+        <div class="wrap">
+          <header class="sec-head">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [05] إزاي بيبدأ</p>
+            <h2 class="mega">{t.steps.h2}</h2>
+          </header>
+          <ol class="steps">
+            {t.steps.items.map((s, i) => (
+              <li><span class="steps__n">{i + 1}</span><h3>{s.title}</h3><p>{s.body}</p></li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <!-- ═════ 7 · THE THREE OUTPUTS — their "grades" ═════ -->
+      <section class="sec sec--steel" id="outputs">
+        <div class="wrap">
+          <header class="sec-head">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [06] كل أوردر بيطلع منه</p>
+            <h2 class="mega">{t.whatIs.h2}</h2>
+            <p class="lede">{t.whatIs.p1}</p>
+          </header>
+          <div class="grid grid--3">
+            <article class="grade">
+              <h3>{t.whatIs.panels.p1}</h3>
+              <p>{t.whatIs.panels.receipt.total} · {t.whatIs.panels.receipt.payEta}</p>
+            </article>
+            <article class="grade">
+              <h3>{t.whatIs.panels.p2}</h3>
+              <p class="num" dir="ltr">{t.whatIs.panels.ticket.code} · {t.whatIs.panels.ticket.item}</p>
+            </article>
+            <article class="grade">
+              <h3>{t.whatIs.panels.p3}</h3>
+              <p>{t.whatIs.flow.captured}</p>
+            </article>
+          </div>
+          <aside class="bar bar--quiet">
+            <div>
+              <h3>{t.trust.facts[0]!.head}</h3>
+              <p>{t.trust.facts[0]!.body}</p>
+            </div>
+            <a class="btn btn--yellow" href={WA_LINK}>{t.closing.cta} <span aria-hidden="true">←</span></a>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ════════════════ 8 · FAQ — their accordion ════════════════ -->
+      <section class="sec sec--dark" id="faq">
+        <div class="wrap">
+          <header class="sec-head">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [07] أسئلة</p>
+            <h2 class="mega">{t.objections.h2}</h2>
+          </header>
+          <div class="faq" id="faq-list">
+            {t.objections.items.map((o, i) => (
+              <div class:list={['faq__item', i === 0 && 'is-open']}>
+                <button class="faq__q" type="button" aria-expanded={i === 0 ? 'true' : 'false'}>
+                  <span>{o.q}</span><span class="faq__i" aria-hidden="true"></span>
+                </button>
+                <div class="faq__a"><p>{o.a}</p></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ 9 · THE CLOSING — their quote ═══════════════ -->
+      <section class="qs" id="quote">
+        <div class="wrap qs__in">
+          <header class="sec-head">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [08] {t.closing.cta}</p>
+            <h2 class="mega">{t.closing.h2}</h2>
+            <p class="lede">{t.closing.p}</p>
+          </header>
+          <div class="qs__cta">
+            <a class="btn btn--yellow" href={WA_LINK}>{t.closing.cta} <span aria-hidden="true">←</span></a>
+            <a class="qs__tel num" href={WA_LINK} dir="ltr">{WA_NUMBER_DISPLAY}</a>
+            <a class="qs__mail" href={`mailto:${CONTACT_EMAIL}`} dir="ltr">{CONTACT_EMAIL}</a>
+          </div>
+          <p class="qs__micro">{t.closing.micro}</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- sticky pill -->
+    <div class="pill" id="pill">
+      <a class="pill__q" href={WA_LINK}>{t.nav.cta}</a>
+      <span class="pill__div"></span>
+      <a class="pill__t num" href={WA_LINK} dir="ltr">{WA_NUMBER_DISPLAY}</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" is:inline></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" is:inline></script>
+    <script src="/js/clone.js" is:inline></script>
+  </body>
+</html>
