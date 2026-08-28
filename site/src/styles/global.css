@@ -220,3 +220,34 @@ html[lang='ar'] * { letter-spacing: 0 !important; }
 }
 .animate-scan { animation: scan 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .animate-scan { animation: none; opacity: 0 !important; } }
+
+/* ==========================================================================
+   Dark page mode — the CFT idiom in Munadim's materials.
+   Swaps the ground/ink roles at token level so every existing component
+   inverts, then fixes the pairs the brand forbids on dark:
+   karkadeh on ink fails (2.09:1) so accents become brass; brass-deep is
+   a light-ground colour so it brightens to brass.
+   ========================================================================== */
+.page-dark {
+  --semna: #141110;          /* grounds become ink */
+  --ink: #F5EFE7;            /* type becomes semna */
+  --brass-deep: #B98432;     /* brass proper — the dark-ground brand colour */
+  --karkadeh: #D9A94E;       /* karkadeh is unreadable on ink; brass takes the accent role */
+  --karkadeh-10: rgba(185, 132, 50, 0.16);
+  --brass-15: rgba(185, 132, 50, 0.16);
+  background: #141110;
+  color: #F5EFE7;
+}
+.page-dark .card {
+  background: #1D1917;
+  border-color: rgba(245, 239, 231, 0.10);
+  box-shadow: none;
+}
+.page-dark .surface-deep { background: #0F0D0C; }
+.page-dark .btn-primary { background: var(--brass); color: #141110; }
+.page-dark .btn-primary:hover { background: var(--brass-light); }
+  .page-dark .h-rule::after { background: var(--brass); }
+.page-dark .calc-range { background: rgba(245, 239, 231, 0.18); }
+.page-dark .calc-range::-webkit-slider-thumb { background: var(--brass); border-color: #1D1917; }
+.page-dark .calc-range::-moz-range-thumb { background: var(--brass); border-color: #1D1917; }
+/* the WhatsApp surfaces keep their own colours — that's the customer's phone */

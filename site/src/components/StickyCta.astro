@@ -1,0 +1,41 @@
+---
+/** The always-there CTA pill (CFT pattern): sits bottom-end, never blocks
+    content, disappears once the closing section is on screen. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK, WA_NUMBER_DISPLAY } from '../lib/const';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+---
+
+<div
+  id="sticky-cta"
+  class="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 transition-all duration-300 sm:bottom-6 sm:justify-end sm:px-6"
+>
+  <div class="pointer-events-auto flex items-center gap-1 rounded-full bg-[#141110]/92 p-1.5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.6)] backdrop-blur-md">
+    <a
+      href={WA_LINK}
+      class="flex min-h-[46px] items-center rounded-full px-5 text-[0.98rem] font-medium text-[#F5EFE7] transition-colors hover:text-brass-light"
+    >{t.nav.cta}</a>
+    <a
+      href={WA_LINK}
+      class="num flex min-h-[46px] items-center rounded-full bg-brass px-5 text-[0.98rem] font-semibold text-[#141110] transition-colors hover:bg-brass-light"
+      dir="ltr"
+    >{WA_NUMBER_DISPLAY}</a>
+  </div>
+</div>
+
+<script>
+  // hide it once the closing CTA is visible — two asks on screen is one too many
+  const bar = document.getElementById('sticky-cta');
+  const closing = document.querySelector('main > section:last-of-type');
+  if (bar && closing && 'IntersectionObserver' in window) {
+    new IntersectionObserver(
+      ([e]) => {
+        bar.style.opacity = e.isIntersecting ? '0' : '1';
+        bar.style.transform = e.isIntersecting ? 'translateY(1rem)' : 'none';
+        bar.style.pointerEvents = e.isIntersecting ? 'none' : '';
+      },
+      { threshold: 0.25 },
+    ).observe(closing);
+  }
+</script>

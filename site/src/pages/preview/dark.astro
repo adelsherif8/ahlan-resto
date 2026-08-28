@@ -1,0 +1,48 @@
+---
+// The whole page in the CFT idiom: ink ground, numbered eyebrows, monumental
+// type, brass as the only accent, sticky CTA. Section components are unchanged —
+// the .page-dark token swap inverts them.
+import Base from '../../layouts/Base.astro';
+import HeaderInk from '../../components/HeaderInk.astro';
+import HeroCft from '../../components/HeroCft.astro';
+import SectionMark from '../../components/SectionMark.astro';
+import Problem from '../../components/ProblemMix.astro';
+import WhatIs from '../../components/WhatIsPanels.astro';
+import DineIn from '../../components/DineInAnimated.astro';
+import Steps from '../../components/StepsAnimated.astro';
+import Understands from '../../components/UnderstandsBento.astro';
+import Trust from '../../components/TrustBar.astro';
+import Pricing from '../../components/PricingCalc.astro';
+import Objections from '../../components/ObjectionsSticky.astro';
+import Closing from '../../components/ClosingChat.astro';
+import Footer from '../../components/FooterGiant.astro';
+import StickyCta from '../../components/StickyCta.astro';
+import { ar as t } from '../../content/ar';
+---
+
+<Base lang="ar" title="منادم — النسخة الداكنة" description="Dark edition" path="/preview/dark">
+  <div class="page-dark">
+    <HeaderInk t={t} lang="ar" />
+    <HeroCft t={t} lang="ar" />
+    <main>
+      <div class="container-page pt-14"><SectionMark n="01" label="المشكلة" /></div>
+      <Problem t={t} />
+      <div class="container-page pt-6"><SectionMark n="02" label="القناة" /></div>
+      <WhatIs t={t} />
+      <div class="container-page pt-6"><SectionMark n="03" label="الصالة" /></div>
+      <DineIn t={t} />
+      <div class="container-page pt-6"><SectionMark n="04" label="إزاي بيبدأ" /></div>
+      <Steps t={t} />
+      <div class="container-page pt-6"><SectionMark n="05" label="بيفهم إزاي" /></div>
+      <Understands t={t} />
+      <Trust t={t} />
+      <div class="container-page pt-6"><SectionMark n="06" label="السعر" /></div>
+      <Pricing t={t} />
+      <div class="container-page pt-6"><SectionMark n="07" label="أسئلة" /></div>
+      <Objections t={t} />
+      <Closing t={t} />
+    </main>
+    <Footer t={t} lang="ar" />
+    <StickyCta t={t} />
+  </div>
+</Base>

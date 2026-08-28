@@ -1,0 +1,12 @@
+---
+/** The numbered eyebrow: a brass rule, the index, the section's name.
+    Gives the page a spine and tells the reader where they are. */
+interface Props { n: string; label: string; center?: boolean }
+const { n, label, center = false } = Astro.props;
+---
+
+<div class:list={['flex items-center gap-3', center && 'justify-center']}>
+  <span class="h-px w-8 bg-brass" aria-hidden="true"></span>
+  <span class="num text-[0.78rem] font-medium tracking-[0.14em] text-brass">[{n}]</span>
+  <span class="label-cap text-ink/55">{label}</span>
+</div>

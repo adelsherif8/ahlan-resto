@@ -6,17 +6,17 @@ interface Props { t: SiteContent; lang: 'ar' | 'en' }
 const { t, lang } = Astro.props;
 ---
 
-<header class="on-ink sticky top-0 z-50 border-b border-semna/[0.08] bg-ink/95 backdrop-blur-md">
+<header class="on-ink sticky top-0 z-50 border-b border-[#F5EFE7]/[0.08] bg-[#141110]/95 backdrop-blur-md">
   <div class="container-page flex items-center justify-between gap-4 py-3">
     <a href={`/${lang}`} class="flex min-h-[44px] items-center" aria-label="Munadim">
       <img src="/brand/20-lockup-horizontal-dark-nobg.svg" alt="Munadim" width="166" height="50" class="h-8 w-auto sm:h-9" />
     </a>
     <nav class="flex items-center gap-2 sm:gap-5">
       {t.nav.links.map((l) => (
-        <a href={l.href} class="hidden min-h-[44px] items-center font-medium text-semna/80 hover:text-brass-light lg:flex">{l.label}</a>
+        <a href={l.href} class="hidden min-h-[44px] items-center font-medium text-[#F5EFE7]/80 hover:text-brass-light lg:flex">{l.label}</a>
       ))}
-      <a href={t.nav.toggle.href} class="flex min-h-[44px] items-center px-1 font-medium text-semna/60 hover:text-brass-light" lang={lang === 'ar' ? 'en' : 'ar'} dir={lang === 'ar' ? 'ltr' : 'rtl'}>{t.nav.toggle.label}</a>
-      <a href={WA_LINK} class="flex min-h-[44px] items-center justify-center rounded-full bg-brass px-5 text-[0.95rem] font-semibold text-ink transition-colors hover:bg-brass-light">{t.nav.cta}</a>
+      <a href={t.nav.toggle.href} class="flex min-h-[44px] items-center px-1 font-medium text-[#F5EFE7]/60 hover:text-brass-light" lang={lang === 'ar' ? 'en' : 'ar'} dir={lang === 'ar' ? 'ltr' : 'rtl'}>{t.nav.toggle.label}</a>
+      <a href={WA_LINK} class="flex min-h-[44px] items-center justify-center rounded-full bg-brass px-5 text-[0.95rem] font-semibold !text-[#141110] transition-colors hover:bg-brass-light">{t.nav.cta}</a>
     </nav>
   </div>
 </header>

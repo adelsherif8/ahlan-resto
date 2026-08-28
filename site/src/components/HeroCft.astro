@@ -1,0 +1,73 @@
+---
+/** Hero in the CFT idiom, in Munadim's materials: ink ground, a monumental
+    Amiri statement, brass as the single accent, and the conversation as the
+    image — the brand spec says the WhatsApp screen IS the strongest picture
+    we own, and it's the only one we can honestly show with zero clients. */
+import type { SiteContent } from '../content/types';
+import { WA_LINK } from '../lib/const';
+import PhoneChat from './PhoneChat';
+import SectionMark from './SectionMark.astro';
+
+interface Props { t: SiteContent; lang: 'ar' | 'en' }
+const { t } = Astro.props;
+---
+
+<section class="relative overflow-hidden bg-[#141110]">
+  <!-- ambient: the mark's circle, huge and barely there -->
+  <div
+    class="pointer-events-none absolute -top-[22rem] start-1/2 h-[54rem] w-[54rem] -translate-x-1/2 rounded-full border border-brass/[0.13] rtl:translate-x-1/2"
+    aria-hidden="true"
+  >
+  </div>
+  <div
+    class="pointer-events-none absolute -top-[16rem] start-1/2 h-[40rem] w-[40rem] -translate-x-1/2 rounded-full border border-brass/[0.07] rtl:translate-x-1/2"
+    aria-hidden="true"
+  >
+  </div>
+
+  <div class="container-page relative pt-10 pb-0 md:pt-14">
+    <SectionMark n="00" label="قناة الطلبات المباشرة" />
+
+    <!-- the statement, at monument scale -->
+    <h1 class="mt-7 max-w-[15ch] !text-[clamp(2.4rem,1rem+5vw,6rem)] !leading-[1.14] text-[#F5EFE7]">
+      {t.hero.h1}
+    </h1>
+
+    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-14">
+      <div class="max-w-[34rem]">
+        <p class="text-[1.15rem] font-medium leading-relaxed text-brass sm:text-[1.3rem]">
+          {t.hero.sub}
+        </p>
+
+        <div class="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <a
+            href={WA_LINK}
+            class="inline-flex min-h-[56px] items-center justify-center rounded-full bg-brass px-9 text-[1.08rem] font-semibold text-[#141110] transition-colors hover:bg-brass-light"
+          >{t.hero.ctaPrimary}</a>
+          <a
+            href="#pricing"
+            class="group inline-flex min-h-[44px] items-center gap-2 text-[1rem] font-medium text-[#F5EFE7]/70 transition-colors hover:text-brass-light"
+          >
+            {t.hero.ctaSecondary}
+            <span aria-hidden="true" class="transition-transform group-hover:-translate-x-1 rtl:-scale-x-100">←</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- the conversation, rising out of the fold like the CFT photograph -->
+      <div class="relative justify-self-center lg:justify-self-end">
+        <div class="h-[300px] overflow-hidden [mask-image:linear-gradient(to_bottom,black_72%,transparent)] sm:h-[360px] lg:h-[420px]">
+          <PhoneChat
+            client:visible
+            rtlChat={true}
+            restaurant={t.hero.restaurant}
+            status={t.hero.chatStatus}
+            demoLabel={t.hero.demoLabel}
+            replayLabel={t.hero.replay}
+            chat={t.hero.chat}
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
