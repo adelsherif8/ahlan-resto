@@ -182,76 +182,84 @@ const qrCells = [
         </div>
       </section>
 
-      <!-- ═══ 3 · WHAT ONE ORDER PRODUCES — the rail panels ═══ -->
-      <section class="sec sec--paper" id="outputs">
+      <!-- ═══ 3 · ONE ORDER, THREE DESTINATIONS ═══ -->
+      <section class="sec" id="outputs">
         <div class="wrap">
-          <header class="sec-head sec-head--row">
+          <header class="sec-head sec-head--row sec-head--tight">
             <div>
-              <p class="eyebrow"><span class="eyebrow__rule"></span> [02] كل أوردر بيطلع منه 3 حاجات</p>
-              <h2 class="mega">{t.whatIs.h2}</h2>
+              <p class="eyebrow"><span class="eyebrow__rule"></span> [02] {t.whatIs.h2}</p>
+              <h2 class="mega mega--md">أوردر واحد. تلات حاجات بتحصل.</h2>
             </div>
-            <p class="lede">{t.whatIs.p1} {t.whatIs.p2}</p>
+            <p class="lede">{t.whatIs.p1}</p>
           </header>
-          <div class="rail scene" id="scene-outputs">
-            <div class="rail__line" aria-hidden="true"><span class="rail__runner"><span class="chat__wave">{[5,9,14,8,12,17,10,6,12,9].map((h) => <i style={`height:${h}px`}></i>)}</span><b class="num">0:07</b></span></div>
-            <!-- 1 · the receipt on WhatsApp -->
-            <article class="panel">
-              <span class="panel__n num">01</span>
-              <h3>{t.whatIs.panels.p1}</h3>
-              <div class="panel__art">
-                <div class="wa">
-                  <div class="wa__b wa__b--out"><span>{rec.headline}</span></div>
-                  <div class="wa__b wa__b--out">
-                    <b>{rec.title}</b>
-                    <span>{rec.place}</span>
-                    <span class="wa__meta num">{rec.meta}</span>
-                    <span>{rec.item}</span>
-                    <span class="wa__meta num">{rec.breakdown}</span>
-                    <b>{rec.total}</b>
-                    <span>{rec.payEta}</span>
+          <div class="fan scene" id="scene-outputs">
+            <div class="fan__src">
+              <div class="chat__b chat__b--in fan__voice">
+                <span class="chat__voice">
+                  <span class="chat__wave chat__wave--live">{[5,9,14,8,12,17,10,6,12,16,9,5,8,13,18,11,7,10].map((h) => <i style={`height:${h}px`}></i>)}</span>
+                  <b class="num">0:07</b>
+                </span>
+              </div>
+              <span class="fan__from">{t.hero.restaurant} · واتساب</span>
+            </div>
+            <svg class="fan__lines" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
+              <path class="fan__line" d="M600 0 C600 70, 1000 50, 1000 120" />
+              <path class="fan__line" d="M600 0 V120" />
+              <path class="fan__line" d="M600 0 C600 70, 200 50, 200 120" />
+            </svg>
+            <div class="fan__row">
+              <article class="panel">
+                <span class="panel__n num">01</span>
+                <h3>{t.whatIs.panels.p1}</h3>
+                <div class="panel__art">
+                  <div class="wa">
+                    <div class="wa__b wa__b--out"><span>{rec.headline}</span></div>
+                    <div class="wa__b wa__b--out">
+                      <b>{rec.title}</b>
+                      <span>{rec.item}</span>
+                      <b>{rec.total}</b>
+                      <span>{rec.payEta}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </article>
-            <!-- 2 · the ticket for the kitchen -->
-            <article class="panel">
-              <span class="panel__n num">02</span>
-              <h3>{t.whatIs.panels.p2}</h3>
-              <div class="panel__art">
-                <div class="ticket num" dir="ltr">
-                  <b>{tk.head}</b>
-                  <span class="ticket__code">{tk.code}</span>
-                  <span>{tk.customer}</span>
-                  <hr />
-                  <span class="ticket__row"><span>{tk.item}</span><span>{tk.price}</span></span>
-                  {tk.mods.map((m) => <span class="ticket__mod">{m}</span>)}
-                  <hr />
-                  <span class="ticket__row ticket__total"><span>{tk.totalLabel}</span><span>{tk.total}</span></span>
-                  <span class="ticket__mod">{tk.payment}</span>
-                </div>
-              </div>
-            </article>
-            <!-- 3 · the customer, on record -->
-            <article class="panel">
-              <span class="panel__n num">03</span>
-              <h3>{t.whatIs.panels.p3}</h3>
-              <div class="panel__art">
-                <div class="record">
-                  <div class="record__head">
-                    <span class="record__av">{pf.name.charAt(0)}</span>
-                    <span><b>{pf.name}</b><span class="num" dir="ltr">{pf.phone}</span></span>
-                    <span class="record__badge">{pf.badge}</span>
+              </article>
+              <article class="panel">
+                <span class="panel__n num">02</span>
+                <h3>{t.whatIs.panels.p2}</h3>
+                <div class="panel__art">
+                  <div class="ticket num" dir="ltr">
+                    <b>{tk.head}</b>
+                    <span class="ticket__code">{tk.code}</span>
+                    <span>{tk.customer}</span>
+                    <hr />
+                    <span class="ticket__row"><span>{tk.item}</span><span>{tk.price}</span></span>
+                    {tk.mods.slice(0, 2).map((m) => <span class="ticket__mod">{m}</span>)}
+                    <hr />
+                    <span class="ticket__row ticket__total"><span>{tk.totalLabel}</span><span>{tk.total}</span></span>
                   </div>
-                  <div class="record__stats">
-                    {pf.stats.map((s) => <span><b class="num" data-count={s.value}>{s.value}</b><small>{s.label}</small></span>)}
-                  </div>
-                  {pf.rows.slice(0, 2).map((r) => <div class="record__row"><span>{r.label}</span><b>{r.text}</b></div>)}
-                  <div class="record__row"><span>{pf.notesLabel}</span><b>{pf.notes[0]}</b></div>
                 </div>
-              </div>
-            </article>
+              </article>
+              <article class="panel">
+                <span class="panel__n num">03</span>
+                <h3>{t.whatIs.panels.p3}</h3>
+                <div class="panel__art">
+                  <div class="record">
+                    <div class="record__head">
+                      <span class="record__av">{pf.name.charAt(0)}</span>
+                      <span><b>{pf.name}</b><span class="num" dir="ltr">{pf.phone}</span></span>
+                      <span class="record__badge">{pf.badge}</span>
+                    </div>
+                    <div class="record__stats">
+                      {pf.stats.map((s) => <span><b class="num" data-count={s.value}>{s.value}</b><small>{s.label}</small></span>)}
+                    </div>
+                    <div class="record__row"><span>{pf.rows[0]!.label}</span><b>{pf.rows[0]!.text}</b></div>
+                    <div class="record__row"><span>{pf.notesLabel}</span><b>{pf.notes[0]}</b></div>
+                  </div>
+                </div>
+              </article>
+            </div>
+            <button class="replay" type="button" data-replay="scene-outputs">↻ {t.whatIs.stream.replay}</button>
           </div>
-          <button class="replay" type="button" data-replay="scene-outputs">↻ {t.whatIs.stream.replay}</button>
         </div>
       </section>
 

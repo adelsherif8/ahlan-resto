@@ -335,30 +335,35 @@
     return tl;
   }
 
-  /* 2 · one order → three outputs */
+  /* 2 · one order, three destinations: lines draw, panels print on arrival */
   scene($('#scene-outputs'), function (tl, root) {
-    var runner = root.querySelector('.rail__runner');
+    var voice = root.querySelector('.fan__voice');
+    var wave = root.querySelector('.chat__wave--live');
+    var lines = $$('.fan__line', root);
     var panels = $$('.panel', root);
-    var receipt = $$('.panel:nth-child(2) .wa__b > *', root);
-    var ticket = $$('.panel:nth-child(3) .ticket > *', root);
-    var stats = $$('.panel:nth-child(4) [data-count]', root);
-    var rows = $$('.panel:nth-child(4) .record__row, .panel:nth-child(4) .record__badge', root);
-    var rtl = document.documentElement.dir === 'rtl';
-    tl.set(runner, { autoAlpha: 0, xPercent: 0 })
-      .set([receipt, ticket, rows], { autoAlpha: 0, y: 8 })
-      .to(runner, { autoAlpha: 1, duration: .3 })
-      .to(runner, { x: rtl ? '-=' + (panels[0].offsetWidth * 0.35) : '+=' + (panels[0].offsetWidth * 0.35), duration: .6, ease: 'power2.inOut' })
-      .to(receipt, { autoAlpha: 1, y: 0, duration: .25, stagger: .12 }, '-=.1')
-      .to(runner, { x: rtl ? '-=' + (panels[0].offsetWidth * 1.1) : '+=' + (panels[0].offsetWidth * 1.1), duration: .7, ease: 'power2.inOut' })
-      .to(ticket, { autoAlpha: 1, y: 0, duration: .18, stagger: .07 }, '-=.1')
-      .to(runner, { x: rtl ? '-=' + (panels[0].offsetWidth * 1.1) : '+=' + (panels[0].offsetWidth * 1.1), duration: .7, ease: 'power2.inOut' })
-      .to(runner, { autoAlpha: 0, duration: .25 });
+    var arts = [
+      $$('.panel:nth-child(1) .wa__b, .panel:nth-child(1) .wa__b > *', root),
+      $$('.panel:nth-child(2) .ticket > *', root),
+      $$('.panel:nth-child(3) .record > *, .panel:nth-child(3) .record__stats span', root)
+    ];
+    var stats = $$('[data-count]', root);
+    lines.forEach(function (l) { var L = l.getTotalLength(); l.style.strokeDasharray = L; l.style.strokeDashoffset = L; });
+    tl.set(arts, { autoAlpha: 0, y: 8 })
+      .set(panels, { borderColor: 'rgba(20,17,16,.12)' })
+      .add(function () { wave && wave.classList.add('is-live'); })
+      .fromTo(voice, { scale: 1 }, { scale: 1.06, duration: .35, yoyo: true, repeat: 3, ease: 'sine.inOut' })
+      .add(function () { wave && wave.classList.remove('is-live'); });
+    lines.forEach(function (l, i) {
+      tl.to(l, { strokeDashoffset: 0, duration: .55, ease: 'power2.inOut' }, i ? '-=.25' : '+=0')
+        .to(panels[i], { borderColor: '#8C1D2F', duration: .2 }, '-=.05')
+        .to(arts[i], { autoAlpha: 1, y: 0, duration: .22, stagger: .08, ease: 'power2.out' }, '-=.05');
+    });
     stats.forEach(function (el, i) {
       var to = parseFloat(el.getAttribute('data-count').replace(/,/g, ''));
-      tl.add(counter(el, to, .9), '-=' + (i ? 1 : .3));
+      tl.add(counter(el, to, .8), i ? '<' : '-=.3');
     });
-    tl.to(rows, { autoAlpha: 1, y: 0, duration: .25, stagger: .12 }, '-=.6');
-  });
+    tl.to(panels, { borderColor: 'rgba(20,17,16,.12)', duration: .6 }, '+=.4');
+  }, 'top 65%');
 
   /* 3 · the bento fills itself */
   $$('#scene-bento .tile.scene').forEach(function (tile, i) {
