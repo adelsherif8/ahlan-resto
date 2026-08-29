@@ -165,9 +165,13 @@
   function openHero() {
     var spacer = $('.hero-spacer');
     var words  = $$('.ln .w i');
-    var sub1 = $('#sub1'), sub2 = $('#sub2');
+    var sub1 = $('#sub1'), sub2 = $('#sub2'), sub3 = $('#sub3');
+    var beats = $$('#hero-beat span');
+    var card = $('#hero-card');
+    function beat(n) { beats.forEach(function (b, i) { b.classList.toggle('is-on', i === n); }); }
 
-    gsap.set([sub1, sub2], { autoAlpha: 0 });
+    gsap.set([sub1, sub2, sub3], { autoAlpha: 0 });
+    gsap.set(card, { autoAlpha: 0, x: 40, y: 30 });
     gsap.set('.hero__cta', { autoAlpha: 0, y: 12 });
 
     var intro = gsap.timeline({
@@ -186,7 +190,7 @@
     intro.to(sub1, { autoAlpha: 1, duration: .5, ease: 'power2.out' }, 1.6);
     intro.to('.hero__cta', { autoAlpha: 1, y: 0, duration: .5, ease: 'power2.out' }, 1.75);
     // the first two bubbles land on their own; the rest wait for the scroll
-    landSeq(bubbles.slice(0, 2), intro, 1.3);
+    landSeq(bubbles.slice(0, 3), intro, 1.3);
     intro.to(['#nav', '#pill'], {
       opacity: 1, duration: .5, ease: 'power2.out',
       onComplete: function () { $('#nav').classList.add('is-on'); $('#pill').classList.add('is-on'); }
@@ -198,38 +202,39 @@
     });
 
     // the conversation plays out across the first half of the runway
-    var rest = bubbles.slice(2);
+    var rest = bubbles.slice(3);
     if (rest.length) {
-      var restTl = gsap.timeline({ scrollTrigger: { trigger: spacer, start: '4% top', end: '48% top', scrub: .35 } });
+      var restTl = gsap.timeline({ scrollTrigger: { trigger: spacer, start: '4% top', end: '44% top', scrub: .35 } });
       landSeq(rest, restTl, 0);
     }
+    // the payoff: the record card slides out from behind the phone
+    gsap.timeline({ scrollTrigger: { trigger: spacer, start: '40% top', end: '52% top', scrub: .3 } })
+      .to(card, { autoAlpha: 1, x: 0, y: 0, ease: 'power2.out' });
+    // the beat under the kicker follows the story: order → kitchen → customer kept
+    ScrollTrigger.create({ trigger: spacer, start: '18% top', onEnter: function () { beat(1); }, onLeaveBack: function () { beat(0); } });
+    ScrollTrigger.create({ trigger: spacer, start: '40% top', onEnter: function () { beat(2); }, onLeaveBack: function () { beat(1); } });
 
-    // copy swap: line 1 out, line 2 in
-    ScrollTrigger.create({
-      trigger: spacer, start: '22% top',
-      onEnter: function () {
-        gsap.to(sub1, { autoAlpha: 0, y: -18, duration: .35, ease: 'power2.in' });
-        gsap.fromTo(sub2, { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: .45, delay: .2, ease: 'power3.out' });
-      },
-      onLeaveBack: function () {
-        gsap.to(sub2, { autoAlpha: 0, y: 18, duration: .3, ease: 'power2.in' });
-        gsap.to(sub1, { autoAlpha: 1, y: 0, duration: .4, delay: .15, ease: 'power3.out' });
-      }
-    });
+    // copy swap: three lines in one slot
+    function swap(out, into) {
+      gsap.to(out, { autoAlpha: 0, y: -18, duration: .35, ease: 'power2.in', overwrite: true });
+      gsap.fromTo(into, { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: .45, delay: .2, ease: 'power3.out', overwrite: true });
+    }
+    ScrollTrigger.create({ trigger: spacer, start: '18% top', onEnter: function () { swap(sub1, sub2); }, onLeaveBack: function () { swap(sub2, sub1); } });
+    ScrollTrigger.create({ trigger: spacer, start: '40% top', onEnter: function () { swap(sub2, sub3); }, onLeaveBack: function () { swap(sub3, sub2); } });
 
     // copy drifts up and fades as the frame prepares to leave
     gsap.to('#hero-copy', {
       yPercent: -18, ease: 'none',
-      scrollTrigger: { trigger: spacer, start: '30% top', end: '60% top', scrub: .25 }
+      scrollTrigger: { trigger: spacer, start: '46% top', end: '66% top', scrub: .25 }
     });
     gsap.to('#hero-copy', {
       autoAlpha: 0, ease: 'none',
-      scrollTrigger: { trigger: spacer, start: '50% top', end: '62% top', scrub: .25 }
+      scrollTrigger: { trigger: spacer, start: '56% top', end: '66% top', scrub: .25 }
     });
 
     // the frame shrinks back to a card, then lifts away
     var exit = gsap.timeline({
-      scrollTrigger: { trigger: spacer, start: '58% top', end: '96% top', scrub: .3 }
+      scrollTrigger: { trigger: spacer, start: '62% top', end: '96% top', scrub: .3 }
     });
     exit.to('#hero-frame', { scale: .92, borderRadius: '14px', duration: .3, ease: 'power2.inOut' });
     exit.to('#hero-frame', { scale: .34, borderRadius: '18px', duration: .8, ease: 'power1.inOut' }, '>-.05');

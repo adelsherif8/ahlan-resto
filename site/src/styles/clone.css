@@ -127,7 +127,13 @@ a { color: inherit; }
 
 /* starts as an inset card, opens to full bleed */
 .hero__frame { position: relative; overflow: hidden; width: 42vw; height: 46vh; border-radius: 20px; background: var(--steel); will-change: transform, width, height; }
-.hero__stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding: 8vh 6vw; }
+.hero__stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding: 8vh 8vw; }
+.hero__stage .hero__card { position: absolute; z-index: 1; width: 250px; inset-inline-end: calc(8vw + 230px); bottom: 12vh; opacity: 0; box-shadow: 0 30px 60px -30px rgba(20,17,16,.5); font-size: 13px; }
+.record__captured { margin-top: .2rem; font-size: 12.5px; font-weight: 700; color: var(--yellow); }
+.hero__beat { position: relative; height: 1.6em; margin-bottom: .6rem; font-size: var(--t-md); font-weight: 700; color: var(--yellow); }
+.hero__beat span { position: absolute; inset-inline-start: 0; top: 0; opacity: 0; transform: translateY(8px); transition: opacity .35s var(--ease), transform .35s var(--ease); }
+.hero__beat span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--yellow); margin-inline-end: .5rem; vertical-align: middle; }
+.hero__beat span.is-on { opacity: 1; transform: none; }
 /* a soft radial glow behind the phone, never a scrim over it */
 .hero__veil { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(60% 70% at 25% 50%, rgba(140,29,47,.10) 0%, rgba(140,29,47,0) 70%); }
 
@@ -144,7 +150,7 @@ a { color: inherit; }
 .hero__hint { position: absolute; inset-inline-start: clamp(20px, 6vw, 96px); bottom: clamp(1.5rem, 5vh, 3rem); z-index: 3; font-size: var(--t-xs); color: var(--ink-55); }
 
 /* the conversation */
-.chat { width: min(340px, 78vw); background: #EFEAE2; border-radius: 26px; border: 7px solid #2b2523; overflow: hidden; box-shadow: 0 40px 90px -30px rgba(20,17,16,.55); transform: rotate(-3deg); }
+.chat { width: min(340px, 78vw); background: #EFEAE2; border-radius: 26px; border: 7px solid #2b2523; overflow: hidden; box-shadow: 0 40px 90px -30px rgba(20,17,16,.55); position: relative; z-index: 2; }
 .chat__top { display: flex; align-items: center; gap: .6rem; background: #F0F2F5; padding: .7rem .9rem; }
 .chat__av { width: 34px; height: 34px; border-radius: 999px; background: #6B4226; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; flex: none; }
 .chat__who b { display: block; color: #111B21; font-size: 14px; line-height: 1.25; }
@@ -163,12 +169,17 @@ a { color: inherit; }
 .chat__wave i { width: 2.5px; border-radius: 2px; background: #8696A0; display: block; }
 
 @media (max-width: 900px) {
-  .hero__stage { justify-content: center; align-items: flex-start; padding: 4vh 4vw; }
-  .chat { transform: scale(.78); transform-origin: top center; width: min(300px, 80vw); }
+  .hero__area { flex-direction: column; align-items: stretch; }
+  .hero__frame { order: 2; width: 100%; height: 100%; }
+  .hero__stage { justify-content: center; align-items: flex-start; padding: 2vh 4vw 0; }
+  .chat { transform: scale(.72); transform-origin: top center; width: min(300px, 82vw); }
   .chat__body { min-height: 0; }
-  .hero__veil { background: linear-gradient(to top, rgba(245,239,231,1) 0%, rgba(245,239,231,.92) 45%, rgba(245,239,231,.2) 100%); }
-  .hero__copy { inset-inline: 20px; width: auto; top: auto; bottom: 4.5rem; transform: none; }
-  .hero__subs { min-height: 4.6em; }
+  .hero__stage .hero__card { display: none; }
+  .hero__veil { background: none; }
+  .hero__copy { order: 1; position: relative; inset: auto; width: auto; transform: none; padding: calc(var(--nav-h) + 1.2rem) 20px 1rem; background: var(--black); z-index: 4; }
+  .hero__title { font-size: clamp(30px, 8.5vw, 40px); }
+  .hero__subs { min-height: 3.2em; }
+  .hero__beat { font-size: var(--t-sm); }
   .hero__hint { display: none; }
 }
 
@@ -501,7 +512,9 @@ html.js .rv { opacity: 0; }
   .hero__bar { display: none; }
   .ln .w i { transform: none; }
   .hero__sub { opacity: 1; }
-  #sub1 { display: none; }
+  #sub1, #sub2 { display: none; }
+  .hero__card { opacity: 1; }
+  .hero__beat span { opacity: 0; } .hero__beat span:last-child { opacity: 1; }
   html.js .rv { opacity: 1; }
   .dial__rail span, .steps__line i { width: 100% !important; }
   .btn:hover, .card:hover, .tile:hover, .composer:hover { transform: none; }

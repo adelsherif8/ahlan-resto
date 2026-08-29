@@ -78,6 +78,16 @@ const qrCells = [
         <div class="hero__area" id="hero-area">
           <div class="hero__frame" id="hero-frame">
             <div class="hero__stage">
+              <!-- the payoff: the customer, on record, slides out from behind the phone -->
+              <div class="hero__card record" id="hero-card" aria-hidden="true">
+                <div class="record__head">
+                  <span class="record__av">{t.whatIs.flow.record.name.charAt(0)}</span>
+                  <span><b>{t.whatIs.flow.record.name}</b><span class="num" dir="ltr">{t.whatIs.flow.record.phone}</span></span>
+                  <span class="record__badge">{t.whatIs.panels.profile.badge}</span>
+                </div>
+                {t.whatIs.flow.record.rows.map((r) => <div class="record__row"><span>{r.label}</span><b>{r.value}</b></div>)}
+                <p class="record__captured">✓ {t.whatIs.flow.captured}</p>
+              </div>
               <!-- the conversation: their video slot. Bubbles land one by one as you scroll. -->
               <div class="chat" id="hero-chat" dir="rtl">
                 <div class="chat__top">
@@ -119,6 +129,9 @@ const qrCells = [
           </div>
           <div class="hero__copy" id="hero-copy">
             <p class="hero__kicker">{t.hero.demoLabel} · {t.hero.restaurant}</p>
+            <p class="hero__beat" id="hero-beat" aria-hidden="true">
+              <span class="is-on">{t.whatIs.flow.step1}</span><span>{t.whatIs.flow.step2}</span><span>{t.whatIs.flow.step3}</span>
+            </p>
             <h1 class="hero__title" id="hero-title">
               <span class="ln">
                 {heroWords.map((w) => <span class="w"><i>{w}</i></span>)}
@@ -127,6 +140,7 @@ const qrCells = [
             <div class="hero__subs">
               <p class="hero__sub" id="sub1">{subA}.</p>
               <p class="hero__sub" id="sub2">{subB}.</p>
+              <p class="hero__sub" id="sub3">{t.whatIs.flow.captured}.</p>
             </div>
             <div class="hero__cta">
               <a class="btn btn--yellow" href={WA_LINK}>{t.hero.ctaPrimary} <span aria-hidden="true">←</span></a>
