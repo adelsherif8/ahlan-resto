@@ -121,25 +121,18 @@
 
   /* ───────────────────────────── preloader ─────────────────────────────── */
 
-  var letters = $$('.pre__word b');
-  var counterEl = $('#pre-n');
   document.body.style.overflow = 'hidden';
   window.scrollTo(0, 0);
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
-  gsap.timeline()
-    .to('.pre__top', { opacity: 1, duration: .45, ease: 'power2.out' })
-    .to(letters, { y: 0, duration: 1.0, stagger: .035, ease: 'power4.out' }, .15);
-
-  var t0 = performance.now();
-  var shown = 0;
-  (function tick() {
-    var p = Math.min((performance.now() - t0) / 1800, 1);
-    shown += (100 * p - shown) * .2;
-    counterEl.textContent = p >= 1 ? '100' : String(Math.min(99, Math.round(shown)));
-    if (p < 1) return requestAnimationFrame(tick);
-    openHero();
-  })();
+  /* one piece of joined script rises through the mask; the rule is the only
+   * "progress" and it's tied to the fonts actually being ready */
+  gsap.timeline({ onComplete: openHero })
+    .to('.pre__word b', { y: 0, duration: .75, ease: 'power4.out' }, .1)
+    .to('.pre__rule i', { scaleX: 1, duration: .7, ease: 'power2.inOut' }, .25)
+    .to('.pre__brand', { opacity: 1, duration: .4 }, .5)
+    .to({}, { duration: .15 });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () {});
 
   /* ───────────────────────── hero choreography ─────────────────────────── */
 
@@ -181,16 +174,16 @@
       }
     });
 
-    intro.to('.pre__mark', { y: -60, autoAlpha: 0, duration: .7, ease: 'power3.in' }, 0);
-    intro.to('.pre__top', { autoAlpha: 0, duration: .4 }, 0);
-    intro.to('#pre', { autoAlpha: 0, duration: .5, onComplete: function () { $('#pre').style.display = 'none'; } }, .55);
-    intro.to('#hero-frame', { width: '100%', height: '100%', borderRadius: 0, duration: 1.1, ease: 'power3.inOut' }, .45);
-    intro.to('#hero-bar', { height: 0, opacity: 0, padding: 0, duration: .9, ease: 'power3.inOut' }, .45);
-    intro.to(words, { y: 0, duration: .85, stagger: .07, ease: 'power4.out' }, 1.05);
-    intro.to(sub1, { autoAlpha: 1, duration: .5, ease: 'power2.out' }, 1.6);
-    intro.to('.hero__cta', { autoAlpha: 1, y: 0, duration: .5, ease: 'power2.out' }, 1.75);
+    intro.to('.pre__word b', { y: '-110%', duration: .5, ease: 'power3.in' }, 0);
+    intro.to(['.pre__rule', '.pre__brand'], { autoAlpha: 0, duration: .3 }, 0);
+    intro.to('#pre', { autoAlpha: 0, duration: .35, onComplete: function () { $('#pre').style.display = 'none'; } }, .4);
+    intro.to('#hero-frame', { width: '100%', height: '100%', borderRadius: 0, duration: 1.0, ease: 'power3.inOut' }, .75);
+    intro.to('#hero-bar', { height: 0, opacity: 0, padding: 0, duration: .8, ease: 'power3.inOut' }, .75);
+    intro.to(words, { y: 0, duration: .85, stagger: .07, ease: 'power4.out' }, 1.2);
+    intro.to(sub1, { autoAlpha: 1, duration: .5, ease: 'power2.out' }, 1.7);
+    intro.to('.hero__cta', { autoAlpha: 1, y: 0, duration: .5, ease: 'power2.out' }, 1.85);
     // the first two bubbles land on their own; the rest wait for the scroll
-    landSeq(bubbles.slice(0, 3), intro, 1.3);
+    landSeq(bubbles.slice(0, 3), intro, 1.45);
     intro.to(['#nav', '#pill'], {
       opacity: 1, duration: .5, ease: 'power2.out',
       onComplete: function () { $('#nav').classList.add('is-on'); $('#pill').classList.add('is-on'); }
@@ -204,15 +197,19 @@
     // the conversation plays out across the first half of the runway
     var rest = bubbles.slice(3);
     if (rest.length) {
-      var restTl = gsap.timeline({ scrollTrigger: { trigger: spacer, start: '4% top', end: '44% top', scrub: .35 } });
+      var restTl = gsap.timeline({ scrollTrigger: { trigger: spacer, start: '3% top', end: '38% top', scrub: .35 } });
       landSeq(rest, restTl, 0);
     }
-    // the payoff: the record card slides out from behind the phone
-    gsap.timeline({ scrollTrigger: { trigger: spacer, start: '40% top', end: '52% top', scrub: .3 } })
+    // the phone never sits still: a slow drift across the whole runway
+    gsap.to('#hero-chat', { y: '-9vh', ease: 'none',
+      scrollTrigger: { trigger: spacer, start: 'top top', end: '60% top', scrub: .3 } });
+    // the payoff: the record card slides fully out from behind the phone
+    gsap.set(card, { autoAlpha: 0, x: 140, y: 40 });
+    gsap.timeline({ scrollTrigger: { trigger: spacer, start: '36% top', end: '50% top', scrub: .3 } })
       .to(card, { autoAlpha: 1, x: 0, y: 0, ease: 'power2.out' });
     // the beat under the kicker follows the story: order → kitchen → customer kept
     ScrollTrigger.create({ trigger: spacer, start: '18% top', onEnter: function () { beat(1); }, onLeaveBack: function () { beat(0); } });
-    ScrollTrigger.create({ trigger: spacer, start: '40% top', onEnter: function () { beat(2); }, onLeaveBack: function () { beat(1); } });
+    ScrollTrigger.create({ trigger: spacer, start: '36% top', onEnter: function () { beat(2); }, onLeaveBack: function () { beat(1); } });
 
     // copy swap: three lines in one slot
     function swap(out, into) {
@@ -220,21 +217,21 @@
       gsap.fromTo(into, { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: .45, delay: .2, ease: 'power3.out', overwrite: true });
     }
     ScrollTrigger.create({ trigger: spacer, start: '18% top', onEnter: function () { swap(sub1, sub2); }, onLeaveBack: function () { swap(sub2, sub1); } });
-    ScrollTrigger.create({ trigger: spacer, start: '40% top', onEnter: function () { swap(sub2, sub3); }, onLeaveBack: function () { swap(sub3, sub2); } });
+    ScrollTrigger.create({ trigger: spacer, start: '36% top', onEnter: function () { swap(sub2, sub3); }, onLeaveBack: function () { swap(sub3, sub2); } });
 
     // copy drifts up and fades as the frame prepares to leave
     gsap.to('#hero-copy', {
       yPercent: -18, ease: 'none',
-      scrollTrigger: { trigger: spacer, start: '46% top', end: '66% top', scrub: .25 }
+      scrollTrigger: { trigger: spacer, start: '44% top', end: '62% top', scrub: .25 }
     });
     gsap.to('#hero-copy', {
       autoAlpha: 0, ease: 'none',
-      scrollTrigger: { trigger: spacer, start: '56% top', end: '66% top', scrub: .25 }
+      scrollTrigger: { trigger: spacer, start: '52% top', end: '62% top', scrub: .25 }
     });
 
     // the frame shrinks back to a card, then lifts away
     var exit = gsap.timeline({
-      scrollTrigger: { trigger: spacer, start: '62% top', end: '96% top', scrub: .3 }
+      scrollTrigger: { trigger: spacer, start: '56% top', end: '96% top', scrub: .3 }
     });
     exit.to('#hero-frame', { scale: .92, borderRadius: '14px', duration: .3, ease: 'power2.inOut' });
     exit.to('#hero-frame', { scale: .34, borderRadius: '18px', duration: .8, ease: 'power1.inOut' }, '>-.05');
