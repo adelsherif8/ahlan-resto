@@ -10,7 +10,7 @@
 
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var $  = function (s) { return document.querySelector(s); };
-  var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var $$ = function (s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); };
   var fmt = function (n) { return Math.round(n).toLocaleString('en-US'); };
 
   /* ───────────────────────── the plans (code computes) ─────────────────── */
@@ -143,8 +143,24 @@
 
   /* ───────────────────────── hero choreography ─────────────────────────── */
 
-  var bubbles = $$('#hero-chat .chat__b');
+  var bubbles = $$('#hero-chat .chat__b:not(.chat__typing)');
+  var typings = $$('#hero-chat .chat__typing');
   gsap.set(bubbles, { autoAlpha: 0, y: 14 });
+  gsap.set(typings, { display: 'none' });
+  function landSeq(list, tl, at) {
+    list.forEach(function (b, i) {
+      var typ = b.previousElementSibling && b.previousElementSibling.classList.contains('chat__typing') ? b.previousElementSibling : null;
+      var pos = (i === 0 && at != null) ? at : '>';
+      if (typ) {
+        tl.set(typ, { display: 'flex', autoAlpha: 1 }, pos)
+          .to({}, { duration: .55 })
+          .set(typ, { display: 'none' });
+        pos = '>';
+      }
+      tl.to(b, { autoAlpha: 1, y: 0, duration: .45, ease: 'power3.out' }, pos);
+      if (i === 0 || typ) tl.to({}, { duration: .2 });
+    });
+  }
 
   function openHero() {
     var spacer = $('.hero-spacer');
@@ -170,7 +186,7 @@
     intro.to(sub1, { autoAlpha: 1, duration: .5, ease: 'power2.out' }, 1.6);
     intro.to('.hero__cta', { autoAlpha: 1, y: 0, duration: .5, ease: 'power2.out' }, 1.75);
     // the first two bubbles land on their own; the rest wait for the scroll
-    intro.to(bubbles.slice(0, 2), { autoAlpha: 1, y: 0, duration: .5, stagger: .35, ease: 'power3.out' }, 1.3);
+    landSeq(bubbles.slice(0, 2), intro, 1.3);
     intro.to(['#nav', '#pill'], {
       opacity: 1, duration: .5, ease: 'power2.out',
       onComplete: function () { $('#nav').classList.add('is-on'); $('#pill').classList.add('is-on'); }
@@ -184,8 +200,8 @@
     // the conversation plays out across the first half of the runway
     var rest = bubbles.slice(2);
     if (rest.length) {
-      gsap.timeline({ scrollTrigger: { trigger: spacer, start: '4% top', end: '48% top', scrub: .35 } })
-        .to(rest, { autoAlpha: 1, y: 0, duration: 1, stagger: 1, ease: 'power2.out' });
+      var restTl = gsap.timeline({ scrollTrigger: { trigger: spacer, start: '4% top', end: '48% top', scrub: .35 } });
+      landSeq(rest, restTl, 0);
     }
 
     // copy swap: line 1 out, line 2 in
@@ -259,6 +275,155 @@
     gsap.to(stepsFill, { width: '100%', ease: 'none',
       scrollTrigger: { trigger: '#steps', start: 'top 80%', end: 'bottom 60%', scrub: .5 } });
   }
+
+
+  /* ─────────────────────── the scenes (auto-play once, replay) ─────────── */
+
+  function counter(el, to, dur, fmtFn) {
+    var o = { v: 0 };
+    return gsap.to(o, { v: to, duration: dur || 1.2, ease: 'power2.out',
+      onUpdate: function () { el.textContent = (fmtFn || fmt)(o.v); } });
+  }
+  function typeInto(el, text, dur) {
+    var o = { n: 0 };
+    return gsap.fromTo(o, { n: 0 }, { n: text.length, duration: dur || .9, ease: 'none',
+      onStart: function () { el.classList.add('type-caret'); },
+      onUpdate: function () { el.textContent = text.slice(0, Math.round(o.n)); },
+      onComplete: function () { el.textContent = text; el.classList.remove('type-caret'); } });
+  }
+  function scene(root, build, startAt) {
+    if (!root) return;
+    var tl = gsap.timeline({ paused: true });
+    build(tl, root);
+    ScrollTrigger.create({ trigger: root, start: startAt || 'top 72%', once: true, onEnter: function () { tl.play(0); } });
+    $$('[data-replay="' + root.id + '"]').forEach(function (b) {
+      b.addEventListener('click', function () { tl.play(0); });
+    });
+    return tl;
+  }
+
+  /* 2 · one order → three outputs */
+  scene($('#scene-outputs'), function (tl, root) {
+    var runner = root.querySelector('.rail__runner');
+    var panels = $$('.panel', root);
+    var receipt = $$('.panel:nth-child(2) .wa__b > *', root);
+    var ticket = $$('.panel:nth-child(3) .ticket > *', root);
+    var stats = $$('.panel:nth-child(4) [data-count]', root);
+    var rows = $$('.panel:nth-child(4) .record__row, .panel:nth-child(4) .record__badge', root);
+    var rtl = document.documentElement.dir === 'rtl';
+    tl.set(runner, { autoAlpha: 0, xPercent: 0 })
+      .set([receipt, ticket, rows], { autoAlpha: 0, y: 8 })
+      .to(runner, { autoAlpha: 1, duration: .3 })
+      .to(runner, { x: rtl ? '-=' + (panels[0].offsetWidth * 0.35) : '+=' + (panels[0].offsetWidth * 0.35), duration: .6, ease: 'power2.inOut' })
+      .to(receipt, { autoAlpha: 1, y: 0, duration: .25, stagger: .12 }, '-=.1')
+      .to(runner, { x: rtl ? '-=' + (panels[0].offsetWidth * 1.1) : '+=' + (panels[0].offsetWidth * 1.1), duration: .7, ease: 'power2.inOut' })
+      .to(ticket, { autoAlpha: 1, y: 0, duration: .18, stagger: .07 }, '-=.1')
+      .to(runner, { x: rtl ? '-=' + (panels[0].offsetWidth * 1.1) : '+=' + (panels[0].offsetWidth * 1.1), duration: .7, ease: 'power2.inOut' })
+      .to(runner, { autoAlpha: 0, duration: .25 });
+    stats.forEach(function (el, i) {
+      var to = parseFloat(el.getAttribute('data-count').replace(/,/g, ''));
+      tl.add(counter(el, to, .9), '-=' + (i ? 1 : .3));
+    });
+    tl.to(rows, { autoAlpha: 1, y: 0, duration: .25, stagger: .12 }, '-=.6');
+  });
+
+  /* 3 · the bento fills itself */
+  $$('#scene-bento .tile.scene').forEach(function (tile, i) {
+    tile.id = tile.id || ('scene-tile-' + i);
+    scene(tile, function (tl) {
+      var typed = tile.querySelector('[data-type]');
+      var timer = tile.querySelector('[data-timer]');
+      var wave = tile.querySelector('.chat__wave--live');
+      var fields = $$('.tile__out > div', tile);
+      tl.set(fields, { autoAlpha: 0, x: -10 });
+      if (typed) tl.add(typeInto(typed, typed.getAttribute('data-type'), .8));
+      if (timer) {
+        var parts = timer.getAttribute('data-timer').split(':'), secs = +parts[0] * 60 + +parts[1];
+        tl.add(function () { wave && wave.classList.add('is-live'); });
+        tl.add(counter(timer, secs, 1.1, function (v) { v = Math.round(v); return '0:' + (v < 10 ? '0' : '') + v; }));
+        tl.add(function () { wave && wave.classList.remove('is-live'); });
+      }
+      tl.to(fields, { autoAlpha: 1, x: 0, duration: .3, stagger: .18, ease: 'power2.out' }, '+=.15');
+    }, 'top 80%');
+  });
+
+  /* 1 · the dining room: scan → order → on record */
+  scene($('#scene-dine'), function (tl, root) {
+    var scanner = root.querySelector('.scanner');
+    var line = root.querySelector('.scanner__line');
+    var ok = root.querySelector('.scanner__ok');
+    var bubbles = $$('.wa--phone .wa__b', root);
+    var rec = root.querySelector('.record');
+    var recBits = $$('.record__head, .record__chips span, .record__row', root);
+    tl.set(bubbles, { autoAlpha: 0, y: 10 })
+      .set(recBits, { autoAlpha: 0, y: 8 })
+      .set(scanner, { autoAlpha: 0, y: 30, scale: .9 })
+      .set(ok, { scale: 0 })
+      .set(scanner, { className: 'scanner' })
+      .to(scanner, { autoAlpha: 1, y: 0, scale: 1, duration: .5, ease: 'power3.out' })
+      .fromTo(line, { top: 0 }, { top: 76, duration: .7, ease: 'power1.inOut', repeat: 1, yoyo: true })
+      .add(function () { scanner.classList.add('is-locked'); })
+      .to(ok, { scale: 1, duration: .35, ease: 'back.out(2)' })
+      .to(scanner, { autoAlpha: 0, y: -20, duration: .4, delay: .3 })
+      .to(bubbles, { autoAlpha: 1, y: 0, duration: .35, stagger: .45, ease: 'power2.out' }, '-=.2')
+      .fromTo(rec, { boxShadow: '0 0 0 0 rgba(140,29,47,0)' }, { boxShadow: '0 0 0 4px rgba(140,29,47,.25)', duration: .3, yoyo: true, repeat: 1 })
+      .to(recBits, { autoAlpha: 1, y: 0, duration: .3, stagger: .12, ease: 'power2.out' }, '-=.3');
+  });
+
+  /* 4 · the 3 steps, as a journey */
+  scene($('#steps'), function (tl, root) {
+    var photos = $$('.photos i', root);
+    var menu = root.querySelector('.menu');
+    var menuRows = $$('.menu > *', root);
+    var ticks = $$('.chips__tick', root);
+    var chips = $$('.chips span', root);
+    var order = root.querySelector('.order');
+    tl.set(photos, { autoAlpha: 0, rotate: 0, x: 0 })
+      .set(menuRows, { autoAlpha: 0 })
+      .set(chips, { autoAlpha: 0, y: 8 })
+      .set(order, { autoAlpha: 0, x: 24 })
+      .to(photos, { autoAlpha: 1, duration: .3, stagger: .15 })
+      .to(photos, { x: function (i) { return i * 26; }, rotate: function (i) { return (i - 1) * 8; }, duration: .5, ease: 'power2.out' }, '-=.2')
+      .to(photos, { x: 0, rotate: 0, scale: .6, autoAlpha: 0, duration: .45, ease: 'power2.in', stagger: .05 }, '+=.3')
+      .to(menuRows, { autoAlpha: 1, duration: .25, stagger: .12 }, '-=.15')
+      .to(chips, { autoAlpha: 1, y: 0, duration: .3, stagger: .2 }, '+=.2');
+    ticks.forEach(function (t, i) { tl.add(function () { t.classList.add('is-on'); }, '-=' + (i ? .1 : .0)).to(t, { scale: 1, duration: .3, ease: 'back.out(2.5)' }); });
+    tl.to(order, { autoAlpha: 1, x: 0, duration: .45, ease: 'power3.out' }, '+=.2')
+      .fromTo(order, { boxShadow: '0 0 0 0 rgba(140,29,47,.4)' }, { boxShadow: '0 0 0 12px rgba(140,29,47,0)', duration: .8 });
+  });
+
+  /* 7 · 110 counts up and the suite runs */
+  scene($('#trust'), function (tl, root) {
+    var big = root.querySelector('[data-count]');
+    var cases = $$('.run li:not(.run__sum)', root);
+    var sum = root.querySelector('.run__sum');
+    tl.set(sum, { autoAlpha: 0 })
+      .add(counter(big, +big.getAttribute('data-count'), 1.4, function (v) { return String(Math.round(v)); }));
+    cases.forEach(function (li, i) { tl.add(function () { li.classList.add('is-on'); }, i ? '+=.22' : '-=.8'); });
+    tl.to(sum, { autoAlpha: 1, duration: .4 }, '+=.2');
+  });
+
+  /* 8 · the calculator rolls instead of jumping */
+  (function () {
+    var targets = ['c-app', 'c-ours', 'c-diff'];
+    var last = {};
+    var obs = new MutationObserver(function (muts) {
+      muts.forEach(function (m) {
+        var el = m.target.nodeType === 3 ? m.target.parentNode : m.target;
+        if (!el.id || targets.indexOf(el.id) < 0 || el.__rolling) return;
+        var to = parseFloat(el.textContent.replace(/,/g, ''));
+        var from = last[el.id] == null ? to : last[el.id];
+        last[el.id] = to;
+        if (from === to) return;
+        el.__rolling = true;
+        var o = { v: from };
+        gsap.to(o, { v: to, duration: .45, ease: 'power2.out', overwrite: true,
+          onUpdate: function () { el.textContent = fmt(o.v); },
+          onComplete: function () { el.__rolling = false; el.textContent = fmt(to); } });
+      });
+    });
+    targets.forEach(function (id) { var el = $('#' + id); if (el) obs.observe(el, { childList: true, characterData: true, subtree: true }); });
+  })();
 
   var w = window.innerWidth;
   window.addEventListener('resize', function () {

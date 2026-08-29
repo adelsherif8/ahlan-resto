@@ -87,6 +87,8 @@ const qrCells = [
                 </div>
                 <div class="chat__body">
                   {t.hero.chat.map((m) => (
+                    <>
+                    {m.from === 'out' && <div class="chat__b chat__b--out chat__typing" aria-hidden="true"><i></i><i></i><i></i></div>}
                     <div class:list={['chat__b', m.from === 'out' ? 'chat__b--out' : 'chat__b--in']}>
                       {m.voice && (
                         <span class="chat__voice">
@@ -108,6 +110,7 @@ const qrCells = [
                       {m.text && <span>{m.text}</span>}
                       <span class="chat__t">{m.time}</span>
                     </div>
+                    </>
                   ))}
                 </div>
               </div>
@@ -184,8 +187,8 @@ const qrCells = [
             </div>
             <p class="lede">{t.whatIs.p1} {t.whatIs.p2}</p>
           </header>
-          <div class="rail">
-            <div class="rail__line" aria-hidden="true"></div>
+          <div class="rail scene" id="scene-outputs">
+            <div class="rail__line" aria-hidden="true"><span class="rail__runner"><span class="chat__wave">{[5,9,14,8,12,17,10,6,12,9].map((h) => <i style={`height:${h}px`}></i>)}</span><b class="num">0:07</b></span></div>
             <!-- 1 · the receipt on WhatsApp -->
             <article class="panel">
               <span class="panel__n num">01</span>
@@ -235,7 +238,7 @@ const qrCells = [
                     <span class="record__badge">{pf.badge}</span>
                   </div>
                   <div class="record__stats">
-                    {pf.stats.map((s) => <span><b class="num">{s.value}</b><small>{s.label}</small></span>)}
+                    {pf.stats.map((s) => <span><b class="num" data-count={s.value}>{s.value}</b><small>{s.label}</small></span>)}
                   </div>
                   {pf.rows.slice(0, 2).map((r) => <div class="record__row"><span>{r.label}</span><b>{r.text}</b></div>)}
                   <div class="record__row"><span>{pf.notesLabel}</span><b>{pf.notes[0]}</b></div>
@@ -243,6 +246,7 @@ const qrCells = [
               </div>
             </article>
           </div>
+          <button class="replay" type="button" data-replay="scene-outputs">↻ {t.whatIs.stream.replay}</button>
         </div>
       </section>
 
@@ -253,20 +257,20 @@ const qrCells = [
             <p class="eyebrow"><span class="eyebrow__rule"></span> [03] بيفهم إزاي</p>
             <h2 class="mega">{t.understands.h2}</h2>
           </header>
-          <div class="bento">
+          <div class="bento" id="scene-bento">
             {t.understands.table.pairs.map((p, i) => (
-              <article class:list={['tile', i < 2 && 'tile--wide']}>
+              <article class:list={['tile', 'scene', i < 2 && 'tile--wide']}>
                 <h3>{p.head}</h3>
                 <span class="tile__k">{t.understands.table.sends}</span>
                 <div class="tile__in">
                   {p.input.kind === 'voice' && (
                     <span class="chat__voice">
-                      <span class="chat__wave">{[5,9,14,8,12,17,10,6,12,16,9,5,8,13].map((h) => <i style={`height:${h}px`}></i>)}</span>
-                      <b class="num">{p.input.duration}</b>
+                      <span class="chat__wave chat__wave--live">{[5,9,14,8,12,17,10,6,12,16,9,5,8,13].map((h) => <i style={`height:${h}px`}></i>)}</span>
+                      <b class="num" data-timer={p.input.duration}>{p.input.duration}</b>
                     </span>
                   )}
-                  {p.input.kind === 'location' && <span>📍 {p.input.text}</span>}
-                  {p.input.kind === 'text' && <span dir="auto">{p.input.text}</span>}
+                  {p.input.kind === 'location' && <span data-type={`📍 ${p.input.text}`}>📍 {p.input.text}</span>}
+                  {p.input.kind === 'text' && <span dir="auto" data-type={p.input.text}>{p.input.text}</span>}
                 </div>
                 <span class="tile__k">{t.understands.table.gets}</span>
                 <dl class="tile__out">
@@ -279,6 +283,7 @@ const qrCells = [
               <span class="btn btn--yellow btn--sm">{t.nav.cta} <span aria-hidden="true">←</span></span>
             </a>
           </div>
+          <button class="replay" type="button" data-replay="scene-bento">↻ {t.understands.table.replay}</button>
         </div>
       </section>
 
@@ -291,9 +296,13 @@ const qrCells = [
             <p class="lede">{t.dineIn.p1}</p>
             <p class="lede">{t.dineIn.p2}</p>
           </header>
-          <div class="strip" id="strip">
+          <div class="strip scene" id="scene-dine">
             <div class="strip__cell">
               <span class="strip__n num">1</span>
+              <div class="scanner" aria-hidden="true">
+                <div class="scanner__win"><i class="scanner__c scanner__c--tl"></i><i class="scanner__c scanner__c--tr"></i><i class="scanner__c scanner__c--bl"></i><i class="scanner__c scanner__c--br"></i><span class="scanner__line"></span></div>
+                <span class="scanner__ok">✓</span>
+              </div>
               <div class="tent">
                 <div class="qr" aria-hidden="true">
                   {qrCells.map((row) => <span>{row.split('').map((c) => <i class:list={[c === '1' && 'on']}></i>)}</span>)}
@@ -324,7 +333,7 @@ const qrCells = [
               <p>{sc.step3}</p>
             </div>
           </div>
-          <p class="dine__captured">✓ {sc.captured}</p>
+          <p class="dine__captured">✓ {sc.captured} <button class="replay replay--inline" type="button" data-replay="scene-dine">↻ {sc.replay}</button></p>
         </div>
       </section>
 
@@ -338,7 +347,7 @@ const qrCells = [
             </div>
             <p class="lede">{jr.orderFrom}. {t.steps.items[2]!.body}</p>
           </header>
-          <ol class="steps" id="steps">
+          <ol class="steps scene" id="steps">
             <div class="steps__line" aria-hidden="true"><i id="steps-fill"></i></div>
             {t.steps.items.map((s, i) => (
               <li>
@@ -347,12 +356,15 @@ const qrCells = [
                 <p>{s.body}</p>
                 <div class="steps__art">
                   {i === 0 && (
+                    <div class="photos" aria-hidden="true"><i></i><i></i><i></i></div>
+                  )}
+                  {i === 0 && (
                     <div class="menu">
                       <b>{jr.menuTitle}</b>
                       {jr.menuItems.map((m) => <span><span>{m.name}</span><span class="num">{m.price}</span></span>)}
                     </div>
                   )}
-                  {i === 1 && <div class="chips">{jr.setupChips.map((c) => <span>{c}</span>)}</div>}
+                  {i === 1 && <div class="chips">{jr.setupChips.map((c) => <span>{c.replace(' ✓', '')} <i class="chips__tick">✓</i></span>)}</div>}
                   {i === 2 && (
                     <div class="order">
                       <b class="num">{jr.orderTitle}</b>
@@ -364,16 +376,21 @@ const qrCells = [
               </li>
             ))}
           </ol>
+          <button class="replay" type="button" data-replay="steps">↻ {jr.replay}</button>
         </div>
       </section>
 
       <!-- ═══ 7 · TRUST — the karkadeh band ═══ -->
-      <section class="deals" id="trust">
+      <section class="deals scene" id="trust">
         <div class="wrap">
           <header class="sec-head deals__head">
             <p class="eyebrow eyebrow--onlight"><span class="eyebrow__rule eyebrow__rule--dark"></span> [06] ليه منادم</p>
-            <h2 class="mega mega--dark">{t.trust.pre} <b class="num deals__big">{t.trust.num}</b> {t.trust.post}</h2>
+            <h2 class="mega mega--dark">{t.trust.pre} <b class="num deals__big" data-count={t.trust.num}>{t.trust.num}</b> {t.trust.post}</h2>
           </header>
+          <ul class="run" aria-label={t.trust.run.title}>
+            {t.trust.run.cases.map((c) => <li><i class="run__tick">✓</i><span>{c}</span></li>)}
+            <li class="run__sum"><b class="num">110</b> {t.trust.run.ofLabel} <b class="num">110</b> {t.trust.run.passing}</li>
+          </ul>
           <div class="grid grid--3">
             {t.trust.facts.map((f, i) => (
               <article class="deal">
