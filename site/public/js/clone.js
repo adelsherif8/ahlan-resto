@@ -365,25 +365,37 @@
     tl.to(panels, { borderColor: 'rgba(20,17,16,.12)', duration: .6 }, '+=.4');
   }, 'top 65%');
 
-  /* 3 · the bento fills itself */
-  $$('#scene-bento .tile.scene').forEach(function (tile, i) {
-    tile.id = tile.id || ('scene-tile-' + i);
-    scene(tile, function (tl) {
+  /* 3 · five little conversations, one after another */
+  scene($('#scene-bento'), function (tl, root) {
+    var tiles = $$('.tile:not(.tile--cta)', root);
+    tiles.forEach(function (tile, i) {
+      var inb = tile.querySelector('.tile__in');
       var typed = tile.querySelector('[data-type]');
       var timer = tile.querySelector('[data-timer]');
       var wave = tile.querySelector('.chat__wave--live');
-      var fields = $$('.tile__out > div', tile);
-      tl.set(fields, { autoAlpha: 0, x: -10 });
-      if (typed) tl.add(typeInto(typed, typed.getAttribute('data-type'), .8));
+      var typing = tile.querySelector('.tile__typing');
+      var reply = tile.querySelector('.tile__reply');
+      var chips = $$('.tile__chips span', tile);
+      var sub = gsap.timeline();
+      sub.set([inb, reply], { autoAlpha: 0, y: 8 })
+         .set(chips, { autoAlpha: 0, scale: .8 })
+         .set(typing, { display: 'none' })
+         .to(inb, { autoAlpha: 1, y: 0, duration: .3, ease: 'power2.out' });
+      if (typed) sub.add(typeInto(typed, typed.getAttribute('data-type'), .7));
       if (timer) {
         var parts = timer.getAttribute('data-timer').split(':'), secs = +parts[0] * 60 + +parts[1];
-        tl.add(function () { wave && wave.classList.add('is-live'); });
-        tl.add(counter(timer, secs, 1.1, function (v) { v = Math.round(v); return '0:' + (v < 10 ? '0' : '') + v; }));
-        tl.add(function () { wave && wave.classList.remove('is-live'); });
+        sub.add(function () { wave && wave.classList.add('is-live'); });
+        sub.add(counter(timer, secs, .9, function (v) { v = Math.round(v); return '0:' + (v < 10 ? '0' : '') + v; }));
+        sub.add(function () { wave && wave.classList.remove('is-live'); });
       }
-      tl.to(fields, { autoAlpha: 1, x: 0, duration: .3, stagger: .18, ease: 'power2.out' }, '+=.15');
-    }, 'top 80%');
-  });
+      sub.set(typing, { display: 'flex', autoAlpha: 1 })
+         .to({}, { duration: .5 })
+         .set(typing, { display: 'none' })
+         .to(reply, { autoAlpha: 1, y: 0, duration: .35, ease: 'power3.out' })
+         .to(chips, { autoAlpha: 1, scale: 1, duration: .25, stagger: .1, ease: 'back.out(2)' }, '-=.1');
+      tl.add(sub, i ? '-=1.1' : 0);
+    });
+  }, 'top 70%');
 
   /* 1 · the dining room: scan → order → on record */
   scene($('#scene-dine'), function (tl, root) {

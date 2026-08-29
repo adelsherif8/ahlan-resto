@@ -263,34 +263,41 @@ const qrCells = [
         </div>
       </section>
 
-      <!-- ═══ 4 · WHAT IT UNDERSTANDS — the bento ═══ -->
+      <!-- ═══ 4 · WHAT IT UNDERSTANDS — five little conversations ═══ -->
       <section class="sec" id="features">
         <div class="wrap">
-          <header class="sec-head">
-            <p class="eyebrow"><span class="eyebrow__rule"></span> [03] بيفهم إزاي</p>
-            <h2 class="mega">{t.understands.h2}</h2>
+          <header class="sec-head sec-head--row sec-head--tight">
+            <div>
+              <p class="eyebrow"><span class="eyebrow__rule"></span> [03] بيفهم إزاي</p>
+              <h2 class="mega mega--md">{t.understands.h2}</h2>
+            </div>
+            <p class="bento__legend"><i class="sw sw--in"></i> الزبون <i class="sw sw--out"></i> منادم <i class="sw sw--chip"></i> {t.understands.table.gets}</p>
           </header>
           <div class="bento" id="scene-bento">
-            {t.understands.table.pairs.map((p, i) => (
-              <article class:list={['tile', 'scene', i < 2 && 'tile--wide']}>
-                <h3>{p.head}</h3>
-                <span class="tile__k">{t.understands.table.sends}</span>
-                <div class="tile__in">
-                  {p.input.kind === 'voice' && (
-                    <span class="chat__voice">
-                      <span class="chat__wave chat__wave--live">{[5,9,14,8,12,17,10,6,12,16,9,5,8,13].map((h) => <i style={`height:${h}px`}></i>)}</span>
-                      <b class="num" data-timer={p.input.duration}>{p.input.duration}</b>
-                    </span>
-                  )}
-                  {p.input.kind === 'location' && <span data-type={`📍 ${p.input.text}`}>📍 {p.input.text}</span>}
-                  {p.input.kind === 'text' && <span dir="auto" data-type={p.input.text}>{p.input.text}</span>}
+            {t.understands.fragments.map((f, i) => {
+              const pair = t.understands.table.pairs[i]!;
+              return (
+              <article class:list={['tile', i < 2 && 'tile--wide']}>
+                <h3>{f.head}</h3>
+                <div class="tile__chat">
+                  <div class="wa__b wa__b--in tile__in">
+                    {f.demo.inVoice ? (
+                      <span class="chat__voice">
+                        <span class="chat__wave chat__wave--live">{[5,9,14,8,12,17,10,6,12,16,9,5,8,13].map((h) => <i style={`height:${h}px`}></i>)}</span>
+                        <b class="num" data-timer={f.demo.inVoice}>{f.demo.inVoice}</b>
+                      </span>
+                    ) : (
+                      <span dir="auto" data-type={f.demo.in}>{f.demo.in}</span>
+                    )}
+                  </div>
+                  <div class="wa__b wa__b--out chat__typing tile__typing" aria-hidden="true"><i></i><i></i><i></i></div>
+                  <div class="wa__b wa__b--out tile__reply"><span dir="auto">{f.demo.out}</span></div>
                 </div>
-                <span class="tile__k">{t.understands.table.gets}</span>
-                <dl class="tile__out">
-                  {p.fields.map((f) => <div><dt>{f.label}</dt><dd>{f.value}</dd></div>)}
-                </dl>
+                <div class="tile__chips">
+                  {pair.fields.map((fl) => <span><small>{fl.label}</small>{fl.value}</span>)}
+                </div>
               </article>
-            ))}
+            );})}
             <a class="tile tile--cta" href={WA_LINK}>
               <h3>{t.closing.askMore}</h3>
               <span class="btn btn--yellow btn--sm">{t.nav.cta} <span aria-hidden="true">←</span></span>

@@ -303,23 +303,28 @@ a { color: inherit; }
 .record__chips { display: flex; flex-wrap: wrap; gap: .35rem; }
 .record__chips span { background: var(--black); border: 1px solid var(--line); border-radius: 999px; padding: .1rem .6rem; font-size: 12px; }
 
-/* ───────────── 4 · the bento ─────────────────────────────────────────── */
+/* ───────────── 4 · five little conversations ─────────────────────────── */
 
+.bento__legend { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; font-size: var(--t-sm); font-weight: 600; color: var(--ink-70); padding-bottom: .6rem; }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-inline-start: .6rem; }
+.sw--in { background: #fff; border: 1px solid var(--line); }
+.sw--out { background: var(--wa-out); }
+.sw--chip { background: rgba(140,29,47,.12); border: 1px solid rgba(140,29,47,.4); }
 .bento { display: grid; gap: clamp(.9rem, 1.6vw, 1.3rem); grid-template-columns: repeat(6, 1fr); }
-.tile { grid-column: span 2; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); padding: clamp(1.2rem, 2vw, 1.6rem); display: flex; flex-direction: column; gap: .5rem; text-decoration: none; transition: transform .3s var(--ease), border-color .3s var(--ease), box-shadow .3s var(--ease); }
+.tile { grid-column: span 2; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); padding: clamp(1.1rem, 1.8vw, 1.4rem); display: flex; flex-direction: column; gap: .7rem; text-decoration: none; transition: transform .3s var(--ease), border-color .3s var(--ease), box-shadow .3s var(--ease); }
 .tile--wide { grid-column: span 3; }
 .tile:hover { transform: translateY(-4px); border-color: rgba(140,29,47,.45); box-shadow: 0 22px 44px -28px rgba(20,17,16,.35); }
-.tile h3 { font-size: var(--t-lg); margin-bottom: .3rem; }
-.tile__k { font-size: var(--t-xs); font-weight: 700; color: var(--ink-55); }
-.tile__in { align-self: flex-start; background: var(--wa-out); border-radius: 10px; border-end-end-radius: 2px; padding: .5rem .8rem; font-size: 14px; color: #111B21; max-width: 100%; }
-.tile__out { margin: 0; display: grid; gap: .3rem; }
-.tile__out div { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--line); padding-top: .35rem; font-size: var(--t-sm); }
-.tile__out dt { color: var(--ink-55); }
-.tile__out dd { margin: 0; font-weight: 700; color: var(--yellow); text-align: end; }
-.tile--cta { grid-column: span 2; background: var(--ink-solid); color: var(--semna); justify-content: space-between; border-color: var(--ink-solid); }
+.tile h3 { font-size: var(--t-md); }
+.tile__chat { background: #EFEAE2; border-radius: 12px; padding: .6rem; display: flex; flex-direction: column; gap: .35rem; flex: 1; }
+.tile__chat .wa__b { font-size: 13.5px; }
+.tile__typing { display: none; }
+.tile__chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.tile__chips span { display: inline-flex; align-items: baseline; gap: .35rem; background: rgba(140,29,47,.08); border: 1px solid rgba(140,29,47,.3); color: var(--yellow); border-radius: 999px; padding: .2rem .7rem; font-size: var(--t-xs); font-weight: 700; }
+.tile__chips small { font-weight: 500; color: var(--ink-55); font-size: 11px; }
+.tile--cta { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; background: var(--ink-solid); color: var(--semna); border-color: var(--ink-solid); padding-block: .9rem; }
 .tile--cta h3 { font-size: var(--t-md); font-family: var(--font-ar); font-weight: 600; }
-@media (max-width: 1000px) { .tile, .tile--wide, .tile--cta { grid-column: span 3; } }
-@media (max-width: 640px) { .bento { grid-template-columns: 1fr; } .tile, .tile--wide, .tile--cta { grid-column: span 1; } }
+@media (max-width: 1000px) { .tile, .tile--wide { grid-column: span 3; } .tile--cta { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .bento { grid-template-columns: 1fr; } .tile, .tile--wide, .tile--cta { grid-column: span 1; } .tile--cta { flex-direction: column; align-items: flex-start; } }
 
 /* ───────────── 5 · the dining room strip ────────────────────────────── */
 
