@@ -117,6 +117,7 @@
 
   document.documentElement.classList.add('js');
   gsap.registerPlugin(ScrollTrigger);
+  ScrollTrigger.config({ ignoreMobileResize: true });
   renderRig(0);
 
   /* ───────────────────────────── preloader ─────────────────────────────── */
@@ -167,12 +168,14 @@
     gsap.set(card, { autoAlpha: 0, x: 40, y: 30 });
     gsap.set('.hero__cta', { autoAlpha: 0, y: 12 });
 
-    var intro = gsap.timeline({
-      onComplete: function () {
-        document.body.style.overflow = '';
-        ScrollTrigger.refresh();
-      }
-    });
+    var intro = gsap.timeline();
+    // release the page as soon as the frame has opened — the bubbles keep
+    // landing on their own; nobody should be held for six seconds
+    intro.add(function () {
+      document.body.style.overflow = '';
+      buildTear();
+      ScrollTrigger.refresh();
+    }, 2.1);
 
     intro.to('.pre__word b', { y: '-110%', duration: .5, ease: 'power3.in' }, 0);
     intro.to(['.pre__rule', '.pre__brand'], { autoAlpha: 0, duration: .3 }, 0);
@@ -239,29 +242,57 @@
     exit.set('#hero', { display: 'none' });
   }
 
-  /* ───────────────────── the one pinned section ────────────────────────── */
+  /* ───────────────── the one pinned section: the torn receipt ──────────── */
 
   window.addEventListener('load', function () { ScrollTrigger.refresh(); });
 
-  ScrollTrigger.create({
-    trigger: '#scale-pin',
-    start: 'top top',
-    end: '+=' + Math.round(window.innerHeight * 1.3),
-    pin: true,
-    anticipatePin: 1,
-    scrub: .4,
-    onUpdate: function (self) {
-      /* rest on 300 at the top and 2,500 at the bottom; only the middle
-       * window spins, so the dial reads as a dial, not a random number */
-      var p = gsap.utils.clamp(0, 1, (self.progress - 0.25) / 0.5);
-      renderRig(p * p * (3 - 2 * p));
+  function buildTear() {
+    var stage = $('#tear-stage'); if (!stage) return;
+    var rcpts = $$('.rcpt', stage);
+    var tears = $$('.rcpt__tear', stage);
+    var tallyApp = $('#tally-app'), tallyOurs = $('#tally-ours');
+    var appN = $('#tally-app-n'), oursN = $('#tally-ours-n');
+    var label = $('#stack-label'), diff = $('#tear-diff'), close = $('#tear-close');
+    var APP = 30, OURS = 8.5, N = rcpts.length;
+
+    function flyTarget(tear) {
+      // where the strip lands: the app tally, in stage coordinates
+      var a = tallyApp.getBoundingClientRect(), b = tear.getBoundingClientRect();
+      return { x: (a.left + a.width / 2) - (b.left + b.width / 2), y: (a.top + a.height / 2) - (b.top + b.height / 2) };
     }
-  });
+
+    var tl = gsap.timeline({
+      scrollTrigger: { trigger: '#scale-pin', start: 'top top', end: '+=' + Math.round(window.innerHeight * .8), pin: true, pinType: 'fixed', anticipatePin: 1, scrub: .4,
+        invalidateOnRefresh: true }
+    });
+    var app = { v: 0 }, ours = { v: 0 };
+    gsap.set(rcpts.slice(1), { autoAlpha: 0, y: 20 });
+    gsap.set([tallyOurs, label, diff, close], { autoAlpha: 0, y: 10 });
+    appN.textContent = '0'; oursN.textContent = '0';
+
+    // 1 · the first strip tears off and flies to the app tally
+    tl.to(tears[0], { rotate: -6, y: 6, duration: .3, ease: 'power2.in' })
+      .to(tears[0], { x: function () { return flyTarget(tears[0]).x; }, y: function () { return flyTarget(tears[0]).y; }, scale: .5, autoAlpha: 0, duration: .8, ease: 'power2.inOut' })
+      .to(app, { v: APP, duration: .5, ease: 'none', onUpdate: function () { appN.textContent = fmt(app.v); } }, '<.4');
+    // 2 · the same customer, seven more times
+    tl.to(rcpts.slice(1), { autoAlpha: 1, y: function (i) { return -(i + 1) * 7; }, x: function (i) { return ((i % 2) ? 1 : -1) * (i + 1) * 9; }, rotate: function (i) { return ((i % 2) ? 1 : -1) * (i + 1) * 1.2; }, duration: .6, stagger: .08, ease: 'power2.out' }, '+=.1')
+      .to(label, { autoAlpha: 1, y: 0, duration: .3 }, '<.3');
+    // 3 · every strip tears and flies; the tally piles up
+    tears.slice(1).forEach(function (t, i) {
+      tl.to(t, { x: function () { return flyTarget(t).x; }, y: function () { return flyTarget(t).y; }, scale: .5, autoAlpha: 0, duration: .55, ease: 'power2.inOut' }, i ? '<.12' : '+=.1');
+    });
+    tl.to(app, { v: APP * N, duration: 1.2, ease: 'none', onUpdate: function () { appN.textContent = fmt(app.v); } }, '<-.3');
+    // 4 · Munadim's side, then the difference
+    tl.to(tallyOurs, { autoAlpha: 1, y: 0, duration: .3 }, '+=.1')
+      .to(ours, { v: OURS * N, duration: .6, ease: 'none', onUpdate: function () { oursN.textContent = fmt(ours.v); } }, '<')
+      .to(diff, { autoAlpha: 1, y: 0, duration: .4 }, '+=.15')
+      .to(close, { autoAlpha: 1, y: 0, duration: .4 }, '<.1');
+  }
 
   /* ─────────────────────── quiet entrances ─────────────────────────────── */
 
   var groups = [
-    { sel: '.sec-head, .scale__head', y: 22 },
+    { sel: '.sec-head', y: 22 },
     { sel: '.panel, .tile, .strip__cell, .steps li, .deal, .card, .calc, .faq__item, .composer', y: 26 }
   ];
   groups.forEach(function (g) {

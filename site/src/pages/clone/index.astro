@@ -150,41 +150,34 @@ const qrCells = [
       </div>
       <div class="hero-spacer"></div>
 
-      <!-- ═══ 2 · THE ARITHMETIC — their pinned reveal ═══ -->
+      <!-- ═══ 2 · THE ARITHMETIC — the receipt that gets torn (short pin) ═══ -->
       <section class="scale" id="problem">
         <div class="scale__pin" id="scale-pin">
-          <div class="wrap scale__head">
-            <p class="eyebrow"><span class="eyebrow__rule"></span> [01] {t.pricing.mathH3}</p>
-            <h2 class="mega mega--md">{t.problem.h2}</h2>
-            <p class="lede">{t.problem.p2}</p>
-          </div>
-          <div class="wrap dial">
-            <div class="dial__main">
-              <span class="dial__k">{t.pricing.picker.orders}</span>
-              <span class="dial__v num" id="m-orders">300</span>
-              <div class="dial__rail"><span id="m-fill"></span></div>
-              <div class="dial__stops num"><span>300</span><span>1,000</span><span>2,500</span></div>
+          <div class="wrap tear">
+            <div class="tear__copy">
+              <p class="eyebrow"><span class="eyebrow__rule"></span> [01] {t.pricing.mathH3}</p>
+              <h2 class="mega mega--md">{t.problem.h2}</h2>
+              <p class="lede">{t.problem.p1}</p>
+              <p class="lede">{t.problem.p2}</p>
+              <p class="tear__close" id="tear-close">{t.pricing.mathClose}</p>
+              <a class="btn btn--yellow" href="#pricing">{t.hero.ctaSecondary} <span aria-hidden="true">↓</span></a>
             </div>
-            <div class="readout">
-              <div class="ro ro--bad">
-                <span class="ro__k">{t.pricing.picker.appSide}</span>
-                <span class="ro__v"><b class="num" id="m-app">9,000</b> {t.pricing.picker.egp}</span>
-                <span class="ro__bar"><i id="m-bar-app"></i></span>
+            <div class="tear__stage" id="tear-stage">
+              <div class="tally tally--app" id="tally-app"><span>{t.pricing.picker.appSide}</span><b class="num" id="tally-app-n">240</b> {t.pricing.picker.egp}</div>
+              <div class="tally tally--ours" id="tally-ours"><span>{t.pricing.ourCost.label}</span><b class="num" id="tally-ours-n">68</b> {t.pricing.picker.egp}</div>
+              <div class="stack" id="stack">
+                {[0,1,2,3,4,5,6,7].map((i) => (
+                  <div class="rcpt" data-i={i}>
+                    <b>{t.hero.restaurant}</b>
+                    <span class="rcpt__meta num">{t.problem.bar.order} · #{i + 1}</span>
+                    <span class="rcpt__row"><span>{jr.orderItem}</span><b class="num">150</b></span>
+                    <i class="rcpt__tear num">−30 <small>{t.problem.bar.app.replace('حوالي 30 جنيه ', '')}</small></i>
+                  </div>
+                ))}
               </div>
-              <div class="ro">
-                <span class="ro__k">{t.pricing.picker.ourSide} <b id="m-plan2" dir="ltr">Start</b></span>
-                <span class="ro__v"><b class="num" id="m-ours">3,500</b> {t.pricing.picker.egp}</span>
-                <span class="ro__bar"><i id="m-bar-ours"></i></span>
-              </div>
-              <div class="ro ro--fit">
-                <span class="ro__k">{t.pricing.picker.diff}</span>
-                <span class="ro__v"><b class="num" id="m-diff">5,500</b> {t.pricing.picker.egp} {t.pricing.perMonth}</span>
-              </div>
+              <p class="stack__label" id="stack-label">نفس الزبون — <b class="num">8</b> مرات</p>
+              <div class="tear__diff" id="tear-diff"><span>الفرق من زبون واحد في الشهر</span><b class="num">172</b> {t.pricing.picker.egp}</div>
             </div>
-          </div>
-          <div class="wrap scale__foot">
-            <p>{t.pricing.mathClose}</p>
-            <a class="btn btn--yellow" href="#pricing">{t.hero.ctaSecondary} <span aria-hidden="true">↓</span></a>
           </div>
         </div>
       </section>

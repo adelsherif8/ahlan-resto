@@ -222,6 +222,31 @@ a { color: inherit; }
 .scale__foot p { font-size: var(--t-md); font-weight: 600; color: var(--ink-solid); max-width: 48ch; }
 @media (max-width: 900px) { .scale__pin { min-height: 0; padding-top: 4rem; } .dial__v { font-size: 64px; } }
 
+
+/* ───────────── 2 · the torn receipt ────────────────────────────────── */
+.tear { width: 100%; display: grid; gap: clamp(1.5rem, 4vw, 4rem); align-items: center; }
+@media (min-width: 900px) { .tear { grid-template-columns: 1fr 1fr; } }
+.tear__copy .lede + .lede { margin-top: .8rem; }
+.tear__close { margin: 1.4rem 0 1.2rem; font-size: var(--t-md); font-weight: 700; color: var(--ink-solid); max-width: 40ch; }
+.tear__stage { position: relative; height: min(70vh, 560px); }
+.tally { position: absolute; top: 0; width: 46%; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: .8rem 1rem; font-size: var(--t-sm); color: var(--ink-70); }
+.tally span { display: block; font-size: var(--t-xs); font-weight: 700; color: var(--ink-55); margin-bottom: .2rem; }
+.tally b { font-size: var(--t-2xl); font-weight: 500; color: var(--ink-solid); line-height: 1; }
+.tally--app { inset-inline-start: 0; }
+.tally--app b { color: var(--yellow); }
+.tally--ours { inset-inline-end: 0; }
+.stack { position: absolute; inset-inline: 0; top: 34%; height: 240px; }
+.rcpt { position: absolute; inset-inline-start: 50%; top: 0; width: 240px; margin-inline-start: -120px; background: #fff; border-radius: 6px; padding: .8rem .9rem .5rem; box-shadow: 0 10px 24px -14px rgba(20,17,16,.45); display: flex; flex-direction: column; gap: .2rem; font-size: 13px; color: #111; }
+.rcpt > b { font-weight: 700; }
+.rcpt__meta { color: #777; font-size: 11.5px; }
+.rcpt__row { display: flex; justify-content: space-between; border-top: 1px dashed #bbb; padding-top: .35rem; margin-top: .2rem; }
+.rcpt__tear { display: flex; align-items: baseline; gap: .35rem; justify-content: center; margin: .5rem -0.9rem -0.5rem; padding: .45rem .9rem; background: var(--yellow); color: var(--semna); font-style: normal; font-weight: 700; font-size: 15px; border-radius: 0 0 6px 6px; border-top: 2px dashed rgba(245,239,231,.6); transform-origin: top center; }
+.rcpt__tear small { font-size: 11px; font-weight: 500; opacity: .9; }
+.stack__label { position: absolute; inset-inline: 0; top: calc(34% + 250px); text-align: center; font-size: var(--t-sm); font-weight: 700; color: var(--ink-70); }
+.tear__diff { position: absolute; inset-inline: 0; bottom: 0; background: var(--ink-solid); color: var(--semna); border-radius: var(--r); padding: .9rem 1.2rem; display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; font-size: var(--t-sm); }
+.tear__diff b { font-size: var(--t-2xl); font-weight: 500; color: #D9A94E; line-height: 1; }
+@media (max-width: 900px) { .tear__stage { height: 520px; } .tally b { font-size: var(--t-xl); } .rcpt { width: 210px; margin-inline-start: -105px; } }
+
 /* ───────────── 3 · the three outputs on a rail ────────────────────────── */
 
 .rail { position: relative; display: grid; gap: clamp(1rem, 2vw, 1.6rem); grid-template-columns: repeat(3, 1fr); }
