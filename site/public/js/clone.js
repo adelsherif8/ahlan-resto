@@ -302,12 +302,6 @@
     });
   });
 
-  // the steps rail draws itself as you pass
-  var stepsFill = $('#steps-fill');
-  if (stepsFill) {
-    gsap.to(stepsFill, { width: '100%', ease: 'none',
-      scrollTrigger: { trigger: '#steps', start: 'top 80%', end: 'bottom 60%', scrub: .5 } });
-  }
 
 
   /* ─────────────────────── the scenes (auto-play once, replay) ─────────── */
@@ -426,26 +420,34 @@
       .to(captured, { autoAlpha: 1, y: 0, duration: .4 }, '<.1');
   });
 
-  /* 4 · the 3 steps, as a journey */
+  /* 4 · the 3 steps: one object travels the rail */
   scene($('#steps'), function (tl, root) {
-    var photos = $$('.photos i', root);
-    var menu = root.querySelector('.menu');
-    var menuRows = $$('.menu > *', root);
-    var ticks = $$('.chips__tick', root);
-    var chips = $$('.chips span', root);
-    var order = root.querySelector('.order');
-    tl.set(photos, { autoAlpha: 0, rotate: 0, x: 0 })
-      .set(menuRows, { autoAlpha: 0 })
-      .set(chips, { autoAlpha: 0, y: 8 })
-      .set(order, { autoAlpha: 0, x: 24 })
-      .to(photos, { autoAlpha: 1, duration: .3, stagger: .15 })
-      .to(photos, { x: function (i) { return i * 26; }, rotate: function (i) { return (i - 1) * 8; }, duration: .5, ease: 'power2.out' }, '-=.2')
-      .to(photos, { x: 0, rotate: 0, scale: .6, autoAlpha: 0, duration: .45, ease: 'power2.in', stagger: .05 }, '+=.3')
-      .to(menuRows, { autoAlpha: 1, duration: .25, stagger: .12 }, '-=.15')
-      .to(chips, { autoAlpha: 1, y: 0, duration: .3, stagger: .2 }, '+=.2');
-    ticks.forEach(function (t, i) { tl.add(function () { t.classList.add('is-on'); }, '-=' + (i ? .1 : .0)).to(t, { scale: 1, duration: .3, ease: 'back.out(2.5)' }); });
-    tl.to(order, { autoAlpha: 1, x: 0, duration: .45, ease: 'power3.out' }, '+=.2')
-      .fromTo(order, { boxShadow: '0 0 0 0 rgba(140,29,47,.4)' }, { boxShadow: '0 0 0 12px rgba(140,29,47,0)', duration: .8 });
+    var lis = $$('.steps li', root), fill = $('#steps-fill');
+    var trav = root.querySelector('.trav'), pcards = $$('.pcard', root), menu = root.querySelector('.tmenu');
+    var rows = $$('.tmenu > b, .tmenu__row', root), stamps = $$('.stamp', root), order = root.querySelector('.torder'), ping = root.querySelector('.torder__ping');
+    var wide = window.innerWidth > 760;
+    var dx = function (n) { return wide ? (lis[n].getBoundingClientRect().left - lis[0].getBoundingClientRect().left) : 0; };
+    tl.set(trav, { x: 0 })
+      .set(fill, { width: '0%' })
+      .set(pcards, { autoAlpha: 0, y: -40, rotate: function (i) { return (i - 1) * 10; }, x: function (i) { return (document.documentElement.dir === 'rtl' ? -1 : 1) * i * 30; } })
+      .set(menu, { autoAlpha: 0, scale: .92 }).set(rows, { autoAlpha: 0 })
+      .set(stamps, { autoAlpha: 0, scale: 1.6, rotate: -8 })
+      .set(order, { autoAlpha: 0, y: 40, scale: .8 }).set(ping, { opacity: 0, scale: 1 })
+      // 1 · the photos land, then become the menu
+      .to(pcards, { autoAlpha: 1, y: 0, duration: .4, stagger: .15, ease: 'power3.out' })
+      .to(pcards, { x: 0, rotate: 0, scale: .7, autoAlpha: 0, duration: .5, ease: 'power2.in', stagger: .04 }, '+=.35')
+      .to(menu, { autoAlpha: 1, scale: 1, duration: .4, ease: 'power3.out' }, '-=.2')
+      .to(rows, { autoAlpha: 1, duration: .25, stagger: .1 }, '-=.1')
+      // 2 · it travels to step two and gets stamped
+      .to(trav, { x: function () { return dx(1); }, duration: .8, ease: 'power2.inOut' }, '+=.3')
+      .to(fill, { width: '50%', duration: .8, ease: 'power2.inOut' }, '<');
+    stamps.forEach(function (st, i) { tl.to(st, { autoAlpha: 1, scale: 1, rotate: -3 + i * 2, duration: .3, ease: 'back.out(3)' }, i ? '+=.15' : '+=.1'); });
+    // 3 · to step three, and the first order pops out
+    tl.to(trav, { x: function () { return dx(2); }, duration: .8, ease: 'power2.inOut' }, '+=.35')
+      .to(fill, { width: '100%', duration: .8, ease: 'power2.inOut' }, '<')
+      .to(menu, { y: 62, scale: .96, autoAlpha: .6, duration: .4, ease: 'power2.out' }, '+=.1')
+      .to(order, { autoAlpha: 1, y: 0, scale: 1, duration: .5, ease: 'back.out(1.6)' }, '<')
+      .fromTo(ping, { opacity: .9, scale: 1 }, { opacity: 0, scale: 1.12, duration: .9, ease: 'power2.out', repeat: 1 }, '-=.1');
   });
 
   /* 7 · 110 counts up and the suite runs */

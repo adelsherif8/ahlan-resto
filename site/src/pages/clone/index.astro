@@ -357,46 +357,40 @@ const qrCells = [
         </div>
       </section>
 
-      <!-- ═══ 6 · 3 STEPS — the journey ═══ -->
+      <!-- ═══ 6 · 3 STEPS — the handoff: one object travels the rail ═══ -->
       <section class="sec" id="how">
         <div class="wrap">
-          <header class="sec-head sec-head--row">
-            <div>
-              <p class="eyebrow"><span class="eyebrow__rule"></span> [05] إزاي بيبدأ</p>
-              <h2 class="mega">{t.steps.h2}</h2>
-            </div>
-            <p class="lede">{jr.orderFrom}. {t.steps.items[2]!.body}</p>
+          <header class="sec-head sec-head--tight">
+            <p class="eyebrow"><span class="eyebrow__rule"></span> [05] {t.steps.h2} — إزاي بيبدأ</p>
+            <h2 class="mega mega--md">من صور المنيو لأول أوردر</h2>
           </header>
-          <ol class="steps scene" id="steps">
-            <div class="steps__line" aria-hidden="true"><i id="steps-fill"></i></div>
-            {t.steps.items.map((s, i) => (
-              <li>
-                <span class="steps__n num">{i + 1}</span>
-                <h3>{s.title}</h3>
-                <p>{s.body}</p>
-                <div class="steps__art">
-                  {i === 0 && (
-                    <div class="photos" aria-hidden="true"><i></i><i></i><i></i></div>
-                  )}
-                  {i === 0 && (
-                    <div class="menu">
-                      <b>{jr.menuTitle}</b>
-                      {jr.menuItems.map((m) => <span><span>{m.name}</span><span class="num">{m.price}</span></span>)}
-                    </div>
-                  )}
-                  {i === 1 && <div class="chips">{jr.setupChips.map((c) => <span>{c.replace(' ✓', '')} <i class="chips__tick">✓</i></span>)}</div>}
-                  {i === 2 && (
-                    <div class="order">
-                      <b class="num">{jr.orderTitle}</b>
-                      <span>{jr.orderItem}</span>
-                      <small>{jr.orderFrom}</small>
-                    </div>
-                  )}
+          <div class="hand scene" id="steps">
+            <ol class="steps">
+              <div class="steps__line" aria-hidden="true"><i id="steps-fill"></i></div>
+              {t.steps.items.map((st, i) => (
+                <li><span class="steps__n num">{i + 1}</span><h3>{st.title}</h3><p>{st.body}</p></li>
+              ))}
+            </ol>
+            <div class="stage">
+              <div class="trav" id="trav">
+                <div class="pcards" aria-hidden="true">
+                  {[0,1,2].map(() => <div class="pcard"><span class="pcard__img"><i></i><i></i><i></i></span><small>📷 {jr.photosCaption}</small></div>)}
                 </div>
-              </li>
-            ))}
-          </ol>
-          <button class="replay" type="button" data-replay="steps">↻ {jr.replay}</button>
+                <div class="tmenu">
+                  <b>{jr.menuTitle}</b>
+                  {jr.menuItems.map((m) => <span class="tmenu__row"><span>{m.name}</span><span class="num">{m.price}</span></span>)}
+                  <div class="stamps">{jr.setupChips.map((c) => <span class="stamp">✓ {c.replace(' ✓', '')}</span>)}</div>
+                </div>
+                <div class="torder">
+                  <span class="torder__ping" aria-hidden="true"></span>
+                  <b class="num">{jr.orderTitle}</b>
+                  <span>{jr.orderItem}</span>
+                  <small>{jr.orderFrom}</small>
+                </div>
+              </div>
+            </div>
+            <button class="replay" type="button" data-replay="steps">↻ {jr.replay}</button>
+          </div>
         </div>
       </section>
 
