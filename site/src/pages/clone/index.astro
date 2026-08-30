@@ -307,7 +307,7 @@ const qrCells = [
         </div>
       </section>
 
-      <!-- ═══ 5 · THE DINING ROOM — the divided strip ═══ -->
+      <!-- ═══ 5 · THE DINING ROOM — one phone, one scene ═══ -->
       <section class="sec sec--steel" id="dinein">
         <div class="wrap dine">
           <header class="sec-head dine__copy">
@@ -315,45 +315,45 @@ const qrCells = [
             <h2 class="mega mega--md">{t.dineIn.h2}</h2>
             <p class="lede">{t.dineIn.p1}</p>
             <p class="lede">{t.dineIn.p2}</p>
+            <p class="dine__captured" id="dine-captured">✓ {sc.captured}</p>
+            <button class="replay" type="button" data-replay="scene-dine">↻ {sc.replay}</button>
           </header>
-          <div class="strip scene" id="scene-dine">
-            <div class="strip__cell">
-              <span class="strip__n num">1</span>
-              <div class="scanner" aria-hidden="true">
-                <div class="scanner__win"><i class="scanner__c scanner__c--tl"></i><i class="scanner__c scanner__c--tr"></i><i class="scanner__c scanner__c--bl"></i><i class="scanner__c scanner__c--br"></i><span class="scanner__line"></span></div>
-                <span class="scanner__ok">✓</span>
+          <div class="table scene" id="scene-dine">
+            <div class="table__top" aria-hidden="true"></div>
+            <div class="tent2" aria-hidden="true">
+              <div class="tent2__face">
+                <div class="qr">{qrCells.map((row) => <span>{row.split('').map((c) => <i class:list={[c === '1' && 'on']}></i>)}</span>)}</div>
+                <span class="tent2__t">{t.dineIn.qr.scan}</span>
+                <b class="tent2__tbl num">{sc.chips[0]}</b>
               </div>
-              <div class="tent">
-                <div class="qr" aria-hidden="true">
-                  {qrCells.map((row) => <span>{row.split('').map((c) => <i class:list={[c === '1' && 'on']}></i>)}</span>)}
-                </div>
-                <span class="tent__t">{t.dineIn.qr.scan}</span>
-                <span class="tent__tbl num">{sc.chips[0]}</span>
-              </div>
-              <p>{sc.step1}</p>
+              <div class="tent2__side"></div>
             </div>
-            <div class="strip__cell">
-              <span class="strip__n num">2</span>
-              <div class="wa wa--phone">
-                {sc.chat.map((m) => <div class:list={['wa__b', m.from === 'out' ? 'wa__b--out' : 'wa__b--in']}><span>{m.text}</span></div>)}
-              </div>
-              <p>{sc.step2}</p>
-            </div>
-            <div class="strip__cell">
-              <span class="strip__n num">3</span>
-              <div class="record">
-                <div class="record__head">
-                  <span class="record__av">{sc.guestName.charAt(0)}</span>
-                  <span><b>{sc.guestName}</b><span class="num" dir="ltr">{sc.guestPhone}</span></span>
+            <div class="ph" id="dine-phone" aria-hidden="true">
+              <div class="ph__screen">
+                <div class="ph__cam">
+                  <div class="ph__cam-qr"><div class="qr qr--sm">{qrCells.map((row) => <span>{row.split('').map((c) => <i class:list={[c === '1' && 'on']}></i>)}</span>)}</div></div>
+                  <i class="scanner__c scanner__c--tl"></i><i class="scanner__c scanner__c--tr"></i><i class="scanner__c scanner__c--bl"></i><i class="scanner__c scanner__c--br"></i>
+                  <span class="ph__line"></span>
+                  <span class="ph__ok">✓</span>
                 </div>
-                <div class="record__chips">{sc.chips.map((c) => <span>{c}</span>)}</div>
-                <div class="record__row"><span class="num">{sc.orderCode}</span><b>{sc.orderItem}</b></div>
-                <div class="record__row"><span>{sc.orderMeta}</span><b class="num">{sc.orderTotal}</b></div>
+                <div class="ph__chat">
+                  <div class="ph__top"><span class="chat__av">{t.hero.restaurant.trim().charAt(0)}</span><b>{t.hero.restaurant}</b></div>
+                  <div class="ph__body">
+                    {sc.chat.map((m) => <div class:list={['wa__b', m.from === 'out' ? 'wa__b--out' : 'wa__b--in']}><span>{m.text}</span></div>)}
+                  </div>
+                  <div class="ph__toast">🍽 {sc.chips[0]} — {sc.chat[3]!.text.replace('تمام ✅ ', '')}</div>
+                </div>
               </div>
-              <p>{sc.step3}</p>
+            </div>
+            <div class="drow" id="dine-row" aria-label={sc.dashTitle}>
+              <span class="record__av">{sc.guestName.charAt(0)}</span>
+              <b>{sc.guestName}</b>
+              <span class="drow__chip">{sc.chips[0]}</span>
+              <span class="drow__chip">{sc.chips[1]}</span>
+              <span class="num drow__tel" dir="ltr">{sc.guestPhone}</span>
+              <em>{t.whatIs.panels.profile.badge}</em>
             </div>
           </div>
-          <p class="dine__captured">✓ {sc.captured} <button class="replay replay--inline" type="button" data-replay="scene-dine">↻ {sc.replay}</button></p>
         </div>
       </section>
 

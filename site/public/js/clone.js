@@ -397,27 +397,33 @@
     });
   }, 'top 70%');
 
-  /* 1 · the dining room: scan → order → on record */
+  /* 1 · the dining room: one phone scans, orders, and lands on the dashboard */
   scene($('#scene-dine'), function (tl, root) {
-    var scanner = root.querySelector('.scanner');
-    var line = root.querySelector('.scanner__line');
-    var ok = root.querySelector('.scanner__ok');
-    var bubbles = $$('.wa--phone .wa__b', root);
-    var rec = root.querySelector('.record');
-    var recBits = $$('.record__head, .record__chips span, .record__row', root);
-    tl.set(bubbles, { autoAlpha: 0, y: 10 })
-      .set(recBits, { autoAlpha: 0, y: 8 })
-      .set(scanner, { autoAlpha: 0, y: 30, scale: .9 })
-      .set(ok, { scale: 0 })
-      .set(scanner, { className: 'scanner' })
-      .to(scanner, { autoAlpha: 1, y: 0, scale: 1, duration: .5, ease: 'power3.out' })
-      .fromTo(line, { top: 0 }, { top: 76, duration: .7, ease: 'power1.inOut', repeat: 1, yoyo: true })
-      .add(function () { scanner.classList.add('is-locked'); })
+    var phone = root.querySelector('.ph');
+    var cam = root.querySelector('.ph__cam'), line = root.querySelector('.ph__line'), ok = root.querySelector('.ph__ok');
+    var chat = root.querySelector('.ph__chat'), bubbles = $$('.ph__body .wa__b', root), toast = root.querySelector('.ph__toast');
+    var row = $('#dine-row'), captured = $('#dine-captured');
+    var rtl = document.documentElement.dir === 'rtl';
+    tl.set(phone, { autoAlpha: 0, x: rtl ? -160 : 160, y: 30, rotate: rtl ? 6 : -6 })
+      .set(cam, { autoAlpha: 1 }).set(chat, { autoAlpha: 0 })
+      .set(ok, { scale: 0 }).set(bubbles, { autoAlpha: 0, y: 10 }).set(toast, { autoAlpha: 0, y: 10 })
+      .set([row, captured], { autoAlpha: 0, y: 14 })
+      .add(function () { cam.classList.remove('is-locked'); })
+      // the phone comes to the table
+      .to(phone, { autoAlpha: 1, x: 0, y: 0, rotate: 0, duration: .7, ease: 'power3.out' })
+      // camera view: the code is framed, the line sweeps, lock
+      .fromTo(line, { top: 92 }, { top: 92 + 166, duration: .7, ease: 'power1.inOut', repeat: 1, yoyo: true })
+      .add(function () { cam.classList.add('is-locked'); })
       .to(ok, { scale: 1, duration: .35, ease: 'back.out(2)' })
-      .to(scanner, { autoAlpha: 0, y: -20, duration: .4, delay: .3 })
-      .to(bubbles, { autoAlpha: 1, y: 0, duration: .35, stagger: .45, ease: 'power2.out' }, '-=.2')
-      .fromTo(rec, { boxShadow: '0 0 0 0 rgba(140,29,47,0)' }, { boxShadow: '0 0 0 4px rgba(140,29,47,.25)', duration: .3, yoyo: true, repeat: 1 })
-      .to(recBits, { autoAlpha: 1, y: 0, duration: .3, stagger: .12, ease: 'power2.out' }, '-=.3');
+      // the same screen becomes the chat
+      .to(cam, { autoAlpha: 0, duration: .4, delay: .3 })
+      .to(chat, { autoAlpha: 1, duration: .3 }, '<.1')
+      .to(bubbles, { autoAlpha: 1, y: 0, duration: .35, stagger: .5, ease: 'power2.out' })
+      .to(toast, { autoAlpha: 1, y: 0, duration: .4, ease: 'power3.out' }, '+=.1')
+      // and the guest lands on the dashboard
+      .to(phone, { y: -14, duration: .45, ease: 'power2.out' }, '+=.2')
+      .to(row, { autoAlpha: 1, y: 0, duration: .45, ease: 'power3.out' }, '<')
+      .to(captured, { autoAlpha: 1, y: 0, duration: .4 }, '<.1');
   });
 
   /* 4 · the 3 steps, as a journey */
