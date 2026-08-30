@@ -408,18 +408,35 @@ a { color: inherit; }
 .torder__ping { position: absolute; inset: -2px; border-radius: 14px; border: 2px solid var(--yellow); opacity: 0; }
 @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } .steps__line { display: none; } .stage { grid-template-columns: 1fr; height: 230px; } }
 
-/* ───────────── 7 · the karkadeh band ────────────────────────────────── */
+/* ───────────── 7 · the karkadeh band: the suite, running ─────────────── */
 
-.deals { position: relative; z-index: 45; background: var(--yellow); color: var(--semna); padding: clamp(3.5rem, 7vw, 6.5rem) 0; }
+.deals { position: relative; z-index: 45; background: var(--yellow); color: var(--semna); padding: clamp(3.5rem, 7vw, 6rem) 0; }
 .deals .eyebrow--onlight { color: rgba(245,239,231,.75); }
 .eyebrow__rule--dark { background: var(--semna); }
 .mega--dark { color: var(--semna); }
-.deals__head .mega { max-width: 22ch; }
-.deals__big { font-size: 1.35em; font-weight: 500; }
-.deal { background: rgba(20,17,16,.16); border: 1px solid rgba(245,239,231,.18); border-radius: var(--r-lg); padding: clamp(1.4rem, 2.6vw, 2rem); display: flex; flex-direction: column; }
-.deal__n { font-size: var(--t-xl); color: rgba(245,239,231,.6); line-height: 1; margin-bottom: 1rem; }
-.deal h3 { font-size: var(--t-lg); color: var(--semna); margin-bottom: .5rem; }
-.deal p { font-size: var(--t-base); color: rgba(245,239,231,.85); }
+.deals__big { font-size: 1.3em; font-weight: 500; }
+.trust { display: grid; gap: clamp(1.5rem, 4vw, 4rem); align-items: center; }
+@media (min-width: 960px) { .trust { grid-template-columns: 1.1fr .9fr; } }
+.trust__copy .mega { max-width: 20ch; }
+.facts { list-style: none; margin: .4rem 0 0; padding: 0; display: grid; gap: .8rem; }
+.facts li { display: flex; align-items: flex-start; gap: .8rem; }
+.facts__mark { flex: none; width: 34px; height: 34px; border-radius: 999px; background: rgba(245,239,231,.16); border: 1px solid rgba(245,239,231,.35); display: grid; place-items: center; font-style: normal; font-size: 15px; }
+.facts b { display: block; font-size: var(--t-md); }
+.facts span { font-size: var(--t-sm); color: rgba(245,239,231,.8); }
+.deals .replay { margin-top: 1.4rem; color: rgba(245,239,231,.85); border-color: rgba(245,239,231,.3); }
+.deals .replay:hover { color: var(--semna); border-color: var(--semna); }
+/* the run panel: semna paper on the band */
+.run-panel { position: relative; background: var(--paper); color: var(--ink-solid); border-radius: var(--r-lg); padding: clamp(1.2rem, 2.2vw, 1.6rem); box-shadow: 0 30px 60px -30px rgba(20,17,16,.5); }
+.run-panel__head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; font-size: var(--t-sm); font-weight: 700; color: var(--ink-70); }
+.run-panel__head b { font-size: var(--t-xl); font-weight: 500; color: var(--ink-solid); }
+.run-panel__bar { height: 8px; border-radius: 4px; background: rgba(20,17,16,.1); overflow: hidden; margin: .7rem 0 1rem; }
+.run-panel__bar i { display: block; height: 100%; width: 100%; background: var(--yellow); border-radius: 4px; }
+.run-panel__list { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+.run-panel__list li { display: flex; align-items: center; gap: .6rem; font-size: var(--t-sm); padding: .45rem .7rem; border-radius: 10px; background: var(--black); }
+.run__tick { flex: none; width: 20px; height: 20px; border-radius: 999px; background: rgba(20,17,16,.12); color: transparent; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 700; transition: background .25s var(--ease), color .25s var(--ease); }
+.run-panel__list li.is-on .run__tick { background: #25D366; color: #fff; }
+.run-panel { display: flex; flex-direction: column; }
+.run-panel__stamp { align-self: flex-start; margin: 1rem 0 0 .4rem; border: 3px solid var(--yellow); color: var(--yellow); border-radius: 8px; padding: .3rem .8rem; font-weight: 800; font-size: var(--t-sm); transform: rotate(-6deg); }
 
 /* ───────────── 8 · price cards + the dragging arithmetic ───────────── */
 
@@ -557,12 +574,6 @@ html.js .rv { opacity: 0; }
 .chips__tick { font-style: normal; color: #25D366; font-weight: 700; display: inline-block; transform: scale(0); }
 .chips__tick.is-on { transform: scale(1); }
 
-/* 7 · the test run in the band */
-.run { list-style: none; margin: 0 0 clamp(1.4rem, 3vw, 2.2rem); padding: 0; display: flex; flex-wrap: wrap; gap: .5rem .9rem; }
-.run li { display: inline-flex; align-items: center; gap: .45rem; background: rgba(20,17,16,.16); border: 1px solid rgba(245,239,231,.18); border-radius: 999px; padding: .35rem .9rem; font-size: var(--t-sm); color: rgba(245,239,231,.9); }
-.run__tick { font-style: normal; width: 18px; height: 18px; border-radius: 999px; background: rgba(245,239,231,.2); color: var(--semna); display: grid; place-items: center; font-size: 11px; font-weight: 700; }
-.run li.is-on .run__tick { background: var(--semna); color: var(--yellow); }
-.run__sum { background: var(--semna) !important; color: var(--yellow) !important; font-weight: 700; }
 
 /* 8 · the fit card lifts */
 .card.is-fit { transform: translateY(-6px); }
@@ -590,6 +601,5 @@ html.js .rv { opacity: 0; }
   .torder { transform: translateY(120px); }
   .fan__line { stroke-dashoffset: 0 !important; }
   .chips__tick, .scanner__ok { transform: none; }
-  .run li .run__tick { background: var(--semna); color: var(--yellow); }
 }
 }

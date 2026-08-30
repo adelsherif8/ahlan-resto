@@ -450,15 +450,23 @@
       .fromTo(ping, { opacity: .9, scale: 1 }, { opacity: 0, scale: 1.12, duration: .9, ease: 'power2.out', repeat: 1 }, '-=.1');
   });
 
-  /* 7 · 110 counts up and the suite runs */
+  /* 7 · the suite runs: cases tick, the bar fills to 110, the stamp lands */
   scene($('#trust'), function (tl, root) {
     var big = root.querySelector('[data-count]');
-    var cases = $$('.run li:not(.run__sum)', root);
-    var sum = root.querySelector('.run__sum');
-    tl.set(sum, { autoAlpha: 0 })
-      .add(counter(big, +big.getAttribute('data-count'), 1.4, function (v) { return String(Math.round(v)); }));
-    cases.forEach(function (li, i) { tl.add(function () { li.classList.add('is-on'); }, i ? '+=.22' : '-=.8'); });
-    tl.to(sum, { autoAlpha: 1, duration: .4 }, '+=.2');
+    var n = $('#run-n'), bar = $('#run-bar'), stamp = $('#run-stamp');
+    var cases = $$('.run-panel__list li', root);
+    var o = { v: 0 };
+    tl.set(bar, { width: '0%' }).set(stamp, { autoAlpha: 0, scale: 1.6, rotate: -14 })
+      .set(cases, { autoAlpha: 0, x: 16 })
+      .add(function () { cases.forEach(function (c) { c.classList.remove('is-on'); }); })
+      .add(function () { big.textContent = '0'; n.textContent = '0'; });
+    cases.forEach(function (li, i) {
+      tl.to(li, { autoAlpha: 1, x: 0, duration: .3, ease: 'power2.out' }, i ? '-=.05' : '+=.1')
+        .add(function () { li.classList.add('is-on'); }, '+=.15');
+    });
+    tl.to(o, { v: 110, duration: 1.7, ease: 'power2.out', onUpdate: function () { var v = String(Math.round(o.v)); big.textContent = v; n.textContent = v; } }, .2)
+      .to(bar, { width: '100%', duration: 1.7, ease: 'power2.out' }, .2)
+      .to(stamp, { autoAlpha: 1, scale: 1, rotate: -6, duration: .4, ease: 'back.out(2)' }, '>-.1');
   });
 
   /* 8 · the calculator rolls instead of jumping */

@@ -394,25 +394,25 @@ const qrCells = [
         </div>
       </section>
 
-      <!-- ═══ 7 · TRUST — the karkadeh band ═══ -->
+      <!-- ═══ 7 · TRUST — the suite, running ═══ -->
       <section class="deals scene" id="trust">
-        <div class="wrap">
-          <header class="sec-head deals__head">
+        <div class="wrap trust">
+          <div class="trust__copy">
             <p class="eyebrow eyebrow--onlight"><span class="eyebrow__rule eyebrow__rule--dark"></span> [06] ليه منادم</p>
-            <h2 class="mega mega--dark">{t.trust.pre} <b class="num deals__big" data-count={t.trust.num}>{t.trust.num}</b> {t.trust.post}</h2>
-          </header>
-          <ul class="run" aria-label={t.trust.run.title}>
-            {t.trust.run.cases.map((c) => <li><i class="run__tick">✓</i><span>{c}</span></li>)}
-            <li class="run__sum"><b class="num">110</b> {t.trust.run.ofLabel} <b class="num">110</b> {t.trust.run.passing}</li>
-          </ul>
-          <div class="grid grid--3">
-            {t.trust.facts.map((f, i) => (
-              <article class="deal">
-                <span class="deal__n num">{String(i + 1).padStart(2, '0')}</span>
-                <h3>{f.head}</h3>
-                <p>{f.body}</p>
-              </article>
-            ))}
+            <h2 class="mega mega--md mega--dark">{t.trust.pre} <b class="num deals__big" data-count={t.trust.num}>{t.trust.num}</b> {t.trust.post}</h2>
+            <ul class="facts">
+              <li><i class="facts__mark">✓</i><div><b>{t.trust.facts[1]!.head}</b><span>{t.trust.facts[1]!.body}</span></div></li>
+              <li><i class="facts__mark">🔒</i><div><b>{t.trust.facts[2]!.head}</b><span>{t.trust.facts[2]!.body}</span></div></li>
+            </ul>
+            <button class="replay" type="button" data-replay="trust">↻ {t.trust.run.replay}</button>
+          </div>
+          <div class="run-panel" id="run">
+            <div class="run-panel__head"><span>{t.trust.run.title}</span><span class="num"><b id="run-n">110</b> / 110</span></div>
+            <div class="run-panel__bar"><i id="run-bar"></i></div>
+            <ul class="run-panel__list">
+              {t.trust.run.cases.map((c) => <li class="is-on"><i class="run__tick">✓</i><span>{c}</span></li>)}
+            </ul>
+            <div class="run-panel__stamp" id="run-stamp">الإصدار جاهز لمطعمك</div>
           </div>
         </div>
       </section>
