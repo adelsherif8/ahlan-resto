@@ -429,6 +429,8 @@ a { color: inherit; }
 .run-panel { position: relative; background: var(--paper); color: var(--ink-solid); border-radius: var(--r-lg); padding: clamp(1.2rem, 2.2vw, 1.6rem); box-shadow: 0 30px 60px -30px rgba(20,17,16,.5); }
 .run-panel__head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; font-size: var(--t-sm); font-weight: 700; color: var(--ink-70); }
 .run-panel__head b { font-size: var(--t-xl); font-weight: 500; color: var(--ink-solid); }
+.run-panel__nums { display: flex; gap: 1.2rem; font-weight: 600; color: var(--ink-70); }
+.run-panel__nums b { font-size: var(--t-lg); }
 .run-panel__bar { height: 8px; border-radius: 4px; background: rgba(20,17,16,.1); overflow: hidden; margin: .7rem 0 1rem; }
 .run-panel__bar i { display: block; height: 100%; width: 100%; background: var(--yellow); border-radius: 4px; }
 .run-panel__list { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }

@@ -148,6 +148,7 @@
     intro.add(function () {
       document.body.style.overflow = '';
       buildTear();
+      ScrollTrigger.sort();
       ScrollTrigger.refresh();
     }, 2.1);
 
@@ -237,7 +238,7 @@
 
     var tl = gsap.timeline({
       scrollTrigger: { trigger: '#scale-pin', start: 'top top', end: '+=' + Math.round(window.innerHeight * .8), pin: true, pinType: 'fixed', anticipatePin: 1, scrub: .4,
-        invalidateOnRefresh: true }
+        invalidateOnRefresh: true, refreshPriority: 1 }
     });
     var app = { v: 0 }, ours = { v: 0 };
     gsap.set(rcpts.slice(1), { autoAlpha: 0, y: 20 });
@@ -272,7 +273,7 @@
   groups.forEach(function (g) {
     gsap.utils.toArray(g.sel).forEach(function (el) {
       gsap.from(el, { y: g.y, autoAlpha: 0, duration: .65, ease: 'power2.out',
-        scrollTrigger: { trigger: el, start: 'top 88%', once: true } });
+        scrollTrigger: { trigger: el, start: 'top 80%', once: true } });
     });
   });
 
@@ -292,11 +293,12 @@
       onUpdate: function () { el.textContent = text.slice(0, Math.round(o.n)); },
       onComplete: function () { el.textContent = text; el.classList.remove('type-caret'); } });
   }
+  var SCENE_START = 'top 55%';
   function scene(root, build, startAt) {
     if (!root) return;
     var tl = gsap.timeline({ paused: true });
     build(tl, root);
-    ScrollTrigger.create({ trigger: root, start: startAt || 'top 72%', once: true, onEnter: function () { tl.play(0); } });
+    ScrollTrigger.create({ trigger: root, start: SCENE_START, once: true, onEnter: function () { tl.play(0); } });
     $$('[data-replay="' + root.id + '"]').forEach(function (b) {
       b.addEventListener('click', function () { tl.play(0); });
     });
@@ -424,21 +426,21 @@
       .fromTo(ping, { opacity: .9, scale: 1 }, { opacity: 0, scale: 1.12, duration: .9, ease: 'power2.out', repeat: 1 }, '-=.1');
   });
 
-  /* 7 · the suite runs: cases tick, the bar fills to 110, the stamp lands */
+  /* 7 · the suite runs: cases tick, the counters climb to 1,500 conversations / 5,500 turns, the stamp lands */
   scene($('#trust'), function (tl, root) {
     var big = root.querySelector('[data-count]');
-    var n = $('#run-n'), bar = $('#run-bar'), stamp = $('#run-stamp');
+    var n = $('#run-n'), tn = $('#run-t'), bar = $('#run-bar'), stamp = $('#run-stamp');
     var cases = $$('.run-panel__list li', root);
     var o = { v: 0 };
     tl.set(bar, { width: '0%' }).set(stamp, { autoAlpha: 0, scale: 1.6, rotate: -14 })
       .set(cases, { autoAlpha: 0, x: 16 })
       .add(function () { cases.forEach(function (c) { c.classList.remove('is-on'); }); })
-      .add(function () { big.textContent = '0'; n.textContent = '0'; });
+      .add(function () { big.textContent = '0'; n.textContent = '0'; tn.textContent = '0'; });
     cases.forEach(function (li, i) {
       tl.to(li, { autoAlpha: 1, x: 0, duration: .3, ease: 'power2.out' }, i ? '-=.05' : '+=.1')
         .add(function () { li.classList.add('is-on'); }, '+=.15');
     });
-    tl.to(o, { v: 110, duration: 1.7, ease: 'power2.out', onUpdate: function () { var v = String(Math.round(o.v)); big.textContent = v; n.textContent = v; } }, .2)
+    tl.to(o, { v: 1, duration: 1.9, ease: 'power2.out', onUpdate: function () { big.textContent = fmt(1500 * o.v); n.textContent = fmt(1500 * o.v); tn.textContent = fmt(5500 * o.v); } }, .2)
       .to(bar, { width: '100%', duration: 1.7, ease: 'power2.out' }, .2)
       .to(stamp, { autoAlpha: 1, scale: 1, rotate: -6, duration: .4, ease: 'back.out(2)' }, '>-.1');
   });

@@ -270,11 +270,12 @@ export const en: SiteContent = {
 
   trust: {
     pre: 'Every release is tested against',
-    num: '110',
-    post: 'real conversation scenarios before it reaches your restaurant.',
+    num: '1,500+',
+    turns: '5,500',
+    post: 'real conversations — around 5,500 messages — before it reaches your restaurant.',
     run: {
       title: 'RELEASE SUITE',
-      sentence: 'Every release is tested against 110 real conversation scenarios before it reaches your restaurant.',
+      sentence: 'Every release is tested against 1,500+ real conversations — around 5,500 messages — before it reaches your restaurant.',
       ofLabel: 'of',
       passing: 'pass',
       cases: [
@@ -287,7 +288,7 @@ export const en: SiteContent = {
       replay: 'Replay',
     },
     facts: [
-      { head: '110 scenarios', body: 'Every release is tested against them before it reaches you.' },
+      { head: '1,500+ conversations', body: 'Every release is tested against them before it reaches you.' },
       { head: 'Official WhatsApp Business', body: "On your restaurant's number, in your restaurant's name." },
       { head: 'Your data is yours', body: "The customer database belongs to the restaurant." },
     ],
