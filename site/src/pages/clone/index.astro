@@ -470,22 +470,22 @@ const qrCells = [
         </div>
       </section>
 
-      <!-- ═══ 9 · QUESTIONS — sticky heading, their accordion ═══ -->
+      <!-- ═══ 9 · QUESTIONS — the objections, as the conversation they are ═══ -->
       <section class="sec sec--steel" id="faq">
         <div class="wrap faq__grid">
           <header class="sec-head faq__head">
             <p class="eyebrow"><span class="eyebrow__rule"></span> [08] أسئلة</p>
             <h2 class="mega mega--md">{t.objections.h2}</h2>
-            <p class="lede">{t.closing.askMore}</p>
-            <a class="btn btn--yellow" href={WA_LINK}>{t.nav.cta} <span aria-hidden="true">←</span></a>
+            <p class="lede">اللي أصحاب المطاعم بيسألوه قبل ما يبدأوا — وردّنا عليه.</p>
+            <a class="faq__more" href={WA_LINK}>{t.closing.askMore} <span aria-hidden="true">←</span></a>
           </header>
-          <div class="faq" id="faq-list">
-            {t.objections.items.map((o, i) => (
-              <div class:list={['faq__item', i === 0 && 'is-open']}>
-                <button class="faq__q" type="button" aria-expanded={i === 0 ? 'true' : 'false'}>
-                  <span>{o.q}</span><span class="faq__i" aria-hidden="true"></span>
-                </button>
-                <div class="faq__a"><p>{o.a}</p></div>
+          <div class="faq scene" id="faq-list">
+            <div class="faq__top"><span class="record__av">ص</span><b>صاحب مطعم</b><span class="chat__demo">{t.hero.demoLabel}</span></div>
+            {t.objections.items.map((o) => (
+              <div class="faq__pair">
+                <div class="wa__b wa__b--in faq__q"><span>{o.q}</span></div>
+                <div class="wa__b wa__b--out chat__typing faq__typing" aria-hidden="true"><i></i><i></i><i></i></div>
+                <div class="wa__b wa__b--out faq__a"><span>{o.a}</span></div>
               </div>
             ))}
           </div>

@@ -80,36 +80,6 @@
     run();
   })();
 
-  /* ───────────────────────── FAQ accordion ─────────────────────────────── */
-
-  (function () {
-    var items = $$('#faq-list .faq__item');
-    if (!items.length) return;
-    function setOpen(item, open, animate) {
-      var panel = item.querySelector('.faq__a');
-      var btn = item.querySelector('.faq__q');
-      var inner = panel.firstElementChild;
-      item.classList.toggle('is-open', open);
-      btn.setAttribute('aria-expanded', String(open));
-      var h = open ? inner.offsetHeight : 0;
-      if (animate && !reduce && window.gsap) gsap.to(panel, { height: h, duration: .38, ease: 'power2.out' });
-      else panel.style.height = open ? 'auto' : '0px';
-    }
-    items.forEach(function (item, i) {
-      setOpen(item, i === 0, false);
-      item.querySelector('.faq__q').addEventListener('click', function () {
-        var open = !item.classList.contains('is-open');
-        items.forEach(function (o) { if (o !== item) setOpen(o, false, true); });
-        setOpen(item, open, true);
-      });
-    });
-    window.addEventListener('resize', function () {
-      items.forEach(function (it) {
-        if (it.classList.contains('is-open')) it.querySelector('.faq__a').style.height = 'auto';
-      });
-    });
-  })();
-
   /* ───────────────────── reduced-motion short circuit ──────────────────── */
 
   if (reduce || !window.gsap) {
@@ -472,6 +442,22 @@
       .to(bar, { width: '100%', duration: 1.7, ease: 'power2.out' }, .2)
       .to(stamp, { autoAlpha: 1, scale: 1, rotate: -6, duration: .4, ease: 'back.out(2)' }, '>-.1');
   });
+
+  /* 9 · the objections land as a conversation, each reply after typing dots */
+  scene($('#faq-list'), function (tl, root) {
+    var pairs = $$('.faq__pair', root);
+    pairs.forEach(function (pr, i) {
+      var q = pr.querySelector('.faq__q'), typ = pr.querySelector('.faq__typing'), a = pr.querySelector('.faq__a');
+      var sub = gsap.timeline();
+      sub.set([q, a], { autoAlpha: 0, y: 10 }).set(typ, { display: 'none' })
+         .to(q, { autoAlpha: 1, y: 0, duration: .35, ease: 'power2.out' })
+         .set(typ, { display: 'flex', autoAlpha: 1 }, '+=.1')
+         .to({}, { duration: .5 })
+         .set(typ, { display: 'none' })
+         .to(a, { autoAlpha: 1, y: 0, duration: .4, ease: 'power3.out' });
+      tl.add(sub, i ? '-=.5' : 0);
+    });
+  }, 'top 75%');
 
   /* 8 · the calculator rolls instead of jumping */
   (function () {

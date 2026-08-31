@@ -474,23 +474,21 @@ a { color: inherit; }
 .pricing__diff b { color: #D9A94E; }
 .calc__note { margin-top: .8rem; font-size: var(--t-xs); color: var(--ink-55); }
 
-/* ───────────── 9 · questions — sticky heading + accordion ──────────── */
+/* ───────────── 9 · questions, as the conversation they are ──────────── */
 
 .faq__grid { display: grid; gap: clamp(1.5rem, 4vw, 4rem); }
 @media (min-width: 900px) { .faq__grid { grid-template-columns: .8fr 1.2fr; align-items: start; } .faq__head { position: sticky; top: calc(var(--nav-h) + 1.5rem); } }
 .faq__head { margin-bottom: 0; }
-.faq__head .lede { margin-bottom: 1.4rem; }
-.faq { border-top: 1px solid rgba(20,17,16,.16); }
-.faq__item { border-bottom: 1px solid rgba(20,17,16,.16); }
-.faq__q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; background: none; border: 0; cursor: pointer; text-align: start; padding: clamp(1.1rem, 2vw, 1.4rem) 0; color: var(--ink-solid); font-family: var(--font-ar); font-size: var(--t-md); font-weight: 700; line-height: 1.4; min-height: 44px; }
-.faq__q:hover { color: var(--yellow); }
-.faq__i { position: relative; width: 20px; height: 20px; flex: none; }
-.faq__i::before, .faq__i::after { content: ""; position: absolute; background: var(--yellow); transition: transform .3s var(--ease); }
-.faq__i::before { inset: 9px 0 9px 0; height: 2px; }
-.faq__i::after  { inset: 0 9px 0 9px; width: 2px; }
-.faq__item.is-open .faq__i::after { transform: scaleY(0); }
-.faq__a { overflow: hidden; height: 0; }
-.faq__a p { font-size: var(--t-base); color: var(--ink-70); max-width: 64ch; padding-bottom: clamp(1.1rem, 2vw, 1.4rem); }
+.faq__head .lede { margin-bottom: 1.2rem; }
+.faq__more { font-size: var(--t-sm); font-weight: 700; color: var(--ink-solid); text-decoration: none; border-bottom: 2px solid var(--yellow); padding-bottom: 2px; }
+.faq { background: #EFEAE2; border-radius: var(--r-lg); padding: .9rem; display: flex; flex-direction: column; gap: .9rem; box-shadow: 0 24px 50px -32px rgba(20,17,16,.4); }
+.faq__top { display: flex; align-items: center; gap: .6rem; background: #F0F2F5; margin: -.9rem -.9rem .2rem; padding: .7rem .9rem; border-radius: var(--r-lg) var(--r-lg) 0 0; font-size: 14px; }
+.faq__top b { font-weight: 700; }
+.faq__pair { display: flex; flex-direction: column; gap: .35rem; }
+.faq .wa__b { max-width: 78%; font-size: var(--t-base); line-height: 1.7; padding: .6rem .9rem; }
+.faq__q span { font-weight: 700; }
+.faq__typing { display: none; }
+@media (max-width: 600px) { .faq .wa__b { max-width: 92%; } }
 
 /* ───────────── 10 · closing on ink + the composer ──────────────────── */
 
