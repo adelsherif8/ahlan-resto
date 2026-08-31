@@ -42,6 +42,8 @@ export interface SiteContent {
     sub: string;
     ctaPrimary: string;
     ctaSecondary: string;
+    /** The one descriptive line under the tagline — what Munadim is, in a breath. */
+    what: string;
     demoLabel: string;
     restaurant: string;
     chat: ChatMsg[];
@@ -51,6 +53,8 @@ export interface SiteContent {
   problem: { h2: string; p1: string; p2: string; bar: { order: string; app: string } };
   whatIs: {
     h2: string; p1: string; channels: string[]; p2: string;
+    /** Section claim: one order → three outputs. */
+    claim: string;
     /** The three real outputs of one order — content mirrors the live product. */
     panels: {
       p1: string; p2: string; p3: string;
@@ -97,6 +101,8 @@ export interface SiteContent {
   };
   steps: {
     h2: string; items: { title: string; body: string }[];
+    /** The promise heading and the one timing the voice guide allows. */
+    claim: string; week: string;
     /** Journey artifact labels — new UI strings, need Adel's Arabic review. */
     journey: {
       replay: string; photosCaption: string; menuTitle: string;
@@ -107,6 +113,8 @@ export interface SiteContent {
   };
   understands: {
     h2: string; fragments: Fragment[];
+    /** Replies in their language; never guesses a number. */
+    lede: string; honest: string;
     /** Translation table — new UI strings, need Adel's Arabic review. */
     table: {
       sends: string; gets: string; replay: string;
@@ -145,7 +153,7 @@ export interface SiteContent {
   };
   objections: { h2: string; items: { q: string; a: string }[] };
   closing: {
-    h2: string; p: string; cta: string; waLabel: string;
+    h2: string; p: string; cta: string; ctaValue: string; waLabel: string;
     /** New UI strings — need Adel's Arabic review. */
     micro: string; prefill: string; askMore: string;
   };

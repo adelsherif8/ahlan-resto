@@ -145,6 +145,8 @@ a { color: inherit; }
 .ln .w i { display: inline-block; font-style: normal; transform: translateY(110%); will-change: transform; }
 .hero__subs { position: relative; min-height: 3.4em; max-width: 40ch; }
 .hero__sub { position: absolute; inset: 0; font-size: var(--t-md); line-height: 1.6; color: var(--yellow); font-weight: 600; opacity: 0; }
+.hero__what { font-size: var(--t-base); line-height: 1.7; color: var(--ink-70); max-width: 44ch; margin: .2rem 0 1rem; }
+.honest { margin-top: 1.4rem; font-weight: 600; color: var(--ink-solid); max-width: 60ch; }
 .hero__cta { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; margin-top: .4rem; }
 .hero__more { font-size: var(--t-sm); font-weight: 700; color: var(--ink-solid); text-decoration: none; border-bottom: 2px solid var(--brass); padding-bottom: 2px; }
 .hero__hint { position: absolute; inset-inline-start: clamp(20px, 6vw, 96px); bottom: clamp(1.5rem, 5vh, 3rem); z-index: 3; font-size: var(--t-xs); color: var(--ink-55); }

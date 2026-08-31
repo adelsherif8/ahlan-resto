@@ -140,6 +140,7 @@ const qrCells = [
               <p class="hero__sub" id="sub2">{subB}.</p>
               <p class="hero__sub" id="sub3">{t.whatIs.flow.captured}.</p>
             </div>
+            <p class="hero__what">{t.hero.what}</p>
             <div class="hero__cta">
               <a class="btn btn--yellow" href={WA_LINK}>{t.hero.ctaPrimary} <span aria-hidden="true">←</span></a>
               <a class="hero__more" href="#pricing">{t.hero.ctaSecondary}</a>
@@ -160,7 +161,7 @@ const qrCells = [
               <p class="lede">{t.problem.p1}</p>
               <p class="lede">{t.problem.p2}</p>
               <p class="tear__close" id="tear-close">{t.pricing.mathClose}</p>
-              <a class="btn btn--yellow" href="#pricing">{t.hero.ctaSecondary} <span aria-hidden="true">↓</span></a>
+              <a class="btn btn--yellow" href="#pricing">{t.hero.ctaSecondary}</a>
             </div>
             <div class="tear__stage" id="tear-stage">
               <div class="tally tally--app" id="tally-app"><span>{t.pricing.picker.appSide}</span><b class="num" id="tally-app-n">240</b> {t.pricing.picker.egp}</div>
@@ -188,7 +189,7 @@ const qrCells = [
           <header class="sec-head sec-head--row sec-head--tight">
             <div>
               <p class="eyebrow"><span class="eyebrow__rule"></span> [02] {t.whatIs.h2}</p>
-              <h2 class="mega mega--md">أوردر واحد. تلات حاجات بتحصل.</h2>
+              <h2 class="mega mega--md">{t.whatIs.claim}</h2>
             </div>
             <p class="lede">{t.whatIs.p1}</p>
           </header>
@@ -270,6 +271,7 @@ const qrCells = [
             <div>
               <p class="eyebrow"><span class="eyebrow__rule"></span> [03] بيفهم إزاي</p>
               <h2 class="mega mega--md">{t.understands.h2}</h2>
+              <p class="lede">{t.understands.lede}</p>
             </div>
             <p class="bento__legend"><i class="sw sw--in"></i> الزبون <i class="sw sw--out"></i> منادم <i class="sw sw--chip"></i> {t.understands.table.gets}</p>
           </header>
@@ -303,6 +305,7 @@ const qrCells = [
               <span class="btn btn--yellow btn--sm">{t.nav.cta} <span aria-hidden="true">←</span></span>
             </a>
           </div>
+          <p class="lede honest">{t.understands.honest}</p>
           <button class="replay" type="button" data-replay="scene-bento">↻ {t.understands.table.replay}</button>
         </div>
       </section>
@@ -362,7 +365,8 @@ const qrCells = [
         <div class="wrap">
           <header class="sec-head sec-head--tight">
             <p class="eyebrow"><span class="eyebrow__rule"></span> [05] {t.steps.h2} — إزاي بيبدأ</p>
-            <h2 class="mega mega--md">من صور المنيو لأول أوردر</h2>
+            <h2 class="mega mega--md">{t.steps.claim}</h2>
+            <p class="lede">{t.steps.week}</p>
           </header>
           <div class="hand scene" id="steps">
             <ol class="steps">
@@ -403,6 +407,7 @@ const qrCells = [
             <ul class="facts">
               <li><i class="facts__mark">✓</i><div><b>{t.trust.facts[1]!.head}</b><span>{t.trust.facts[1]!.body}</span></div></li>
               <li><i class="facts__mark">🔒</i><div><b>{t.trust.facts[2]!.head}</b><span>{t.trust.facts[2]!.body}</span></div></li>
+              <li><i class="facts__mark">↩</i><div><b>{t.trust.facts[3]!.head}</b><span>{t.trust.facts[3]!.body}</span></div></li>
             </ul>
             <button class="replay" type="button" data-replay="trust">↻ {t.trust.run.replay}</button>
           </div>
@@ -500,7 +505,7 @@ const qrCells = [
             <h2 class="mega">{t.closing.h2}</h2>
             <p class="lede">{t.closing.p}</p>
             <div class="qs__cta">
-              <a class="btn btn--yellow" href={WA_LINK}>{t.closing.cta} <span aria-hidden="true">←</span></a>
+              <a class="btn btn--yellow" href={WA_LINK}>{t.closing.ctaValue} <span aria-hidden="true">←</span></a>
               <span class="qs__or">أو اتصل: <a class="qs__tel num" href={`tel:+${WA_NUMBER_DISPLAY.replace(/^0/, '20')}`} dir="ltr">{WA_NUMBER_DISPLAY}</a></span>
             </div>
             <p class="qs__micro">{t.closing.micro}</p>

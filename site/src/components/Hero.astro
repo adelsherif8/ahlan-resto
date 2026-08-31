@@ -26,6 +26,7 @@ const { t } = Astro.props;
           {t.hero.sub}
         </p>
       </div>
+      <p class="lede mt-5">{t.hero.what}</p>
 
       <!-- the second stop for the eye -->
       <div class="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 sm:mt-10">
@@ -40,7 +41,6 @@ const { t } = Astro.props;
           class="group inline-flex min-h-[44px] items-center gap-2 px-1 text-[1rem] font-medium text-ink/65 transition-colors hover:text-karkadeh"
         >
           {t.hero.ctaSecondary}
-          <span aria-hidden="true" class="transition-transform group-hover:-translate-x-1 rtl:-scale-x-100">←</span>
         </a>
       </div>
     </div>

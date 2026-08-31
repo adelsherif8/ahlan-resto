@@ -16,7 +16,7 @@ const { t } = Astro.props;
         <span class="num text-[0.9rem] text-semna/55"><b class="text-semna/80">{t.trust.turns}</b> رسالة</span>
       </div>
 
-      <ul class="grid gap-6 sm:grid-cols-2 sm:gap-8">
+      <ul class="grid gap-6 sm:grid-cols-3 sm:gap-8">
         {t.trust.facts.slice(1).map((f, i) => (
           <li class="border-t border-semna/15 pt-4" data-reveal style={`transition-delay:${i * 80}ms`}>
             <p class="text-[1.02rem] font-semibold text-semna">{f.head}</p>

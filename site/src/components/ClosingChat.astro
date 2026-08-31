@@ -15,7 +15,7 @@ const { t } = Astro.props;
         <h2 class="text-semna">{t.closing.h2}</h2>
         <p class="lede mt-6 text-semna/85">{t.closing.p}</p>
         <div class="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-8 !py-3.5 text-[1.02rem]">{t.closing.cta}</a>
+          <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-8 !py-3.5 text-[1.02rem]">{t.closing.ctaValue}</a>
           <span class="text-[0.95rem] text-semna/70">أو اتصل: <a href={WA_LINK} class="num text-[1.05rem] font-medium" dir="ltr">{WA_NUMBER_DISPLAY}</a></span>
         </div>
         <p class="mt-5 text-[0.9rem] text-semna/55">{t.closing.micro} · <a href={`mailto:${CONTACT_EMAIL}`} class="!text-semna/70" dir="ltr">{CONTACT_EMAIL}</a></p>

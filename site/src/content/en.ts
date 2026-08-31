@@ -30,7 +30,8 @@ export const en: SiteContent = {
     h1: 'The customers who order from you every week — do you have their numbers?',
     sub: 'The apps rent you customers. Your WhatsApp keeps them.',
     ctaPrimary: 'Show me a real order',
-    ctaSecondary: 'See pricing',
+    ctaSecondary: 'Pricing is below ↓',
+    what: "Munadim takes your restaurant's orders on WhatsApp — delivery, pickup, and dine-in. Every order leaves you the customer's number and order history.",
     demoLabel: DEMO_LABEL_EN,
     restaurant: DEMO_RESTAURANT_AR,
     chatStatus: 'متصل',
@@ -41,15 +42,16 @@ export const en: SiteContent = {
   problem: {
     h2: "You're paying to reach people who already know you",
     p1: 'Every order through the apps costs you about a fifth of its value. That makes sense the first time — the app brought you someone new.',
-    p2: "But the customer who has ordered eight times? You pay the same commission every time. And you still don't have his number.",
+    p2: "But the customer who orders from you eight times a month? You pay the same commission every time. On a 150 EGP order, that's about 240 EGP a month to the app — for one customer. And you still don't have his number.",
     bar: { order: 'A 150 EGP order', app: 'about 30 EGP to the app' },
   },
 
   whatIs: {
     h2: "Your restaurant's direct ordering channel",
-    p1: 'Munadim takes your orders on WhatsApp — the same number your customers already message you on.',
+    claim: 'One order. Three things happen.',
+    p1: 'The customer gets a receipt on WhatsApp. The kitchen gets the ticket. And you get the customer — number and history, in a dashboard that belongs to you.',
     channels: ['Delivery', 'Pickup', 'Dine-in'],
-    p2: 'Every order leaves you a phone number and an order history, in a dashboard that belongs to you.',
+    p2: 'On the same number your customers already message you on. No new number, no app.',
     panels: {
       p1: 'The receipt on WhatsApp',
       p2: 'The ticket prints in the kitchen',
@@ -135,7 +137,7 @@ export const en: SiteContent = {
   dineIn: {
     h2: 'The people sitting in your restaurant right now are the customers you know least about',
     p1: 'Delivery at least leaves an address. Dine-in leaves nothing.',
-    p2: "With a code on the table, the customer orders from where he's sitting, the order goes to the kitchen, and his number is recorded like any other order.",
+    p2: 'A code on the table. The customer scans it, says his table number, and orders from his seat. The order goes to the kitchen, and his number is recorded like any other order.',
     qr: { scan: 'امسح واطلب من على ترابيزتك' },
     scene: {
       step1: 'A code on the table',
@@ -170,6 +172,8 @@ export const en: SiteContent = {
 
   steps: {
     h2: 'Three steps',
+    claim: 'From menu photos to the first order',
+    week: "You're taking orders the same week.",
     items: [
       { title: 'Send us photos of your menu', body: 'Phone photos are fine. We build the menu.' },
       { title: 'We set up the rest', body: 'Delivery zones, branches, delivery pricing, and the WhatsApp number.' },
@@ -193,6 +197,8 @@ export const en: SiteContent = {
 
   understands: {
     h2: 'It understands your customers the way they actually talk',
+    lede: 'And it replies in their language — Arabic, Franco, or a voice note.',
+    honest: "And it never guesses the numbers. Price, total, and delivery fee are computed from your menu. If a customer asks something it doesn't have an answer for, it says the team will confirm — it doesn't make one up.",
     fragments: [
       {
         head: 'Voice notes',
@@ -244,7 +250,7 @@ export const en: SiteContent = {
       { name: 'Grow', monthly: '8,500', included: '1,000', overage: '8 EGP / order', fits: 'one busy branch or 2–3 branches' },
       { name: 'Chain', monthly: '20,000', included: '2,500', overage: '7 EGP / order', fits: '4–10 branches' },
     ],
-    includesAll: 'Every plan includes the dashboard, delivery, pickup, dine-in, and all branches.',
+    includesAll: 'Every plan has everything: the dashboard, delivery, pickup, dine-in, and all your branches.',
     setup: 'One-time setup fee of 2,500 EGP, and 1,500 per additional branch.',
     mathH3: 'The arithmetic',
     mathLines: [
@@ -291,6 +297,7 @@ export const en: SiteContent = {
       { head: '1,500+ conversations', body: 'Every release is tested against them before it reaches you.' },
       { head: 'Official WhatsApp Business', body: "On your restaurant's number, in your restaurant's name." },
       { head: 'Your data is yours', body: "The customer database belongs to the restaurant." },
+      { head: 'If it gets stuck, someone from your team steps in', body: 'Same chat, from the dashboard — the customer notices nothing.' },
     ],
   },
 
@@ -314,13 +321,17 @@ export const en: SiteContent = {
         q: '"I have a POS — will this conflict with it?"',
         a: "Munadim takes the orders; it doesn't replace your POS. We can talk about connecting them when you need it.",
       },
+      { q: '"What if the customer changes his mind mid-order?"', a: 'It adjusts like a person would: add, remove, swap. The total is recomputed.' },
+      { q: '"What if he asks something it doesn\'t know?"', a: "It doesn't guess. It says the team will answer, and the question reaches you in the dashboard." },
+      { q: '"What if it gets it wrong with a customer?"', a: 'Someone from your team steps into the same chat and takes over. No customer is left without a reply.' },
     ],
   },
 
   closing: {
     h2: 'Want to see it working?',
-    p: "A 15-minute demo, on WhatsApp or at your restaurant. We'll send an order by voice note in front of you and show you where it lands.",
+    p: "15 minutes, on WhatsApp or at your restaurant. We'll send an order by voice note in front of you, and you'll watch it reach the kitchen and land in your records.",
     cta: 'Book a demo',
+    ctaValue: 'Show me a real order',
     waLabel: `WhatsApp: ${WA_NUMBER_DISPLAY}`,
     micro: '15 minutes on WhatsApp. No commitment.',
     prefill: 'عايز أشوف عرض توضيحي',
