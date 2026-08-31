@@ -7,7 +7,8 @@ import { createClient } from "@supabase/supabase-js";
 
 const BASE = process.argv[2] || "https://flows.munadim.com";
 const SLUG = process.argv[3] || "luciz";
-const TOKEN = "0fcef00a1debec92dbaee745";
+const TOKEN = process.env.OPS_TOKEN;
+if (!TOKEN) { console.error("OPS_TOKEN missing — set it in flows/.env"); process.exit(1); }
 const INTERIM = /^(one sec|لحظة واحدة|le7za wa7da)/i;
 
 const sb = createClient(process.env.SUPABASE_AHLAN_URL, process.env.SUPABASE_AHLAN_SERVICE_KEY);

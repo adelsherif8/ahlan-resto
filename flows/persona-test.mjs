@@ -16,7 +16,8 @@ const BASE = process.argv[2] || "https://flows.munadim.com";
 const SLUG = process.argv[3] || "luciz";
 const FILE = process.argv[4];
 const ONLY = (process.argv.find((a) => a.startsWith("--only=")) || "").replace("--only=", "").split(",").filter(Boolean);
-const TOKEN = process.env.OPS_TOKEN || "0fcef00a1debec92dbaee745";
+const TOKEN = process.env.OPS_TOKEN;
+if (!TOKEN) { console.error("OPS_TOKEN missing — set it in flows/.env"); process.exit(1); }
 const INTERIM = /^(one sec|لحظة واحدة|le7za wa7da)/i;
 const AR = /[؀-ۿ]/;
 

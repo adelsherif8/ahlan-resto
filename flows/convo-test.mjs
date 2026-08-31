@@ -8,7 +8,8 @@ import { createClient } from "@supabase/supabase-js";
 const BASE = process.argv[2] || "http://localhost:5099";
 const SLUG = process.argv[3] || "luciz";
 const FILE = process.argv[4];
-const TOKEN = process.env.OPS_TOKEN || "0fcef00a1debec92dbaee745";
+const TOKEN = process.env.OPS_TOKEN;
+if (!TOKEN) { console.error("OPS_TOKEN missing — set it in flows/.env"); process.exit(1); }
 
 const sb = createClient(process.env.SUPABASE_AHLAN_URL, process.env.SUPABASE_AHLAN_SERVICE_KEY);
 const { data: r } = await sb.from("restaurants").select("integrations").eq("slug", SLUG).single();

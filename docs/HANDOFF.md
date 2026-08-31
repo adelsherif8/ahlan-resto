@@ -26,7 +26,7 @@ control room for those agents. Two verticals:
 ## LIVE URLS (restaurant product)
 - Restaurant dashboard: https://ahlan-resto.vercel.app
   (login: adelsherif8@gmail.com / Ahlan2026! · staff: manager|host|kitchen@ahlan.resto / Ahlan<Role>1!)
-- Internal ops console: https://ahlan-ops.vercel.app (token: 0fcef00a1debec92dbaee745)
+- Internal ops console: https://ahlan-ops.vercel.app (token: OPS_TOKEN env on the flows service — see CREDENTIALS.md, never committed)
 - Flows service (agents): https://flows-production-e528.up.railway.app
 - Backend API: https://api-production-34bb0.up.railway.app
 - HOTEL backend: https://ai2-backend-production-e273.up.railway.app (frontend ai2-web.vercel.app)
