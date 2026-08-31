@@ -272,7 +272,7 @@ export const en: SiteContent = {
     pre: 'Every release is tested against',
     num: '1,500+',
     turns: '5,500',
-    post: 'real conversations — around 5,500 messages — before it reaches your restaurant.',
+    post: 'real conversations before it reaches your restaurant.',
     run: {
       title: 'RELEASE SUITE',
       sentence: 'Every release is tested against 1,500+ real conversations — around 5,500 messages — before it reaches your restaurant.',

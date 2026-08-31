@@ -339,7 +339,7 @@ export const ar: SiteContent = {
   trust: {
     pre: 'كل إصدار بيتجرب على أكتر من',
     num: '1,500',
-    post: 'محادثة حقيقية — حوالي 5,500 رسالة — قبل ما يشتغل في مطعمك.',
+    post: 'محادثة حقيقية قبل ما يشتغل في مطعمك.',
     turns: '5,500',
     // NEW UI strings — need Adel's review
     run: {
