@@ -171,8 +171,8 @@ a { color: inherit; }
 @media (max-width: 900px) {
   .hero__area { flex-direction: column; align-items: stretch; }
   .hero__frame { order: 2; width: 100%; height: 100%; }
-  .hero__stage { justify-content: center; align-items: flex-start; padding: 2vh 4vw 0; }
-  .chat { transform: scale(.72); transform-origin: top center; width: min(300px, 82vw); }
+  .hero__stage { justify-content: center; align-items: flex-start; padding: 0 4vw 0; }
+  .chat { transform: scale(.62); transform-origin: top center; width: min(300px, 82vw); }
   .chat__body { min-height: 0; }
   .hero__stage .hero__card { display: none; }
   .hero__veil { background: none; }

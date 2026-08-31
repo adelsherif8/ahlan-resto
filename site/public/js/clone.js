@@ -179,7 +179,7 @@
       landSeq(rest, restTl, 0);
     }
     // the phone never sits still: a slow drift across the whole runway
-    gsap.to('#hero-chat', { y: '-9vh', ease: 'none',
+    gsap.to('#hero-chat', { y: window.innerWidth > 900 ? '-9vh' : '-2vh', ease: 'none',
       scrollTrigger: { trigger: spacer, start: 'top top', end: '60% top', scrub: .3 } });
     // the payoff: the record card slides fully out from behind the phone
     gsap.set(card, { autoAlpha: 0, x: 140, y: 40 });
