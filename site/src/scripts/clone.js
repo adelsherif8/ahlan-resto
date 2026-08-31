@@ -68,7 +68,11 @@
       $('#c-ours').textContent = fmt(pick.cost);
       $('#c-diff').textContent = fmt(app - pick.cost);
       $$('.card[data-plan]').forEach(function (c) {
-        c.classList.toggle('is-fit', c.getAttribute('data-plan') === pick.tier.name);
+        var tier = TIERS.filter(function (x) { return x.name === c.getAttribute('data-plan'); })[0];
+        c.classList.toggle('is-fit', tier === pick.tier);
+        var tot = c.querySelector('[data-total]'), o = c.querySelector('[data-ord]');
+        if (tot) tot.textContent = fmt(costOn(tier, orders));
+        if (o) o.textContent = fmt(orders);
       });
     }
     aovR.addEventListener('input', run);
@@ -471,7 +475,7 @@
 
   /* 8 · the calculator rolls instead of jumping */
   (function () {
-    var targets = ['c-app', 'c-ours', 'c-diff'];
+    var targets = ['c-app', 'c-diff'];
     var last = {};
     var obs = new MutationObserver(function (muts) {
       muts.forEach(function (m) {
@@ -489,6 +493,7 @@
       });
     });
     targets.forEach(function (id) { var el = $('#' + id); if (el) obs.observe(el, { childList: true, characterData: true, subtree: true }); });
+    $$('.card [data-total]').forEach(function (el, i) { el.id = el.id || ('c-total-' + i); targets.push(el.id); obs.observe(el, { childList: true, characterData: true, subtree: true }); });
   })();
 
   var w = window.innerWidth;

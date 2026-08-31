@@ -417,62 +417,56 @@ const qrCells = [
         </div>
       </section>
 
-      <!-- ═══ 8 · PRICE + THE DRAGGING ARITHMETIC ═══ -->
+      <!-- ═══ 8 · PRICE — the slider drives the cards ═══ -->
       <section class="sec" id="pricing">
         <div class="wrap">
-          <header class="sec-head sec-head--row">
+          <header class="sec-head sec-head--row sec-head--tight">
             <div>
               <p class="eyebrow"><span class="eyebrow__rule"></span> [07] السعر</p>
-              <h2 class="mega">{t.pricing.h2}</h2>
+              <h2 class="mega mega--md">{t.pricing.h2}</h2>
             </div>
-            <p class="lede">{t.pricing.includesAll} {t.pricing.setup}</p>
+            <p class="lede">{t.pricing.includesAll}</p>
           </header>
+          <div class="ctl" id="calc">
+            <label class="ctl__field">
+              <span class="ctl__label">{t.pricing.picker.orders}</span>
+              <span class="ctl__num num" id="c-ord">600</span>
+              <input type="range" id="c-ord-r" min="100" max="3000" step="50" value="600" aria-label={t.pricing.picker.orders} />
+            </label>
+            <label class="ctl__field">
+              <span class="ctl__label">{t.pricing.picker.aov}</span>
+              <span class="ctl__num num" id="c-aov">150</span>
+              <input type="range" id="c-aov-r" min="80" max="400" step="10" value="150" aria-label={t.pricing.picker.aov} />
+            </label>
+          </div>
           <div class="cards--3">
             {t.pricing.plans.map((p, i) => (
               <article class:list={['card', i === 1 && 'card--pop']} data-plan={p.name}>
+                <span class="card__fit">{t.pricing.picker.yourPlan}</span>
                 <div class="card__body">
                   <p class="card__name" dir="ltr">{p.name}</p>
-                  <h3 class="card__size num" dir="ltr">{p.monthly}<small>{t.pricing.perMonth}</small></h3>
                   <p class="card__desc">{p.fits}</p>
                   <dl class="spec">
+                    <div><dt>{t.pricing.rows.monthly}</dt><dd class="num">{p.monthly}</dd></div>
                     <div><dt>{t.pricing.rows.included}</dt><dd class="num">{p.included}</dd></div>
                     <div><dt>{t.pricing.rows.overage}</dt><dd>{p.overage}</dd></div>
                   </dl>
+                  <div class="card__pay">
+                    <span>هتدفع عند <b class="num" data-ord>600</b> أوردر</span>
+                    <b class="card__total num" data-total>{p.monthly}</b>
+                    <small>{t.pricing.perMonth}</small>
+                  </div>
                   <a class="card__link" href={WA_LINK}>{t.nav.cta} <span aria-hidden="true">←</span></a>
                 </div>
               </article>
             ))}
           </div>
-          <div class="calc" id="calc">
-            <div class="calc__inputs">
-              <label class="calc__field">
-                <span class="calc__label">{t.pricing.picker.aov}</span>
-                <span class="calc__num num" id="c-aov">150</span>
-                <input type="range" id="c-aov-r" min="80" max="400" step="10" value="150" aria-label={t.pricing.picker.aov} />
-              </label>
-              <label class="calc__field">
-                <span class="calc__label">{t.pricing.picker.orders}</span>
-                <span class="calc__num num" id="c-ord">600</span>
-                <input type="range" id="c-ord-r" min="100" max="3000" step="50" value="600" aria-label={t.pricing.picker.orders} />
-              </label>
-            </div>
-            <div class="calc__out">
-              <div class="calc__box calc__box--bad">
-                <span class="calc__k">{t.pricing.picker.appSide}</span>
-                <span class="calc__v num" id="c-app">18,000</span>
-              </div>
-              <div class="calc__box">
-                <span class="calc__k">{t.pricing.picker.ourSide} <b id="c-plan" dir="ltr">Start</b></span>
-                <span class="calc__v num" id="c-ours">6,200</span>
-              </div>
-              <div class="calc__box calc__box--diff">
-                <span class="calc__k">{t.pricing.picker.diff}</span>
-                <span class="calc__v num" id="c-diff">11,800</span>
-                <span class="calc__k">{t.pricing.picker.egp} {t.pricing.perMonth}</span>
-              </div>
-            </div>
-            <p class="calc__note">{t.pricing.picker.assumption}</p>
-          </div>
+          <p class="pricing__line">
+            <span>{t.pricing.picker.appSide}: <b class="num" id="c-app">18,000</b> {t.pricing.picker.egp}</span>
+            <span class="pricing__diff">{t.pricing.picker.diff} <b class="num" id="c-diff">11,800</b> {t.pricing.picker.egp} {t.pricing.perMonth}</span>
+            <span id="c-plan" hidden>Start</span><span id="c-ours" hidden>0</span>
+          </p>
+          <p class="calc__note">{t.pricing.setup} {t.pricing.picker.assumption}</p>
         </div>
       </section>
 
