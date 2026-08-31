@@ -459,6 +459,31 @@
     });
   }, 'top 75%');
 
+  /* 10 · the composer writes itself; tapping sends, then opens WhatsApp */
+  (function () {
+    var comp = $('#composer'); if (!comp) return;
+    var hi = $('#comp-hi'), sent = $('#comp-sent'), field = $('#comp-field'), send = $('#comp-send');
+    var text = field.getAttribute('data-type');
+    var armed = false;
+    scene(comp, function (tl) {
+      tl.set(sent, { autoAlpha: 0, y: 12 }).set(hi, { autoAlpha: 0, y: 10 })
+        .add(function () { field.textContent = ''; send.classList.remove('is-ready'); armed = false; })
+        .to(hi, { autoAlpha: 1, y: 0, duration: .4, ease: 'power2.out' })
+        .add(typeInto(field, text, 1.1), '+=.4')
+        .add(function () { send.classList.add('is-ready'); armed = true; });
+    }, 'top 70%');
+    comp.addEventListener('click', function (e) {
+      if (!armed || sent.__done) return;
+      e.preventDefault();
+      sent.__done = true;
+      var href = comp.getAttribute('href');
+      gsap.timeline({ onComplete: function () { window.location.href = href; } })
+        .add(function () { field.textContent = ''; send.classList.remove('is-ready'); })
+        .to(sent, { autoAlpha: 1, y: 0, duration: .35, ease: 'power3.out' })
+        .to({}, { duration: .35 });
+    });
+  })();
+
   /* 8 · the calculator rolls instead of jumping */
   (function () {
     var targets = ['c-app', 'c-diff'];

@@ -490,7 +490,7 @@ a { color: inherit; }
 .faq__typing { display: none; }
 @media (max-width: 600px) { .faq .wa__b { max-width: 92%; } }
 
-/* ───────────── 10 · closing on ink + the composer ──────────────────── */
+/* ───────────── 10 · closing on ink: the composer writes itself ──────── */
 
 .qs { position: relative; z-index: 45; background: var(--ink-solid); color: var(--semna); padding: clamp(3.5rem, 7vw, 6.5rem) 0; }
 .qs .eyebrow { color: rgba(245,239,231,.55); }
@@ -499,29 +499,36 @@ a { color: inherit; }
 .qs .lede { color: rgba(245,239,231,.75); margin-bottom: 1.8rem; }
 .qs__in { display: grid; gap: clamp(2rem, 5vw, 4.5rem); align-items: center; }
 @media (min-width: 900px) { .qs__in { grid-template-columns: 1.1fr .9fr; } }
-.qs__cta { display: flex; flex-wrap: wrap; align-items: center; gap: 1.4rem; }
-.qs__tel { font-size: var(--t-lg); font-weight: 600; color: #D9A94E; text-decoration: none; }
+.qs__cta { display: flex; flex-wrap: wrap; align-items: center; gap: 1.2rem 1.6rem; }
+.qs__or { font-size: var(--t-sm); color: rgba(245,239,231,.7); }
+.qs__tel { font-weight: 600; color: #D9A94E; text-decoration: none; font-size: var(--t-md); }
 .qs__micro { margin-top: 1.2rem; font-size: var(--t-sm); color: rgba(245,239,231,.6); }
-.qs__micro a { color: rgba(245,239,231,.8); }
-.composer { display: block; text-decoration: none; color: #111B21; background: #EFEAE2; border-radius: 22px; overflow: hidden; box-shadow: 0 40px 90px -30px rgba(0,0,0,.8); max-width: 420px; justify-self: center; width: 100%; transition: transform .3s var(--ease); }
-.composer:hover { transform: translateY(-4px); }
+.composer { position: relative; display: block; text-decoration: none; color: #111B21; background: #EFEAE2; border-radius: 22px; overflow: hidden; box-shadow: 0 40px 90px -30px rgba(0,0,0,.8); max-width: 420px; justify-self: center; width: 100%; transition: transform .3s var(--ease), box-shadow .3s var(--ease); cursor: pointer; }
+.composer:hover { transform: translateY(-4px); box-shadow: 0 50px 100px -30px rgba(140,29,47,.5); }
 .composer__top { display: flex; align-items: center; gap: .6rem; background: #F0F2F5; padding: .75rem .9rem; }
-.composer__top > span:last-child { display: flex; flex-direction: column; line-height: 1.25; font-size: 14px; }
+.composer__top > span:nth-child(2) { display: flex; flex-direction: column; line-height: 1.25; font-size: 14px; }
 .composer__top span span { color: #667781; font-size: 11.5px; }
 .composer__av { width: 34px; height: 34px; border-radius: 999px; background: var(--yellow); color: var(--semna); display: grid; place-items: center; font-weight: 700; font-family: var(--font-display); }
 .composer__body { display: flex; flex-direction: column; gap: .4rem; padding: 1rem .8rem; min-height: 150px; }
+.composer__body .wa__b { font-size: 14px; }
 .composer__bar { display: flex; align-items: center; gap: .5rem; padding: .6rem .7rem; background: #F0F2F5; }
-.composer__field { flex: 1; background: #fff; border-radius: 999px; padding: .55rem .9rem; font-size: 14px; }
-.composer__send { width: 40px; height: 40px; border-radius: 999px; background: var(--yellow); color: var(--semna); display: grid; place-items: center; transform: scaleX(-1); }
+.composer__field { flex: 1; background: #fff; border-radius: 999px; padding: .55rem .9rem; font-size: 14px; min-height: 38px; color: #111B21; }
+.composer__field:empty::before { content: "اكتب رسالة"; color: #8696A0; }
+.composer__send { position: relative; width: 40px; height: 40px; border-radius: 999px; background: var(--yellow); color: var(--semna); display: grid; place-items: center; transform: scaleX(-1); flex: none; }
+.composer__send i { position: absolute; inset: -3px; border-radius: 999px; border: 2px solid var(--yellow); opacity: 0; }
+.composer__send.is-ready i { animation: ping 1.4s ease-out infinite; }
+@keyframes ping { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(1.7); opacity: 0; } }
 
 /* ───────────── footer ────────────────────────────────────────────────── */
 
 .foot { position: relative; z-index: 45; background: var(--ink-solid); color: rgba(245,239,231,.7); padding: 0 0 1.5rem; overflow: hidden; }
 .foot__in { display: flex; flex-direction: column; }
-.foot__word { display: block; font-family: 'Cinzel', Georgia, serif; font-size: clamp(56px, 14vw, 220px); line-height: .95; color: rgba(245,239,231,.08); text-align: center; letter-spacing: .04em; direction: ltr; user-select: none; }
+.foot__word { display: block; font-family: 'Cinzel', Georgia, serif; font-size: clamp(56px, 14vw, 220px); line-height: .95; color: rgba(245,239,231,.1); text-align: center; letter-spacing: .04em; direction: ltr; user-select: none; }
 .foot__row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .8rem 2rem; border-top: 1px solid rgba(245,239,231,.14); padding-top: 1.2rem; font-size: var(--t-sm); }
 .foot__row a { color: rgba(245,239,231,.85); text-decoration: none; }
 .foot__row a:hover { color: #D9A94E; }
+.foot__rights { color: rgba(245,239,231,.5); }
+@media (max-width: 600px) { .foot__word { font-size: 17vw; color: rgba(245,239,231,.14); } .foot__row { flex-direction: column; gap: .5rem; } }
 
 /* ───────────── floating pill ────────────────────────────────────────── */
 

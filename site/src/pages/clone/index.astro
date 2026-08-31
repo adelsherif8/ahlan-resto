@@ -492,7 +492,7 @@ const qrCells = [
         </div>
       </section>
 
-      <!-- ═══ 10 · CLOSING — ink, with the composer ═══ -->
+      <!-- ═══ 10 · CLOSING — the composer writes itself ═══ -->
       <section class="qs" id="quote">
         <div class="wrap qs__in">
           <div>
@@ -501,22 +501,23 @@ const qrCells = [
             <p class="lede">{t.closing.p}</p>
             <div class="qs__cta">
               <a class="btn btn--yellow" href={WA_LINK}>{t.closing.cta} <span aria-hidden="true">←</span></a>
-              <a class="qs__tel num" href={WA_LINK} dir="ltr">{WA_NUMBER_DISPLAY}</a>
+              <span class="qs__or">أو اتصل: <a class="qs__tel num" href={`tel:+${WA_NUMBER_DISPLAY.replace(/^0/, '20')}`} dir="ltr">{WA_NUMBER_DISPLAY}</a></span>
             </div>
-            <p class="qs__micro">{t.closing.micro} · <a href={`mailto:${CONTACT_EMAIL}`} dir="ltr">{CONTACT_EMAIL}</a></p>
+            <p class="qs__micro">{t.closing.micro}</p>
           </div>
-          <a class="composer" href={WA_LINK} aria-label={t.closing.cta}>
+          <a class="composer scene" id="composer" href={WA_LINK} aria-label={t.closing.cta}>
             <div class="composer__top">
               <span class="composer__av">م</span>
               <span><b>منادم</b><span>{t.hero.chatStatus}</span></span>
+              <span class="chat__demo">{t.hero.demoLabel}</span>
             </div>
             <div class="composer__body">
-              <div class="wa__b wa__b--in"><span>{t.closing.askMore}</span></div>
-              <div class="wa__b wa__b--out"><span>{t.closing.prefill}</span></div>
+              <div class="wa__b wa__b--in" id="comp-hi"><span>أهلاً 👋 ابعت الرسالة دي وهنرجعلك بميعاد للعرض.</span></div>
+              <div class="wa__b wa__b--out" id="comp-sent"><span>{t.closing.prefill}</span></div>
             </div>
             <div class="composer__bar">
-              <span class="composer__field">{t.closing.prefill}</span>
-              <span class="composer__send" aria-hidden="true">➤</span>
+              <span class="composer__field" id="comp-field" data-type={t.closing.prefill}>{t.closing.prefill}</span>
+              <span class="composer__send" id="comp-send" aria-hidden="true"><i></i>➤</span>
             </div>
           </a>
         </div>
@@ -528,8 +529,9 @@ const qrCells = [
           <div class="foot__row">
             <span>{t.footer.tagline}</span>
             <a href={`mailto:${CONTACT_EMAIL}`} dir="ltr">{CONTACT_EMAIL}</a>
+            <a href={WA_LINK} dir="ltr" class="num">{WA_NUMBER_DISPLAY}</a>
             <a href="/en" dir="ltr">{t.nav.toggle.label}</a>
-            <span class="num">{t.footer.rights}</span>
+            <span class="num foot__rights">{t.footer.rights}</span>
           </div>
         </div>
       </footer>
