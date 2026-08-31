@@ -45,6 +45,9 @@ html {
   scroll-behavior: smooth;
 }
 
+/* decorative overflow (fanned photos, tilted cards) must never widen the page */
+main, footer { overflow-x: clip; }
+
 /* The pill header floats; anchored sections must clear it when jumped to. */
 :target,
 section[id],
@@ -67,8 +70,22 @@ section[id],
   max-width: 46rem; /* still inside the 68ch measure — prose never widens */
 }
 
-.section { padding-block: 3.25rem; }
-@media (min-width: 768px) { .section { padding-block: 5rem; } }
+.section { padding-block: 3.5rem; }
+@media (min-width: 768px) { .section { padding-block: 5.5rem; } }
+
+/* One voice for every section opener: numeral · label · rule */
+.eyebrow {
+  display: flex; align-items: center; gap: .75rem;
+  font-family: var(--font-body); font-size: .8rem; font-weight: 600;
+  color: var(--brass-deep); margin-bottom: 1.1rem;
+}
+.eyebrow::after { content: ""; height: 1px; width: 2.25rem; background: var(--brass-deep); opacity: .6; }
+.eyebrow.eyebrow-center { justify-content: center; }
+.eyebrow.eyebrow-center::before { content: ""; height: 1px; width: 2.25rem; background: var(--brass-deep); opacity: .6; }
+.on-ink .eyebrow, .on-ink .eyebrow::before, .on-ink .eyebrow::after { color: var(--brass); background-color: var(--brass); }
+.on-ink .eyebrow { background: none; }
+.lede { font-size: 1.15rem; line-height: 1.8; color: var(--ink-80); max-width: 46rem; }
+.on-ink .lede { color: var(--semna-60); }
 
 /* Deeper warm surface for alternating sections — visible, still quiet */
 .surface-deep { background: #EDE4D6; }

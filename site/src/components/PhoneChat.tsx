@@ -21,6 +21,8 @@ interface Props {
   chat: ChatMsg[];
   /** Direction of chat text (the demo conversation is Arabic on both pages). */
   rtlChat?: boolean;
+  /** The payoff: once the order lands, the customer's record slides out beside the phone. */
+  payoff?: { name: string; phone: string; rows: { label: string; value: string }[]; captured: string; badge: string };
 }
 
 /** Fixed waveform so SSR and client render identically. */
@@ -29,7 +31,7 @@ const WAVE = [5, 9, 14, 8, 12, 17, 10, 6, 12, 16, 9, 5, 8, 13, 18, 11, 7, 10, 15
 const IN_DELAY = 820;
 const TYPING_MS = 850;
 
-export default function PhoneChat({ restaurant, status, demoLabel, replayLabel, chat, rtlChat = true }: Props) {
+export default function PhoneChat({ restaurant, status, demoLabel, replayLabel, chat, rtlChat = true, payoff }: Props) {
   const n = chat.length;
   // Start complete: SSR markup and no-JS view show the whole conversation.
   const [visible, setVisible] = useState(n);
@@ -74,8 +76,36 @@ export default function PhoneChat({ restaurant, status, demoLabel, replayLabel, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inView, reduced]);
 
+  const showPayoff = !!payoff && (played || reduced);
+
   return (
-    <div ref={ref} className="w-[min(88vw,330px)]">
+    <div ref={ref} className="relative w-[min(88vw,330px)]">
+      {payoff && (
+        <div
+          aria-hidden={!showPayoff}
+          className={`absolute bottom-6 z-20 hidden w-[230px] rounded-[var(--radius-md)] border border-ink/10 bg-[#FFFDF8] p-3.5 text-[13px] shadow-[0_24px_48px_-24px_rgba(20,17,16,0.45)] transition-all duration-700 ease-out lg:block ltr:-right-44 rtl:-left-44 ${
+            showPayoff ? 'translate-x-0 translate-y-0 opacity-100' : 'rtl:translate-x-16 ltr:-translate-x-16 translate-y-6 opacity-0'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-karkadeh-10 text-[0.85rem] font-bold text-karkadeh">{payoff.name.trim().charAt(0)}</span>
+            <div className="min-w-0 leading-tight">
+              <p className="font-semibold">{payoff.name}</p>
+              <p className="num text-[11.5px] text-ink/60" dir="ltr">{payoff.phone}</p>
+            </div>
+            <span className="ms-auto rounded-full bg-karkadeh-10 px-2 py-0.5 text-[11px] font-semibold text-karkadeh">{payoff.badge}</span>
+          </div>
+          <dl className="mt-2.5 space-y-1.5 border-t border-ink/10 pt-2.5">
+            {payoff.rows.map((r) => (
+              <div key={r.label} className="flex justify-between gap-3">
+                <dt className="text-ink/60">{r.label}</dt>
+                <dd className="font-medium text-end">{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2.5 text-[12px] font-semibold text-karkadeh">✓ {payoff.captured}</p>
+        </div>
+      )}
       {/* Phone frame */}
       <div className="overflow-hidden rounded-[2.1rem] border-[6px] border-[#2b2523] bg-[#2b2523] shadow-[0_18px_44px_-22px_rgba(20,17,16,0.42)]">
         <div className="relative flex h-[640px] flex-col overflow-hidden rounded-[1.65rem] bg-[#EFEAE2]" dir={rtlChat ? 'rtl' : 'ltr'}>

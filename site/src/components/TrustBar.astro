@@ -9,13 +9,15 @@ const { t } = Astro.props;
 <aside class="on-ink bg-ink">
   <div class="container-page py-14 sm:py-16">
     <div class="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[auto_1fr] lg:gap-16">
-      <div class="flex items-baseline gap-4 lg:flex-col lg:items-start lg:gap-2" data-reveal>
-        <span class="num text-[4.5rem] font-medium leading-none text-brass sm:text-[5.5rem]">{t.trust.num}</span>
-        <span class="max-w-[10rem] text-[1rem] leading-snug text-semna/70">{t.trust.post}</span>
+      <div class="flex flex-col gap-2" data-reveal>
+        <p class="eyebrow"><span class="num">06</span> ليه منادم</p>
+        <p class="num text-[4.2rem] font-medium leading-none text-brass sm:text-[5.2rem]" dir="ltr">{t.trust.num}+</p>
+        <span class="max-w-[16rem] text-[1rem] leading-snug text-semna/70">{t.trust.pre} {t.trust.post}</span>
+        <span class="num text-[0.9rem] text-semna/55"><b class="text-semna/80">{t.trust.turns}</b> رسالة</span>
       </div>
 
-      <ul class="grid gap-6 sm:grid-cols-3 sm:gap-8">
-        {t.trust.facts.map((f, i) => (
+      <ul class="grid gap-6 sm:grid-cols-2 sm:gap-8">
+        {t.trust.facts.slice(1).map((f, i) => (
           <li class="border-t border-semna/15 pt-4" data-reveal style={`transition-delay:${i * 80}ms`}>
             <p class="text-[1.02rem] font-semibold text-semna">{f.head}</p>
             <p class="mt-1.5 text-[0.92rem] leading-relaxed text-semna/70">{f.body}</p>

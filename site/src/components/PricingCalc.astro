@@ -1,73 +1,44 @@
 ---
-/** Pricing variant B — plan cards + the interactive حسبة (calculator island). */
+/** Pricing — the slider drives the cards (PricingCards island): set your volume,
+    every plan shows what you'd pay, the fit lifts, one line compares with the apps. */
 import type { SiteContent } from '../content/types';
-import CostCalc from './CostCalc';
+import { WA_LINK } from '../lib/const';
+import PricingCards from './PricingCards';
 interface Props { t: SiteContent }
 const { t } = Astro.props;
 
-// Arabic labels inline for the preview; move into content/{ar,en}.ts once chosen.
 const labels = {
-  aov: 'متوسط الأوردر عندك',
-  orders: 'أوردرات في الشهر',
-  appSide: 'اللي بياخده التطبيق',
-  ourSide: 'مع منادم على باقة',
-  onPlan: '',
-  perMonth: '/ شهر',
-  diff: 'الفرق في جيبك:',
-  assumption: 'على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر. عمولتك الفعلية في فاتورتك الشهرية.',
-  egp: 'جنيه',
+  aov: t.pricing.picker.aov,
+  orders: t.pricing.picker.orders,
+  egp: t.pricing.picker.egp,
+  perMonth: t.pricing.perMonth,
+  yourPlan: t.pricing.picker.yourPlan,
+  appSide: t.pricing.picker.appSide,
+  diff: t.pricing.picker.diff,
+  rows: t.pricing.rows,
+  plans: t.pricing.plans,
+  payAt: 'هتدفع عند',
+  ordersWord: 'أوردر',
+  cta: t.nav.cta,
+  ctaHref: WA_LINK,
 };
 ---
 
 <section id="pricing" class="surface-deep border-y border-ink/[0.07]">
   <div class="container-page section">
-    <h2 class="h-rule rule-center text-center" data-reveal>{t.pricing.h2}</h2>
-
-    <div class="mx-auto mt-12 grid max-w-6xl gap-5 lg:grid-cols-3">
-      {t.pricing.plans.map((p, i) => (
-        <article
-          class:list={[
-            'card p-7',
-            p.name === 'Grow' && '!border-[1.5px] !border-karkadeh lg:-my-2 lg:py-9',
-          ]}
-          data-reveal
-          style={`transition-delay:${i * 80}ms`}
-        >
-          <h3 class="text-[1.15rem] font-semibold" dir="ltr">{p.name}</h3>
-          <p class="mt-4 flex items-baseline gap-2.5">
-            <span class="num text-[2.5rem] font-medium leading-none">{p.monthly}</span>
-            <span class="text-[0.95rem] text-ink/70">{t.pricing.perMonth}</span>
-          </p>
-          <dl class="mt-6 space-y-3 border-t border-ink/10 pt-5 text-[1rem]">
-            <div class="flex justify-between gap-3">
-              <dt class="text-ink/70">{t.pricing.rows.included}</dt>
-              <dd class="num font-medium">{p.included}</dd>
-            </div>
-            <div class="flex justify-between gap-3">
-              <dt class="text-ink/70">{t.pricing.rows.overage}</dt>
-              <dd class="font-medium">{p.overage}</dd>
-            </div>
-            <div class="flex justify-between gap-3">
-              <dt class="text-ink/70">{t.pricing.rows.fits}</dt>
-              <dd class="font-medium">{p.fits}</dd>
-            </div>
-          </dl>
-        </article>
-      ))}
+    <div class="container-text text-center" data-reveal>
+      <p class="eyebrow eyebrow-center"><span class="num">07</span> السعر</p>
+      <h2>{t.pricing.h2}</h2>
+      <p class="lede mx-auto mt-6">{t.pricing.includesAll}</p>
     </div>
 
-    <div class="container-text mt-10 text-center" data-reveal>
-      <p class="text-[1.05rem]">{t.pricing.includesAll}</p>
-      <p class="mt-2 text-ink/75">{t.pricing.setup}</p>
+    <div class="mt-10" data-reveal>
+      <PricingCards client:visible labels={labels} dir="rtl" />
     </div>
 
-    <!-- الحسبة — interactive -->
-    <div class="mx-auto mt-20 max-w-4xl" data-reveal>
-      <h3 class="h-rule rule-center text-center text-[1.4rem]">{t.pricing.mathH3}</h3>
-      <div class="mt-8">
-        <CostCalc client:visible labels={labels} dir="rtl" />
-      </div>
-      <p class="mt-10 text-center text-[1.25rem] font-semibold" data-reveal>{t.pricing.mathClose}</p>
-    </div>
+    <p class="mx-auto mt-6 max-w-4xl text-center text-[0.9rem] text-ink/60" data-reveal>
+      {t.pricing.setup} {t.pricing.picker.assumption}
+    </p>
+    <p class="container-text mt-8 text-center text-[1.2rem] font-semibold" data-reveal>{t.pricing.mathClose}</p>
   </div>
 </section>

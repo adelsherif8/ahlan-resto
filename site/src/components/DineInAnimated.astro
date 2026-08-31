@@ -16,14 +16,15 @@ const labels = {
 <section class="section">
   <div class="container-page">
     <div class="container-text text-center" data-reveal>
-      <h2 class="h-rule rule-center">{t.dineIn.h2}</h2>
-      <p class="mt-7 text-[1.1rem]">{t.dineIn.p1}</p>
+      <p class="eyebrow eyebrow-center"><span class="num">03</span> الصالة</p>
+      <h2>{t.dineIn.h2}</h2>
+      <p class="lede mx-auto mt-6">{t.dineIn.p1}</p>
     </div>
 
     <div class="mx-auto mt-10 max-w-6xl" data-reveal>
       <DineInScene client:visible labels={labels} />
     </div>
 
-    <p class="container-text mt-12 text-center text-[1.1rem]" data-reveal>{t.dineIn.p2}</p>
+    <p class="lede container-text mt-10 text-center" data-reveal>{t.dineIn.p2}</p>
   </div>
 </section>

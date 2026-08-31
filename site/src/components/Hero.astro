@@ -16,7 +16,7 @@ const { t } = Astro.props;
 ---
 
 <section class="relative overflow-hidden bg-semna">
-  <div class="container-page relative mx-auto grid max-w-[76rem] items-center gap-8 pt-10 pb-14 sm:pt-14 md:pt-20 md:pb-24 lg:grid-cols-[1.02fr_0.98fr] lg:gap-8">
+  <div class="container-page relative mx-auto grid max-w-6xl items-center gap-8 pt-8 pb-12 sm:pt-12 md:pt-16 md:pb-20 lg:grid-cols-[1.02fr_0.98fr] lg:gap-8">
     <div class="relative z-10 max-w-[40rem]">
       <h1 class="max-w-[17ch] text-ink">{t.hero.h1}</h1>
 
@@ -57,7 +57,7 @@ const { t } = Astro.props;
       <div
         class="relative max-h-[42vh] overflow-hidden [mask-image:linear-gradient(to_bottom,black_58%,transparent_98%)] lg:max-h-none lg:overflow-visible lg:[mask-image:none]"
       >
-        <div class="lg:rotate-[-4deg]">
+        <div>
           <PhoneChat
             client:visible
             rtlChat={true}
@@ -66,6 +66,13 @@ const { t } = Astro.props;
             demoLabel={t.hero.demoLabel}
             replayLabel={t.hero.replay}
             chat={t.hero.chat}
+            payoff={{
+              name: t.whatIs.flow.record.name,
+              phone: t.whatIs.flow.record.phone,
+              rows: t.whatIs.flow.record.rows,
+              captured: t.whatIs.flow.captured,
+              badge: t.whatIs.panels.profile.badge,
+            }}
           />
         </div>
       </div>

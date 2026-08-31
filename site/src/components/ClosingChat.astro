@@ -1,44 +1,105 @@
 ---
-/** Closing variant — the CTA *is* the message: a WhatsApp composer holding the
-    prefilled line, send button as the button. Single focus (CTA research). */
+/** Closing — the composer writes itself: an invitation lands, the message types
+    into the field, send pulses; tapping sends the bubble then opens WhatsApp. */
 import type { SiteContent } from '../content/types';
-import { WA_LINK, WA_NUMBER_DISPLAY } from '../lib/const';
+import { WA_LINK, WA_NUMBER_DISPLAY, CONTACT_EMAIL } from '../lib/const';
 interface Props { t: SiteContent }
 const { t } = Astro.props;
 ---
 
 <section class="on-ink bg-ink">
   <div class="container-page section">
-    <div class="container-text text-center" data-reveal>
-      <h2 class="h-rule rule-center text-semna">{t.closing.h2}</h2>
-      <p class="mt-7 text-[1.1rem] text-semna/85">{t.closing.p}</p>
+    <div class="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
+      <div data-reveal>
+        <p class="eyebrow"><span class="num">09</span> {t.closing.cta}</p>
+        <h2 class="text-semna">{t.closing.h2}</h2>
+        <p class="lede mt-6 text-semna/85">{t.closing.p}</p>
+        <div class="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <a href={WA_LINK} class="btn-primary inline-flex items-center justify-center !px-8 !py-3.5 text-[1.02rem]">{t.closing.cta}</a>
+          <span class="text-[0.95rem] text-semna/70">أو اتصل: <a href={WA_LINK} class="num text-[1.05rem] font-medium" dir="ltr">{WA_NUMBER_DISPLAY}</a></span>
+        </div>
+        <p class="mt-5 text-[0.9rem] text-semna/55">{t.closing.micro} · <a href={`mailto:${CONTACT_EMAIL}`} class="!text-semna/70" dir="ltr">{CONTACT_EMAIL}</a></p>
+      </div>
+
+      <a
+        id="composer"
+        href={WA_LINK}
+        class="group relative mx-auto block w-full max-w-[420px] overflow-hidden rounded-[22px] bg-[#EFEAE2] !text-[#111B21] shadow-[0_40px_90px_-30px_rgba(0,0,0,0.8)] transition-transform duration-300 hover:-translate-y-1"
+        aria-label={t.closing.cta}
+        data-reveal
+        data-prefill={t.closing.prefill}
+        dir="rtl"
+      >
+        <div class="flex items-center gap-2.5 bg-[#F0F2F5] px-3.5 py-3 text-[0.9rem]">
+          <span class="flex h-8 w-8 items-center justify-center rounded-full bg-karkadeh font-bold text-semna" style="font-family: var(--font-display-ar)">م</span>
+          <span class="flex flex-col leading-tight"><b>منادم</b><span class="text-[0.72rem] text-[#667781]">{t.hero.chatStatus}</span></span>
+          <span class="ms-auto rounded-full bg-[#111B21]/55 px-2 py-0.5 text-[0.7rem] text-[#F5EFE7]">{t.hero.demoLabel}</span>
+        </div>
+        <div class="flex min-h-[150px] flex-col gap-1.5 px-3.5 py-4">
+          <p class="w-fit max-w-[88%] self-start rounded-lg rounded-ss-none bg-white px-3.5 py-2 text-[0.9rem] leading-[1.6] shadow-sm" data-hi>أهلاً 👋 ابعت الرسالة دي وهنرجعلك بميعاد للعرض.</p>
+          <p class="w-fit max-w-[88%] self-end rounded-lg rounded-es-none bg-[#D9FDD3] px-3.5 py-2 text-[0.9rem] leading-[1.6] opacity-0 shadow-sm transition-all duration-300" data-sent>{t.closing.prefill}</p>
+        </div>
+        <div class="flex items-center gap-2 bg-[#F0F2F5] px-3 py-2.5">
+          <span class="min-h-[38px] flex-1 rounded-full bg-white px-3.5 py-2 text-[0.9rem]" data-field>{t.closing.prefill}</span>
+          <span class="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-karkadeh text-semna rtl:-scale-x-100" data-send aria-hidden="true">
+            <i class="absolute -inset-[3px] rounded-full border-2 border-karkadeh opacity-0" data-ping></i>➤
+          </span>
+        </div>
+      </a>
     </div>
-
-    <!-- the composer -->
-    <a
-      href={WA_LINK}
-      class="group mx-auto mt-11 flex max-w-xl items-center gap-3 rounded-full bg-[#F0F2F5] p-2 ps-6 shadow-[0_20px_44px_-24px_rgba(0,0,0,0.6)]"
-      data-reveal
-      dir="rtl"
-    >
-      <span class="flex-1 truncate py-2 text-start text-[1.02rem] text-[#111B21]">{t.closing.prefill}</span>
-      <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-karkadeh transition-colors group-hover:bg-[#741727]">
-        <svg viewBox="0 0 20 20" class="h-5 w-5 rtl:-scale-x-100" aria-hidden="true">
-          <path
-            d="M3 10h13m0 0-5-5m5 5-5 5"
-            fill="none"
-            stroke="var(--semna)"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </span>
-    </a>
-
-    <p class="mt-5 text-center text-[0.95rem] text-semna/60" data-reveal>{t.closing.micro}</p>
-    <p class="mt-2 text-center" data-reveal>
-      <a href={WA_LINK} class="num text-[1.05rem] font-medium text-brass hover:text-brass-light" dir="ltr">{WA_NUMBER_DISPLAY}</a>
-    </p>
   </div>
 </section>
+
+<style>
+  @keyframes ping { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(1.7); opacity: 0; } }
+  [data-send].is-ready [data-ping] { animation: ping 1.4s ease-out infinite; }
+  [data-field]:empty::before { content: 'اكتب رسالة'; color: #8696A0; }
+  @media (prefers-reduced-motion: reduce) { [data-send].is-ready [data-ping] { animation: none; } }
+</style>
+
+<script>
+  const comp = document.getElementById('composer') as HTMLAnchorElement | null;
+  if (comp) {
+    const field = comp.querySelector<HTMLElement>('[data-field]')!;
+    const sent = comp.querySelector<HTMLElement>('[data-sent]')!;
+    const send = comp.querySelector<HTMLElement>('[data-send]')!;
+    const text = comp.dataset.prefill || '';
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let armed = reduced;
+    let done = false;
+
+    if (!reduced && 'IntersectionObserver' in window) {
+      field.textContent = '';
+      const io = new IntersectionObserver((entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        let i = 0;
+        const t0 = performance.now() + 500;
+        const tick = (now: number) => {
+          if (now < t0) return requestAnimationFrame(tick);
+          i = Math.min(text.length, Math.round((now - t0) / 45));
+          field.textContent = text.slice(0, i);
+          if (i < text.length) return requestAnimationFrame(tick);
+          send.classList.add('is-ready');
+          armed = true;
+        };
+        requestAnimationFrame(tick);
+      }, { threshold: 0.6 });
+      io.observe(comp);
+    } else {
+      send.classList.add('is-ready');
+    }
+
+    comp.addEventListener('click', (e) => {
+      if (!armed || done || reduced) return;
+      e.preventDefault();
+      done = true;
+      const href = comp.href;
+      field.textContent = '';
+      send.classList.remove('is-ready');
+      sent.style.opacity = '1';
+      sent.style.transform = 'none';
+      setTimeout(() => { window.location.href = href; }, 650);
+    });
+  }
+</script>

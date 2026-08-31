@@ -1,5 +1,6 @@
 ---
-/** Objections variant — the heading stays, the answers scroll past it. */
+/** Objections — the conversation they are: the owner's questions as incoming
+    bubbles, our answers as replies, all visible. The heading stays put. */
 import type { SiteContent } from '../content/types';
 import { WA_LINK } from '../lib/const';
 interface Props { t: SiteContent }
@@ -8,26 +9,35 @@ const { t } = Astro.props;
 
 <section class="surface-deep border-y border-ink/[0.07]">
   <div class="container-page section">
-    <div class="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.5fr_1.3fr] lg:gap-14">
+    <div class="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.6fr_1.2fr] lg:gap-14">
       <div class="lg:sticky lg:top-28 lg:self-start" data-reveal>
-        <h2 class="h-rule">{t.objections.h2}</h2>
+        <p class="eyebrow"><span class="num">08</span> أسئلة</p>
+        <h2>{t.objections.h2}</h2>
+        <p class="lede mt-5">اللي أصحاب المطاعم بيسألوه قبل ما يبدأوا — وردّنا عليه.</p>
         <a
           href={WA_LINK}
-          class="mt-7 hidden items-center gap-2 text-[0.98rem] font-medium text-karkadeh hover:text-[#741727] lg:inline-flex"
+          class="mt-6 inline-flex items-center gap-2 border-b-2 border-karkadeh pb-0.5 text-[0.98rem] font-semibold text-ink hover:text-karkadeh"
         >
           {t.closing.askMore}
-          <span aria-hidden="true" class="rtl:-scale-x-100">←</span>
+          <span aria-hidden="true" class="rtl:-scale-x-100">→</span>
         </a>
       </div>
 
-      <dl class="divide-y divide-ink/10 border-y border-ink/10">
-        {t.objections.items.map((o) => (
-          <div class="py-6" data-reveal>
-            <dt class="text-[1.1rem] font-semibold">{o.q}</dt>
-            <dd class="mt-2 leading-relaxed text-ink/80">{o.a}</dd>
-          </div>
-        ))}
-      </dl>
+      <div class="rounded-[var(--radius-lg)] bg-[#EFEAE2] p-3 shadow-[0_24px_50px_-32px_rgba(20,17,16,0.4)] sm:p-4" dir="rtl" data-reveal>
+        <div class="-mx-3 -mt-3 mb-2 flex items-center gap-2.5 rounded-t-[var(--radius-lg)] bg-[#F0F2F5] px-4 py-2.5 text-[0.9rem] sm:-mx-4 sm:-mt-4">
+          <span class="flex h-8 w-8 items-center justify-center rounded-full bg-semna font-bold text-ink">ص</span>
+          <b class="font-semibold text-[#111B21]">صاحب مطعم</b>
+          <span class="ms-auto rounded-full bg-[#111B21]/55 px-2 py-0.5 text-[0.7rem] text-[#F5EFE7]">{t.hero.demoLabel}</span>
+        </div>
+        <dl class="flex flex-col gap-3">
+          {t.objections.items.map((o, i) => (
+            <div class="flex flex-col gap-1.5" data-reveal style={`transition-delay:${i * 60}ms`}>
+              <dt class="w-fit max-w-[85%] self-start rounded-lg rounded-ss-none bg-white px-3.5 py-2 text-[1rem] font-semibold leading-[1.6] text-[#111B21] shadow-sm">{o.q}</dt>
+              <dd class="w-fit max-w-[85%] self-end rounded-lg rounded-es-none bg-[#D9FDD3] px-3.5 py-2 text-[0.98rem] leading-[1.7] text-[#111B21] shadow-sm">{o.a}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
     </div>
   </div>
 </section>

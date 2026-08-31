@@ -70,7 +70,7 @@ export default function OrderOutputs({ steps, demoLabel, replay, stop, p1, p2, p
   return (
     <div ref={ref} className="grid items-start gap-6 lg:grid-cols-[auto_1fr] lg:gap-10">
       {/* the rail */}
-      <ul className="flex gap-2.5 overflow-x-auto pb-1 lg:flex-col lg:gap-3 lg:overflow-visible lg:pb-0">
+      <ul className="flex flex-wrap gap-2 lg:flex-col lg:gap-3">
         {steps.map((s, i) => {
           const on = i === active;
           const passed = i < active;
@@ -80,7 +80,7 @@ export default function OrderOutputs({ steps, demoLabel, replay, stop, p1, p2, p
                 type="button"
                 onClick={() => pick(i)}
                 aria-current={on ? 'step' : undefined}
-                className={`flex min-h-[48px] w-full items-center gap-2.5 rounded-full border px-5 text-start transition-all duration-500 lg:w-[15.5rem] ${
+                className={`flex min-h-[44px] w-full items-center gap-2.5 rounded-full border px-4 text-start transition-all duration-500 lg:min-h-[48px] lg:w-[15.5rem] lg:px-5 ${
                   on
                     ? 'border-brass-deep/60 bg-brass-15'
                     : passed
@@ -95,7 +95,7 @@ export default function OrderOutputs({ steps, demoLabel, replay, stop, p1, p2, p
                   aria-hidden="true"
                 />
                 <span
-                  className={`whitespace-nowrap text-[0.98rem] font-semibold transition-opacity lg:whitespace-normal ${
+                  className={`whitespace-nowrap text-[0.9rem] font-semibold transition-opacity lg:text-[0.98rem] lg:whitespace-normal ${
                     on || passed ? 'opacity-100' : 'opacity-60'
                   }`}
                 >
