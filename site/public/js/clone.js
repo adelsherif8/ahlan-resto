@@ -404,7 +404,7 @@
     var wide = window.innerWidth > 760;
     var dx = function (n) { return wide ? (lis[n].getBoundingClientRect().left - lis[0].getBoundingClientRect().left) : 0; };
     tl.set(trav, { x: 0 })
-      .set(fill, { width: '0%' })
+      .set(fill, wide ? { width: '0%' } : { height: '0%' })
       .set(pcards, { autoAlpha: 0, y: -40, rotate: function (i) { return (i - 1) * 10; }, x: function (i) { return (document.documentElement.dir === 'rtl' ? -1 : 1) * i * 30; } })
       .set(menu, { autoAlpha: 0, scale: .92 }).set(rows, { autoAlpha: 0 })
       .set(stamps, { autoAlpha: 0, scale: 1.6, rotate: -8 })
@@ -416,11 +416,11 @@
       .to(rows, { autoAlpha: 1, duration: .25, stagger: .1 }, '-=.1')
       // 2 · it travels to step two and gets stamped
       .to(trav, { x: function () { return dx(1); }, duration: .8, ease: 'power2.inOut' }, '+=.3')
-      .to(fill, { width: '50%', duration: .8, ease: 'power2.inOut' }, '<');
+      .to(fill, wide ? { width: '50%', duration: .8, ease: 'power2.inOut' } : { height: '50%', duration: .8, ease: 'power2.inOut' }, '<');
     stamps.forEach(function (st, i) { tl.to(st, { autoAlpha: 1, scale: 1, rotate: -3 + i * 2, duration: .3, ease: 'back.out(3)' }, i ? '+=.15' : '+=.1'); });
     // 3 · to step three, and the first order pops out
     tl.to(trav, { x: function () { return dx(2); }, duration: .8, ease: 'power2.inOut' }, '+=.35')
-      .to(fill, { width: '100%', duration: .8, ease: 'power2.inOut' }, '<')
+      .to(fill, wide ? { width: '100%', duration: .8, ease: 'power2.inOut' } : { height: '100%', duration: .8, ease: 'power2.inOut' }, '<')
       .to(menu, { y: 62, scale: .96, autoAlpha: .6, duration: .4, ease: 'power2.out' }, '+=.1')
       .to(order, { autoAlpha: 1, y: 0, scale: 1, duration: .5, ease: 'back.out(1.6)' }, '<')
       .fromTo(ping, { opacity: .9, scale: 1 }, { opacity: 0, scale: 1.12, duration: .9, ease: 'power2.out', repeat: 1 }, '-=.1');

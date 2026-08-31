@@ -376,7 +376,7 @@ a { color: inherit; }
 .drow__tel { color: var(--ink-55); font-size: 12.5px; }
 .drow em { margin-inline-start: auto; font-style: normal; font-weight: 700; color: var(--yellow); font-size: 12.5px; }
 @media (max-width: 1000px) { .table { height: 440px; } .tent2 { inset-inline-start: 4%; } .ph { inset-inline-end: 4%; } }
-@media (max-width: 520px) { .tent2__face { width: 120px; } .ph { width: 160px; height: 300px; } }
+@media (max-width: 520px) { .table { height: 400px; } .tent2 { inset-inline-start: 0; bottom: 96px; } .tent2__face { width: 112px; padding: .6rem .5rem .5rem; } .tent2__side { width: 18px; height: 120px; } .ph { inset-inline-end: 0; width: 150px; height: 280px; bottom: 70px; } .ph__cam .scanner__c--tl, .ph__cam .scanner__c--tr { top: 70px; } .ph__cam .scanner__c--bl, .ph__cam .scanner__c--br { bottom: 70px; } .ph__line { top: 70px; } .drow { font-size: 13px; gap: .4rem; } }
 
 /* ───────────── 6 · the 3 steps: the handoff ─────────────────────────── */
 
@@ -406,7 +406,17 @@ a { color: inherit; }
 .torder b { font-weight: 600; color: #D9A94E; }
 .torder small { color: rgba(245,239,231,.65); }
 .torder__ping { position: absolute; inset: -2px; border-radius: 14px; border: 2px solid var(--yellow); opacity: 0; }
-@media (max-width: 760px) { .steps { grid-template-columns: 1fr; } .steps__line { display: none; } .stage { grid-template-columns: 1fr; height: 230px; } }
+@media (max-width: 760px) {
+  .steps { grid-template-columns: 1fr; gap: 1.1rem; }
+  .steps li { display: grid; grid-template-columns: 56px 1fr; column-gap: .9rem; align-items: start; }
+  .steps__n { width: 56px; height: 56px; font-size: 22px; margin: 0; grid-row: 1 / span 2; }
+  .steps h3 { grid-column: 2; font-size: var(--t-md); }
+  .steps > li > p { grid-column: 2; font-size: var(--t-sm); }
+  .steps__line { top: 28px; bottom: 28px; inset-inline-start: 27px; inset-inline-end: auto; width: 2px; height: auto; }
+  .steps__line i { width: 100%; height: 0; }
+  .stage { grid-template-columns: 1fr; height: 330px; }
+  .hand .replay { display: block; margin-inline: auto; }
+}
 
 /* ───────────── 7 · the karkadeh band: the suite, running ─────────────── */
 
@@ -475,6 +485,14 @@ a { color: inherit; }
 .pricing__line b { font-weight: 500; font-size: var(--t-md); }
 .pricing__diff b { color: #D9A94E; }
 .calc__note { margin-top: .8rem; font-size: var(--t-xs); color: var(--ink-55); }
+#pricing { padding-block: clamp(2rem, 4vw, 2.8rem) clamp(2.5rem, 5vw, 3.5rem); }
+#pricing .ctl { padding-block: .9rem; margin-bottom: 1rem; }
+#pricing .ctl input[type="range"] { margin-top: .8rem; }
+#pricing .card__body { padding: 1.1rem 1.3rem; }
+#pricing .card__desc { margin-bottom: .6rem; }
+#pricing .spec { margin-bottom: .7rem; padding-top: .6rem; }
+#pricing .card__pay { margin-bottom: .7rem; padding: .55rem .8rem; }
+#pricing .pricing__line { margin-top: .9rem; }
 
 /* ───────────── 9 · questions, as the conversation they are ──────────── */
 
