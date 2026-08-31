@@ -121,12 +121,12 @@
       var pos = (i === 0 && at != null) ? at : '>';
       if (typ) {
         tl.set(typ, { display: 'flex', autoAlpha: 1 }, pos)
-          .to({}, { duration: .55 })
+          .to({}, { duration: .35 })
           .set(typ, { display: 'none' });
         pos = '>';
       }
-      tl.to(b, { autoAlpha: 1, y: 0, duration: .45, ease: 'power3.out' }, pos);
-      if (i === 0 || typ) tl.to({}, { duration: .2 });
+      tl.to(b, { autoAlpha: 1, y: 0, duration: .35, ease: 'power3.out' }, pos);
+      if (i === 0 || typ) tl.to({}, { duration: .12 });
     });
   }
 
@@ -294,10 +294,14 @@
       onComplete: function () { el.textContent = text; el.classList.remove('type-caret'); } });
   }
   var SCENE_START = 'top 55%';
+  var SCENE_SPEED = 1.6;   // every scene plays this much faster than authored
+  window.__scenes = [];
   function scene(root, build, startAt) {
     if (!root) return;
     var tl = gsap.timeline({ paused: true });
     build(tl, root);
+    tl.timeScale(SCENE_SPEED);
+    window.__scenes.push({ id: root.id, s: tl.duration() / SCENE_SPEED });
     ScrollTrigger.create({ trigger: root, start: SCENE_START, once: true, onEnter: function () { tl.play(0); } });
     $$('[data-replay="' + root.id + '"]').forEach(function (b) {
       b.addEventListener('click', function () { tl.play(0); });
@@ -411,15 +415,15 @@
       .set(order, { autoAlpha: 0, y: 40, scale: .8 }).set(ping, { opacity: 0, scale: 1 })
       // 1 · the photos land, then become the menu
       .to(pcards, { autoAlpha: 1, y: 0, duration: .4, stagger: .15, ease: 'power3.out' })
-      .to(pcards, { x: 0, rotate: 0, scale: .7, autoAlpha: 0, duration: .5, ease: 'power2.in', stagger: .04 }, '+=.35')
+      .to(pcards, { x: 0, rotate: 0, scale: .7, autoAlpha: 0, duration: .5, ease: 'power2.in', stagger: .04 }, '+=.15')
       .to(menu, { autoAlpha: 1, scale: 1, duration: .4, ease: 'power3.out' }, '-=.2')
       .to(rows, { autoAlpha: 1, duration: .25, stagger: .1 }, '-=.1')
       // 2 · it travels to step two and gets stamped
-      .to(trav, { x: function () { return dx(1); }, duration: .8, ease: 'power2.inOut' }, '+=.3')
+      .to(trav, { x: function () { return dx(1); }, duration: .7, ease: 'power2.inOut' }, '+=.1')
       .to(fill, wide ? { width: '50%', duration: .8, ease: 'power2.inOut' } : { height: '50%', duration: .8, ease: 'power2.inOut' }, '<');
     stamps.forEach(function (st, i) { tl.to(st, { autoAlpha: 1, scale: 1, rotate: -3 + i * 2, duration: .3, ease: 'back.out(3)' }, i ? '+=.15' : '+=.1'); });
     // 3 · to step three, and the first order pops out
-    tl.to(trav, { x: function () { return dx(2); }, duration: .8, ease: 'power2.inOut' }, '+=.35')
+    tl.to(trav, { x: function () { return dx(2); }, duration: .7, ease: 'power2.inOut' }, '+=.15')
       .to(fill, wide ? { width: '100%', duration: .8, ease: 'power2.inOut' } : { height: '100%', duration: .8, ease: 'power2.inOut' }, '<')
       .to(menu, { y: 62, scale: .96, autoAlpha: .6, duration: .4, ease: 'power2.out' }, '+=.1')
       .to(order, { autoAlpha: 1, y: 0, scale: 1, duration: .5, ease: 'back.out(1.6)' }, '<')
@@ -457,7 +461,7 @@
          .to({}, { duration: .5 })
          .set(typ, { display: 'none' })
          .to(a, { autoAlpha: 1, y: 0, duration: .4, ease: 'power3.out' });
-      tl.add(sub, i ? '-=.5' : 0);
+      tl.add(sub, i ? '-=.75' : 0);
     });
   }, 'top 75%');
 
@@ -471,7 +475,7 @@
       tl.set(sent, { autoAlpha: 0, y: 12 }).set(hi, { autoAlpha: 0, y: 10 })
         .add(function () { field.textContent = ''; send.classList.remove('is-ready'); armed = false; })
         .to(hi, { autoAlpha: 1, y: 0, duration: .4, ease: 'power2.out' })
-        .add(typeInto(field, text, 1.1), '+=.4')
+        .add(typeInto(field, text, .7), '+=.25')
         .add(function () { send.classList.add('is-ready'); armed = true; });
     }, 'top 70%');
     comp.addEventListener('click', function (e) {
