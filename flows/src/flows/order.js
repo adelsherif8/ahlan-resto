@@ -8,6 +8,7 @@ import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, publicLink, log } fro
 import { notifyDashboard, setSessionFlags } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
 import { deliveryQuote, geocodeAddress, matchLandmark, pricingOf, resolvePlace, streetCore } from "../services/delivery.js";
+import { francoNorm, looksFranco } from "../services/franco.js";
 import { editDistance } from "../services/fastpaths.js";
 import { getMenu } from "../services/menucache.js";
 import { fmtMoney } from "../services/format.js";
@@ -142,7 +143,9 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
     // guest saw their change narrated by chit-chat and applied nowhere. Code reads the
     // three common shapes when a draft exists and the model returned no edits.
     if (loaded.pending?.items?.length && !(e.edits?.length) && !(e.items?.length)) {
-      const msgL = String(input.message || "").toLowerCase();
+      const msgRaw = String(input.message || "").toLowerCase();
+      // "5aleehom", "gha6ar"-class spellings: the canon form makes the verb regexes hit
+      const msgL = /[a-z]/.test(msgRaw) && /[23578]/.test(msgRaw) ? francoNorm(msgRaw) : msgRaw;
       const NUM = { "1": 1, "2": 2, "3": 3, "4": 4, wa7ed: 1, wa7da: 1, etnen: 2, etneen: 2, tnen: 2, talata: 3, tlata: 3, arba3a: 4, "واحد": 1, "واحدة": 1, "اتنين": 2, "إتنين": 2, "تلاتة": 3, "ثلاثة": 3, "اربعة": 4, "أربعة": 4, "٢": 2, "٣": 3, "٤": 4 };
       let m1;
       if ((m1 = /(?:khalee?h(?:om|a|o)?|khali(?:hom|ha|h)?|خلي(?:هم|ها|ه)?|make (?:it|them))\s+(?:bas\s+|بس\s+|just\s+)?(\d|wa7ed|wa7da|etne+n|tnen|t?lata|arba3a|واحدة?|ا?تنين|إتنين|تلاتة|ثلاثة|ا?ربعة|أربعة|[٢٣٤])/iu.exec(msgL))) {
@@ -280,7 +283,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // «خليهم اتنين», «زود», «شيل», «غيّر». These were handed to chit-chat, which
       // narrated the change ("Gotcha, changing the drink…") and applied nothing.
       const EDIT_VERB = /(?<![\p{L}])(khalee?h(om|a)?|khali(hom|ha)?|zawe?d(li)?|zawed|sheel|shil|shel|ghayy?ar|ghayar|badd?el|3ayez a?ghayar|make (it|them)|change|switch|remove|take off|add|خلي(هم|ها|ه)?|زود|زوّد|شيل|شيلي|غيّر|غير|بدّل|بدل|ضيف|أضف)(?![\p{L}])/iu;
-      const isEditCommand = !!loaded.pending?.items?.length && EDIT_VERB.test(input.message) && input.message.trim().length <= 60;
+      const isEditCommand = !!loaded.pending?.items?.length && (EDIT_VERB.test(input.message) || EDIT_VERB.test(francoNorm(input.message))) && input.message.trim().length <= 60;
       // A DELIVERY draft with NO ADDRESS yet: a short non-command message is the address
       // ("point tes3een", «بوينت ٩٠», "villa 12 narges 4") — the model calls place
       // names "other" and they were handed to chit-chat, which answered nothing.
@@ -323,6 +326,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       }
 
       // ---- build the order — CODE matches every item against the real menu and prices it ----
+      // (ambiguous entries are deduped by candidate set just before rendering, below)
       let items = [];
       let unknown = [];
       const unknownQty = {};
@@ -645,6 +649,36 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             if (!enOk && !arOk) { log(`order: dropped model item "${w.name}" — never named, message carries a removal`); return false; }
             return true;
           });
+        }
+        // THE GUEST'S NUMBER WINS — multi-item edition. The block above only guards a
+        // single-dish message; "3 chicken tenders nashville, … plus 2 nuggets and a
+        // shake" came back with the tenders at qty 1 (the model read the 3 as the
+        // dish's own "3 Pcs") while the OTHER items kept their counts. Per item: a
+        // count word sitting right before THIS item's own words in the message, that
+        // is not the dish's own numbered name, restores that item's count.
+        if ((e.items || []).length > 1) {
+          const WORD_NUM2 = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, "واحد": 1, "واحدة": 1, "اتنين": 2, "إتنين": 2, "تلاتة": 3, "ثلاثة": 3, "اربعة": 4, "أربعة": 4, wa7ed: 1, etnen: 2, talata: 3 };
+          const msg0b = String(input.message || "").toLowerCase().replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+          const msgQb = msg0b.replace(/(?<![\p{L}\p{N}])[2357](?=[a-z])/giu, "");
+          const splitNum2 = (s2) => normName(String(s2).replace(/(\d)([a-z])/gi, "$1 $2").replace(/([a-z])(\d)/gi, "$1 $2"));
+          const msgN2b = ` ${splitNum2(msgQb)} `;
+          for (const w of e.items) {
+            if ((Number(w.qty) || 1) !== 1) continue;
+            const dishN2 = splitNum2(w.name || "");
+            const toks = dishN2.split(" ").filter((t) => t.length >= 4 && !/^\d+$/.test(t)).slice(0, 2);
+            for (const tk of toks) {
+              const m2 = new RegExp(`(?:^| )(\\d{1,2}|one|two|three|four|five|six|wa7ed|etnen|talata|واحدة?|ا?تنين|تلاتة|ثلاثة|ا?ربعة) ((?:[a-z\\p{L}]+ ){0,2}?)${tk}(?: |$)`, "iu").exec(msgN2b);
+              if (!m2) continue;
+              const n2 = WORD_NUM2[m2[1]] ?? Number(m2[1]);
+              if (!Number.isFinite(n2) || n2 < 2 || n2 > 20) continue;
+              // the number is the dish's own ("tenders 3 pcs" typed in full) → not a count
+              const between = ` ${m2[1]} ${m2[2] || ""}${tk} `.replace(/\s+/g, " ");
+              const dishNumbered = dishN2.includes(` ${n2} `) && msgN2b.includes(` ${tk} ${n2} `);
+              // the count must not belong to ANOTHER item sitting between it and this token
+              const otherOwns = (e.items || []).some((o) => o !== w && (m2[2] || "").trim() && splitNum2(o.name || "").split(" ").some((ot) => ot.length >= 4 && ` ${m2[2]} `.includes(` ${ot} `)));
+              if (!dishNumbered && !otherOwns) { w.qty = n2; break; }
+            }
+          }
         }
         const wanted = (e.items || []).slice(0, 12);
         for (const w of wanted) {
@@ -1057,7 +1091,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           }
         }
         {
-          const misses = editMisses.filter(Boolean);
+          // a "couldn't find X" apology is wrong when a which-one question about that very
+          // word is going out in the same reply — the question owns it
+          const ambNames = new Set(ambiguous.flatMap((a) => (a.candidates || []).map((c) => normName(c))));
+          const misses = editMisses.filter(Boolean).filter((m0) => !ambNames.has(normName(m0)) && !ambiguous.some((a) => (a.candidates || []).some((c) => normName(c).includes(normName(m0)) || normName(m0).includes(normName(c)))));
           if (misses.length) {
             const have = items.map((it) => it.name).join("، ");
             const haveEn = items.map((it) => it.name).join(", ");
@@ -1370,6 +1407,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // (After the mapping, so a generic word's candidates come from the mapper and
       // nothing else in the message gets lost behind the question.)
       if (ambiguous.length) {
+        // two readings of the same word ("cookie" from items AND from an edit) must ask ONCE
+        const seenCand = new Set();
+        const uniq = ambiguous.filter((x) => { const k = (x.candidates || []).map((c) => normName(c)).sort().join("|"); if (seenCand.has(k)) return false; seenCand.add(k); return true; });
+        ambiguous.length = 0; ambiguous.push(...uniq);
         let a = ambiguous[0];
         // The guest ANSWERED our which-one and we still couldn't pin it. Re-searching the
         // whole menu produced a WIDER question than the one they just answered — the bot
@@ -2238,7 +2279,13 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // confirm_order joins the verbatim list too: the model wrote the confirm line in
       // Arabic under an English receipt (it copied the prompt's Arabic example). It's
       // one fixed sentence in three languages — code says it, and says it right.
-      if (["stuck_handoff", "which_item", "menu_request", "ask_choice", "confirm_order", "need_pin", "which_place"].includes(outcome.kind)) return { value: { reply: null, quick_replies: null } };
+      // HIGH-FREQUENCY OUTCOMES ARE FULLY CANNED — no phrase-model call at all. The
+      // model's one lead line on these turns cost ~2–3s latency + ~$0.003, drifted in
+      // dialect, and regularly re-asked a question the code block below already asks
+      // (ar09: «هتدفع إزاي؟» twice in one bubble). The fallback map says it right in
+      // all three languages; the backstop was replacing the model half the time anyway.
+      if (["stuck_handoff", "which_item", "menu_request", "ask_choice", "confirm_order", "need_pin", "which_place",
+        "ask_items", "ask_fulfillment", "ask_payment", "order_placed", "order_status", "too_late_to_cancel"].includes(outcome.kind)) return { value: { reply: null, quick_replies: null } };
       // "Got it — pickup ✅ what would you like?" is a fixed phrase too: the model kept
       // drifting into MSA («ماذا تود»), Levantine («شو حابب») and plain English on this
       // exact turn. The deterministic fallback already says it right in all three.
@@ -2280,7 +2327,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
       // ticket confirmation, an apology, a "we can't do that". Asking which table
       // they're at is a form field with manners; mini says it just as well for a
       // quarter of the cost, and these are most of an order's turns.
-      const VOICE_MATTERS = ["order_placed", "order_cancelled", "too_late_to_cancel", "no_delivery", "no_history", "nothing_matched", "order_status", "bad_table", "sold_out_today"];
+      const VOICE_MATTERS = ["order_cancelled", "no_delivery", "no_history", "nothing_matched", "bad_table", "sold_out_today"];
       const model = VOICE_MATTERS.includes(outcome.kind) ? MODEL_SMART : MODEL_FAST;
       const { upsell: _u, ...outcomeForModel } = outcome;
       return chatJSON(model, sys, `OUTCOME: ${JSON.stringify(outcomeForModel)}\nGuest: ${input.message}`, { temperature: 0.5, maxTokens: 240 });
@@ -2337,7 +2384,12 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
     // at all", the Latin check is "has no Arabic at all".
     if (value.value?.reply && fallback[outcome.kind]) {
       const hasAr = /[؀-ۿ]/.test(reply);
-      const wrongScript = LANGV === "ar" ? !hasAr : hasAr;
+      // a Franco guest getting PLAIN ENGLISH is as wrong as getting Arabic script —
+      // a reply of any length with zero Franco signal is thrown away for the canned
+      // Franco line (dish names and short confirmations are exempt by the length gate)
+      const englishToFranco = LANGV === "fr" && !hasAr
+        && String(reply).split(/\s+/).filter(Boolean).length >= 5 && !looksFranco(reply);
+      const wrongScript = (LANGV === "ar" ? !hasAr : hasAr) || englishToFranco;
       if (wrongScript) {
         log(`order: model reply in the wrong script for lang=${LANGV} on ${outcome.kind} — using code fallback`);
         reply = fallback[outcome.kind];
@@ -2362,7 +2414,7 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
 
     // Where's my order → the model writes one warm line, CODE draws the ladder
     if (outcome.kind === "order_status" && outcome.order) {
-      reply = `${reply.split("\n")[0]}\n\n${statusTimeline(outcome.order, config.basic_info?.timezone || "Africa/Cairo")}`;
+      reply = `${reply.split("\n")[0]}\n\n${statusTimeline(outcome.order, config.basic_info?.timezone || "Africa/Cairo", LANGV)}`;
     }
 
     // Fulfillment questions are STRUCTURE too — model writes one lead-in line
@@ -2489,6 +2541,17 @@ LANGUAGE (last line so everything above stays cacheable): mirror the guest's lan
 
     // Upsell is CODE-PLACED: top of the payment message, dish name in bold —
     // trailing model-woven mentions kept burying it.
+    // payment-placed upsell (menu_config.upsell.placement === "payment"): now that
+    // ask_payment is fully canned, the offer rides on the canned line in code —
+    // exactly one casual mention, same shape as the confirm-screen line below
+    if (outcome.kind === "ask_payment" && outcome.upsell?.length) {
+      const bold = outcome.upsell.map((u) => {
+        const m = String(u).match(/^(.*?)\s*\((.*)\)\s*$/);
+        const nm = m ? dishDisp(m[1].trim()) : dishDisp(String(u));
+        return m ? `*${nm}* (${m[2]})` : `*${nm}*`;
+      }).join(" · ");
+      reply = `${reply}\n\n${L2(`🍟 Add-ons? ${bold} — say the name if you want one`, `🍟 تحب تضيف حاجة؟ ${bold} — قول الاسم لو عايز`, `🍟 Tedif 7aga? ${bold} — 2ol el esm law 3ayez`)}`;
+    }
     if (outcome.kind === "confirm_order" && outcome.upsell?.length) {
       const bold = outcome.upsell.map((u) => {
         const m = String(u).match(/^(.*?)\s*\((.*)\)\s*$/);
@@ -2731,21 +2794,25 @@ function reorderChips(diner, config) {
   return chips.length ? chips.slice(0, 2) : null;
 }
 
-function statusTimeline(o, tz = "Africa/Cairo") {
+function statusTimeline(o, tz = "Africa/Cairo", lang = "en") {
+  // the ladder speaks the guest's language — an Arabic guest was getting
+  // "Kitchen started" under a حاضر line, half a bubble each way
+  const T = (en, ar, fr) => (lang === "ar" ? ar : lang === "fr" ? fr : en);
   const t = (v) => v ? new Date(v).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" }) : null;
   const delivery = o.order_type === "delivery";
   const steps = [
-    { key: "placed", label: "Order received", at: o.created_at, done: true },
-    { key: "preparing", label: "Kitchen started", at: o.started_at, done: !!o.started_at || ["preparing", "ready", "out_for_delivery", "served", "delivered"].includes(o.status) },
-    { key: "ready", label: delivery ? "Packed & ready" : (o.order_type === "dine_in" ? "Coming to your table" : "Ready for pickup"), at: o.ready_at, done: ["ready", "out_for_delivery", "served", "delivered"].includes(o.status) },
+    { key: "placed", label: T("Order received", "استلمنا الطلب", "Estalamna el order"), at: o.created_at, done: true },
+    { key: "preparing", label: T("Kitchen started", "المطبخ بيحضّر", "El kitchen sha3'al 3aleh"), at: o.started_at, done: !!o.started_at || ["preparing", "ready", "out_for_delivery", "served", "delivered"].includes(o.status) },
+    { key: "ready", label: delivery ? T("Packed & ready", "اتجهز واتغلف", "Etgahhez w etghallaf") : (o.order_type === "dine_in" ? T("Coming to your table", "جاي على ترابيزتك", "Gay 3ala tarabezetak") : T("Ready for pickup", "جاهز للاستلام", "Gahez lel pickup")), at: o.ready_at, done: ["ready", "out_for_delivery", "served", "delivered"].includes(o.status) },
   ];
   if (delivery) steps.push({
-    key: "out", label: o.courier_name ? `On the way with ${String(o.courier_name).split(" ")[0]}` : "On the way",
+    key: "out", label: o.courier_name ? T(`On the way with ${String(o.courier_name).split(" ")[0]}`, `في الطريق مع ${String(o.courier_name).split(" ")[0]}`, `Fel taree2 ma3 ${String(o.courier_name).split(" ")[0]}`) : T("On the way", "في الطريق", "Fel taree2"),
     at: o.out_at, done: ["out_for_delivery", "delivered"].includes(o.status),
   });
   const mins = o.created_at ? Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000) : null;
+  const ago = mins != null ? (lang === "ar" ? ` · من ${mins} دقيقة` : ` · ${mins} min ago`) : "";
   const body = steps.map((st) => `${st.done ? "✅" : "⬜"} ${st.label}${st.done && t(st.at) ? ` · ${t(st.at)}` : ""}`).join("\n");
-  return `🎫 *${o.code}*${mins != null ? ` · ${mins} min ago` : ""}\n${body}`;
+  return `🎫 *${o.code}*${ago}\n${body}`;
 }
 
 // Delivery addresses the guest has actually used before, newest first.
@@ -3077,12 +3144,41 @@ const FRANCO_FOOD_WORDS = [
   ["batates", "fries"], ["bataates", "fries"], ["mashroob", "drink"], ["mashrob", "drink"], ["3aseer", "juice"], ["3asir", "juice"],
   ["gebna", "cheese"], ["gebnah", "cheese"], ["basal", "onion"], ["mekhalel", "pickles"], ["me5alel", "pickles"], ["tamatem", "tomato"],
   ["7ar", "hot"], ["7arr", "hot"], ["khafif", "mild"], ["metwaset", "medium"], ["wast", "medium"],
-  ["sandawetsh", "sandwich"], ["sandwetsh", "sandwich"], ["kombo", "combo"], ["wagba", "meal"],
+  ["sandawetsh", "sandwich"], ["sandwetsh", "sandwich"], ["sandwesh", "sandwich"], ["sandwish", "sandwich"], ["kombo", "combo"], ["wagba", "meal"],
+  ["frayz", "fries"], ["frays", "fries"], ["fryz", "fries"], ["burgar", "burger"], ["borgar", "burger"],
+  ["klasik", "classic"], ["klassik", "classic"], ["klasek", "classic"],
+  ["tshiken", "chicken"], ["tsheken", "chicken"], ["farkha", "chicken"], ["shokolata", "chocolate"], ["shokolatah", "chocolate"],
+  ["milkshek", "milkshake"], ["melkshek", "milkshake"], ["spisi", "spicy"], ["ransh", "ranch"],
+  ["delivry", "delivery"], ["dilevery", "delivery"], ["delevary", "delivery"], ["tekaway", "takeaway"],
 ];
+// Franco dictionary, spelling-proof: keys canonicalised once with francoNorm, guest
+// tokens matched by the same canon + edit-distance 1 — "me5alel", "mkhallel" and
+// "mekhalel" all land on "pickles" without listing every spelling by hand.
+const FRANCO_DICT_N = (() => {
+  const m = new Map();
+  for (const [fr, en] of FRANCO_FOOD_WORDS) { const k = francoNorm(fr); if (k && !k.includes(" ")) m.set(k, en); }
+  return m;
+})();
+function francoDictPass(text) {
+  // exact canon matches always apply (me5alel → mekhalel → pickles); the FUZZY pass
+  // (distance 1) only runs when the message itself reads as Franco — otherwise plain
+  // English gets mangled ("basil" is one edit from "basal"/onion)
+  const fuzzyOK = looksFranco(text);
+  return String(text || "").split(/(\s+)/).map((tok) => {
+    if (!/[a-z]/i.test(tok) || tok.length < 3) return tok;
+    const k = francoNorm(tok);
+    if (!k || k.includes(" ")) return tok;
+    const hit = FRANCO_DICT_N.get(k);
+    if (hit) return ` ${hit} `;
+    if (fuzzyOK && k.length >= 5) for (const [dk, en] of FRANCO_DICT_N) if (Math.abs(dk.length - k.length) <= 1 && editDistance(dk, k) <= 1) return ` ${en} `;
+    return tok;
+  }).join("");
+}
 function arOptionWords(message) {
   let m = String(message || "");
   for (const [ar, en] of AR_OPTION_WORDS) m = m.split(ar).join(` ${en} `);
   for (const [fr, en] of FRANCO_FOOD_WORDS) m = m.replace(new RegExp(`(?<![a-z0-9])${fr}(?![a-z0-9])`, "gi"), ` ${en} `);
+  m = francoDictPass(m);
   for (const [ar, en] of AR_COUNT_WORDS) m = m.split(ar).join(` ${en} `);
   return m;
 }

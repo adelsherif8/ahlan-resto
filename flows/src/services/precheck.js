@@ -58,10 +58,13 @@ export async function sessionPrecheck(db, sessionId, history) {
 
   // order session state — a real draft order in progress, not a guess from the wording.
   // While this is live, short answers ("sprite", "card", "T3") belong to the ORDER agent.
-  if (out.active_flow === "none") {
+  {
     try {
       const { data: d } = await db.from("diners").select("preferences").eq("phone_number", sessionId).maybeSingle();
-      const p = d?.preferences?.pending_order;
+      // sticky language survives restarts: the in-memory map dies on every deploy,
+      // and a Franco guest greeted in English mid-conversation reads as a new bot
+      out.stored_language = d?.preferences?.language || null;
+      const p = out.active_flow === "none" ? d?.preferences?.pending_order : null;
       if (p && Date.now() - new Date(p.at || 0).getTime() < 120 * 60_000) {
         out.active_flow = "order";
         out.stage = p.awaiting_confirm ? "awaiting_confirm"

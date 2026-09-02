@@ -2,6 +2,7 @@
 // Note: conversation freshness is enforced on READ (1h TTL in respond/load_history);
 // the janitor keeps the tables small and kills strays.
 import { defineFlow } from "../engine/flow.js";
+import { notifyDashboard } from "../services/chatlog.js";
 import { sendText, WA_PHONE_NUMBER_ID } from "../services/whatsapp.js";
 import { logMessage } from "../services/chatlog.js";
 import { appendHistory } from "../services/history.js";
@@ -28,6 +29,7 @@ defineFlow({
     { id: "purge_queue", label: "Purge Stale Queue", icon: "filter" },
     { id: "sweep_abandoned_bookings", label: "Abandoned Bookings → Staff", icon: "user" },
     { id: "purge_traces", label: "Purge Old Traces", icon: "filter" },
+    { id: "llm_error_alarm", label: "LLM Error Alarm", icon: "alert" },
   ],
 
   async run(f, ctx) {
@@ -155,5 +157,23 @@ defineFlow({
     }, { input: { ok_days: TRACE_MAX_AGE_D, error_days: TRACE_ERROR_MAX_AGE_D, cap: TRACE_BATCH * TRACE_MAX_BATCHES } });
 
     return { done: true };
+    // THE BOT MUST NOT DEGRADE SILENTLY. When OpenAI credits ran out (19 Aug) the
+    // guests got fallbacks and slow turns for ~an hour before anyone noticed. Every
+    // node error lands in flow_executions — so the hourly janitor counts the last
+    // hour's failures and pings the dashboard when they spike. Threshold 5: one flaky
+    // call is noise, five in an hour is an incident.
+    await f.node("llm_error_alarm", async () => {
+      const cutoff = new Date(Date.now() - 3600_000).toISOString();
+      const { data, error } = await db.from("flow_executions")
+        .select("flow,error,started_at").eq("status", "error").gte("started_at", cutoff).limit(50);
+      if (error) return { checked: false, reason: error.message };
+      const n = data?.length || 0;
+      if (n >= 5) {
+        const sample = String(data[0]?.error || "").slice(0, 140);
+        await notifyDashboard(db, "handoff", `⚠️ Bot degraded: ${n} failed turns in the last hour`,
+          `flow_executions shows ${n} errors since ${cutoff.slice(11, 16)}Z — first: "${sample}". Check OpenAI credits / status, then the ops console traces.`, null).catch(() => {});
+      }
+      return { errors_last_hour: n, alarmed: n >= 5 };
+    });
   },
 });

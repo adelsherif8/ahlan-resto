@@ -104,6 +104,14 @@ for (const c of convos) {
   }
   const full = transcript.map((t) => t.bot.join("\n")).join("\n");
   const last = transcript.length ? transcript[transcript.length - 1].bot.join("\n") : "";
+  // MESSAGE BUDGET (Meta bills every sent bubble from Oct 1, 2026): the bot may send
+  // at most guest_turns + 2 bubbles per conversation — compact mode is an economic
+  // guarantee, not a style. Override per persona with "max_bot_msgs" when a script
+  // legitimately needs more (photos, split menus).
+  const botMsgs = transcript.reduce((a, t) => a + t.bot.length, 0);
+  const sentTurns = transcript.length;
+  const budget = Number(c.max_bot_msgs) || sentTurns + 2;
+  if (botMsgs > budget) problems.push(`MESSAGE BUDGET: ${botMsgs} bot bubbles for ${sentTurns} guest turns (budget ${budget})`);
   // COMPLETION: the conversation must have reached its end
   const done = c.complete === "ticket" ? /🎫/.test(full)
     : c.complete === "answered" ? (c.answered || []).every((re) => new RegExp(re, "i").test(full))
@@ -123,6 +131,11 @@ for (const c of convos) {
   summary.push({ id: c.id, ok, problems, cost: cost.cost, turns: cost.turns });
 }
 console.log(`\n${"#".repeat(74)}`);
+try {
+  const fs = await import("node:fs");
+  fs.appendFileSync(new URL("./test-runs.log", import.meta.url),
+    `${new Date().toISOString()} persona ${FILE.split("/").pop()} ${BASE.includes("localhost") ? "local" : "live"} ${passed}/${convos.length} cost=$${totalCost.toFixed(4)}\n`);
+} catch { /* the log is a nicety, never a failure */ }
 console.log(`PERSONAS: ${passed} passed, ${failed} failed of ${convos.length}`);
 console.log(`COST: $${totalCost.toFixed(4)} total · ${totalTurns} turns · $${(totalTurns ? totalCost / totalTurns : 0).toFixed(5)}/turn · $${(convos.length ? totalCost / convos.length : 0).toFixed(4)}/conversation · tokens ${totalIn}→${totalOut}`);
 for (const x of summary.filter((x) => !x.ok)) console.log(`  ❌ ${x.id}: ${x.problems.join(" | ")}`);

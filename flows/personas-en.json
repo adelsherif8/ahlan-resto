@@ -388,7 +388,7 @@
    "yes add the loaded fries",
    "and a cookie",
    {
-    "if": "Which one did you mean",
+    "if": "Which one did you mean|te2sod anhy",
     "say": "the triple chocolate one"
    },
    "confirm"

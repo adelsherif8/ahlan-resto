@@ -286,5 +286,104 @@
   "forbid": {
    "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
   }
+ },
+ {
+  "id": "fr25",
+  "name": "typo: 5/7/2 digit spellings",
+  "phone": "+2015560325",
+  "turns": [
+   "3ayez klasik burger sandwesh men gher me5alel, pickup",
+   {
+    "if": "Which one did you mean|te2sod anhy|تقصد أنهي",
+    "say": "el classic"
+   },
+   "cash delwa2ty",
+   {
+    "if": "akked|confirm",
+    "say": "akked"
+   }
+  ],
+  "complete": "ticket",
+  "expect": {
+   "pickles removed": "no pickles",
+   "sandwich chosen": "Sandwich"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[؀-ۿ]",
+   "phantom item from the removal": "1× \\*(Fries|Coleslaw)"
+  }
+ },
+ {
+  "id": "fr26",
+  "name": "typo: edit verbs 5alee/ghayyar",
+  "phone": "+2015560326",
+  "turns": [
+   "classic burger kombo sprite take away",
+   "5aleehom etnen",
+   "ghayyar el mashrob l fanta",
+   "cash w gay delwa2ty",
+   {
+    "if": "akked|confirm",
+    "say": "tamam akked"
+   }
+  ],
+  "complete": "ticket",
+  "expect": {
+   "qty doubled": "2× \\*Classic Burger",
+   "drink changed": "Fanta"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[؀-ۿ]",
+   "sprite survived the change": "Fanta[\\s\\S]*Sprite|Sprite[\\s\\S]*Fanta[\\s\\S]*Sprite"
+  }
+ },
+ {
+  "id": "fr27",
+  "name": "typo: sheel + zawed misspelt",
+  "phone": "+2015560327",
+  "turns": [
+   "wa7ed signature burger sandwesh w wa7ed loaded fries pickup",
+   "shil el frayz",
+   "zaawed cookie",
+   {
+    "if": "Which one did you mean|te2sod anhy|تقصد أنهي",
+    "say": "el triple chocolate"
+   },
+   "cash now",
+   {
+    "if": "akked|confirm",
+    "say": "akked"
+   }
+  ],
+  "complete": "ticket",
+  "expect": {
+   "fries removed, cookie on": "Triple Chocolate Chip Cookie"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[؀-ۿ]"
+  },
+  "forbid_last": {
+   "fries still on the ticket": "1× \\*Loaded Fries"
+  }
+ },
+ {
+  "id": "fr28",
+  "name": "english reply guard: status in franco",
+  "phone": "+2015560328",
+  "turns": [
+   "classic burger sandwesh pickup, cash, delwa2ty",
+   {
+    "if": "akked|confirm",
+    "say": "akked"
+   },
+   "el order hayakhod ad eh?"
+  ],
+  "complete": "ticket",
+  "expect": {
+   "status card shown": "🎫 \\*O-[A-Z0-9]{4}\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[؀-ۿ]"
+  }
  }
 ]

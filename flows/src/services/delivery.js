@@ -117,6 +117,33 @@ export function deliveryOpenNow(config, branch = null, now = new Date()) {
 // Nominatim (free, no key; 1 req/s policy honoured by caching + a UA). Anything below
 // confidence returns null and the CALLER asks for a pin — a fee is never guessed.
 const geoCache = new Map(); // normalised address → { lat, lng, source, label } | null
+// second tier: public.geocode_cache in the control-plane DB (migration 041) — survives
+// deploys, so a street a guest already typed never waits on Photon/Nominatim again.
+// Fully optional: no env / no table → memory-only, exactly as before.
+let _geoDb; // lazy control-plane client
+async function geoDb() {
+  if (_geoDb !== undefined) return _geoDb;
+  try {
+    if (!process.env.SUPABASE_AHLAN_URL || !process.env.SUPABASE_AHLAN_SERVICE_KEY) return (_geoDb = null);
+    const { createClient } = await import("@supabase/supabase-js");
+    _geoDb = createClient(process.env.SUPABASE_AHLAN_URL, process.env.SUPABASE_AHLAN_SERVICE_KEY);
+  } catch { _geoDb = null; }
+  return _geoDb;
+}
+async function cacheGet(key) {
+  const c = geoCache.get(key);
+  if (c && Date.now() - c.at < GEO_TTL_MS) return c;               // warm hit
+  try {
+    const db = await geoDb(); if (!db) return null;
+    const { data } = await db.from("geocode_cache").select("result").eq("key", key).maybeSingle();
+    if (data) { const hit = { v: data.result, at: Date.now() }; geoCache.set(key, hit); return hit; }
+  } catch { /* table absent / transient — memory tier still works */ }
+  return null;
+}
+function cacheSet(key, v) {
+  geoCache.set(key, { v, at: Date.now() });
+  geoDb().then((db) => db && db.from("geocode_cache").upsert({ key, result: v }).then(() => {}, () => {})).catch(() => {});
+}
 const GEO_TTL_MS = 6 * 3600_000;
 export function matchLandmark(config, text) {
   const t = norm(text);
@@ -279,8 +306,8 @@ export function queryVariants(text) {
 }
 async function photonSearch(config, q) {
   const key = `photon:${norm(q)}`;
-  const c = geoCache.get(key);
-  if (c && Date.now() - c.at < GEO_TTL_MS) return c.v;
+  const c = await cacheGet(key);
+  if (c) return c.v;
   const ctr = zoneCentre(config);
   const isAr = /[؀-ۿ]/.test(q);
   const j = await fetchJson(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lat=${ctr.lat}&lon=${ctr.lng}${isAr ? "" : "&lang=en"}`, 4500);
@@ -289,18 +316,18 @@ async function photonSearch(config, q) {
     const label = [p.name || p.street, p.district || p.locality, p.city].filter(Boolean).slice(0, 2).join(", ");
     return { lat: f.geometry?.coordinates?.[1], lng: f.geometry?.coordinates?.[0], label, source: "photon", kind: p.osm_value || p.type || "", nameForScore: [p.name, p.street, p.district].filter(Boolean).join(" ") };
   }).filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.lng));
-  geoCache.set(key, { v: out, at: Date.now() });
+  cacheSet(key, out);
   return out;
 }
 async function nominatimSearch(q, cityHint) {
   const key = `nomi:${norm(q)}`;
-  const c = geoCache.get(key);
-  if (c && Date.now() - c.at < GEO_TTL_MS) return c.v;
+  const c = await cacheGet(key);
+  if (c) return c.v;
   const j = await fetchJson(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=eg&q=${encodeURIComponent(`${q}${cityHint ? `, ${cityHint}` : ""}, Egypt`)}`);
   const specific = (h) => !/^(country|state|region|province|county|city|town)$/i.test(String(h.addresstype || h.type || ""));
   const out = (Array.isArray(j) ? j : []).filter((h) => Number.isFinite(Number(h.lat)) && Number.isFinite(Number(h.lon)) && specific(h))
     .map((h) => ({ lat: Number(h.lat), lng: Number(h.lon), label: String(h.display_name || "").split(",").slice(0, 2).join(",").trim(), source: "osm", kind: h.addresstype || h.type || "", nameForScore: String(h.display_name || "").split(",").slice(0, 3).join(" ") }));
-  geoCache.set(key, { v: out, at: Date.now() });
+  cacheSet(key, out);
   return out;
 }
 // areas we KNOW are outside coverage — configurable (delivery.outside_areas), with a
@@ -418,8 +445,8 @@ export async function geocodeAddress(config, text, { countryHint = "Egypt", city
   const lm = matchLandmark(config, raw);
   if (lm) return lm;
   const key = norm(raw);
-  const c = geoCache.get(key);
-  if (c && Date.now() - c.at < GEO_TTL_MS) return c.v;
+  const c = await cacheGet(key);
+  if (c) return c.v;
   let v = null;
   try {
     const q = `${raw}${cityHint ? `, ${cityHint}` : ""}, ${countryHint}`;
@@ -437,7 +464,7 @@ export async function geocodeAddress(config, text, { countryHint = "Egypt", city
       v = { lat: Number(hit.lat), lng: Number(hit.lon), source: "osm", label: String(hit.display_name || "").split(",").slice(0, 3).join(",") };
     }
   } catch { v = null; }
-  geoCache.set(key, { v, at: Date.now() });
+  cacheSet(key, v);
   if (geoCache.size > 2000) geoCache.delete(geoCache.keys().next().value);
   return v;
 }

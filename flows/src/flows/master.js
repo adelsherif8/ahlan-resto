@@ -86,7 +86,7 @@ function foodIcon(config, menuRows) {
 // host had nothing to mirror, and he got an English welcome with English buttons on
 // his first message back. An extra LLM "language agent" would cost a call per message
 // and still be less certain than reading the alphabet.
-const FRANCO_HINT = /(3ayez|3aiz|3awez|3awz|2ol|ezay|fein|fen|emta|khalas|shokran|habibi|ya basha|law sama7t|ma3lesh|delwa2ty|akl|akol|tamam|kwayes|sabah el|masa el|3alek|nefsak|te7eb|momken|bta3|naharda|3andko|3andokom|hat|hatli|ab3at)/i;
+import { looksFranco } from "../services/franco.js";
 // exported so the ops language split reports what the BOT actually decided, rather
 // than a second, subtly different guess living in the console
 export function detectLang(message, sticky) {
@@ -96,7 +96,10 @@ export function detectLang(message, sticky) {
   // speaking (an Arabic guest sending a Maps link got a Franco refusal)
   const words = s.replace(/https?:\/\/\S+/g, "").replace(/[^\p{L}]/gu, "");
   if (!words && sticky) return sticky;
-  if (FRANCO_HINT.test(s)) return "franco";
+  // scored, not a fixed phrase list: digit-letters ("3ayez", "me5alel") weigh double,
+  // marker words (el/eh/leh/tamam/fein…) weigh one — one clear signal flips to Franco,
+  // plain English never does (English-colliding keys are filtered in franco.js)
+  if (looksFranco(s)) return "franco";
   return sticky || "en";
 }
 // The classifier may still answer "unknown"/"mixed", or disagree with the alphabet.

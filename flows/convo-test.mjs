@@ -109,4 +109,5 @@ for (const c of convos) {
   }
 }
 console.log(`\n${failures === 0 ? "ALL CONVERSATIONS PASSED" : failures + " ASSERTION(S) FAILED"}`);
+try { const fsl = await import("node:fs"); fsl.appendFileSync(new URL("./test-runs.log", import.meta.url), `${new Date().toISOString()} fixture ${String(FILE).split("/").pop()} ${BASE.includes("localhost") ? "local" : "live"} ${failures === 0 ? "PASS" : failures + " FAILED"} of ${convos.length}\n`); } catch {}
 process.exit(failures === 0 ? 0 : 1);

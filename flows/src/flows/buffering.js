@@ -255,8 +255,6 @@ defineFlow({
       return fresh;
     }, { input: { sessionId: ctx.sessionId, ttl: "1h — older turns ignored (fresh visit = fresh conversation)" } });
 
-    const sticky = sessionLang.get(ctx.sessionId) || null;
-
     // ---- session_precheck ----
     const precheck = await f.node("session_precheck", async () => {
       const p = await sessionPrecheck(db, ctx.sessionId, history);
@@ -264,6 +262,11 @@ defineFlow({
       p.is_self_correction = detectSelfCorrection(merged);
       return p;
     }, { input: { sessionId: ctx.sessionId, history_turns: history.length } });
+
+    // sticky language: warm map first (this process already heard them), then the
+    // language persisted on the diner row (survives deploys/restarts)
+    const sticky = sessionLang.get(ctx.sessionId) || precheck.stored_language || null;
+    if (!sessionLang.get(ctx.sessionId) && precheck.stored_language) sessionLang.set(ctx.sessionId, precheck.stored_language);
 
     let reply = null;
     let routed = null;
@@ -286,7 +289,15 @@ defineFlow({
       }, { input: { message: merged, precheck_active_flow: precheck.active_flow, sticky_language: sticky } });
       clearTimeout(interim);
       reply = routed?.reply || P2(pipeLang(ctx.sessionId, merged), "Sorry — something went wrong on our side 🙏 A team member will follow up.", "معلش — حصلت مشكلة عندنا 🙏 حد من الفريق هيتواصل معاك.", "Ma3lesh — 7asalet moshkela 3andena 🙏 7ad men el team hayetwasal ma3ak.");
-      if (routed?.language) setSessionLanguage(ctx.sessionId, routed.language);
+      if (routed?.language) {
+        setSessionLanguage(ctx.sessionId, routed.language);
+        // write-through so the language survives the next deploy (fire-and-forget)
+        if (routed.language !== "unknown" && routed.language !== precheck.stored_language) {
+          db.from("diners").select("id,preferences").eq("phone_number", ctx.sessionId).maybeSingle()
+            .then(({ data: d0 }) => d0?.id ? db.from("diners").update({ preferences: { ...(d0.preferences || {}), language: routed.language } }).eq("id", d0.id) : null)
+            .then(() => {}, () => {});
+        }
+      }
       if (routed?.fast_path === "closer") await setSessionFlags(db, ctx.sessionId, { status: "closed" }).catch(() => {});
       if (!routed?.fast_path) bump("llm_replies");
     }

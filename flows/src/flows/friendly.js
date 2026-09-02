@@ -3,6 +3,7 @@
 import { orderedCategories, categoryLabel } from "../services/categories.js";
 import { defineFlow } from "../engine/flow.js";
 import { getMenu } from "../services/menucache.js";
+import { looksFranco } from "../services/franco.js";
 import { isGreetingish, editDistance, findItem } from "../services/fastpaths.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, PUBLIC_BASE, publicLink, log } from "../config.js";
@@ -319,6 +320,25 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
           cost_usd: r.__usage.cost_usd + r2.__usage.cost_usd,
         };
         r = r2;
+      }
+      // …and the FRANCO mirror: a guest typing Franco-Arabizi ("hayakhod ad eh?")
+      // must not get plain English back. One corrective re-ask; the reply keeps its
+      // content, only the register changes. Judged by marker words, not vibes.
+      if (!arScript.test(message) && looksFranco(message) && r.value?.reply
+        && String(r.value.reply).split(/\s+/).filter(Boolean).length >= 5
+        && !arScript.test(r.value.reply) && !looksFranco(r.value.reply)) {
+        const r2 = await chatJSON(model, system, [
+          ...convo,
+          { role: "assistant", content: JSON.stringify(r.value) },
+          { role: "user", content: "SYSTEM CHECK: the guest writes Franco-Arabizi (Egyptian Arabic in Latin letters, e.g. '3ayez', 'te7eb', 'el order'). Your reply is plain English. Rewrite the ENTIRE reply (and any quick_replies) in Franco-Arabizi — Egyptian Arabic words in Latin letters, digits allowed (3=ع 7=ح 2=ء 5=خ). Keep menu item names exactly as they are. Same meaning, same JSON shape." },
+        ], { temperature: 0.4, maxTokens: 500 });
+        r2.__usage = {
+          model,
+          tokens_in: r.__usage.tokens_in + r2.__usage.tokens_in,
+          tokens_out: r.__usage.tokens_out + r2.__usage.tokens_out,
+          cost_usd: r.__usage.cost_usd + r2.__usage.cost_usd,
+        };
+        if (r2.value?.reply) r = r2;
       }
       // GREETING CONTRACT — the LLM authors every word, code only verifies the draft:
       // first reply of a conversation must greet by name (when known), welcome
