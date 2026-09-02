@@ -1,0 +1,14 @@
+2026-09-02T05:05:13.400Z persona personas-ar.json local 16/17 cost=$0.0545
+2026-09-02T05:07:41.192Z persona personas-fr.json local 19/19 cost=$0.0615
+2026-09-02T05:10:01.744Z persona personas-en.json local 22/22 cost=$0.1162
+2026-09-02T05:14:03.189Z fixture convos-order12.json local PASS of 12
+2026-09-02T05:16:31.763Z fixture convos-addons3.json local PASS of 3
+2026-09-02T05:17:34.234Z fixture convos-confirm3.json local PASS of 3
+2026-09-02T05:19:43.278Z fixture convos-delivery6.json local PASS of 6
+2026-09-02T05:20:51.296Z fixture convos-tenders3.json local PASS of 3
+2026-09-02T05:23:07.912Z persona p-ar.json local 1/1 cost=$0.0043
+2026-09-02T05:23:26.505Z persona p-en.json local 2/2 cost=$0.0053
+2026-09-02T05:23:37.797Z persona p-fr.json local 2/2 cost=$0.0064
+2026-09-02T05:34:09.290Z persona personas-ar.json live 17/17 cost=$0.0662
+2026-09-02T05:36:18.293Z persona personas-fr.json live 19/19 cost=$0.0694
+2026-09-02T05:37:51.583Z persona personas-en.json live 22/22 cost=$0.1040
