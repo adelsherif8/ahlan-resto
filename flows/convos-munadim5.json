@@ -1,0 +1,22 @@
+[
+ {"name":"EN — hawawshi combo, spice, pickup, full ride to ticket","phone":"+2015570001",
+  "turns":["hawawshi classic combo with karkadeh, hot","pickup","cash, now","confirm"],
+  "expect":{"combo priced":"1× \\*Hawawshi Classic\\*[^\\n]*150 EGP","karkadeh chosen":"Karkadeh","ticket":"🎫"},
+  "forbid":{"arabic to latin guest":"[\\u0600-\\u06FF]"}},
+ {"name":"AR — كشري كبير دليفري بوينت ٩٠ → fee on bill","phone":"+2015570002",
+  "turns":["عايز كشري كبير دليفري بوينت ٩٠","كاش","تأكيد"],
+  "expect":{"large koshary":"1× \\*طبق كشري\\*[^\\n]*95","delivery fee":"التوصيل \\(~[0-9.]+ كم\\): 50 EGP","ticket":"🎫"},
+  "forbid":{}},
+ {"name":"FR — shawerma etnen w wa7ed men gher toum, franco reply","phone":"+2015570003",
+  "turns":["3ayez 2 chicken shawarma sandwich wa7ed men gher toum","pickup","cash delwa2ty","akked"],
+  "expect":{"qty 2":"2× \\*Chicken Shawarma\\*|1× \\*Chicken Shawarma\\*[\\s\\S]*1× \\*Chicken Shawarma\\*","ticket":"🎫"},
+  "forbid":{"arabic script":"[\\u0600-\\u06FF]"}},
+ {"name":"AR — المنيو بالعربي بالفئات الجديدة","phone":"+2015570004",
+  "turns":["ابعت المنيو"],
+  "expect":{"menu sent":"منيو|📄"},
+  "forbid":{}},
+ {"name":"EN — om ali price question then add it","phone":"+2015570005",
+  "turns":["how much is the om ali?","add one, dine in, table T3, cash","confirm"],
+  "expect":{"price answered":"75","on the bill":"1× \\*Om Ali\\*","ticket":"🎫"},
+  "forbid":{"invented dish":"cheesecake|brownie"}}
+]

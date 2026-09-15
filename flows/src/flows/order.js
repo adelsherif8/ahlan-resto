@@ -3117,6 +3117,7 @@ const AR_OPTION_WORDS = [
   ["ديابلو", "diablo"], ["ديبلو", "diablo"], ["دابلو", "diablo"], ["ديابولو", "diablo"],
   ["كيرلي", "curly"], ["كيرلى", "curly"], ["كورلي", "curly"],
   ["برتقال", "orange"], ["اورنج", "orange"], ["أورنج", "orange"],
+  ["كركديه", "karkadeh"], ["كركدية", "karkadeh"], ["عرقسوس", "sobia"], ["سوبيا", "sobia"],
   ["فانتا", "fanta"], ["فانتة", "fanta"], ["فنتا", "fanta"],
   ["فرايد تشيكن", "fried chicken"], ["تشيكن", "chicken"], ["فراخ", "chicken"], ["فرايد", "fried"],
   ["كوكا", "coca"], ["فرايز", "fries"],
