@@ -119,7 +119,7 @@ async function stageRow() {
       restaurant_type: "casual", language: "ar", timezone: "Africa/Cairo",
       brand: { mode: "light", primary: KARKADEH, logo_url: logoUrl },
       address: "Point 90 Mall, New Cairo", google_maps: "https://maps.google.com/?q=30.0203,31.4947",
-      contact: {}, parking: "Mall parking", dress_code: "", policies: {}, services: { delivery: true, pickup: true, dine_in: true },
+      contact: { phone: "19331", whatsapp: "+201515066123" }, parking: "Mall parking", dress_code: "", policies: {}, services: { delivery: true, pickup: true, dine_in: true },
       branches: [{ key: "point90", name: "Point 90", address: "Point 90 Mall, New Cairo", lat: 30.0203, lng: 31.4947, hours: "10 AM – 2 AM" }],
       // proven New Cairo coverage: same polygon, landmarks and distance pricing as Luci'z
       delivery: luciz.basic_info.delivery,

@@ -8,7 +8,7 @@ const TARGETS = {
   // no prefilled text: the Arabic prefill tripled the link length and made the code
   // too dense to scan reliably at small print sizes. The guest's first message
   // opens the conversation just as well.
-  whatsapp: "https://wa.me/201009955923",
+  whatsapp: "https://wa.me/201515066123",
   site: "https://munadim.com",
 };
 const C = { ink: "#141110", semna: "#F5EFE7", karkadeh: "#8C1D2F", brassDeep: "#8A601E", brassLight: "#D9A94E" };
