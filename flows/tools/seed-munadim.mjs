@@ -62,7 +62,7 @@ const MENU = [
   { name: "Munadim Mixed Grill", name_ar: "مُنادم مشكل مشويات", category: "Munadim Egyptian", price: 285,
     description: "Kofta, shish tawook and sausage off the charcoal, rice and tahina", ingredients: "Kofta, chicken shish tawook, beef sausage, rice, tahina, baladi bread", sort_order: 3 },
   // Munadim Sides — أطباق جانبية
-  { name: "Munadim Fries", name_ar: "مُنادم فرايز", category: "Munadim Sides", price: 55, description: "Crispy fries with our spice dust", ingredients: "Potatoes, spice mix", sort_order: 1 },
+  { name: "Munadim Fries", name_ar: "مُنادم بطاطس", category: "Munadim Sides", price: 55, description: "Crispy fries with our spice dust", ingredients: "Potatoes, spice mix", sort_order: 1 },
   { name: "Munadim Loaded Fries", name_ar: "مُنادم لودد فرايز", category: "Munadim Sides", price: 105, description: "Fries under cheddar sauce, jalapeños and beef bits", ingredients: "Potatoes, cheddar sauce, jalapeños, beef bits, spring onion", bestseller: true, sort_order: 2 },
   { name: "Munadim Onion Rings", name_ar: "مُنادم أونيون رينجز", category: "Munadim Sides", price: 70, ingredients: "Onion, beer-style batter", sort_order: 3 },
   { name: "Munadim Mozzarella Sticks", name_ar: "مُنادم موتزاريلا ستيكس", category: "Munadim Sides", price: 95, ingredients: "Mozzarella, breadcrumbs, marinara dip", sort_order: 4 },
@@ -162,14 +162,9 @@ async function stageMenu() {
   console.log(`menu: ${ins} inserted, ${haveN.size} already there`);
   const { data: tbl } = await tdb.from("restaurant_tables").select("id").limit(1);
   if (!tbl?.length) {
-    const { data: sample } = await createClient(tcreds.url, tcreds.key, { db: { schema: "r_luciz" } }).from("restaurant_tables").select("*").limit(1);
-    const shape = sample?.[0] || {};
-    for (let i = 1; i <= 10; i++) {
-      const r = { table_number: `T${i}`, seats: i <= 6 ? 4 : 8, status: "available" };
-      for (const k of Object.keys(r)) if (!(k in shape) && sample?.length) delete r[k];
-      await tdb.from("restaurant_tables").insert(r).then(({ error }) => { if (error && i === 1) console.log("tables:", error.message); });
-    }
-    console.log("tables: T1–T10 attempted");
+    const rows = Array.from({ length: 10 }, (_, i) => ({ table_number: `T${i + 1}`, section: "indoor", capacity: i < 6 ? 4 : 6, status: "free", branch: "Point 90" }));
+    const { error } = await tdb.from("restaurant_tables").insert(rows);
+    console.log(error ? `tables: ${error.message}` : "tables: T1–T10 inserted");
   }
 }
 

@@ -47,6 +47,7 @@ defineFlow({
     // STRUCTURE SPEAKS THE GUEST'S LANGUAGE — Arabic and Franco variants of every
     // code-built template. Deterministic strings: zero AI tokens, exactly like English.
     const LANGV = classification?.language === "ar" ? "ar" : classification?.language === "franco" ? "fr" : "en";
+    const BRAND = config.name || config.basic_info?.name || "";
     const L2 = (en, ar, fr) => (LANGV === "ar" ? ar : LANGV === "fr" ? (fr || en) : en);
 
     const branches = (config.basic_info?.branches || []).filter((b) => b && typeof b === "object" && b.key);
@@ -477,15 +478,16 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             // the whole menu item "Fries" count as offered, and "add loaded fries" was
             // then rewritten to plain Fries.
             const lastLcRaw = String(lastAi).toLowerCase();
+            const btO = brandTokensOf(loaded.menu, BRAND);
             const offered = loaded.menu.filter((m) => {
               if (m.available === false) return false;
-              const enT = normName(m.name).split(" ").filter((t) => t.length >= 2);
+              const enT = normName(m.name).split(" ").filter((t) => t.length >= 2 && !btO.en.has(t));
               if (enT.length === 1) {
                 const nm = String(m.name).toLowerCase();
                 return lastLcRaw.includes(`*${nm}*`) || lastLcRaw.includes(`• ${nm}`) || new RegExp(`(^|\\n)\\s*[•\\-]?\\s*${nm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(lastLcRaw);
               }
               if (enT.length && enT.every((t) => lastToksEn.has(t))) return true;
-              const arT = arNz(m.name_ar || "").split(/\s+/).filter((t) => t.length >= 2 && !/^[٠-٩]+$/.test(t));
+              const arT = arNz(m.name_ar || "").split(/\s+/).filter((t) => t.length >= 2 && !/^[٠-٩]+$/.test(t) && !btO.ar.has(arNzBrand(t)));
               return arT.length > 0 && arT.every((t) => lastToksAr.has(t));
             });
             // and NEVER override a dish the guest typed in full — "add loaded fries" IS Loaded Fries
@@ -633,7 +635,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           && /(no|without|hold the|don'?t add|dont add|بدون|من غير|بلاش|men gheir|min gheir|bedoon|bdoon)\s+\p{L}/iu.test(String(input.message || ""))) {
           const saidN = normName(arOptionWords(input.message));
           const saidAr = String(input.message || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
-          const GENERIC = new Set(["burger", "sandwich", "chicken", "meal", "combo", "cup", "sauce", "fries", "pcs", "classic"]);
+          const GENERIC = new Set(["burger", "sandwich", "chicken", "meal", "combo", "cup", "sauce", "fries", "pcs", "classic", ...brandTokensOf(loaded.menu, BRAND).en]);
           e.items = e.items.filter((w) => {
             const n = normName(w.name);
             if (!n) return true;
@@ -662,8 +664,13 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const msgQb = msg0b.replace(/(?<![\p{L}\p{N}])[2357](?=[a-z])/giu, "");
           const splitNum2 = (s2) => normName(String(s2).replace(/(\d)([a-z])/gi, "$1 $2").replace(/([a-z])(\d)/gi, "$1 $2"));
           const msgN2b = ` ${splitNum2(msgQb)} `;
+          const nameCount = {};
+          for (const w of e.items) { const k = normName(w.name || ""); nameCount[k] = (nameCount[k] || 0) + 1; }
           for (const w of e.items) {
             if ((Number(w.qty) || 1) !== 1) continue;
+            // the model already split this dish into per-unit lines ("2 hot" + "1 mild")
+            // — the leading "3" is their SUM, not this line's count
+            if (nameCount[normName(w.name || "")] > 1) continue;
             const dishN2 = splitNum2(w.name || "");
             const toks = dishN2.split(" ").filter((t) => t.length >= 4 && !/^\d+$/.test(t)).slice(0, 2);
             for (const tk of toks) {
@@ -678,6 +685,22 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               const otherOwns = (e.items || []).some((o) => o !== w && (m2[2] || "").trim() && splitNum2(o.name || "").split(" ").some((ot) => ot.length >= 4 && ` ${m2[2]} `.includes(` ${ot} `)));
               if (!dishNumbered && !otherOwns) { w.qty = n2; break; }
             }
+          }
+        }
+        // A BRAND WORD IS NOT A DISH. When the restaurant prefixes its items with its own
+        // name ("Munadim Chicken Ranch", «مُنادم حواوشي»), a bare «مُنادم» from the guest
+        // matched every item and triggered a which-one over the whole menu. Lines that
+        // are nothing but brand words are dropped; the real dish words decide.
+        {
+          const bt = brandTokensOf(loaded.menu, BRAND);
+          if (bt.en.size || bt.ar.size) {
+            e.items = (e.items || []).filter((w) => {
+              const en = normName(w.name || "").split(" ").filter((t) => t && !bt.en.has(t));
+              const ar = arNzBrand(w.name || "").split(/\s+/).filter((t) => t && /[؀-ۿ]/.test(t) && !bt.ar.has(t));
+              const keep = en.length > 0 || ar.length > 0;
+              if (!keep) log(`order: dropped brand-only item "${w.name}"`);
+              return keep;
+            });
           }
         }
         const wanted = (e.items || []).slice(0, 12);
@@ -752,11 +775,12 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             );
             if (!msgN2.includes(hitN) && !namedInArabic && !weOfferedIt && hitN !== normName(answeredAmbiguity || "")) {
               const near = (t) => msgN2.includes(t) || (t.length >= 5 && msgN2.includes(t.slice(0, 5)));
-              let fragToks = hitN.split(" ").filter((t) => t.length >= 3 && near(t));
+              const btF = brandTokensOf(loaded.menu, BRAND);
+              let fragToks = hitN.split(" ").filter((t) => t.length >= 3 && near(t) && !btF.en.has(t));
               // ARABIC message: the same test on the Arabic names — «تندرز» alone fits
               // both tenders dishes and must ASK, exactly like "tenders" does in English
               // (this guard used to be blind to Arabic, so the model's Classic guess stood)
-              const arFrag = hitArToks.filter((tk) => msgAr.includes(` ${tk} `));
+              const arFrag = hitArToks.filter((tk) => msgAr.includes(` ${tk} `) && !btF.ar.has(arNzBrand(tk)));
               const useAr = !fragToks.length && arFrag.length > 0;
               if (useAr) fragToks = arFrag;
               if (fragToks.length) {
@@ -997,9 +1021,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const guestNamed = (dish) => {
           const row = findMenuItem(dish);
           const en = normName(row?.name || dish || "");
-          const enOk = !!en && (saidForEdits.includes(en) || en.split(" ").filter((t) => t.length >= 4).some((t) => ` ${saidForEdits} `.includes(` ${t} `) || (t.length >= 5 && saidForEdits.split(" ").some((w) => editDistance(w, t) <= 1))));
+          const btG = brandTokensOf(loaded.menu, BRAND);
+          const enOk = !!en && (saidForEdits.includes(en) || en.split(" ").filter((t) => t.length >= 4 && !btG.en.has(t)).some((t) => ` ${saidForEdits} `.includes(` ${t} `) || (t.length >= 5 && saidForEdits.split(" ").some((w) => editDistance(w, t) <= 1))));
           const ar = String(row?.name_ar || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
-          const arOk = !!ar && ar.split(/\s+/).filter((t) => t.length >= 3 && !/^[٠-٩]+$/.test(t)).some((t) => saidArForEdits.includes(t));
+          const arOk = !!ar && ar.split(/\s+/).filter((t) => t.length >= 3 && !/^[٠-٩]+$/.test(t) && !btG.ar.has(arNzBrand(t))).some((t) => saidArForEdits.includes(t));
           return enOk || arOk;
         };
         for (const ed of (e.edits || []).slice(0, 6)) {
@@ -1158,8 +1183,12 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       // «دليفري بوينت ٩٠») or nowhere. Code checks the message against the landmark
       // table (instant, no network) instead of asking for an address it was given.
       if (!address && (e.order_type === "delivery" || loaded.pending?.order_type === "delivery" || /(delivery|دليفري|ديليفري|توصيل|deliver)/i.test(input.message))) {
-        const lm = matchLandmark(config, streetCore(input.message)) || (e.notes ? matchLandmark(config, streetCore(e.notes)) : null);
-        if (lm) { address = lm.label; if (e.notes && matchLandmark(config, streetCore(e.notes))) e.notes = null; }
+        // raw text FIRST: streetCore strips a leading «ب»/«ع»/«ف» as a preposition, which
+        // turns «بوينت ٩٠» into «وينت ٩٠» and loses the landmark (matching is token-bounded,
+        // so the raw message is safe to scan)
+        const lmOf = (t) => (t ? matchLandmark(config, t) || matchLandmark(config, streetCore(t)) : null);
+        const lm = lmOf(input.message) || lmOf(e.notes);
+        if (lm) { address = lm.label; if (e.notes && lmOf(e.notes)) e.notes = null; }
       }
       // they tapped/typed one of their saved ones (WhatsApp truncates button titles,
       // so a prefix counts) or said "same as last time" with only one on file
@@ -1523,7 +1552,8 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const keep = [];
         for (let qi = 0; qi < queue.length && qi < 12; qi++) {
           const part = queue[qi];
-          const pn = normName(arOptionWords(part));
+          // the extractor writes heat as "spicy"/"not spicy"; the choices say Hot/Mild
+          const pn = normName(arOptionWords(part)).replace(/\b(not spicy|no spice|not hot)\b/g, "mild").replace(/\b(spicy|extra spicy|very spicy)\b/g, "hot");
           let used = false;
           for (const g of it.option_defs || []) {
             if (g.key === "slots" || it.options?.[g.key] || !groupApplies(g, it.options || {})) continue;
@@ -1560,6 +1590,27 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           if (!used) keep.push(part);
         }
         it.notes = keep.length ? keep.join(" · ") : null;
+      }
+      // ONE FORMAT WORD, SAID WITH THE DISH, ANSWERS IT FOR EVERY NEW LINE OF IT.
+      // "3 nashville sandwich, 2 hot w wa7ed mild" — the model split the heat into two
+      // lines and dropped "sandwich" from both, so the guest was asked sandwich-or-combo
+      // for a dish they had already called a sandwich. When the message names exactly
+      // ONE choice of a still-open group, it applies to the lines added this turn.
+      {
+        const saidAll = ` ${normName(arOptionWords(input.message))} `;
+        for (const it of items) {
+          if (draftIdsAtStart.has(it.id) && loaded.pending?.items?.some((p0) => p0.id === it.id && JSON.stringify(p0.options || {}) === JSON.stringify(it.options || {}))) continue;
+          for (const g of it.option_defs || []) {
+            if (g.key === "slots" || g.when || it.options?.[g.key]) continue;
+            const chs = groupChoices(g, loaded.menu);
+            // every choice word counts toward "exactly one" (hot is 3 letters); a message
+            // that splits units ("hot for the first 2 and mild for the third") is the
+            // splitter's, never a broadcast
+            const hits = chs.filter((c) => { const f = normName(c.name).split(" ")[0]; return f.length >= 3 && saidAll.includes(` ${f} `); });
+            const perUnitTalk = / (first|second|third|fourth|rest|others?|last|each) /.test(saidAll);
+            if (hits.length === 1 && !perUnitTalk && Number(it.qty) >= 1) it.options = { ...(it.options || {}), [g.key]: hits[0].name };
+          }
+        }
       }
       // Stored option values are upgraded to the CANONICAL choice name ("Combo" →
       // "Combo (fries + drink)") so pricing, the bill and every downstream check read
@@ -2897,6 +2948,33 @@ function tidyNotes(items) {
     it.notes = kept.join(" · ") || null;
   }
 }
+// words that appear in most of a menu's item names — the restaurant's own brand
+// ("munadim", «منادم») — carry no dish identity for matching
+const arNzBrand = (s) => String(s || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^؀-ۿa-z0-9\s]/gi, " ").replace(/\s+/g, " ").trim();
+const _brandCache = new WeakMap();
+// A brand token must (a) be part of the RESTAURANT'S OWN NAME and (b) sit on 40%+ of
+// item names. (a) keeps "burger" on a burger joint's menu a dish word; the Arabic
+// brand token is the one that rides on the same items as the Latin one.
+function brandTokensOf(menu, restaurantName) {
+  const _brandName = normName(restaurantName || "");
+  const empty = { en: new Set(), ar: new Set() };
+  if (!Array.isArray(menu) || menu.length < 6 || !_brandName) return empty;
+  const key = `${_brandName}`;
+  const cached = _brandCache.get(menu);
+  if (cached && cached.key === key) return cached.v;
+  const nameToks = new Set(_brandName.split(" ").filter((t) => t.length >= 4));
+  const cut = Math.ceil(menu.length * 0.4);
+  const enItems = new Map();
+  menu.forEach((m, i) => { for (const t of new Set(normName(m.name).split(" "))) if (nameToks.has(t)) { if (!enItems.has(t)) enItems.set(t, new Set()); enItems.get(t).add(i); } });
+  const en = new Set([...enItems].filter(([, set]) => set.size >= cut).map(([t]) => t));
+  const brandItems = new Set([...enItems].filter(([t]) => en.has(t)).flatMap(([, set]) => [...set]));
+  const arCount = new Map();
+  if (brandItems.size) menu.forEach((m, i) => { for (const t of new Set(arNzBrand(m.name_ar).split(" ").filter((x) => x.length >= 3 && /[؀-ۿ]/.test(x)))) { const c = arCount.get(t) || { on: 0, off: 0 }; if (brandItems.has(i)) c.on++; else c.off++; arCount.set(t, c); } });
+  const ar = new Set([...arCount].filter(([, c]) => c.on >= Math.ceil(brandItems.size * 0.9) && c.off <= 1).map(([t]) => t));
+  const v = { en, ar };
+  _brandCache.set(menu, { key, v });
+  return v;
+}
 function groupChoices(group, menu) {
   if (group.from_category) {
     // staff type this free-form in the dashboard — treat it as a literal
@@ -3142,6 +3220,9 @@ const AR_COUNT_WORDS = [
 ];
 // Franco food words guests actually type — mapped to the English the menu uses
 const FRANCO_FOOD_WORDS = [
+  // Franco COUNT words — the per-unit splitter reads digits ("2 hot w wa7ed mild")
+  ["wa7ed", "1"], ["wa7da", "1"], ["wahed", "1"], ["etnen", "2"], ["etneen", "2"], ["tnen", "2"],
+  ["talata", "3"], ["tlata", "3"], ["arba3a", "4"],
   ["batates", "fries"], ["bataates", "fries"], ["mashroob", "drink"], ["mashrob", "drink"], ["3aseer", "juice"], ["3asir", "juice"],
   ["gebna", "cheese"], ["gebnah", "cheese"], ["basal", "onion"], ["mekhalel", "pickles"], ["me5alel", "pickles"], ["tamatem", "tomato"],
   ["7ar", "hot"], ["7arr", "hot"], ["khafif", "mild"], ["metwaset", "medium"], ["wast", "medium"],

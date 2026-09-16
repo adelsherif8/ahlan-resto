@@ -1,0 +1,115 @@
+[
+ {
+  "id": "mu01",
+  "name": "EN chicken ranch combo + karkadeh, pickup",
+  "phone": "+2015570001",
+  "turns": [
+   "munadim chicken ranch combo with karkadeh",
+   "pickup",
+   "cash, now",
+   {
+    "if": "confirm",
+    "say": "confirm"
+   }
+  ],
+  "complete": "ticket",
+  "expect": {
+   "combo priced": "1× \\*Munadim Chicken Ranch\\*[^\\n]*265 EGP",
+   "karkadeh chosen": "Karkadeh"
+  },
+  "forbid": {
+   "arabic to latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "mu02",
+  "name": "AR large koshary delivery to Point 90",
+  "phone": "+2015570002",
+  "turns": [
+   "عايز مُنادم كشري كبير دليفري بوينت ٩٠",
+   "كاش",
+   {
+    "if": "أكد",
+    "say": "تأكيد"
+   }
+  ],
+  "complete": "ticket",
+  "expect": {
+   "large koshary": "كشري\\*[^\\n]*100",
+   "delivery fee": "التوصيل \\(~[0-9.]+ كم\\): 50 EGP"
+  }
+ },
+ {
+  "id": "mu03",
+  "name": "FR 3 nashville, 2 hot 1 mild",
+  "phone": "+2015570003",
+  "turns": [
+   "3ayez 3 munadim nashville chicken sandwich, 2 hot w wa7ed mild",
+   "pickup",
+   "cash delwa2ty",
+   {
+    "if": "akked|confirm",
+    "say": "akked"
+   }
+  ],
+  "complete": "ticket",
+  "expect": {
+   "2 hot": "2× \\*Munadim Nashville Chicken\\*[^\\n]*Hot",
+   "1 mild": "1× \\*Munadim Nashville Chicken\\*[^\\n]*Mild"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]",
+   "wrong total units": "3× \\*Munadim Nashville Chicken\\*[^\\n]*Mild"
+  }
+ },
+ {
+  "id": "mu04",
+  "name": "AR menu request",
+  "phone": "+2015570004",
+  "turns": [
+   "ابعت المنيو"
+  ],
+  "complete": "answered",
+  "answered": [
+   "📄"
+  ]
+ },
+ {
+  "id": "mu05",
+  "name": "EN om ali price then add, dine-in",
+  "phone": "+2015570005",
+  "turns": [
+   "how much is the munadim om ali?",
+   "add one, dine in, table T3, cash",
+   {
+    "if": "confirm",
+    "say": "confirm"
+   }
+  ],
+  "complete": "ticket",
+  "expect": {
+   "price answered": "80",
+   "on the bill": "1× \\*Munadim Om Ali\\*"
+  },
+  "forbid": {
+   "invented dish": "cheesecake|brownie"
+  }
+ },
+ {
+  "id": "mu06",
+  "name": "AR hawawshi hot + fries, pickup",
+  "phone": "+2015570006",
+  "turns": [
+   "عايز مُنادم حواوشي حار وبطاطس تيك اواي كاش دلوقتي",
+   {
+    "if": "أكد",
+    "say": "أكد"
+   }
+  ],
+  "complete": "ticket",
+  "expect": {
+   "hawawshi hot": "حواوشي\\*[^\\n]*(حار|Hot)",
+   "fries": "بطاطس"
+  }
+ }
+]
