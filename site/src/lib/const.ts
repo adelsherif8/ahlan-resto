@@ -3,8 +3,8 @@
  */
 
 /** Munadim's own WhatsApp — the human CTA number (opens a chat with the team). */
-export const WA_NUMBER_DISPLAY = '01009955923';
-export const WA_NUMBER_INTL = '201009955923';
+export const WA_NUMBER_DISPLAY = '01515066123';
+export const WA_NUMBER_INTL = '201515066123';
 
 /** Prefilled CTA message: «عايز أشوف عرض توضيحي» */
 export const WA_LINK = `https://wa.me/${WA_NUMBER_INTL}?text=${encodeURIComponent(
