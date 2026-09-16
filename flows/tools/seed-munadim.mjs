@@ -20,73 +20,82 @@ const LOGO_LOCAL = "/private/tmp/claude-502/-Users-adel-Desktop-Ai-Squared-ai2-r
 const LOGO_PATH = "munadim/logo.png";
 const KARKADEH = "#8C1D2F"; // brand primary on light grounds (branding/BRAND-SPEC.md)
 
-// ---------- the menu: Egyptian modern, built to exercise every bot feature ----------
+// ---------- the menu: Munadim's own signatures — fast-casual, built to exercise every bot feature ----------
+// (options: sandwich/combo + combo drink, spice, size, per-unit splits; bestsellers,
+// pairs_with for the add-on engine; every item EN + AR; real ingredients for info cards
+// and the phantom-removal check)
 const spice = { key: "spice", label: "Spice Level", choices: [{ name: "Mild" }, { name: "Medium" }, { name: "Hot 🔥" }] };
-const drinks = [{ name: "Coca - Cola" }, { name: "Coca - Cola Diet" }, { name: "Sprite" }, { name: "Fanta" }, { name: "Karkadeh" }];
+const drinks = [{ name: "Coca - Cola" }, { name: "Coca - Cola Diet" }, { name: "Sprite" }, { name: "Fanta" }, { name: "Munadim Karkadeh" }];
 const combo = (sand, comboPrice) => ([
   { key: "format", label: "Which one", required: true, choices: [{ name: "Sandwich", price: sand }, { name: "Combo (fries + drink)", price: comboPrice }] },
   { key: "drink", when: { format: "Combo" }, label: "Combo drink", choices: drinks },
 ]);
 const MENU = [
-  // Sandwiches — سندوتشات
-  { name: "Hawawshi Classic", name_ar: "حواوشي كلاسيك", category: "Sandwiches", price: 95, options: combo(95, 150),
-    description: "Baladi bread stuffed with spiced minced beef, baked till crackling", ingredients: "Baladi bread, minced beef, onion, green pepper, baladi spices", bestseller: true, pairs_with: "Karkadeh", sort_order: 1 },
-  { name: "Hawawshi Cheese", name_ar: "حواوشي بالجبنة", category: "Sandwiches", price: 110, options: combo(110, 165),
-    description: "The classic with molten roumy cheese through the middle", ingredients: "Baladi bread, minced beef, roumy cheese, onion, green pepper, baladi spices", sort_order: 2 },
-  { name: "Chicken Shawarma", name_ar: "شاورما فراخ", category: "Sandwiches", price: 85, options: combo(85, 140),
-    description: "Marinated chicken off the spit, garlic sauce, pickles, syrian bread", ingredients: "Chicken, garlic sauce, pickles, syrian bread", bestseller: true, pairs_with: "Fries", sort_order: 3 },
-  { name: "Beef Shawarma", name_ar: "شاورما لحمة", category: "Sandwiches", price: 100, options: combo(100, 155),
-    description: "Beef shawarma, tahina, onion, parsley, tomato, syrian bread", ingredients: "Beef, tahina, onion, parsley, tomato, syrian bread", sort_order: 4 },
-  { name: "Kofta Pita", name_ar: "كفتة في عيش بلدي", category: "Sandwiches", price: 90, options: [spice],
-    description: "Charcoal kofta in baladi bread with tahina and salata baladi", ingredients: "Kofta (beef and lamb), tahina, tomato, onion, parsley, baladi bread", sort_order: 5 },
-  { name: "Sausage Sandwich", name_ar: "سجق اسكندراني", category: "Sandwiches", price: 80, options: [spice],
-    description: "Alexandrian sausage with peppers and onion, proper heat", ingredients: "Beef sausage, green pepper, onion, tomato, chili, baladi bread", sort_order: 6 },
-  // Bowls & Plates — أطباق
-  { name: "Koshary Bowl", name_ar: "طبق كشري", category: "Bowls & Plates", price: 70,
-    options: [{ key: "size", label: "Size", required: true, choices: [{ name: "Regular", price: 70 }, { name: "Large", price: 95 }] }],
-    description: "Rice, lentils, pasta, hummus, crispy onion, dakka and tomato sauce", ingredients: "Rice, brown lentils, pasta, chickpeas, fried onion, tomato sauce, garlic vinegar, chili oil", bestseller: true, pairs_with: "Sobia", sort_order: 1 },
-  { name: "Chicken Shawarma Bowl", name_ar: "بول شاورما فراخ بالرز", category: "Bowls & Plates", price: 130,
-    description: "Chicken shawarma over rice with garlic sauce and pickles", ingredients: "Chicken, rice, garlic sauce, pickles, parsley", sort_order: 2 },
-  { name: "Half Grilled Chicken Plate", name_ar: "نص فرخة مشوية", category: "Bowls & Plates", price: 180, options: [spice],
-    description: "Charcoal half chicken with rice, tahina and green salad", ingredients: "Chicken, rice, tahina, green salad, baladi bread", sort_order: 3 },
-  { name: "Kofta Plate", name_ar: "طبق كفتة", category: "Bowls & Plates", price: 170,
-    description: "Six charcoal kofta fingers, rice, tahina, salata baladi", ingredients: "Kofta (beef and lamb), rice, tahina, tomato, onion, parsley", sort_order: 4 },
-  // From the Grill — مشويات
-  { name: "Mixed Grill", name_ar: "مشكل مشويات", category: "From the Grill", price: 260,
-    description: "Kofta, shish tawook and sausage off the charcoal, for one hungry person", ingredients: "Kofta, chicken shish tawook, beef sausage, rice, tahina, baladi bread", bestseller: true, pairs_with: "Karkadeh", sort_order: 1 },
-  { name: "Shish Tawook Skewers", name_ar: "شيش طاووق", category: "From the Grill", price: 150, options: [spice],
-    description: "Two chicken skewers marinated overnight, with rice and garlic sauce", ingredients: "Chicken, garlic sauce, rice, baladi bread", sort_order: 2 },
-  // Sides — جانبي
-  { name: "Fries", name_ar: "بطاطس", category: "Sides", price: 45, description: "Crispy fries with our spice mix", ingredients: "Potatoes, spice mix", sort_order: 1 },
-  { name: "Spicy Fries", name_ar: "بطاطس حارة", category: "Sides", price: 55, description: "Fries tossed in shatta butter", ingredients: "Potatoes, chili, butter, garlic", sort_order: 2 },
-  { name: "Tahina Salad", name_ar: "سلطة طحينة", category: "Sides", price: 30, ingredients: "Tahina, lemon, garlic, cumin", sort_order: 3 },
-  { name: "Baba Ghanoush", name_ar: "بابا غنوج", category: "Sides", price: 40, ingredients: "Grilled eggplant, tahina, garlic, lemon", sort_order: 4 },
-  { name: "Green Salad", name_ar: "سلطة خضرا", category: "Sides", price: 35, ingredients: "Tomato, cucumber, onion, parsley, lemon", sort_order: 5 },
-  { name: "Pickles Plate", name_ar: "طبق طرشي", category: "Sides", price: 20, ingredients: "Pickled turnip, carrot, cucumber, lemon", sort_order: 6 },
-  // Desserts — حلويات
-  { name: "Om Ali", name_ar: "أم علي", category: "Desserts", price: 75, description: "Baked hot with nuts, raisins and cream", ingredients: "Puff pastry, milk, cream, hazelnuts, raisins, coconut", bestseller: true, sort_order: 1 },
-  { name: "Rice Pudding", name_ar: "رز بلبن", category: "Desserts", price: 50, ingredients: "Rice, milk, cream, vanilla", sort_order: 2 },
-  { name: "Basbousa", name_ar: "بسبوسة", category: "Desserts", price: 45, ingredients: "Semolina, syrup, coconut, cream", sort_order: 3 },
+  // Munadim Burgers — برجر مُنادم
+  { name: "Munadim Classic Burger", name_ar: "مُنادم كلاسيك برجر", category: "Munadim Burgers", price: 195, options: combo(195, 265),
+    description: "Our house smash — double-seared beef, American cheese, Munadim sauce", ingredients: "Beef patty, American cheese, Munadim sauce, lettuce, pickles, onion, tomato, brioche bun", bestseller: true, pairs_with: "Munadim Loaded Fries", sort_order: 1 },
+  { name: "Munadim Signature Burger", name_ar: "مُنادم سيجنتشر برجر", category: "Munadim Burgers", price: 245, options: combo(245, 315),
+    description: "Double beef, caramelised onion, smoked cheddar and our brass sauce", ingredients: "Double beef patty, smoked cheddar, caramelised onion, brass sauce, pickles, brioche bun", bestseller: true, pairs_with: "Munadim Loaded Fries", sort_order: 2 },
+  { name: "Munadim Truffle Burger", name_ar: "مُنادم ترافل برجر", category: "Munadim Burgers", price: 265, options: combo(265, 335),
+    description: "Truffle mayo, sautéed mushrooms, swiss cheese", ingredients: "Beef patty, swiss cheese, mushrooms, truffle mayo, rocket, brioche bun", sort_order: 3 },
+  { name: "Munadim Fire Burger", name_ar: "مُنادم فاير برجر", category: "Munadim Burgers", price: 225, options: [...combo(225, 295), spice],
+    description: "Jalapeños, pepper jack, shatta mayo — pick your heat", ingredients: "Beef patty, pepper jack cheese, jalapeños, shatta mayo, onion, brioche bun", sort_order: 4 },
+  { name: "Munadim BBQ Burger", name_ar: "مُنادم باربيكيو برجر", category: "Munadim Burgers", price: 235, options: combo(235, 305),
+    description: "Smoky BBQ, crispy onion rings, cheddar", ingredients: "Beef patty, cheddar cheese, BBQ sauce, onion rings, brioche bun", sort_order: 5 },
+  // Munadim Chicken — فراخ مُنادم
+  { name: "Munadim Chicken Ranch", name_ar: "مُنادم تشيكن رانش", category: "Munadim Chicken", price: 195, options: combo(195, 265),
+    description: "Crispy fried chicken breast, cool ranch, lettuce, pickles", ingredients: "Crispy chicken breast, ranch sauce, lettuce, pickles, brioche bun", bestseller: true, pairs_with: "Munadim Fries", sort_order: 1 },
+  { name: "Munadim Nashville Chicken", name_ar: "مُنادم ناشفيل تشيكن", category: "Munadim Chicken", price: 210, options: [...combo(210, 280), spice],
+    description: "Nashville-dipped crispy chicken, slaw, pickles — heat your way", ingredients: "Crispy chicken breast, Nashville spice oil, coleslaw, pickles, brioche bun", bestseller: true, sort_order: 2 },
+  { name: "Munadim Chicken Shawarma", name_ar: "مُنادم شاورما فراخ", category: "Munadim Chicken", price: 150, options: combo(150, 215),
+    description: "Chicken off the spit, toum, pickles, fries inside — Cairo style", ingredients: "Chicken shawarma, garlic sauce, pickles, fries, syrian bread", sort_order: 3 },
+  { name: "Munadim Chicken Tenders 3 Pcs", name_ar: "مُنادم تشيكن تندرز ٣ قطع", category: "Munadim Chicken", price: 140, options: [spice],
+    description: "Three hand-breaded tenders with a dip of your choice", ingredients: "Chicken tenderloin, breading, ranch dip", sort_order: 4 },
+  { name: "Munadim Chicken Tenders 5 Pcs", name_ar: "مُنادم تشيكن تندرز ٥ قطع", category: "Munadim Chicken", price: 210, options: [spice],
+    description: "Five hand-breaded tenders, two dips", ingredients: "Chicken tenderloin, breading, ranch dip, honey mustard dip", sort_order: 5 },
+  // Munadim Egyptian — مصري مُنادم
+  { name: "Munadim Hawawshi", name_ar: "مُنادم حواوشي", category: "Munadim Egyptian", price: 110, options: [spice],
+    description: "Baladi bread stuffed with spiced beef, baked till crackling", ingredients: "Baladi bread, minced beef, onion, green pepper, baladi spices", bestseller: true, pairs_with: "Munadim Karkadeh", sort_order: 1 },
+  { name: "Munadim Koshary", name_ar: "مُنادم كشري", category: "Munadim Egyptian", price: 75,
+    options: [{ key: "size", label: "Size", required: true, choices: [{ name: "Regular", price: 75 }, { name: "Large", price: 100 }] }],
+    description: "Rice, lentils, pasta, crispy onion, dakka and tomato sauce", ingredients: "Rice, lentils, pasta, chickpeas, fried onion, tomato sauce, garlic vinegar, chili oil", sort_order: 2 },
+  { name: "Munadim Mixed Grill", name_ar: "مُنادم مشكل مشويات", category: "Munadim Egyptian", price: 285,
+    description: "Kofta, shish tawook and sausage off the charcoal, rice and tahina", ingredients: "Kofta, chicken shish tawook, beef sausage, rice, tahina, baladi bread", sort_order: 3 },
+  // Munadim Sides — أطباق جانبية
+  { name: "Munadim Fries", name_ar: "مُنادم فرايز", category: "Munadim Sides", price: 55, description: "Crispy fries with our spice dust", ingredients: "Potatoes, spice mix", sort_order: 1 },
+  { name: "Munadim Loaded Fries", name_ar: "مُنادم لودد فرايز", category: "Munadim Sides", price: 105, description: "Fries under cheddar sauce, jalapeños and beef bits", ingredients: "Potatoes, cheddar sauce, jalapeños, beef bits, spring onion", bestseller: true, sort_order: 2 },
+  { name: "Munadim Onion Rings", name_ar: "مُنادم أونيون رينجز", category: "Munadim Sides", price: 70, ingredients: "Onion, beer-style batter", sort_order: 3 },
+  { name: "Munadim Mozzarella Sticks", name_ar: "مُنادم موتزاريلا ستيكس", category: "Munadim Sides", price: 95, ingredients: "Mozzarella, breadcrumbs, marinara dip", sort_order: 4 },
+  { name: "Munadim Coleslaw", name_ar: "مُنادم كول سلو", category: "Munadim Sides", price: 40, ingredients: "Cabbage, carrot, mayo, lemon", sort_order: 5 },
+  // Little Munadim — مُنادم الصغير
+  { name: "Little Munadim Burger", name_ar: "مُنادم الصغير برجر", category: "Little Munadim", price: 120, description: "Kids burger with fries and a juice", ingredients: "Beef patty, cheese, ketchup, soft bun, fries", sort_order: 1 },
+  { name: "Little Munadim Nuggets", name_ar: "مُنادم الصغير ناجتس", category: "Little Munadim", price: 115, description: "Six nuggets with fries and a juice", ingredients: "Chicken nuggets, fries, ketchup", sort_order: 2 },
+  // Munadim Desserts — حلويات
+  { name: "Munadim Om Ali", name_ar: "مُنادم أم علي", category: "Munadim Desserts", price: 80, description: "Baked hot with nuts, raisins and cream", ingredients: "Puff pastry, milk, cream, hazelnuts, raisins, coconut", bestseller: true, sort_order: 1 },
+  { name: "Munadim Cookie", name_ar: "مُنادم كوكي", category: "Munadim Desserts", price: 75, description: "Warm triple-chocolate cookie", ingredients: "Flour, butter, dark chocolate, milk chocolate, white chocolate", sort_order: 2 },
+  { name: "Munadim Milkshake Chocolate", name_ar: "مُنادم ميلك شيك شوكولاتة", category: "Munadim Desserts", price: 95, ingredients: "Milk, vanilla ice cream, chocolate sauce", sort_order: 3 },
+  { name: "Munadim Milkshake Vanilla", name_ar: "مُنادم ميلك شيك فانيليا", category: "Munadim Desserts", price: 95, ingredients: "Milk, vanilla ice cream", sort_order: 4 },
   // Drinks — مشروبات
-  { name: "Karkadeh", name_ar: "كركديه", category: "Drinks", price: 40, description: "Our signature — hibiscus brewed cold, not too sweet", ingredients: "Hibiscus, sugar", bestseller: true, sort_order: 1 },
-  { name: "Soft Drink", name_ar: "مشروب غازي", category: "Drinks", price: 30,
+  { name: "Munadim Karkadeh", name_ar: "مُنادم كركديه", category: "Drinks", price: 45, description: "Our signature — hibiscus brewed cold, not too sweet", ingredients: "Hibiscus, sugar", bestseller: true, sort_order: 1 },
+  { name: "Soft Drink", name_ar: "مشروب غازي", category: "Drinks", price: 35,
     options: [{ key: "which", label: "Which drink", required: true, choices: [{ name: "Coca - Cola" }, { name: "Coca - Cola Diet" }, { name: "Sprite" }, { name: "Fanta" }] }], sort_order: 2 },
-  { name: "Mango Juice", name_ar: "عصير مانجا", category: "Drinks", price: 55, ingredients: "Mango, nothing else", sort_order: 3 },
-  { name: "Sobia", name_ar: "سوبيا", category: "Drinks", price: 45, ingredients: "Coconut, milk, sugar", sort_order: 4 },
-  { name: "Mineral Water", name_ar: "مياه معدنية", category: "Drinks", price: 15, sort_order: 5 },
-  // Sauces — صوصات
-  { name: "Tahina Cup", name_ar: "طحينة", category: "Sauces", price: 15, sort_order: 1 },
-  { name: "Garlic Sauce Cup", name_ar: "تومية", category: "Sauces", price: 15, sort_order: 2 },
-  { name: "Shatta Cup", name_ar: "شطة", category: "Sauces", price: 10, sort_order: 3 },
+  { name: "Mango Juice", name_ar: "عصير مانجا", category: "Drinks", price: 55, ingredients: "Mango", sort_order: 3 },
+  { name: "Mineral Water", name_ar: "مياه معدنية", category: "Drinks", price: 15, sort_order: 4 },
+  // Munadim Sauces — صوصات
+  { name: "Munadim Sauce Cup", name_ar: "مُنادم صوص", category: "Munadim Sauces", price: 20, ingredients: "Mayo, ketchup, mustard, pickle, spices", sort_order: 1 },
+  { name: "Ranch Cup", name_ar: "رانش صوص", category: "Munadim Sauces", price: 20, ingredients: "Buttermilk, herbs, garlic", sort_order: 2 },
+  { name: "Garlic Toum Cup", name_ar: "تومية", category: "Munadim Sauces", price: 15, ingredients: "Garlic, oil, lemon", sort_order: 3 },
+  { name: "Shatta Cup", name_ar: "شطة", category: "Munadim Sauces", price: 10, ingredients: "Chili, vinegar, garlic", sort_order: 4 },
 ];
 const CATEGORIES = [
-  { name: "Sandwiches", name_ar: "سندوتشات", sort: 1 },
-  { name: "Bowls & Plates", name_ar: "أطباق", sort: 2 },
-  { name: "From the Grill", name_ar: "مشويات", sort: 3 },
-  { name: "Sides", name_ar: "أطباق جانبية", sort: 4 },
-  { name: "Desserts", name_ar: "حلويات", sort: 5 },
-  { name: "Drinks", name_ar: "مشروبات", sort: 6 },
-  { name: "Sauces", name_ar: "صوصات", sort: 7 },
+  { name: "Munadim Burgers", name_ar: "برجر مُنادم", sort: 1 },
+  { name: "Munadim Chicken", name_ar: "فراخ مُنادم", sort: 2 },
+  { name: "Munadim Egyptian", name_ar: "مصري مُنادم", sort: 3 },
+  { name: "Munadim Sides", name_ar: "أطباق جانبية", sort: 4 },
+  { name: "Little Munadim", name_ar: "مُنادم الصغير", sort: 5 },
+  { name: "Munadim Desserts", name_ar: "حلويات", sort: 6 },
+  { name: "Drinks", name_ar: "مشروبات", sort: 7 },
+  { name: "Munadim Sauces", name_ar: "صوصات", sort: 8 },
 ];
 
 async function stageRow() {
@@ -106,7 +115,7 @@ async function stageRow() {
     basic_info: {
       name: "Munadim", area: "New Cairo", city: "New Cairo",
       tagline: "مطبخ مصري بروح جديدة",
-      vibe: "Modern Egyptian comfort food — hawawshi, koshary and charcoal grill done properly.",
+      vibe: "Smash burgers, crispy chicken and Egyptian favourites — done the Munadim way.",
       restaurant_type: "casual", language: "ar", timezone: "Africa/Cairo",
       brand: { mode: "light", primary: KARKADEH, logo_url: logoUrl },
       address: "Point 90 Mall, New Cairo", google_maps: "https://maps.google.com/?q=30.0203,31.4947",
@@ -120,14 +129,14 @@ async function stageRow() {
     reservation_policy: luciz.reservation_policy,
     payments: { tax: 0.14, methods: ["cash", "card", "instapay"], currency: "EGP", delivery_fee: 50 },
     ai: {
-      name: "Munadim", greeting: "أهلاً بيك في مُنادم 🍲",
+      name: "Munadim", greeting: "أهلاً بيك في مُنادم 🍔",
       personality: "Warm, proud of the food, Egyptian to the bone — talks like the friend who always knows what you should eat.",
       voice_mode: "auto", chat_enabled: true, orders_enabled: true,
       ask_type_first: true, compact_messages: true, suggest_enabled: true,
-      suggest_dishes: ["Hawawshi Classic"], pickup_prep_min: 15, pickup_smart_timing: true,
+      suggest_dishes: ["Munadim Signature Burger"], pickup_prep_min: 15, pickup_smart_timing: true,
     },
     faqs: [
-      { q: "Is the hawawshi spicy?", a: "You choose — mild, medium or hot. The sausage runs hot by nature." },
+      { q: "Is the Nashville chicken spicy?", a: "You choose — mild, medium or hot." },
       { q: "بتفتحوا امتى؟", a: "كل يوم من ١٠ الصبح لـ ٢ بالليل." },
     ],
     menu_config: { categories: CATEGORIES, upsell: { enabled: true, placement: "confirm" }, display: luciz.menu_config?.display || {} },
