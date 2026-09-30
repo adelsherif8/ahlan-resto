@@ -1,0 +1,77 @@
+[
+ {
+  "name": "B1 — 500 burgers must be named and capped out loud",
+  "phone": "+2015610001",
+  "turns": [
+   "i want 500 classic burgers for pickup now"
+  ],
+  "expect": {
+   "says the cap": "20|more than I can take"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "B2 — add to a placed order goes to the counter",
+  "phone": "+2015610002",
+  "turns": [
+   "munadim fries pickup cash now",
+   "confirm",
+   "add a karkadeh to that order"
+  ],
+  "expect": {
+   "honest": "already with the kitchen|can't add|counter"
+  },
+  "forbid": {
+   "silent new draft": "Noted — pickup \\+ cash"
+  }
+ },
+ {
+  "name": "B3 — tomorrow is not today",
+  "phone": "+2015610003",
+  "turns": [
+   "can i order a mixed grill for tomorrow 9pm?"
+  ],
+  "expect": {
+   "honest": "right now|another day|can't hold"
+  },
+  "forbid": {
+   "took it anyway": "🧾|Great choice"
+  }
+ },
+ {
+  "name": "B4 AR — بكرة برضه",
+  "phone": "+2015610004",
+  "turns": [
+   "عايز مُنادم مشكل مشويات بكرة الساعة ٩"
+  ],
+  "expect": {
+   "honest": "الوقت الحالي|يوم تاني"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "B5 — normal order still works after all this",
+  "phone": "+2015610005",
+  "turns": [
+   "munadim chicken ranch combo with karkadeh pickup cash now",
+   "confirm"
+  ],
+  "expect": {
+   "ticket": "🎫"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "B6 — 3 burgers is NOT a big order",
+  "phone": "+2015610006",
+  "turns": [
+   "3 munadim classic burger sandwich pickup cash now"
+  ],
+  "expect": {
+   "three": "3× \\*Munadim Classic Burger"
+  },
+  "forbid": {
+   "false cap warning": "more than I can take|كتير على الشات"
+  }
+ }
+]

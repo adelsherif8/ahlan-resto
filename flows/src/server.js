@@ -2453,9 +2453,18 @@ async function flushOnce(bufferKey, channel = "web") {
 function flushHandler(bufferKey, channel = "web") {
   const prev = flushLocks.get(bufferKey) || Promise.resolve();
   const run = prev.catch(() => {}).then(() => flushOnce(bufferKey, channel));
-  flushLocks.set(bufferKey, run.finally(() => { if (flushLocks.get(bufferKey) === run) flushLocks.delete(bufferKey); }));
+  // The queue tail must NEVER be a rejected promise. Nothing awaits it once the burst
+  // is done, so a transient failure (a network blip while resolving the tenant) came
+  // back as an unhandledRejection and Node killed the whole service — every chat in
+  // flight lost, mid-order (17 Sep, seen locally; the same blip hits production).
+  const tail = run.catch(() => {});
+  const entry = tail.finally(() => { if (flushLocks.get(bufferKey) === entry) flushLocks.delete(bufferKey); });
+  flushLocks.set(bufferKey, entry);
   return run;
 }
+
+process.on("unhandledRejection", (e) => log("unhandled rejection (kept running):", e?.message || e));
+process.on("uncaughtException", (e) => log("uncaught exception (kept running):", e?.message || e));
 
 startFlushWorker(flushHandler);
 

@@ -87,9 +87,15 @@ function foodIcon(config, menuRows) {
 // his first message back. An extra LLM "language agent" would cost a call per message
 // and still be less certain than reading the alphabet.
 import { looksFranco } from "../services/franco.js";
+import { looksLikeSplit } from "../services/splitintent.js";
+import { resolveLanguage } from "../services/langstate.js";
 // exported so the ops language split reports what the BOT actually decided, rather
 // than a second, subtly different guess living in the console
-export function detectLang(message, sticky) {
+export function detectLang(message, sticky, itemNames = []) {
+  return resolveLanguage({ message, sticky, itemNames }).lang;
+}
+// kept for the ops console's own reporting — the raw alphabet read, no state
+export function detectScript(message, sticky) {
   const s = String(message || "");
   if (/[\u0600-\u06FF]/.test(s)) return "ar";
   // a bare URL / pin / number carries no language — keep whatever the guest was
@@ -102,21 +108,18 @@ export function detectLang(message, sticky) {
   if (looksFranco(s)) return "franco";
   return sticky || "en";
 }
-// The classifier may still answer "unknown"/"mixed", or disagree with the alphabet.
-// The alphabet wins — a message in Arabic script is Arabic, whatever the model thinks.
-function settleLang(modelLang, message, sticky) {
-  const code = detectLang(message, sticky);
-  if (/[\u0600-\u06FF]/.test(String(message || ""))) return "ar";
-  // LATIN IN → NEVER ARABIC OUT. The classifier labelled "3ayez classic burger" as
-  // Arabic (it IS Arabic, just written in Latin letters), and the order flow then
-  // rendered his whole bill in Arabic script — dish name, subtotal label and all —
-  // to a guest who had never typed an Arabic character.
-  // (Only when the message actually contains Latin LETTERS — a bare Maps link or
-  // pin from an Arabic guest keeps their language, resolved by detectLang above.)
-  const latinWords = /\p{Script=Latin}/u.test(String(message || "").replace(/https?:\/\/\S+/g, ""));
-  if (modelLang === "ar") return !latinWords ? code : (code === "ar" ? "franco" : code);
-  if (!modelLang || modelLang === "unknown" || modelLang === "mixed") return code;
-  return modelLang;
+// THE MODEL DOES NOT CHOOSE THE LANGUAGE — code does, from the guest's own words.
+// The classifier's "language" used to be the primary input here, and whatever came out
+// was written back as the session's sticky language: one wrong guess ("akked" read as
+// English, a Franco guest labelled Arabic) became state and every later short message
+// inherited it. `modelLang` is now telemetry only; services/langstate.js decides, with
+// menu item names excluded so "Chicken Burger" is food rather than evidence of English.
+function settleLang(modelLang, message, sticky, itemNames = [], fallback = "en") {
+  const r = resolveLanguage({ message, sticky, itemNames, fallback });
+  if (r.switched || !sticky) {
+    log(`lang: ${sticky || "—"} → ${r.lang} (${r.reason}${modelLang && modelLang !== r.lang ? `; model said ${modelLang}` : ""})`);
+  }
+  return r.lang;
 }
 
 let greetIdx = 0; // rotates the canned line so it isn't identical every time
@@ -171,8 +174,12 @@ defineFlow({
     // ---- fast_paths (0 LLM tokens): closers + FAQ answered straight from config/DB ----
     const fast = await f.node("fast_paths", async () => {
       const sticky = input.stickyLanguage || null;
-      const closer = detectCloser(message, sticky);
+      // mid check-split, "done"/«خلاص»/"khalas" ENDS THE SPLIT — the closing fast path
+      // would answer it with a goodbye and leave the split open behind it
+      const splitting = !!diner?.preferences?.check_split;
+      const closer = splitting ? null : detectCloser(message, sticky);
       if (closer) { bump("closer_hits"); return closer; }
+      if (splitting) return { kind: "none — check split in progress" };
       // A bare pin / Maps link with NO order in progress: acknowledge the location and
       // invite the order — code, no model. It used to be greeted like "hi", and the
       // location sat unused so delivery asked for the address again.
@@ -355,7 +362,7 @@ defineFlow({
       const faq = matchFaq(message, ctx.tenant.config, sticky);
       if (faq) { bump("faq_hits"); return faq; }
       // staff-approved FAQ answers — every approval is a free turn forever
-      const afaq = matchApprovedFaq(message, ctx.tenant.config);
+      const afaq = matchApprovedFaq(message, ctx.tenant.config, input.stickyLanguage || null);
       if (afaq) { bump("faq_approved_hits"); return afaq; }
       const svc = matchService(message, ctx.tenant.config, sticky);
       if (svc) { bump("service_hits"); return svc; }
@@ -393,6 +400,23 @@ defineFlow({
     const precheck = input.precheck || {};
     const isAffirmative = precheck.is_affirmative ?? AFFIRMATIVES.test(message.trim());
     const classification = await f.node("classify", async () => {
+      // CHECK SPLIT belongs to the order flow (it owns the receipt). "split the check",
+      // «اقسم الحساب» and "2asem el 7esab" after a placed order used to fall to chit-chat,
+      // which has no receipt and no arithmetic. Same shape as the status/cancel rule.
+      {
+        if (looksLikeSplit(message)) {
+          const { data: recent } = await db.from("orders").select("id")
+            .eq("phone_number", ctx.sessionId).gte("created_at", new Date(Date.now() - 6 * 3600e3).toISOString()).limit(1);
+          if (recent?.length || precheck.active_flow === "order" || diner?.preferences?.check_split) {
+            return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (check split on a recent receipt)" } };
+          }
+        }
+        // mid-split, every message is split talk until the guest says they're done
+        if (diner?.preferences?.check_split) {
+          return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (check split in progress)" } };
+        }
+      }
+
       // session override: mid-reservation + bare "yes" → stays in the reservation flow, zero LLM
       if (isAffirmative && precheck.active_flow === "reservation") {
         return { value: { bucket: "reservation", intent: "confirm_reservation", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (affirmative in active reservation session)" } };
@@ -422,7 +446,10 @@ defineFlow({
       // A Maps link / shared pin during an active order IS the delivery address — it
       // belongs to the order flow whatever its length (URLs are long). Friendly once
       // answered it with the old flat zone fee and its own "Place order" buttons.
-      if (precheck.active_flow === "order" && /https?:\/\/[^\s]*(google\.[a-z.]+\/maps|maps\.google|maps\.app\.goo\.gl|goo\.gl\/maps|waze\.com)|^\[location\]/i.test(message)) {
+      // WhatsApp sends a pin as "[shared location] … (lat,lng)" — the old pattern only
+      // knew "[location]", so a pin dropped mid-order fell through to chit-chat, which
+      // invented an area AND a delivery fee for a spot we don't even cover (live, 20 Sep).
+      if (precheck.active_flow === "order" && (/https?:\/\/[^\s]*(google\.[a-z.]+\/maps|maps\.google|maps\.app\.goo\.gl|goo\.gl\/maps|waze\.com)/i.test(message) || /^\s*\[(shared )?location\]/i.test(message))) {
         return { value: { bucket: "order", confidence: 1, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: "rule (map link / pin inside an active order)" } };
       }
       if (precheck.active_flow === "order" && message.trim().length <= 45) {
@@ -481,7 +508,13 @@ defineFlow({
         const ORDER_WORD = /(?<![\p{L}\p{N}])(order|el order|my order|delivery|el akl|el talab|الاوردر|الأوردر|الطلب|طلبي|الاكل|الأكل|ticket)(?![\p{L}\p{N}])/iu;
         const STATUS_Q = /(?<![\p{L}\p{N}])(where|where'?s|status|track|tracking|how long|eta|is it ready|فين|وصل|هيوصل|لسه|حالة|امتى|إمتى|كام دقيقة|هياخد|fein|feen|fen|wasal|lesa|lessa|emta|hayakhod|ad eh|2ad eh|kam d2i2a)(?![\p{L}\p{N}])/iu;
         const CANCEL_Q = /(?<![\p{L}\p{N}])(cancel|alghy|alghi|algha|el3'i|الغي|ألغي|الغى|إلغاء|الغاء|بلاش الاوردر|بلاش الطلب)(?![\p{L}\p{N}])/iu;
-        const asksStatus = STATUS_Q.test(message) && (ORDER_WORD.test(message) || message.trim().length <= 20);
+        // same rule as the order flow: a status question that names no dish is about
+        // THEIR order, however long the sentence is ("how long will it take?" is 23
+        // characters and used to miss a ≤20 gate)
+        const names = await menuNames(db);
+        const ml = ` ${message.toLowerCase()} `;
+        const namesADish = names.some((n) => ml.includes(` ${n} `) || n.split(" ").filter((t) => t.length >= 5).some((t) => ml.includes(` ${t} `)));
+        const asksStatus = STATUS_Q.test(message) && !namesADish;
         const asksCancel = CANCEL_Q.test(message) && message.trim().length <= 60;
         if ((asksStatus || asksCancel) && !/(table|reservation|booking|حجز|ترابيزة)/i.test(message)) {
           const { data: recent } = await db.from("orders").select("id").eq("phone_number", ctx.sessionId).gte("created_at", new Date(Date.now() - 6 * 3600e3).toISOString()).limit(1);
@@ -546,10 +579,10 @@ Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
         diner,
         history: input.history,
         precheck,
-        classification: { ...cls, language: settleLang(cls.language, message, input.stickyLanguage), requested_bucket: cls.bucket, sticky_language: input.stickyLanguage || null, self_correction: precheck.is_self_correction || false },
+        classification: { ...cls, language: settleLang(cls.language, message, input.stickyLanguage, await menuNames(db), ctx.tenant.config.basic_info?.language), requested_bucket: cls.bucket, sticky_language: input.stickyLanguage || null, self_correction: precheck.is_self_correction || false },
       });
     }, { input: { bucket: cls.bucket, confidence: cls.confidence, active_flow: precheck.active_flow || "none", restaurant_type: ctx.tenant.config.basic_info?.restaurant_type || "fine" } });
 
-    return { ...result, bucket: cls.bucket, mood: cls.mood, language: settleLang(cls.language, message, input.stickyLanguage) };
+    return { ...result, bucket: cls.bucket, mood: cls.mood, language: settleLang(cls.language, message, input.stickyLanguage, await menuNames(db), ctx.tenant.config.basic_info?.language) };
   },
 });

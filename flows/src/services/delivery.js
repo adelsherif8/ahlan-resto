@@ -333,6 +333,12 @@ async function nominatimSearch(q, cityHint) {
 // areas we KNOW are outside coverage — configurable (delivery.outside_areas), with a
 // Cairo default; naming one is an honest "no", never a fuzzy landmark hit
 const DEFAULT_OUTSIDE = ["maadi", "المعادي", "zamalek", "الزمالك", "heliopolis", "مصر الجديدة", "dokki", "الدقي", "mohandessin", "المهندسين", "giza", "الجيزة", "6th of october", "6 october", "السادس من اكتوبر", "اكتوبر", "أكتوبر", "sheikh zayed", "zayed", "الشيخ زايد", "زايد", "shorouk", "الشروق", "obour", "العبور", "downtown cairo", "وسط البلد", "alexandria", "اسكندرية", "الإسكندرية", "helwan", "حلوان", "shubra", "شبرا", "ain shams", "عين شمس"];
+// the Latin names of the areas this restaurant does NOT deliver to — the facts block
+// lists them so the model answers "do you deliver to Nasr City?" from data, not a guess
+export function outsideList(config) {
+  const src = config?.basic_info?.delivery?.outside_areas || config?.delivery?.outside_areas || DEFAULT_OUTSIDE;
+  return [...new Set(src.filter((a) => /^[A-Za-z0-9 .'-]+$/.test(String(a))).map((a) => String(a).trim()))].slice(0, 12);
+}
 export function namesOutsideArea(config, text) {
   // Only meaningful for a restaurant that has DEFINED where it delivers. With no zones
   // at all, "Maadi" is not outside anything — Just Smash HAS a Maadi branch and got a
@@ -583,5 +589,20 @@ export function deliveryFacts(config) {
     Number(d.min_order) ? `minimum order ${d.min_order} EGP` : "",
     Number(d.free_over) ? `free delivery over ${d.free_over} EGP` : "",
   ].filter(Boolean).join(", ");
+  // DISTANCE PRICING HAS NO PER-AREA FEE. Quoting the zone's base as if it were the
+  // price for a named area underquoted Rehab (really 56) and Madinaty (really 152) at
+  // 50 EGP (probe, 21 Sep). Say the rule, and that the exact number needs the address.
+  const pr = pricingOf(config);
+  if (pr.mode === "distance") {
+    const per = pr.per_km ?? pr.per_km_fee ?? pr.step_fee;
+    const base = pr.base ?? pr.base_fee ?? pr.fee;
+    const within = pr.base_km ?? pr.free_km ?? pr.included_km;
+    return `- DELIVERY IS PRICED BY DISTANCE — NEVER quote a flat fee for a named area, and NEVER invent one:\n`
+      + `  • ${base} EGP up to ${within} km from the branch, then +${per} EGP per extra km.\n`
+      + `  • Covered: ${lines.join(" · ")} (the exact fee depends on the address).\n`
+      + `  • If they ask "how much to <area>?": say it starts at ${base} EGP and the exact fee comes as soon as they send the address or location pin. Do NOT state a number for an area.\n`
+      + `  • NOT covered (say so plainly and offer pickup): ${outsideList(config).join(", ")}.\n`
+      + `  • An area outside coverage: say we don't deliver there yet and offer pickup.${extras ? `\n  (${extras})` : ""}${hoursLine}`;
+  }
   return `- DELIVERY ZONES — quote these EXACTLY, NEVER invent a fee or an area:\n${lines.map((l) => "  • " + l).join("\n")}${extras ? `\n  (${extras})` : ""}${hoursLine}\n  If the guest's area is NOT listed above, say we don't deliver there yet and offer pickup — never guess a fee.`;
 }

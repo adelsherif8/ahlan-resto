@@ -9,11 +9,10 @@ const AR = /[؀-ۿ]/;
 // Franco guest in English: "ab3atli el menu" carried none of the old keywords, so the
 // instant menu line came back in English to someone writing Arabic in Latin letters.
 const FRANCO = /(3ayez|3aiz|3awez|3awz|fein|fen|emta|ezay|eshta|tamam|shokran|habibi|ya3ni|keda|bokra|ab3at|eb3at|hatli|hatly|warini|law sama7t|ma3lesh|delwa2ty|naharda|3andko|te7eb|momken|nefsak|kwayes|sabah el|masa el|3alek|akl|akol|el menu|elmenu)/i;
+// the fast paths answer in the SAME language the flows would — one resolver, so a
+// canned FAQ line can't come back in a different language than the conversation
 function lang(message, sticky) {
-  if (AR.test(message)) return "ar";
-  if (FRANCO.test(message)) return "franco";
-  if (sticky) return sticky;
-  return "en";
+  return resolveLanguage({ message, sticky }).lang;
 }
 
 // ---- closing detection ----
@@ -66,6 +65,7 @@ const COMPOUND_PAT = /(\?[^?]*\?)|(?<![\p{L}\p{N}])(and|also|plus|kaman|كمان
 // Guest tapped a category in the WhatsApp menu list (message = the category name):
 // full deterministic listing — every dish, price, flags. Zero LLM, zero teasing.
 import { getMenu } from "./menucache.js";
+import { resolveLanguage } from "./langstate.js";
 
 export async function matchMenuCategory(db, message, currency = "EGP", config = null) {
   const probe = String(message).trim().split("\n")[0].trim();
@@ -153,7 +153,7 @@ const FAQ_STOP = new Set(["do", "you", "the", "a", "an", "is", "are", "what", "y
 function faqTokens(q) {
   return String(q).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 1 && !FAQ_STOP.has(w));
 }
-export function matchApprovedFaq(message, config) {
+export function matchApprovedFaq(message, config, sticky = null) {
   if (message.length > 120 || message.split("\n").length > 2) return null;
   const probe = ` ${String(message).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim()} `;
   for (const f of config.faqs || []) {
@@ -161,7 +161,12 @@ export function matchApprovedFaq(message, config) {
     const toks = faqTokens(f.q);
     if (toks.length < 2) continue; // too generic to match safely
     if (toks.every((t) => probe.includes(` ${t}`) || probe.includes(`${t} `))) {
-      return { reply: String(f.a), kind: "faq_approved", language: null };
+      const answer = String(f.a);
+      const answerIsArabic = /[؀-ۿ]/.test(answer);
+      const speaking = lang(message, sticky);
+      // scripts disagree → let the brain answer from the same FAQ fact, in-language
+      if (answerIsArabic !== (speaking === "ar")) return null;
+      return { reply: answer, kind: "faq_approved", language: speaking };
     }
   }
   return null;
@@ -417,7 +422,13 @@ export function isGreetingish(message) {
     const half = norm.slice(0, norm.length / 2);
     if (half === norm.slice(norm.length / 2) && half.length >= 2) norm = half;
   }
-  return GREETING_WORDS.some((w) => editDistance(norm, w) <= (w.length <= 4 ? 1 : 2));
+  // Two-letter greetings match exactly (a stretched last letter is fine — "hii",
+  // "yoo"): at edit distance 1, "do", "go", "no" and "so" all read as "yo", and a
+  // guest's "do" (yes, send it) got a canned welcome instead of an answer (17 Sep).
+  const unstretched = norm.replace(/(.)\1+$/u, "$1");
+  return GREETING_WORDS.some((w) => w.length <= 2
+    ? norm === w || unstretched === w
+    : editDistance(norm, w) <= (w.length <= 4 ? 1 : 2));
 }
 
 // ---- MENU REQUEST: the menu is a DOCUMENT, so the model has nothing to add ----

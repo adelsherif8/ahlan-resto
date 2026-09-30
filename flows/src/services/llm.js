@@ -13,6 +13,15 @@ const PRICES = {
   "gpt-4.1": [2.0, 8.0, 0.25],          // SMART — guest-facing replies
   "gpt-4.1-mini": [0.4, 1.6, 0.25],     // FAST — extract, classify, summarize
   "gpt-4.1-nano": [0.1, 0.4, 0.25],     // NANO — router classify
+  // GPT-6 family (22 Sep 2026) — Luna is priced for exactly our hot path (extract,
+  // classify, resolve) at a quarter of 4.1-mini's input. Listed so cost accounting
+  // stays honest the moment one is switched on.
+  "gpt-6-luna": [0.1, 0.5, 0.25],
+  "gpt-6-sol": [2.0, 10.0, 0.25],
+  "gpt-6-astra": [10.0, 50.0, 0.25],
+  "gpt-5.6-luna": [0.2, 1.2, 0.25],
+  "gpt-5.6-terra": [2.0, 12.0, 0.25],
+  "gpt-5.6-sol": [4.0, 20.0, 0.25],
   "gpt-4o-mini": [0.15, 0.6, 0.5],      // photo classification (media.js)
   "gpt-5.6-luna": [0.2, 1.2, 0.1],      // cheap tier, Jul 2026 — FAST candidate
   "deepseek-chat": [0.27, 1.1, 0.5],    // dormant budget lane
@@ -60,7 +69,9 @@ async function chat(model, messages, opts = {}) {
         // gpt-5.x: temperature is rejected and reasoning must be pinned to minimal —
         // a chat guest waits ~2s, not for a thinking budget. max_completion_tokens
         // replaced max_tokens there; older models keep the classic params.
-        ...(useModel.startsWith("gpt-5")
+        // gpt-5.x AND gpt-6.x: temperature is rejected and reasoning must be pinned
+        // to none — a chat guest waits ~2s, not for a thinking budget
+        ...(/^gpt-[56]/.test(useModel)
           ? { reasoning_effort: "none", max_completion_tokens: maxTokens }
           : { temperature, max_tokens: maxTokens }),
         ...(json ? { response_format: { type: "json_object" } } : {}),

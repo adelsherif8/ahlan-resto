@@ -65,3 +65,18 @@ export function francoScore(text) {
 export function looksFranco(text) {
   return francoScore(text) >= 1;
 }
+
+/**
+ * Franco "و" is written as a bare `w` (and `wel` = "and the"). The extractor read
+ * "burger w fries w om ali" as ONE item called "sandwich with Munadim Fries and
+ * Munadim Om Ali" and ordered only the burger (live phrasing, 24 Sep). Expanding the
+ * connector before extraction keeps the items separate. Only for Latin-script text —
+ * Arabic «و» is already understood, and English "w/" is left alone.
+ */
+export function expandFrancoConnectors(text) {
+  const s = String(text || "");
+  if (/[؀-ۿ]/.test(s)) return s;
+  return s
+    .replace(/(?<=[\p{L}\p{N}])\s+wel\s+(?=[\p{L}])/giu, " and el ")
+    .replace(/(?<=[\p{L}\p{N}])\s+w\s+(?![/\\])(?=[\p{L}\p{N}])/giu, " and ");
+}

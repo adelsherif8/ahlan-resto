@@ -1,0 +1,116 @@
+[
+ {
+  "name": "L1 FR — franco order → receipt → still franco",
+  "phone": "+2015650001",
+  "turns": [
+   "ana 3ayez munadim classic burger sandwich pickup cash delwa2ty",
+   "akked",
+   "el order hayakhod ad eh?"
+  ],
+  "expect": {
+   "franco reply": "orderak|el order|d2ay2|d2ee2a|hayb2a|khalas|7awaly"
+  },
+  "forbid": {
+   "arabic script to franco guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "L2 FR — franco with english item names stays franco",
+  "phone": "+2015650002",
+  "turns": [
+   "ana 3ayez Chicken Ranch w French Fries",
+   "pickup"
+  ],
+  "expect": {
+   "franco": "Hat3ady|d2ay2|2ol|delwa2ty|Tamam"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "L3 AR — arabic stays arabic after the receipt",
+  "phone": "+2015650003",
+  "turns": [
+   "عايز مُنادم كلاسيك برجر ساندوتش تيك اواي كاش دلوقتي",
+   "تأكيد",
+   "الطلب هياخد قد ايه؟"
+  ],
+  "expect": {
+   "arabic reply": "[\\u0600-\\u06FF]"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "L4 EN — english stays english next to arabic data",
+  "phone": "+2015650004",
+  "turns": [
+   "i want a munadim koshary regular for pickup, cash, now",
+   "confirm",
+   "how long will it take?"
+  ],
+  "expect": {
+   "english sentence": "\\b(the|team|depends|estimate|minutes|min|ready|order|kitchen)\\b"
+  },
+  "forbid": {
+   "arabic to english guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "L5 FR — short answers must not flip the language",
+  "phone": "+2015650005",
+  "turns": [
+   "3ayez munadim fries pickup",
+   "cash",
+   "now",
+   "akked",
+   "tamam"
+  ],
+  "expect": {
+   "still franco or neutral": "."
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "L6 — explicit switch franco → english",
+  "phone": "+2015650006",
+  "turns": [
+   "3ayez munadim fries",
+   "Reply to me in English from now on. What is the price?"
+  ],
+  "expect": {
+   "english": "EGP|price|fries"
+  },
+  "forbid": {
+   "arabic": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "L7 — explicit switch english → arabic",
+  "phone": "+2015650007",
+  "turns": [
+   "i want munadim fries",
+   "رد عليا بالعربي، السعر كام؟"
+  ],
+  "expect": {
+   "arabic": "[\\u0600-\\u06FF]"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "L8 — natural switch franco → english",
+  "phone": "+2015650008",
+  "turns": [
+   "3ayez munadim classic burger sandwich pickup",
+   "Can you remove the burger from my order please?"
+  ],
+  "expect": {
+   "english": "remove|order|burger"
+  },
+  "forbid": {
+   "arabic": "[\\u0600-\\u06FF]"
+  }
+ }
+]

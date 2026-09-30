@@ -1,0 +1,14 @@
+[
+ {"name":"EDGE — remove a participant: their item returns to Unassigned","phone":"+2015630001",
+  "turns":["munadim classic burger sandwich, munadim fries, pickup cash now","confirm","split the check","Omar took the burger, Ahmed took the fries","remove Ahmed"],
+  "expect":{"ahmed gone":"Omar","fries back":"UNASSIGNED[\\s\\S]*Fries","receipt total":"250"},
+  "forbid":{"ahmed still there":"\\*Ahmed\\*"}},
+ {"name":"EDGE — ambiguous 'burger' asks instead of guessing","phone":"+2015630002",
+  "turns":["munadim classic burger sandwich, munadim signature burger sandwich, pickup cash now","confirm","split the check","Omar took the burger"],
+  "expect":{"asks which":"Which one|mean"},
+  "forbid":{}},
+ {"name":"EDGE — one person takes everything, then done","phone":"+2015630003",
+  "turns":["munadim fries, munadim om ali, pickup cash now","confirm","split the check","Omar took everything","done"],
+  "expect":{"closed":"split is closed|الفاتورة زي ما هي|closed"},
+  "forbid":{}}
+]

@@ -36,7 +36,7 @@
   "complete": "ticket",
   "expect": {
    "large koshary": "كشري\\*[^\\n]*100",
-   "delivery fee": "التوصيل \\(~[0-9.]+ كم\\): 50 EGP"
+   "delivery fee": "التوصيل[^\\n]*: 50 EGP"
   }
  },
  {

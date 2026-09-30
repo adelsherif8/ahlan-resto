@@ -1,0 +1,11 @@
+[
+ {"name":"FIX A — 'how long will it take?' shows the status card","phone":"+2015660001",
+  "turns":["munadim fries pickup cash now","confirm","how long will it take?"],
+  "expect":{"status card":"🎫 \\*O-|Order received|Kitchen started"},"forbid":{}},
+ {"name":"FIX A — a dish question is still a menu question, not a status card","phone":"+2015660002",
+  "turns":["how long does the munadim mixed grill take to cook?"],
+  "expect":{},"forbid":{"wrong status card":"⬜ Kitchen started"}},
+ {"name":"FIX A AR — «هياخد قد ايه؟» after a ticket","phone":"+2015660003",
+  "turns":["عايز مُنادم بطاطس تيك اواي كاش دلوقتي","تأكيد","الطلب هياخد قد ايه بالظبط؟"],
+  "expect":{"status card":"🎫 \\*O-|استلمنا"},"forbid":{}}
+]

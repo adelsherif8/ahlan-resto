@@ -225,7 +225,7 @@ ${context.summary ? `- Earlier in this relationship (summary of older chats): ${
 ${memoryBlock(context, diner)}
 
 ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been notified about this guest. If they follow up, reassure them the team is on it and will reply here shortly — do NOT restart cheerful small talk or re-pitch the menu.\n" : ""}RULES:
-0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. Your reply language = the language of the guest's LAST message (detected: ${classification?.language || "detect it yourself"}). English message → reply 100% in ENGLISH (a single local flavor word is allowed ONLY if it fits this restaurant's own personality). The Arabic/Franco snippets in these instructions are EXAMPLES for those languages only — never copy them into an English reply. DISH NAMES: menu facts may carry [ar: …] — the dish's official Arabic menu name. In an ARABIC reply, call dishes by that Arabic name. English and Franco replies use the English name. Never invent your own translation of a dish name — no [ar:] means keep the English name even in Arabic. Write dish names EXACTLY as the menu prints them, same words same order ("Milkshake Chocolate", never "Chocolate Milkshake") — the guest taps/types that name back and it must match.
+0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. The conversation language is already decided by the app: **${classification?.language === "ar" ? "EGYPTIAN ARABIC (Arabic script)" : classification?.language === "franco" ? "FRANCO-ARABIC (Egyptian Arabic in Latin letters and digits: 3=ع 7=ح 5=خ 2=ء)" : "ENGLISH"}**. Write every word of your reply in that language — do not re-detect it, do not mirror the script of anything else. MENU ITEMS, RECEIPTS, ADDRESSES AND FACTS ARE DATA: they may be in another language and must NEVER change how you write. Keep dish names exactly as they are. Franco-Arabic is its own mode: never answer a Franco guest in Arabic script or in plain English.
 1. عربي → عربي مصري. Franco-Arabizi → reply FULLY in Franco, Latin letters ONLY (e.g. "lazem tegarrab el Mushroom Shawarma, ta3mo gamed"). NEVER answer Franco with Arabic script. ALWAYS keep menu item names in English. THE SCRIPT RULE: your reply's SCRIPT must match the guest's last message — Latin letters in → Latin letters out, Arabic script in → Arabic script out. This applies to EVERY line: greetings, EMPATHY lines, identity answers, everything. A sad Franco message gets Franco comfort, never Arabic script.
 2. 1–3 short sentences. WhatsApp tone, warm, ${ai.personality ? "on-personality" : "friendly"}. Emojis welcome but max 2.
 3. NEVER invent menu items, prices, events, or policies. Item not in the menu list = "not available tonight".
@@ -237,7 +237,7 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 7. NAMES ARE NEVER TRANSLITERATED. Write the guest's name EXACTLY as it is stored, letter for letter, even inside an Arabic sentence — Egyptians write Latin names in Arabic chats all the time. Guessing Arabic spelling produced "سلامة" for Salma (a different word entirely) and "تarek" for Tarek. A mangled name is worse than no name.
 7b. If they mention their own name, set detected_name. If they mention a FOOD ALLERGY, set detected_allergies (array of lowercase FOOD allergens ONLY: nuts, dairy, gluten, shellfish, eggs, soy, sesame…). Health CONDITIONS (diabetes, pregnancy, blood pressure…) are NEVER stored anywhere — not as allergies, not as facts. For those: help with sensible suggestions AND you MUST end with the kitchen double-check line ("the kitchen will gladly double-check ingredients for you") — this line is mandatory for any health condition, it overrides the fewer-questions rule.
 8. Off-topic requests: one playful redirect back to the restaurant.
-9. If they ask for PHOTOS of food: ONLY items marked "📷 has photo" can be sent — set send_photos to up to 3 of those. If the dish they asked about has NO 📷 marker: say you don't have a photo of that one yet (NEVER "coming right up" / "sending now"), and optionally offer a photo of a similar 📷 dish instead. When you DESCRIBE a specific 📷 dish (ingredients, taste, "what about X"), attach its photo via send_photos in the SAME reply — NEVER ask "want to see a photo?"; the photo and your words arrive as one message.
+9. If they ask for PHOTOS of food: ONLY items marked "📷 has photo" can be sent — set send_photos to up to 3 of those. If the dish they asked about has NO 📷 marker: say you don't have a photo of that one yet (NEVER "coming right up" / "sending now"), and — only if some OTHER dish on the menu is marked 📷 — you may offer that dish's photo instead; with no 📷 dishes at all, describe the dish in words and offer nothing. When you DESCRIBE a specific 📷 dish (ingredients, taste, "what about X"), attach its photo via send_photos in the SAME reply — NEVER ask "want to see a photo?"; the photo and your words arrive as one message.
 10. If they asked a factual question about the restaurant you could NOT answer from FACTS (policy, service, amenity…), set suggested_faq = { "question": "<the generic question>", "context": "<what the guest actually said>" } so the owner can add the answer.
 11. MEMORY CAPTURE — when the GUEST (never staff) volunteers something durable about themselves, record it:
    - a dish they LOVE (must be on our menu) → detected_preferences.favorite_items
@@ -633,12 +633,129 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         photos.push({ url: named.photo_url, caption: `${named.name} — ${named.price} ${config.payments?.currency || "EGP"}` });
       }
     }
+    // Asked for a picture and we have one → it ships, model or no model.
+    if (!photos.length && !upset && photoAsked(message)) {
+      const want = bestPhotoMatch(context.menu, message, config.basic_info?.name || config.name || "");
+      if (want) photos.push({ url: want.photo_url, caption: `${want.name} — ${want.price} ${config.payments?.currency || "EGP"}` });
+    }
 
+    // NO PHOTO ATTACHED → NO PHOTO PROMISED. With nothing to send, the model still wrote
+    // "Here you go — this is our Shatta Cup!" and «دي صورة برجر مُنادم كلاسيك» (live, 18 Sep):
+    // the guest waits for an image that never arrives. Code deletes the claiming
+    // sentence and says the honest line; the description around it survives.
+    if (!photos.length && (photoAsked(message) || (out.send_photos || []).length)) {
+      const CLAIM = /(here(?:['’]s| is|s)\b|here you go|check (?:it|this) out|take a look|sending (?:it|that|you)|coming right up|دي صورة|ده صورة|دى صورة|اتفضل الصور|شوف الصورة|أهي الصورة|اهي الصورة|ahoo el soora|shoof el soora|etfadal el soora)/i;
+      const sentences = String(reply).split(/(?<=[.!?؟…])\s+|\n+/).filter(Boolean);
+      const kept = sentences.filter((x) => !CLAIM.test(x));
+      if (kept.length !== sentences.length) {
+        const item = findItem(context.menu, message);
+        const dish = item ? (LV === "ar" && item.name_ar ? item.name_ar : item.name) : null;
+        const honest = L2F(
+          `No photo of ${dish || "that one"} yet 🙏`,
+          `معلش، مفيش صورة لـ${dish ? ` ${dish}` : " الطبق ده"} لسه 🙏`,
+          `Ma3lesh, mafish soora ${dish ? `lel ${dish}` : "lel taba2 da"} lessa 🙏`,
+        );
+        log(`friendly: stripped a photo claim with no photo attached${dish ? ` (${dish})` : ""}`);
+        reply = [honest, ...kept].join(" ").trim().slice(0, 3500);
+      }
+    }
     // Buttons must be concrete guest actions (menu, order, book…). The model sometimes
     // invents meta chips like "اسألني سؤال" / "Ask me a question" — a button that tells
     // the guest to talk to the bot is noise, so those are dropped in code, always.
     const META_CHIP = /سؤال|اسألني|اسالني|question|ask me|as2al|so2al/i;
     let quickReplies = (out.quick_replies || []).map(trimLabel).filter(Boolean).filter((q) => !META_CHIP.test(q)).slice(0, 3);
+    // FRIENDLY NEVER QUOTES A DELIVERY FEE OR SENDS FOOD TO THE KITCHEN. On a shared pin
+    // mid-order it answered "delivery to Tagamoa will be 50 EGP … send this to the
+    // kitchen?" for an address the order flow then refused as out of area (live, 20 Sep).
+    // Coverage and fees are the delivery engine's, placement is the order flow's.
+    {
+      const FEE_CLAIM = /(delivery|توصيل|التوصيل|delivery fee|dilevery|delevery)[^.\n]{0,40}?\d+\s*(egp|جنيه|le\b)/i;
+      const PLACED_CLAIM = /(send (?:this|it) to the kitchen|sending (?:it|this) to the kitchen|ابعتها للمطبخ|أبعتها للمطبخ|هبعتها للمطبخ|لل?مطبخ دلوقتي|ab3atha lel kitchen)/i;
+      const pinNow = /^\s*\[(shared )?location\]/i.test(String(message || "")) || /https?:\/\/[^\s]*(google\.[a-z.]+\/maps|maps\.google|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(String(message || ""));
+      const orderLive = input.precheck?.active_flow === "order" || pinNow;
+      if (orderLive && (FEE_CLAIM.test(reply) || PLACED_CLAIM.test(reply))) {
+        log("friendly: blocked an invented delivery fee / kitchen claim during an active order");
+        reply = L2F(
+          "Got your location 📍 — one sec, I'll check the exact delivery fee and get your order in.",
+          "وصلني اللوكيشن 📍 — لحظة أشوف رسوم التوصيل بالظبط وأكمّل طلبك.",
+          "Wasalny el location 📍 — le7za a shoof rasm el delivery bel zabt w akammel orderak.",
+        );
+        quickReplies = [];
+      }
+    }
+
+    // ── THREE CLAIM GUARDS ──────────────────────────────────────────────────────
+    // Probe run, 21 Sep: the model answered "Yes, we've got Pepsi!" (we carry Coca-Cola),
+    // "Our beef is always halal", "the Koshary is totally vegan", "we've got free WiFi" —
+    // four confident facts nobody ever told it. Code checks each claim against the menu
+    // and the restaurant's own configured facts, and hedges when there is no source.
+    {
+      const AFFIRM = /^\W*(yes|yep|yeah|sure|absolutely|of course|definitely|aywa|aywah|akeed|أيوة|ايوه|أكيد|اكيد|طبعا|طبعًا)\b|^\W*(we|e7na|إحنا|احنا)\b[^.!?\n]{0,30}\b(have|got|3andena|عندنا)\b/i;
+      const saidFacts = `${JSON.stringify(config.basic_info || {})} ${JSON.stringify(config.faqs || [])} ${JSON.stringify(config.payments || {})}`.toLowerCase();
+
+      // (a) "do you have X?" — X must exist on the menu before we say yes
+      const askHave = /(?:do you (?:have|serve|sell)|got any|have you got|3andoko|3andokom|عندكم|عندكو|فيه عندكم|في عندكم)\s+([\p{L}\p{N}][\p{L}\p{N} '\-]{1,28})/iu.exec(String(message || ""));
+      if (askHave && AFFIRM.test(reply)) {
+        const asked = askHave[1].replace(/\?.*$/, "").trim();
+        const FACILITY = /(wifi|wi-?fi|parking|kids|high ?chair|toilet|bathroom|table|seat|ac\b|smoking|shisha|واي ?فاي|واي-فاي|بار?كن|انتظار|أطفال|اطفال|حمام|تدخين|شيشة)/i;
+        if (!FACILITY.test(asked) && !findItem(context.menu, asked)) {
+          // suggest the same KIND — answering "do you have pepsi?" with a hawawshi is noise
+          const DRINKY = /(pepsi|7\s?up|seven ?up|mirinda|miranda|schweppes|cola|soda|juice|smoothie|shake|coffee|tea|water|red ?bull|monster|بيبسي|سفن|ميرندا|كولا|عصير|قهوة|شاي|مياه|مية)/i;
+          const pool = (context.menu || []).filter((m) => m.available !== false);
+          const drinks = pool.filter((m) => /drink|beverage|juice|shake|مشروب|عصير/i.test(`${m.category || ""} ${m.name} ${m.name_ar || ""}`));
+          const source = DRINKY.test(asked) && drinks.length ? drinks : pool.filter((m) => m.bestseller);
+          const alt = (source.length ? source : pool).slice(0, 2)
+            .map((m) => (LV === "ar" && m.name_ar ? m.name_ar : m.name));
+          log(`friendly: blocked a "yes we have it" for "${asked}" — not on the menu`);
+          reply = L2F(
+            `We don't carry ${asked} 🙏 — ${alt.length ? `what we do have: ${alt.join(" · ")}. ` : ""}Want the full menu?`,
+            `معندناش ${asked} 🙏 — ${alt.length ? `اللي عندنا: ${alt.join(" · ")}. ` : ""}تحب أبعتلك المنيو؟`,
+            `Ma3andenash ${asked} 🙏 — ${alt.length ? `elly 3andena: ${alt.join(" · ")}. ` : ""}Te7eb ab3atlak el menu?`,
+          );
+          quickReplies = [];
+        }
+      }
+
+      // (b) certifications and dietary guarantees are the kitchen's word, never ours
+      const CERT = /(halal|حلال|vegan|vegetarian|نباتي|فيجان|gluten[- ]?free|خالي من الجلوتين|organic|عضوي|kosher|كوشر|keto|كيتو|dairy[- ]?free|sugar[- ]?free|خالي من السكر)/i;
+      const GUARANTEE = /\b(is|are|it'?s|totally|completely|100%|always|fully|certified|guaranteed)\b|(?:أكيد|طبعا|طبعًا|مؤكد|معتمد|دايما|دائما|تماما|تمامًا)/i;
+      if (CERT.test(reply)) {
+        const claimed = (reply.match(CERT) || [])[0];
+        // only an AFFIRMED claim needs hedging — "we don't have a keto bun" is already the
+        // honest answer and must survive untouched
+        const sentence = String(reply).split(/(?<=[.!?؟…])\s+|\n+/).find((x) => CERT.test(x)) || reply;
+        // the negation has to sit ON the claim ("we don't have a keto bun"), not anywhere
+        // in the sentence — "is fully vegan — no animal products" is an AFFIRMED claim
+        const at = sentence.search(CERT);
+        const before = at > 0 ? sentence.slice(Math.max(0, at - 42), at) : "";
+        const NEGATED = /(not|isn['\u2019]?t|aren['\u2019]?t|no|without|don['\u2019]?t|doesn['\u2019]?t|can['\u2019]?t|never|مش|مفيش|معندناش|ماعندناش|mesh|msh|ma3andenash|mafish)\s+(?:[\w'\u2019]+\s+){0,3}(?:a |an |the )?$/i.test(before);
+        const affirmed = !NEGATED && (AFFIRM.test(reply) || GUARANTEE.test(sentence));
+        if (affirmed && !saidFacts.includes(String(claimed).toLowerCase())) {
+          log(`friendly: hedged an unverified "${claimed}" claim`);
+          const item = findItem(context.menu, message);
+          const ing = item?.ingredients ? `${LV === "ar" ? "المكونات" : "Ingredients"}: ${item.ingredients}. ` : "";
+          reply = L2F(
+            `${ing}I can't confirm ${claimed} myself — the kitchen can check that for you before you order 🙏`,
+            `${ing}مقدرش أأكدلك موضوع الـ${claimed} من عندي — الفريق في المطبخ هيتأكدلك قبل ما تطلب 🙏`,
+            `${ing}Ma2darsh a2akedlak mawdoo3 el ${claimed} men 3andy — el team fel kitchen hayet2aked leek 2abl ma totlob 🙏`,
+          );
+          quickReplies = [];
+        }
+      }
+
+      // (c) facilities we were never told about (wifi, parking, kids area…)
+      const FACILITY_CLAIM = /(free wifi|we have wifi|we'?ve got (?:free )?wifi|wifi is|واي ?فاي|في عندنا واي|parking is free|valet)/i;
+      if (FACILITY_CLAIM.test(reply) && !/wifi|واي ?فاي|parking|بار?كن|valet/i.test(saidFacts)) {
+        log("friendly: hedged an unverified facility claim");
+        reply = L2F(
+          "I'd rather not guess on that one — the team at the branch can tell you for sure 🙏",
+          "مش هخمن في الحاجة دي — الفريق في الفرع هيقولك بالظبط 🙏",
+          "Mesh hakhamen fel 7aga di — el team fel far3 hay2ollak bel zabt 🙏",
+        );
+        quickReplies = [];
+      }
+    }
+
 
     // The FIRST buttons of a conversation are the ways IN, not a reorder prompt.
     // Three buttons is all WhatsApp allows, and spending one of them on "same as last
@@ -952,6 +1069,40 @@ function normName(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+// A guest asking for a photo must get it EVERY time, not whenever the model
+// remembers to set send_photos. The old backstop leaned on findItem(), whose
+// first-token match is the brand word on a menu where every dish is "Munadim X" —
+// so "show me a pic of classic burger" matched nothing and the photo was skipped on
+// one ask and sent on the next (17 Sep). This matches on the dish words that are
+// NOT the restaurant's own name, and only when exactly one dish wins.
+function photoAsked(message) {
+  return /\b(pic|pics|photo|photos|picture|pictures|image|images)\b/i.test(String(message))
+    || /صور|صوره|صورة|شكله|شكلها/.test(String(message));
+}
+function bestPhotoMatch(menu, message, restaurantName) {
+  const norm = (x) => String(x || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/(^|\s)ال(?=\S)/g, "$1").replace(/\s+/g, " ").trim();
+  const probe = ` ${norm(message)} `;
+  const brand = new Set(norm(restaurantName).split(" ").filter(Boolean));
+  const scored = [];
+  for (const m of menu) {
+    if (!m.photo_url || m.available === false) continue;
+    let hits = 0;
+    for (const nm of [m.name, m.name_ar].filter(Boolean)) {
+      for (const tok of new Set(norm(nm).split(" "))) {
+        if (!tok || brand.has(tok)) continue;
+        const arabic = /[\u0600-\u06FF]/.test(tok);
+        if (tok.length < (arabic ? 3 : 4)) continue;
+        if (probe.includes(` ${tok} `)) hits++;
+      }
+    }
+    if (hits) scored.push({ m, hits });
+  }
+  scored.sort((a, b) => b.hits - a.hits);
+  // ambiguous ("a pic of a burger" with five burgers) → say nothing rather than guess
+  if (!scored.length || (scored[1] && scored[1].hits === scored[0].hits)) return null;
+  return scored[0].m;
+}
+
 function findMenuPhoto(menu, name) {
   const n = normName(name);
   if (!n) return null;
@@ -1009,6 +1160,15 @@ function mentionsFood(message, history, menu) {
 }
 
 function buildMenuText(menu, message, history, currency, config = {}) {
+  const body = buildMenuBody(menu, message, history, currency, config);
+  // With zero photographed dishes the "offer a similar 📷 dish" clause has nothing to
+  // point at, and the model offered a photo it could never send (Munadim, 17 Sep).
+  return menu.some((m) => m.photo_url)
+    ? body
+    : `NOTE: this restaurant has NO dish photos yet. Never offer, promise or suggest any photo — describe the dish in words instead.\n${body}`;
+}
+
+function buildMenuBody(menu, message, history, currency, config = {}) {
   const line = (m, full) => {
     const tags = m.dietary_tags?.length ? ", " + m.dietary_tags.join("/") : "";
     const photo = m.photo_url ? ", 📷 has photo" : "";

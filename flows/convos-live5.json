@@ -1,0 +1,79 @@
+[
+ {
+  "name": "LIVE — shared pin mid-order must NOT get an invented fee (out-of-area pin)",
+  "phone": "+2015580001",
+  "turns": [
+   "i want classic burger",
+   "delivery",
+   "combo",
+   "karkadeh",
+   "cash",
+   "[shared location]   (30.080896377563,31.337257385254)"
+  ],
+  "expect": {
+   "honest about coverage": "don't deliver|not in our delivery|pickup"
+  },
+  "forbid": {
+   "invented fee": "50 EGP extra|will be 50 EGP",
+   "kitchen claim": "send (this|it) to the kitchen"
+  }
+ },
+ {
+  "name": "LIVE — pin inside the area gets the real fee from the engine",
+  "phone": "+2015580002",
+  "turns": [
+   "munadim chicken ranch sandwich",
+   "delivery",
+   "cash",
+   "[shared location]   (30.0203,31.4947)"
+  ],
+  "expect": {
+   "real fee line": "Delivery[^\\n]*: 50 EGP"
+  },
+  "forbid": {
+   "zero km": "~0 km"
+  }
+ },
+ {
+  "name": "LIVE — «من غير سندوتش» must pick combo, never sandwich",
+  "phone": "+2015580003",
+  "turns": [
+   "عايز مُنادم سيجنتشر برجر",
+   "في المطعم",
+   "هاته من غير سندوتش"
+  ],
+  "expect": {
+   "combo chosen": "كومبو"
+  },
+  "forbid": {
+   "sandwich applied": "\\(ساندوتش\\)"
+  }
+ },
+ {
+  "name": "LIVE — no photo for shatta cup → no photo promise",
+  "phone": "+2015580004",
+  "turns": [
+   "send me a picture of the shatta cup"
+  ],
+  "expect": {
+   "honest": "No photo|don't have a photo|مفيش صورة"
+  },
+  "forbid": {
+   "false claim": "Here you go|Here[’']s the|here it is"
+  }
+ },
+ {
+  "name": "LIVE — Arabic option list has no Latin choice line",
+  "phone": "+2015580005",
+  "turns": [
+   "عايز مُنادم كلاسيك برجر كومبو",
+   "في المطعم"
+  ],
+  "expect": {
+   "arabic drinks": "كوكاكولا"
+  },
+  "forbid": {
+   "latin karkadeh in arabic list": "Munadim Karkadeh"
+  }
+ }
+]

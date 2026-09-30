@@ -1,0 +1,77 @@
+[
+ {
+  "name": "SPLIT EN — assign in English, then split the rest",
+  "phone": "+2015620001",
+  "turns": [
+   "munadim classic burger sandwich, munadim fries and munadim om ali, pickup cash now",
+   "confirm",
+   "split the check",
+   "Omar took the burger. Ahmed took the om ali",
+   "split the rest between them"
+  ],
+  "expect": {
+   "omar total": "222.50",
+   "ahmed total": "107.50",
+   "receipt total": "330",
+   "nothing left": "assigned ✅|Everything is assigned"
+  },
+  "forbid": {
+   "arabic to latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "SPLIT AR — نفس الحساب بالعربي",
+  "phone": "+2015620002",
+  "turns": [
+   "مُنادم كلاسيك برجر ساندوتش ومُنادم بطاطس ومُنادم أم علي تيك اواي كاش دلوقتي",
+   "تأكيد",
+   "اقسم الحساب",
+   "عمر خد البرجر، أحمد خد أم علي",
+   "قسم الباقي عليهم"
+  ],
+  "expect": {
+   "omar total": "222.50",
+   "ahmed total": "107.50",
+   "receipt total": "330",
+   "arabic header": "تقسيم الحساب"
+  },
+  "forbid": {}
+ },
+ {
+  "name": "SPLIT FR — Franco all the way",
+  "phone": "+2015620003",
+  "turns": [
+   "munadim classic burger sandwich, munadim fries, munadim om ali, pickup cash delwa2ty",
+   "akked",
+   "2asem el 7esab",
+   "Omar khad el burger, Ahmed 5ad el om ali",
+   "2asem el ba2y 3alehom"
+  ],
+  "expect": {
+   "omar total": "222.50",
+   "ahmed total": "107.50",
+   "receipt total": "330"
+  },
+  "forbid": {
+   "arabic script": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "name": "SPLIT MIXED — Arabic + English + Franco in one thread",
+  "phone": "+2015620004",
+  "turns": [
+   "munadim classic burger sandwich, munadim fries and munadim om ali, pickup cash now",
+   "confirm",
+   "split the check",
+   "Omar خد the burger",
+   "Ahmed 5ad الأم علي",
+   "split what's left"
+  ],
+  "expect": {
+   "omar total": "222.50",
+   "ahmed total": "107.50",
+   "receipt total": "330"
+  },
+  "forbid": {}
+ }
+]
