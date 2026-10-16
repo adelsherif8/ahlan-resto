@@ -137,3 +137,19 @@
 2026-10-16T03:48:30.423Z persona personas-fr.json local 19/19 cost=$0.0826
 2026-10-16T03:59:00.972Z fixture repro3.json local 11 FAILED of 3
 2026-10-16T04:21:01.212Z fixture repro3.json local 12 FAILED of 3
+2026-10-16T15:11:49.520Z fixture convos-reel6.json local 6 FAILED of 6
+2026-10-16T15:13:16.275Z fixture reel3.json local PASS of 1
+2026-10-16T15:21:43.027Z fixture convos-reel6.json local 2 FAILED of 6
+2026-10-16T15:24:20.469Z fixture convos-munadim5.json local PASS of 5
+2026-10-16T15:28:11.067Z fixture convos-split4.json local PASS of 4
+2026-10-16T15:31:43.547Z fixture convos-notes9.json local 1 FAILED of 9
+2026-10-16T15:33:15.209Z fixture convos-dontadd4.json local PASS of 4
+2026-10-16T15:38:58.560Z fixture hand5.json local PASS of 5
+2026-10-16T15:42:12.071Z persona personas-munadim.json local 6/6 cost=$0.0093
+2026-10-16T15:57:51.953Z persona personas-en.json local 22/22 cost=$0.1320
+2026-10-16T16:09:13.004Z persona personas-ar.json local 17/17 cost=$0.0782
+2026-10-16T16:13:42.378Z extract-contract munadim recorded cost=$0.0189
+2026-10-16T16:14:39.564Z extract-contract munadim 40/41 cost=$0.0186
+2026-10-16T16:16:00.164Z extract-contract munadim recorded cost=$0.0187
+2026-10-16T16:16:58.317Z extract-contract munadim 40/41 cost=$0.0181
+2026-10-16T16:18:08.058Z extract-contract munadim 41/41 cost=$0.0180

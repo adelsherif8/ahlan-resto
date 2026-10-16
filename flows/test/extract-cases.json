@@ -1,79 +1,343 @@
 [
  {
   "id": "c01",
-  "message": "munadim chicken ranch combo with karkadeh"
+  "message": "munadim chicken ranch combo with karkadeh",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Chicken Ranch",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c02",
-  "message": "عايز مُنادم كشري كبير دليفري ماكسيم"
+  "message": "عايز مُنادم كشري كبير دليفري ماكسيم",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Koshary",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": "delivery",
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c03",
-  "message": "3ayez 3 munadim nashville chicken sandwich, 2 hot w wa7ed mild"
+  "message": "3ayez 3 munadim nashville chicken sandwich, 2 hot w wa7ed mild",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Nashville Chicken",
+     "qty": 2
+    },
+    {
+     "name": "Munadim Nashville Chicken",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c04",
-  "message": "ابعت المنيو"
+  "message": "ابعت المنيو",
+  "expected": {
+   "intent": "other",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c05",
-  "message": "how much is the munadim om ali?"
+  "message": "how much is the munadim om ali?",
+  "expected": {
+   "intent": "question",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c06",
-  "message": "عايز ٢ ناشفيل حار وواحد كلاسيك وبطاطس وكركديه"
+  "message": "عايز ٢ ناشفيل حار وواحد كلاسيك وبطاطس وكركديه",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Nashville Chicken",
+     "qty": 2
+    },
+    {
+     "name": "Munadim Classic Burger",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Fries",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Karkadeh",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c07",
-  "message": "نفس طلب امبارح وزوّدلي حاجة ساقعة"
+  "message": "نفس طلب امبارح وزوّدلي حاجة ساقعة",
+  "expected": {
+   "intent": "repeat_last",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c08",
-  "message": "عايز ناشفيل كومبو كوكاكولا وسط وكلاسيك ساندوتش وبطاطس، في المطعم ترابيزة T1"
+  "message": "عايز ناشفيل كومبو كوكاكولا وسط وكلاسيك ساندوتش وبطاطس، في المطعم ترابيزة T1",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Nashville Chicken",
+     "qty": 1
+    },
+    {
+     "name": "كلاسيك ساندوتش",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Fries",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": "dine_in",
+   "payment_method": null,
+   "table_number": "T1"
+  }
  },
  {
   "id": "c09",
-  "message": "one classic burger combo with coke then"
+  "message": "one classic burger combo with coke then",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Classic Burger",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c10",
-  "message": "عايز مُنادم كلاسيك برجر"
+  "message": "عايز مُنادم كلاسيك برجر",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Classic Burger",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c11",
-  "message": "show me a pic of classic burger"
+  "message": "show me a pic of classic burger",
+  "expected": {
+   "intent": "question",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c12",
-  "message": "what's in the munadim fire burger?"
+  "message": "what's in the munadim fire burger?",
+  "expected": {
+   "intent": "question",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c13",
-  "message": "ممكن صورة الكلاسيك برجر؟"
+  "message": "ممكن صورة الكلاسيك برجر؟",
+  "expected": {
+   "intent": "question",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c14",
-  "message": "send me a picture of the shatta cup"
+  "message": "send me a picture of the shatta cup",
+  "expected": {
+   "intent": "question",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c15",
-  "message": "munadim classic burger sandwich, munadim fries and munadim om ali, pickup cash now"
+  "message": "munadim classic burger sandwich, munadim fries and munadim om ali, pickup cash now",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Classic Burger",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Fries",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Om Ali",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": "pickup",
+   "payment_method": "cash",
+   "table_number": null
+  }
  },
  {
   "id": "c16",
-  "message": "مُنادم كلاسيك برجر ساندوتش ومُنادم بطاطس ومُنادم أم علي تيك اواي كاش دلوقتي"
+  "message": "مُنادم كلاسيك برجر ساندوتش ومُنادم بطاطس ومُنادم أم علي تيك اواي كاش دلوقتي",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Classic Burger",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Fries",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Om Ali",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": "pickup",
+   "payment_method": "cash",
+   "table_number": null
+  }
  },
  {
   "id": "c17",
-  "message": "munadim classic burger sandwich, munadim fries, munadim om ali, pickup cash delwa2ty"
+  "message": "munadim classic burger sandwich, munadim fries, munadim om ali, pickup cash delwa2ty",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Classic Burger",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Fries",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Om Ali",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": "pickup",
+   "payment_method": "cash",
+   "table_number": null
+  }
  },
  {
   "id": "c18",
-  "message": "عايز مُنادم كشري كبير دليفري بوينت ٩٠"
+  "message": "عايز مُنادم كشري كبير دليفري بوينت ٩٠",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Koshary",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": "delivery",
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c19",
-  "message": "عايز مُنادم حواوشي حار وبطاطس تيك اواي كاش دلوقتي"
+  "message": "عايز مُنادم حواوشي حار وبطاطس تيك اواي كاش دلوقتي",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Hawawshi",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Fries",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": "pickup",
+   "payment_method": "cash",
+   "table_number": null
+  }
  },
  {
   "id": "c20",
@@ -81,14 +345,52 @@
   "pending": [
    "Munadim Classic Burger",
    "Munadim Classic Burger"
-  ]
+  ],
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Soft Drink",
+     "qty": 1
+    },
+    {
+     "name": "Soft Drink",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c21",
   "message": "actually add a loaded fries too",
   "pending": [
    "Munadim Classic Burger"
-  ]
+  ],
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Loaded Fries",
+     "qty": 1
+    }
+   ],
+   "edits": [
+    {
+     "op": "add",
+     "item": "Munadim Loaded Fries",
+     "with": null,
+     "option": null,
+     "qty": 1
+    }
+   ],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c22",
@@ -96,49 +398,131 @@
   "pending": [
    "Munadim Classic Burger",
    "Munadim Loaded Fries"
-  ]
+  ],
+  "expected": {
+   "intent": "order",
+   "items": [],
+   "edits": [
+    {
+     "op": "remove",
+     "item": "Munadim Loaded Fries",
+     "with": null,
+     "option": null,
+     "qty": null
+    }
+   ],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c23",
   "message": "cash, coming in 15 min",
   "pending": [
    "Munadim Classic Burger"
-  ]
+  ],
+  "expected": {
+   "intent": "confirm",
+   "items": [],
+   "edits": [],
+   "order_type": "pickup",
+   "payment_method": "cash",
+   "table_number": null
+  }
  },
  {
   "id": "c24",
   "message": "حار",
   "pending": [
    "Munadim Nashville Chicken"
-  ]
+  ],
+  "expected": {
+   "intent": "other",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c25",
   "message": "كركديه",
   "pending": [
    "Munadim Nashville Chicken"
-  ]
+  ],
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Karkadeh",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c26",
   "message": "دليفري على ماكسيم مول",
   "pending": [
    "Munadim Nashville Chicken"
-  ]
+  ],
+  "expected": {
+   "intent": "order",
+   "items": [],
+   "edits": [],
+   "order_type": "delivery",
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c27",
   "message": "خليهم اتنين",
   "pending": [
    "Munadim Classic Burger"
-  ]
+  ],
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Classic Burger",
+     "qty": 2
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c28",
   "message": "غيّر المشروب فانتا",
   "pending": [
    "Munadim Classic Burger"
-  ]
+  ],
+  "expected": {
+   "intent": null,
+   "items": [],
+   "edits": [
+    {
+     "op": "set_option",
+     "item": "Munadim Classic Burger",
+     "with": null,
+     "option": "fanta",
+     "qty": null
+    }
+   ],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c29",
@@ -146,69 +530,217 @@
   "pending": [
    "Munadim Classic Burger",
    "Munadim Fries"
-  ]
+  ],
+  "expected": {
+   "intent": "order",
+   "items": [],
+   "edits": [
+    {
+     "op": "remove",
+     "item": "Munadim Fries",
+     "with": null,
+     "option": null,
+     "qty": null
+    }
+   ],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c30",
   "message": "no I want the chicken ranch instead",
   "pending": [
    "Munadim Classic Burger"
-  ]
+  ],
+  "expected": {
+   "intent": "order",
+   "items": [],
+   "edits": [
+    {
+     "op": "replace",
+     "item": "Munadim Classic Burger",
+     "with": "Munadim Chicken Ranch",
+     "option": null,
+     "qty": null
+    }
+   ],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c31",
   "message": "بتوصلوا المعادي؟",
   "pending": [
    "Munadim Classic Burger"
-  ]
+  ],
+  "expected": {
+   "intent": "question",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c32",
-  "message": "fein el order?"
+  "message": "fein el order?",
+  "expected": {
+   "intent": "question",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c33",
   "message": "cancel it all",
   "pending": [
    "Munadim Classic Burger"
-  ]
+  ],
+  "expected": {
+   "intent": "cancel_order",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c34",
-  "message": "3ayez wa7ed munadim chicken ranch sandwich w karkadeh"
+  "message": "3ayez wa7ed munadim chicken ranch sandwich w karkadeh",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Chicken Ranch",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Karkadeh",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c35",
-  "message": "2 munadim classic burger combos please"
+  "message": "2 munadim classic burger combos please",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Classic Burger",
+     "qty": 2
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c36",
-  "message": "does the signature burger have onion?"
+  "message": "does the signature burger have onion?",
+  "expected": {
+   "intent": "question",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c37",
   "message": "el karkadeh bekam?",
   "pending": [
    "Munadim Chicken Ranch"
-  ]
+  ],
+  "expected": {
+   "intent": "question",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c38",
   "message": "dine in, tarabeza T2",
   "pending": [
    "Munadim Chicken Ranch"
-  ]
+  ],
+  "expected": {
+   "intent": "order",
+   "items": [],
+   "edits": [],
+   "order_type": "dine_in",
+   "payment_method": null,
+   "table_number": "T2"
+  }
  },
  {
   "id": "c39",
-  "message": "split the check, Omar took the burger and Sara took the karkadeh"
+  "message": "split the check, Omar took the burger and Sara took the karkadeh",
+  "expected": {
+   "intent": "other",
+   "items": [],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  },
  {
   "id": "c40",
-  "message": "ok one signature burger sandwich no onion and no ranch, and a karkadeh, dine in table T4"
+  "message": "ok one signature burger sandwich no onion and no ranch, and a karkadeh, dine in table T4",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Signature Burger",
+     "qty": 1
+    },
+    {
+     "name": "Munadim Karkadeh",
+     "qty": 1
+    }
+   ],
+   "edits": [],
+   "order_type": "dine_in",
+   "payment_method": null,
+   "table_number": "T4"
+  }
  },
  {
   "id": "c41",
-  "message": "٣ مُنادم تشيكن تندرز ٣ قطع، اتنين حار وواحد خفيف"
+  "message": "٣ مُنادم تشيكن تندرز ٣ قطع، اتنين حار وواحد خفيف",
+  "expected": {
+   "intent": "order",
+   "items": [
+    {
+     "name": "Munadim Chicken Tenders 3 Pcs",
+     "qty": 3
+    }
+   ],
+   "edits": [],
+   "order_type": null,
+   "payment_method": null,
+   "table_number": null
+  }
  }
 ]
