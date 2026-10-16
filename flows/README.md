@@ -105,6 +105,7 @@ The n8n replacement, ~200 lines. `defineFlow({ id, nodes, run })` returns a flow
 - `langstate.js` — the single place the conversation's language is decided (sticky state + message evidence, item names and receipts never count as evidence).
 - `checksplit.js` / `splitintent.js` — splitting the bill in chat: the pure money engine (integer piastres, largest-remainder, must reconcile exactly) and the intent reader around it.
 - `demolead.js` — the Munadim demo gate: who may use the showcase number and until when. Access is granted by hand (`tools/demo-lead.mjs`), not self-serve; `ai.demo_mode` keeps it off for every real client.
+- `intent.js` — Jev (TypeSafe AI System One) as a second opinion for the router's classify step. Dormant without `JEV_API_KEY`; `JEV_MODE=shadow` writes Jev's bucket + confidence next to the nano classifier's in every classify trace (`jev.agrees`), `primary` lets a confident Jev answer route with nano as fallback. English-first model — shadow on real Arabic/Franco traffic decides.
 - `regression.js` — the assertion-based regression suite run from the ops console (`/api/ops/run-regression`), results persisted as a `flow_executions` row so the console shows the last run after restarts.
 
 ## `src/server.js` — HTTP surface
@@ -165,7 +166,7 @@ Rules of the road: test on a local server before deploying; run the full persona
 
 ## Configuration
 
-Environment (`flows/.env`, never committed): `OPENAI_API_KEY`, `SUPABASE_AHLAN_URL` + `SUPABASE_AHLAN_SERVICE_KEY` (control plane), `OPS_TOKEN` (ops console + harnesses), `ENCRYPTION_KEY` (tenant credentials), `BUFFER_WINDOW_MS`, `PORT`, and `WA_TOKEN` etc. when WhatsApp Cloud is wired.
+Environment (`flows/.env`, never committed): `OPENAI_API_KEY`, `SUPABASE_AHLAN_URL` + `SUPABASE_AHLAN_SERVICE_KEY` (control plane), `OPS_TOKEN` (ops console + harnesses), `ENCRYPTION_KEY` (tenant credentials), `BUFFER_WINDOW_MS`, `PORT`, `WA_TOKEN` etc. when WhatsApp Cloud is wired, and optionally `JEV_API_KEY` / `JEV_MODE` / `JEV_MIN_CONF` for the Jev intent shadow (services/intent.js).
 
 Per-restaurant behaviour lives in the control-plane `restaurants` row (edited from the dashboard): `basic_info` (hours, branches, `delivery` — pricing, zones, landmarks), `ai` (type-first, pickup timing, compact messages), `menu_config` (categories, upsell), `payments`, `faqs`, `reservation_policy`.
 

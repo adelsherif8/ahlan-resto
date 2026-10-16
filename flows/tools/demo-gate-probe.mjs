@@ -3,7 +3,7 @@
 import dotenv from "dotenv"; dotenv.config({ quiet: true });
 import { createClient } from "@supabase/supabase-js";
 import { addLead } from "../src/services/demolead.js";
-const BASE = "http://127.0.0.1:3999", TOKEN = process.env.OPS_TOKEN;
+const BASE = process.env.PROBE_BASE || "http://127.0.0.1:3999", TOKEN = process.env.OPS_TOKEN;
 const sb = createClient(process.env.SUPABASE_AHLAN_URL, process.env.SUPABASE_AHLAN_SERVICE_KEY);
 const { data: r } = await sb.from("restaurants").select("integrations").eq("slug", "munadim").single();
 const c = r.integrations.supabase;

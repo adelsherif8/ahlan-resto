@@ -865,6 +865,28 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             });
           }
         }
+        // A bare FORMAT WORD is never a dish. «كلاسيك ساندوتش» came back as an item named
+        // "ساندوتش" with notes "classic sandwich" — the Classic burger vanished and the guest
+        // was asked "which one: Hawawshi or Shawarma?" (reel bug 16 Oct). The dish lives in
+        // the note (or the message); the format word becomes that dish's choice.
+        for (const w of e.items || []) {
+          const nm = normName(arOptionWords(w?.name || ""));
+          if (!["sandwich", "combo", "meal", "full meal", "sandwich only", "combo fries drink"].includes(nm)) continue;
+          const hay = normName(arOptionWords(`${w.notes || ""} ${input.message}`));
+          const btW = brandTokensOf(loaded.menu, BRAND);
+          const fits = loaded.menu.filter((m) => m.available !== false && normName(m.name).split(" ").some((t) => t.length >= 4 && !btW.en.has(t) && !["sandwich", "combo", "meal", "chicken", "burger"].includes(t) && ` ${hay} `.includes(` ${t} `)));
+          const already = (nmx) => (e.items || []).some((o) => o !== w && normName(o.name || "") === nmx);
+          const pick = fits.filter((m) => !already(normName(m.name)));
+          if (pick.length === 1) {
+            log(`order: format word "${w.name}" → ${pick[0].name} (from the note/message)`);
+            w.name = pick[0].name;
+            w.notes = [String(w.notes || "").replace(/\b(classic|signature|truffle|fire|bbq|nashville|ranch|shawarma)\b/gi, "").trim(), nm.split(" ")[0]].filter(Boolean).join(" · ") || nm.split(" ")[0];
+          } else {
+            log(`order: dropped bare format word "${w.name}" (${pick.length} dishes fit)`);
+            w.name = ""; // the unknown path skips empty names; nothing to ask about
+          }
+        }
+        if (Array.isArray(e.items)) e.items = e.items.filter((w) => w && String(w.name || "").trim());
         const wanted = (e.items || []).slice(0, 12);
         for (const w of wanted) {
           const n = normName(w.name);

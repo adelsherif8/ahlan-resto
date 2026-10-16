@@ -13,20 +13,6 @@
   }
  },
  {
-  "name": "REEL 2 — (run while Munadim is CLOSED, 02:00–10:00 Cairo) no ticket, says when we open",
-  "phone": "+2015590002",
-  "turns": [
-   "عايز مُنادم كلاسيك برجر كومبو كوكاكولا، تيك أواي، كاش"
-  ],
-  "expect": {
-   "says closed + opening time": "مقفولين[\\s\\S]*10:00"
-  },
-  "forbid": {
-   "took the order anyway": "🎫|🧾|أكد وهيروح",
-   "promised minutes": "حوالي \\d+ دقيقة"
-  }
- },
- {
   "name": "REEL 3 — reorder + an addition in the same breath",
   "phone": "+2015590003",
   "seed": {

@@ -10,6 +10,7 @@ import { signBuildToken, builderConfig, priceBuild, describeBuild, LAYERS as BUI
 import { label, isLabel, isLabelKey, entryChips } from "../services/labels.js";
 import { PUBLIC_BASE } from "../config.js";
 import { bump } from "../services/metrics.js";
+import { jevReady, jevClassify, JEV_MODE, JEV_MIN_CONF } from "../services/intent.js";
 
 const AFFIRMATIVES = /^(yes|yep|yeah|ok|okay|sure|tamam|tmam|aywa|ah|aiwa|maashy|mashy|👍|✅|done|confirm|تأكيد|اكد|أكد|تمام)\W*$/i;
 // a bare greeting (nothing else) — used both for the 0-LLM first-timer welcome and the
@@ -553,8 +554,35 @@ CONTINUATION RULE (most important): ORDER IN PROGRESS is ${precheck.active_flow 
 OUR LAST MESSAGE: ${JSON.stringify(String(input.lastAiMessage || "").slice(0, 300))}
 Also detect mood: happy|neutral|frustrated|urgent|confused, and language: en|ar|franco|mixed.
 Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
-      return chatJSON(MODEL_NANO, system, message, { temperature: 0, maxTokens: 120 });
-    }, { input: { message, affirmative_shortcut: isAffirmative } });
+      // JEV (TypeSafe AI) — see services/intent.js. Dormant without JEV_API_KEY. In
+      // "shadow" it is asked alongside the nano classifier and its verdict is written
+      // into this node's output so the ops traces show where the two disagree on real
+      // Arabic/Franco traffic; in "primary" a confident Jev answer routes and nano is
+      // the fallback. Fired first so the two calls overlap instead of adding up.
+      const casualHere = (ctx.tenant.config.basic_info?.restaurant_type || "fine") === "casual";
+      const jevP = jevReady()
+        ? jevClassify({ message, lastAiMessage: input.lastAiMessage, orderInProgress: precheck.active_flow === "order", stage: precheck.stage, casual: casualHere, language: input.stickyLanguage || null })
+        : null;
+      if (jevP && JEV_MODE === "primary") {
+        const j = await jevP;
+        if (j && j.confidence >= JEV_MIN_CONF) {
+          bump("jev_primary_hits");
+          return { value: { bucket: j.bucket, confidence: j.confidence, mood: "neutral", language: detectLang(message, input.stickyLanguage), via: `jev ${j.model} (${j.ms}ms)`, jev: { bucket: j.bucket, confidence: j.confidence, probabilities: j.probabilities, ms: j.ms } }, __usage: j.__usage };
+        }
+        bump("jev_low_confidence_fallback");
+      }
+      const r = await chatJSON(MODEL_NANO, system, message, { temperature: 0, maxTokens: 120 });
+      if (jevP) {
+        const j = await jevP;
+        if (j && r?.value) {
+          const agrees = j.bucket === r.value.bucket;
+          bump(agrees ? "jev_agree" : "jev_disagree");
+          r.value.jev = { bucket: j.bucket, confidence: j.confidence, probabilities: j.probabilities, ms: j.ms, agrees, mode: JEV_MODE };
+          if (r.__usage && j.__usage) r.__usage = { ...r.__usage, tokens_in: r.__usage.tokens_in + j.__usage.tokens_in, cost_usd: (r.__usage.cost_usd || 0) + j.__usage.cost_usd };
+        }
+      }
+      return r;
+    }, { input: { message, affirmative_shortcut: isAffirmative, jev: jevReady() ? JEV_MODE : "off" } });
 
     const cls = classification.value || {};
     if (!cls.bucket || (cls.confidence ?? 0) < 0.35) cls.bucket = "friendly";

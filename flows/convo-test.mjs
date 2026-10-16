@@ -35,6 +35,8 @@ async function seedDiner(sid, seed) {
     last_visit_at: new Date(Date.now() - 3 * 86400000).toISOString(), status: "regular" };
   if (d?.id) await db.from("diners").update(row).eq("id", d.id);
   else await db.from("diners").insert({ phone_number: sid, ...row });
+  // past orders too (same shape as persona-test), so "same as yesterday" has a yesterday
+  if (seed.orders) for (const o of seed.orders) await db.from("orders").insert({ code: `H-${Math.random().toString(36).slice(2, 6).toUpperCase()}`, phone_number: sid, order_type: o.order_type || "pickup", branch: o.branch || null, items: o.items, subtotal: o.total, total: o.total, status: "completed", payment_method: "cash", created_at: new Date(Date.now() - 1 * 86400000).toISOString() });
 }
 
 async function wipe(sid) {
