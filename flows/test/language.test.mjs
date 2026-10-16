@@ -117,3 +117,18 @@ test("14 — english morphology switches without a bare noun doing it", () => {
   assert.equal(R("fries", AR), AR);
   assert.equal(R("ok", FRANCO), FRANCO);
 });
+
+test("15 — an English greeting is English, even on an Arabic-default tenant", () => {
+  // the first message is the one turn with no sticky to fall back on: if "hello there"
+  // reads as no-evidence, the restaurant default answers it in Arabic and the guest
+  // never gets back out, because "menu pls" carries no evidence either.
+  assert.equal(resolveLanguage({ message: "hello there", sticky: null, fallback: AR }).lang, EN);
+  assert.equal(resolveLanguage({ message: "hi there", sticky: null, fallback: AR }).lang, EN);
+  assert.equal(resolveLanguage({ message: "good morning", sticky: null, fallback: AR }).lang, EN);
+  assert.equal(resolveLanguage({ message: "thanks", sticky: null, fallback: AR }).lang, EN);
+  // Franco and Arabic openers are untouched — they never read as English
+  assert.equal(resolveLanguage({ message: "اهلا", sticky: null, fallback: AR }).lang, AR);
+  assert.equal(resolveLanguage({ message: "sabah el kheir", sticky: null, fallback: AR }).lang, FRANCO);
+  // and a bare dish name still never switches anything
+  assert.equal(R("fries", AR), AR);
+});

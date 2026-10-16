@@ -12,3 +12,128 @@
 2026-09-02T05:34:09.290Z persona personas-ar.json live 17/17 cost=$0.0662
 2026-09-02T05:36:18.293Z persona personas-fr.json live 19/19 cost=$0.0694
 2026-09-02T05:37:51.583Z persona personas-en.json live 22/22 cost=$0.1040
+2026-09-16T18:53:59.118Z fixture convos-munadim5.json local 7 FAILED of 5
+2026-09-16T18:57:57.888Z persona personas-munadim.json local 4/6 cost=$0.0082
+2026-09-16T19:03:08.573Z fixture convos-context5.json local PASS of 5
+2026-09-16T19:03:16.238Z persona rg-ar.json local 3/4 cost=$0.0221
+2026-09-16T19:03:26.702Z persona personas-munadim.json local 5/6 cost=$0.0149
+2026-09-16T19:03:37.932Z persona rg-en.json local 4/5 cost=$0.0318
+2026-09-16T19:03:54.217Z persona rg-fr.json local 5/5 cost=$0.0211
+2026-09-16T19:06:06.136Z fixture convos-notes9.json local PASS of 9
+2026-09-16T19:07:31.855Z fixture convos-dontadd4.json local PASS of 4
+2026-09-16T19:09:22.278Z fixture convos-qty4.json local PASS of 4
+2026-09-16T19:10:29.439Z persona rg-ar.json local 1/1 cost=$0.0018
+2026-09-16T19:11:00.256Z persona rg-en.json local 2/2 cost=$0.0050
+2026-09-16T19:12:52.124Z persona personas-munadim.json local 6/6 cost=$0.0063
+2026-09-16T19:17:40.939Z persona personas-munadim.json live 6/6 cost=$0.0077
+2026-09-16T19:24:26.496Z persona personas-ar.json live 17/17 cost=$0.0676
+2026-09-16T19:26:21.243Z persona personas-fr.json live 19/19 cost=$0.0719
+2026-09-16T19:27:54.164Z persona personas-en.json live 22/22 cost=$0.1133
+2026-09-17T07:45:10.342Z fixture convos-photos4.json local 1 FAILED of 4
+2026-09-17T07:46:32.877Z fixture convos-photos4.json local PASS of 4
+2026-09-17T07:57:07.916Z fixture convos-greetings30.json local 1 FAILED of 30
+2026-09-17T08:00:30.297Z fixture convos-greet12.json local PASS of 12
+2026-09-17T08:00:51.519Z fixture convos-halluc.json local PASS of 2
+2026-09-17T08:02:13.476Z fixture convos-iteminfo9.json local PASS of 9
+2026-09-17T08:04:35.354Z fixture convos-munadim5.json local 6 FAILED of 5
+2026-09-18T07:36:14.560Z fixture convos-photos4.json local 2 FAILED of 4
+2026-09-18T07:43:16.452Z fixture convos-photos4.json local 1 FAILED of 5
+2026-09-18T07:51:51.516Z fixture convos-greetings30.json local PASS of 30
+2026-09-18T07:54:22.817Z fixture convos-munadim5.json local 6 FAILED of 5
+2026-09-18T07:57:11.434Z persona personas-munadim.json local 6/6 cost=$0.0078
+2026-09-21T10:46:08.629Z fixture convos-live5.json local 4 FAILED of 5
+2026-09-21T10:49:54.629Z fixture convos-live5.json local 1 FAILED of 5
+2026-09-21T10:51:10.866Z fixture dbg.json local PASS of 1
+2026-09-21T10:51:37.370Z fixture dbg.json local PASS of 1
+2026-09-21T10:55:04.438Z fixture convos-live5.json local PASS of 5
+2026-09-21T10:58:05.819Z persona personas-munadim.json local 5/6 cost=$0.0146
+2026-09-21T10:58:15.983Z fixture convos-notes9.json local PASS of 9
+2026-09-21T10:59:38.224Z fixture convos-dontadd4.json local PASS of 4
+2026-09-21T11:02:14.275Z fixture convos-context5.json local PASS of 5
+2026-09-21T11:04:07.512Z fixture convos-qty4.json local PASS of 4
+2026-09-21T11:04:25.329Z fixture convos-halluc24.json local 1 FAILED of 24
+2026-09-21T11:05:12.242Z persona personas-ar.json local 17/17 cost=$0.0735
+2026-09-21T11:06:10.741Z fixture convos-delivery6.json local PASS of 6
+2026-09-21T11:12:36.978Z fixture convos-halluc24.json local 1 FAILED of 24
+2026-09-21T11:16:15.267Z fixture h9.json local PASS of 9
+2026-09-21T11:19:17.328Z fixture h9.json local PASS of 9
+2026-09-21T11:23:08.636Z persona personas-munadim.json local 6/6 cost=$0.0067
+2026-09-21T11:24:56.629Z fixture convos-halluc24.json local 1 FAILED of 24
+2026-09-21T11:27:39.505Z fixture convos-live5.json local PASS of 5
+2026-09-21T11:31:01.309Z fixture convos-abuse20.json local 1 FAILED of 20
+2026-09-21T11:31:02.961Z persona personas-ar.json local 16/17 cost=$0.0562
+2026-09-21T11:32:40.412Z persona personas-fr.json local 19/19 cost=$0.0533
+2026-09-21T19:42:02.417Z fixture convos-abuse6.json local 2 FAILED of 6
+2026-09-21T22:13:16.439Z fixture b2.json local PASS of 1
+2026-09-24T13:25:59.094Z fixture convos-munadim5.json local 6 FAILED of 5
+2026-09-24T13:37:13.472Z fixture split-en.json local 6 FAILED of 1
+2026-09-24T13:38:49.505Z fixture split-en.json local PASS of 1
+2026-09-24T13:42:53.653Z fixture convos-split4.json local 3 FAILED of 4
+2026-09-24T13:44:22.787Z fixture split-fr.json local PASS of 1
+2026-09-24T13:47:28.177Z persona personas-munadim.json local 6/6 cost=$0.0075
+2026-09-24T13:47:38.566Z fixture convos-split-edge3.json local 2 FAILED of 3
+2026-09-24T13:51:45.408Z fixture convos-split-edge3.json local 1 FAILED of 3
+2026-09-24T13:55:00.480Z fixture convos-munadim5.json local 6 FAILED of 5
+2026-09-24T13:55:04.244Z fixture convos-split-edge3.json local PASS of 3
+2026-09-24T13:58:35.989Z persona personas-munadim.json local 6/6 cost=$0.0088
+2026-09-24T14:06:23.651Z persona personas-ar.json local 17/17 cost=$0.0644
+2026-09-24T14:07:18.379Z fixture wsep.json local PASS of 1
+2026-09-24T14:08:49.504Z fixture wsep2.json local 1 FAILED of 1
+2026-09-24T16:56:49.164Z fixture wsep2.json local PASS of 1
+2026-09-25T02:34:00.961Z fixture convos-lang8.json local 1 FAILED of 8
+2026-09-25T02:38:25.348Z persona personas-munadim.json local 6/6 cost=$0.0146
+2026-09-25T02:45:16.426Z persona personas-ar.json local 17/17 cost=$0.0804
+2026-09-25T02:47:48.433Z persona personas-fr.json local 19/19 cost=$0.0831
+2026-09-25T02:49:16.196Z persona personas-en.json local 22/22 cost=$0.1250
+2026-09-25T02:53:11.275Z fixture convos-split4.json local PASS of 4
+2026-09-25T02:55:43.349Z fixture convos-split-edge3.json local PASS of 3
+2026-09-25T02:59:22.725Z fixture convos-lang8.json local 1 FAILED of 8
+2026-09-25T03:03:43.519Z fixture convos-order12.json local PASS of 12
+2026-09-25T03:04:39.809Z fixture convos-confirm3.json local PASS of 3
+2026-09-25T03:07:47.435Z fixture convos-notes9.json local PASS of 9
+2026-09-25T03:09:38.562Z fixture convos-qty4.json local PASS of 4
+2026-09-25T03:12:03.704Z fixture convos-context5.json local PASS of 5
+2026-09-25T03:16:21.933Z fixture convos-lang8.json local PASS of 8
+2026-09-30T19:32:35.642Z fixture convos-fix3.json local 1 FAILED of 3
+2026-09-30T19:37:03.720Z persona personas-munadim.json local 6/6 cost=$0.0038
+2026-09-30T19:45:19.573Z fixture convos-split4.json live PASS of 4
+2026-09-30T19:53:45.326Z persona personas-ar.json local 15/17 cost=$0.0450
+2026-09-30T19:59:57.235Z persona personas-fr.json local 17/19 cost=$0.0208
+2026-09-30T20:02:30.887Z persona personas-en.json local 18/22 cost=$0.0604
+2026-09-30T20:09:16.798Z fixture convos-split4.json local 4 FAILED of 4
+2026-09-30T20:19:16.145Z fixture convos-lang8.json local 2 FAILED of 8
+2026-10-06T13:38:30.057Z persona personas-munadim.json live 6/6 cost=$0.0159
+2026-10-06T13:59:59.255Z persona personas-munadim.json live 6/6 cost=$0.0067
+2026-10-06T14:35:11.747Z persona personas-en.json live 22/22 cost=$0.1269
+2026-10-06T21:56:20.429Z fixture convos-munadim5.json local 6 FAILED of 5
+2026-10-06T21:59:47.759Z fixture convos-munadim5.json local 1 FAILED of 5
+2026-10-06T22:03:36.443Z fixture convos-munadim5.json local PASS of 5
+2026-10-06T22:05:00.134Z fixture convos-photos4.json local PASS of 5
+2026-10-06T22:12:54.786Z fixture convos-greetings30.json local 43 FAILED of 30
+2026-10-06T22:23:47.768Z fixture convos-greetings30.json local 2 FAILED of 30
+2026-10-06T22:25:05.128Z fixture probe-lang.json local 4 FAILED of 4
+2026-10-06T22:35:28.657Z fixture convos-greetings30.json local PASS of 30
+2026-10-06T22:38:03.624Z fixture convos-munadim5.json local PASS of 5
+2026-10-06T22:39:17.641Z fixture convos-photos4.json local PASS of 5
+2026-10-06T22:42:02.334Z persona personas-munadim.json local 6/6 cost=$0.0074
+2026-10-06T22:55:43.751Z persona personas-en.json local 5/22 cost=$0.1597
+2026-10-06T23:00:47.508Z persona personas-sub.json local 1/3 cost=$0.0310
+2026-10-06T23:03:52.081Z persona personas-sub.json local 1/3 cost=$0.0286
+2026-10-06T23:14:30.600Z persona personas-ar.json local 5/17 cost=$0.0904
+2026-10-06T23:26:45.578Z persona personas-fr.json local 4/19 cost=$0.1054
+2026-10-06T23:41:15.302Z persona personas-en.json local 0/22 cost=$0.1550
+2026-10-06T23:55:43.027Z persona personas-en.json local 22/22 cost=$0.1432
+2026-10-07T00:05:23.875Z persona personas-ar.json local 17/17 cost=$0.0797
+2026-10-07T00:17:50.083Z persona personas-fr.json local 19/19 cost=$0.0817
+2026-10-16T03:28:29.098Z fixture convos-munadim5.json local PASS of 5
+2026-10-16T03:32:23.494Z fixture convos-split4.json local PASS of 4
+2026-10-16T03:35:29.238Z fixture convos-notes9.json local PASS of 9
+2026-10-16T03:39:16.048Z persona personas-munadim.json local 6/6 cost=$0.0110
+2026-10-16T03:42:05.310Z fixture hand5.json local PASS of 5
+2026-10-16T03:45:13.041Z fixture repro3.json local 3 FAILED of 3
+2026-10-16T03:46:11.999Z persona personas-ar.json local 17/17 cost=$0.0799
+2026-10-16T03:46:50.338Z fixture repro2.json local PASS of 4
+2026-10-16T03:47:39.448Z fixture repro2.json local PASS of 4
+2026-10-16T03:48:30.423Z persona personas-fr.json local 19/19 cost=$0.0826
+2026-10-16T03:59:00.972Z fixture repro3.json local 11 FAILED of 3
+2026-10-16T04:21:01.212Z fixture repro3.json local 12 FAILED of 3

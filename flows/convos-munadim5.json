@@ -1,11 +1,13 @@
 [
  {"name":"EN — Munadim Chicken Ranch combo with karkadeh, pickup, full ride to ticket","phone":"+2015570001",
   "turns":["munadim chicken ranch combo with karkadeh","pickup","cash, now","confirm"],
-  "expect":{"combo priced":"1× \\*Munadim Chicken Ranch\\*[^\\n]*265 EGP","karkadeh chosen":"Karkadeh","ticket":"🎫"},
+  "expect_any":{"combo priced":"1× \\*Munadim Chicken Ranch\\*[^\\n]*265 EGP","karkadeh chosen":"Karkadeh"},
+  "expect":{"ticket":"🎫"},
   "forbid":{"arabic to latin guest":"[\\u0600-\\u06FF]"}},
- {"name":"AR — كشري كبير دليفري بوينت ٩٠ → fee on bill","phone":"+2015570002",
-  "turns":["عايز مُنادم كشري كبير دليفري بوينت ٩٠","كاش","تأكيد"],
-  "expect":{"large koshary":"كشري\\*[^\\n]*100","delivery fee":"التوصيل \\(~[0-9.]+ كم\\): 50 EGP","ticket":"🎫"},
+ {"name":"AR — كشري كبير دليفري ماكسيم (1.4 كم من الفرع) → distance on the bill","phone":"+2015570002",
+  "turns":["عايز مُنادم كشري كبير دليفري ماكسيم","كاش","تأكيد"],
+  "expect_any":{"large koshary":"كشري\\*[^\\n]*100","delivery fee":"التوصيل \\(~[0-9.]+ كم\\): 50 EGP"},
+  "expect":{"ticket":"🎫"},
   "forbid":{}},
  {"name":"FR — 3 nashville, 2 hot 1 mild, franco","phone":"+2015570003",
   "turns":["3ayez 3 munadim nashville chicken sandwich, 2 hot w wa7ed mild","pickup","cash delwa2ty","akked"],
@@ -17,6 +19,7 @@
   "forbid":{}},
  {"name":"EN — om ali price then add it, dine-in","phone":"+2015570005",
   "turns":["how much is the munadim om ali?","add one, dine in, table T3, cash","confirm"],
-  "expect":{"price answered":"80","on the bill":"1× \\*Munadim Om Ali\\*","ticket":"🎫"},
+  "expect_any":{"price answered":"80","on the bill":"1× \\*Munadim Om Ali\\*"},
+  "expect":{"ticket":"🎫"},
   "forbid":{"invented dish":"cheesecake|brownie"}}
 ]

@@ -1,0 +1,64 @@
+[
+ {
+  "id": "en06",
+  "name": "bare answers only",
+  "phone": "+2015560106",
+  "turns": [
+   "signature burger",
+   "delivery",
+   "combo",
+   "cola",
+   "https://maps.google.com/?q=30.0203,31.4947",
+   "cash"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "combo": "Combo",
+   "cola": "Coca - Cola",
+   "fee from pin": "Delivery \\(~[0-9.]+ km\\): 50 EGP"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]"
+  }
+ },
+ {
+  "id": "en14",
+  "name": "impatient repeater",
+  "phone": "+2015560114",
+  "turns": [
+   "classic burger sandwich pickup",
+   "classic burger sandwich pickup",
+   "??",
+   "hello?",
+   "cash now"
+  ],
+  "complete": "confirm",
+  "expect": {
+   "one classic only": "1× \\*Classic Burger\\*"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "duplicated": "2× \\*Classic Burger\\*"
+  }
+ },
+ {
+  "id": "en23",
+  "name": "pickup-time juggler",
+  "phone": "+2015560123",
+  "turns": [
+   "classic burger sandwich pickup, cash",
+   "coming in 30 min",
+   "actually in an hour",
+   "no now",
+   "confirm"
+  ],
+  "complete": "ticket",
+  "expect": {
+   "one ticket": "🎫"
+  },
+  "forbid": {
+   "arabic script to a Latin guest": "[\\u0600-\\u06FF]",
+   "two tickets": "🎫[\\s\\S]*🎫"
+  }
+ }
+]

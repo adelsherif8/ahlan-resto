@@ -4,10 +4,13 @@
 //   node tools/seed-munadim.mjs row     # upload logo + insert the restaurants row (wpid stays null)
 //   node tools/seed-munadim.mjs menu    # seed r_munadim menu + tables  (needs migration 042 run first)
 //   node tools/seed-munadim.mjs swap    # move phone_number + wpid Luci'z → Munadim (LAST, after tests)
+//   node tools/seed-munadim.mjs demo    # flip the 24h demo gate on/off (needs migration 043)
+//   node tools/seed-munadim.mjs testers +20111... [-+2010...]   # our own numbers skip the gate
 //   node tools/seed-munadim.mjs status  # show where everything stands
 import dotenv from "dotenv"; dotenv.config();
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { normId } from "../src/services/demolead.js";
 
 const STAGE = process.argv[2] || "status";
 const sb = createClient(process.env.SUPABASE_AHLAN_URL, process.env.SUPABASE_AHLAN_SERVICE_KEY);
@@ -134,6 +137,10 @@ async function stageRow() {
       voice_mode: "auto", chat_enabled: true, orders_enabled: true,
       ask_type_first: true, compact_messages: true, suggest_enabled: true,
       suggest_dishes: ["Munadim Signature Burger"], pickup_prep_min: 15, pickup_smart_timing: true,
+      // Munadim is the SHOWCASE restaurant: whoever messages this number is an owner
+      // trying the product, so they fill a short form and get 24 hours of access.
+      // No real client row carries demo_mode — see src/services/demolead.js.
+      demo_mode: true, demo_contact: "munadim.com",
     },
     faqs: [
       { q: "Is the Nashville chicken spicy?", a: "You choose — mild, medium or hot." },
@@ -180,6 +187,47 @@ async function stageSwap() {
   console.log("NOTE: restart/redeploy flows so the tenant cache drops the old wpid mapping.");
 }
 
+// The demo gate on its own switch, so it can be turned off for a live walkthrough
+// without rewriting the whole row. `demo off` makes Munadim behave like any client.
+async function stageDemo() {
+  const on = (process.argv[3] || "on") !== "off";
+  const { data: mun } = await sb.from("restaurants").select("id,ai").eq("slug", "munadim").single();
+  if (!mun) throw new Error("munadim row missing — run `row` first");
+  const { error } = await sb.from("restaurants")
+    .update({ ai: { ...mun.ai, demo_mode: on, demo_contact: mun.ai?.demo_contact || "munadim.com" } })
+    .eq("id", mun.id);
+  if (error) throw error;
+  const { error: probe } = await tdb.from("demo_leads").select("id").limit(1);
+  console.log(`demo_mode: ${on}`);
+  console.log(probe ? `⚠️  demo_leads NOT reachable — run migrations/043_demo_leads.sql (${probe.message}). The gate stays open until then.`
+                    : "demo_leads reachable ✓");
+  console.log("NOTE: restart/redeploy flows so the tenant cache picks up the new config.");
+}
+
+// Our own numbers skip the form and never expire — a walkthrough or a regression run
+// must never be blocked by a 24-hour clock. Prefix a number with "-" to remove it.
+async function stageTesters() {
+  const args = process.argv.slice(3);
+  const { data: mun } = await sb.from("restaurants").select("id,ai").eq("slug", "munadim").single();
+  if (!mun) throw new Error("munadim row missing — run `row` first");
+  const set = new Set((mun.ai?.demo_testers || []).map((v) => (String(v).endsWith("*") ? `${normId(String(v).slice(0, -1))}*` : normId(v))));
+  for (const a of args) {
+    const rm = a.startsWith("-");
+    const raw = rm ? a.slice(1) : a;
+    // "+2015570*" keeps its wildcard: it stands for a whole block of test numbers
+    const n = raw.endsWith("*") ? `${normId(raw.slice(0, -1))}*` : normId(raw);
+    if (!n || n.replace(/\D/g, "").length < 6) { console.log(`skipped "${a}" — not a phone number`); continue; }
+    rm ? set.delete(n) : set.add(n);
+  }
+  const demo_testers = [...set];
+  if (args.length) {
+    const { error } = await sb.from("restaurants").update({ ai: { ...mun.ai, demo_testers } }).eq("id", mun.id);
+    if (error) throw error;
+  }
+  console.log(`testers (${demo_testers.length}):`, demo_testers.join(", ") || "none");
+  if (args.length) console.log("NOTE: restart/redeploy flows so the tenant cache picks up the new list.");
+}
+
 async function stageStatus() {
   const { data: rows } = await sb.from("restaurants").select("slug,phone_number,wpid").in("slug", ["luciz", "munadim"]);
   console.log(rows);
@@ -190,4 +238,6 @@ async function stageStatus() {
 if (STAGE === "row") await stageRow();
 else if (STAGE === "menu") await stageMenu();
 else if (STAGE === "swap") await stageSwap();
+else if (STAGE === "demo") await stageDemo();
+else if (STAGE === "testers") await stageTesters();
 else await stageStatus();

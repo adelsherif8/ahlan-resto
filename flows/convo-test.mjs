@@ -59,6 +59,7 @@ for (const c of convos) {
   await wipe(c.phone);
   if (c.seed) await seedDiner(c.phone, c.seed);
   let lastTurnText = "";
+  let wholeConvo = "";
   let sawInterim = false;
   for (const turn of c.turns) {
     const before = await aiCount(c.phone);
@@ -94,8 +95,17 @@ for (const c of convos) {
     if (!out.length) { console.log("🤖 (NO REPLY)"); failures++; }
     for (const m of out) console.log(`🤖 ${m.replace(/\n/g, "\n   ")}`);
     lastTurnText = out.join("\n");
+    wholeConvo += (wholeConvo ? "\n" : "") + lastTurnText;
   }
   // assertions
+  // `expect` is about the LAST reply — the state the guest is left in. `expect_any`
+  // is about the conversation as a whole, for things that are correct EARLIER in the
+  // ride: the bill is shown on the confirm bubble, not repeated on the ticket.
+  for (const [label, re] of Object.entries(c.expect_any || {})) {
+    const ok = new RegExp(re, "i").test(wholeConvo);
+    if (!ok) failures++;
+    console.log(`   ${ok ? "✅" : "❌"} ${label} (anywhere)`);
+  }
   for (const [label, re] of Object.entries(c.expect || {})) {
     const ok = new RegExp(re, "i").test(lastTurnText);
     if (!ok) failures++;
