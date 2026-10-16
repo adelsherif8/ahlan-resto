@@ -12,7 +12,7 @@ export const en: SiteContent = {
   meta: {
     title: "Munadim — Your restaurant's direct ordering channel",
     description:
-      "Your restaurant's direct ordering channel — delivery, pickup, and dine-in. Every WhatsApp order leaves you your customer's number and order history.",
+      "Guests order on WhatsApp in Arabic, Franco or English — delivery, pickup and dine-in. Every order leaves you the customer's number and their order history.",
   },
 
   nav: {

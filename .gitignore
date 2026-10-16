@@ -25,3 +25,16 @@ site/node_modules/
 site/dist/
 site/.astro/
 !flows/test-runs.log
+
+# Tabex account + session — public repo, never commit
+flows/.tabex.json
+flows/.tabex-session.json
+flows/.tabex-seen.json
+
+# local working files — never source
+QRMENU.pdf
+SC.png
+assets/
+igvideos/
+sandwich builder/
+flows/_*.mjs
