@@ -1,0 +1,7 @@
+node_modules
+out
+# rendered Blender frames + city textures — regenerate with the igvideos/blender pipeline
+public/bl/
+public/bl_holo/
+public/bl_map/
+public/city/
