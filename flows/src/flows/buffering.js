@@ -13,6 +13,7 @@ import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction,
 import { bump } from "../services/metrics.js";
 import { log, PUBLIC_BASE } from "../config.js";
 import { demoOn, getLead, touchLead, leadState, isTester, claimHandleLead, notRegistered, expired as demoExpired } from "../services/demolead.js";
+import { isTestSession } from "../engine/flow.js";
 
 const HISTORY_TTL_MS = 60 * 60 * 1000; // fresh conversation after 1h of silence (removebuffer.json behavior, on read)
 
@@ -42,9 +43,6 @@ const P2 = (lang, en, ar, fr) => (lang === "ar" ? ar : lang === "fr" ? fr : en);
 export function setSessionLanguage(key, l) {
   if (l && l !== "unknown") sessionLang.set(key, l);
 }
-/** The conversation's current language, for code outside the pipeline (the demo form). */
-export const getSessionLanguage = (restaurantId, sessionId) =>
-  sessionLang.get(`${restaurantId || "default"}|${sessionId}`) || null;
 // spam guard state
 const spam = new Map(); // "<restaurantId>|<sessionId>" -> { count, windowStart, cooled }
 // dead-letter state
@@ -280,8 +278,10 @@ defineFlow({
     // haven't vouched for gets a polite invite-only line instead of a free bot.
     // `ai.demo_mode` is false everywhere else, so a real client's guests never see this.
     const demo = demoOn(ctx.tenant.config) ? await f.node("demo_gate", async () => {
-      // our own numbers never meet the gate
-      if (isTester(ctx.tenant.config, ctx.sessionId)) return { pass: true, state: "tester" };
+      // our own numbers never meet the gate — nor does the ops Test Chat (web:*) or the
+      // regression harness, which can't be whitelisted by phone and used to be refused,
+      // and could even claim an open @handle invite onto a web:regress-… session
+      if (isTester(ctx.tenant.config, ctx.sessionId) || isTestSession(ctx.sessionId)) return { pass: true, state: "tester" };
       const lang = pipeLang(ctx.sessionId, merged, langKey(ctx));
       const contact = ctx.tenant.config.ai?.demo_contact || "";
       let lead = null;

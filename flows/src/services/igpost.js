@@ -29,8 +29,13 @@ async function readPosted(db) {
   const { data } = await db.from("restaurants").select("ai").eq("slug", "munadim").single();
   return { ai: data?.ai || {}, posted: data?.ai?.ig_posted || {} };
 }
-async function writePosted(db, ai, posted) {
-  const { error } = await db.from("restaurants").update({ ai: { ...ai, ig_posted: posted } }).eq("slug", "munadim");
+// Always re-read `ai` right before writing: publishSlot can poll a reel container for
+// minutes, and a copy taken at the start of the tick would overwrite whatever changed
+// on the row meanwhile (demo_mode flipped, a tester added, closed_orders set). Only the
+// ig_posted key is ours.
+async function writePosted(db, _ai, posted) {
+  const { data } = await db.from("restaurants").select("ai").eq("slug", "munadim").single();
+  const { error } = await db.from("restaurants").update({ ai: { ...(data?.ai || {}), ig_posted: posted } }).eq("slug", "munadim");
   if (error) throw new Error(`could not record the post: ${error.message}`);
 }
 
@@ -178,7 +183,8 @@ export async function remindStoriesDue({ send = false } = {}) {
         body,
       });
       reminded[k] = new Date().toISOString();
-      await db.from("restaurants").update({ ai: { ...ai, ig_reminded: reminded } }).eq("slug", "munadim");
+      const { data: fresh } = await db.from("restaurants").select("ai").eq("slug", "munadim").single();
+      await db.from("restaurants").update({ ai: { ...(fresh?.ai || ai), ig_reminded: reminded } }).eq("slug", "munadim");
       log(`ig: story reminder sent — day ${s.day} ${s.kind} ${ampm(s.time)}`);
       sent.push(s);
     } catch (e) {

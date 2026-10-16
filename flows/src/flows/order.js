@@ -20,6 +20,7 @@ import { parseAddress, formatAddress, ADDRESS_TEMPLATE_EN, ADDRESS_TEMPLATE_AR }
 import { signTrackToken } from "../services/builder.js";
 import { hoursToday, hasHours, nextOpening } from "../services/tenant.js";
 import { isTestSession } from "../engine/flow.js";
+import { CORRECTION_WORDS } from "../services/precheck.js";
 import { normName, modifiers, unitsForChoice, tidyNotes, arNzBrand, brandTokensOf, groupChoices, groupApplies, itemPrice, slotChoiceNames, arOptionWords, nextQuestion } from "../services/orderoptions.js";
 import { publicOrder, reorderChips, statusTimeline, savedAddresses, matchSaved, taxRate, priceOrder, fmtAmount, setArMenuNames, arWord, arPay, arLabel, renderSplit, renderBill } from "../services/orderbill.js";
 
@@ -30,8 +31,9 @@ const norm2 = (s) => String(s || "").toLowerCase().replace(/[ً-ْـ]/g, "").rep
 // bare "yes/ok/tamam" — a confirmation, never an address or an item. One place,
 // reused wherever a plain affirmative needs telling apart from real content.
 const BARE_YES = /^(yes|ok|okay|sure|confirm|tamam|تمام|ماشي|اه|ايوه)(?![\p{L}\p{N}])[\s!.]*$/iu;
-// words a guest says to take something BACK — never an ingredient to remove
-const SELF_CORRECTION_WORD = /^(wait|hold on|hang on|actually|nvm|never ?mind|forget (it|that)|scratch that|la2|la|khalas|استنى|استني|خلاص|لحظة|مش كده|قصدي|asdi|2asdy|estanna|estana|le7za)(?![\p{L}\p{N}])/iu;
+// words a guest says to take something BACK — never an ingredient to remove (one list,
+// shared with precheck's self-correction detector)
+const SELF_CORRECTION_WORD = new RegExp(`^(?:${CORRECTION_WORDS})(?![\\p{L}\\p{N}])`, "iu");
 
 defineFlow({
   name: "order",
@@ -138,22 +140,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
       return chatJSON(MODEL_FAST, sys, expandFrancoConnectors(expandFrancoCounts(input.message)), { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
     }, { input: { message: input.message } });
     const e = ex.value || {};
-    // BACKSTOP for the Franco count words (see expandFrancoCounts): if the model still read
-    // the digit INSIDE "wa7ed"/"arba3a" as the quantity and the message carries no real
-    // standalone number, the word wins. Never touches a message that spelled a digit out.
-    {
-      const raw = String(input.message || "");
-      const hasBareDigit = /(?<![\p{L}\p{N}])\d{1,2}(?![\p{L}\p{N}])/u.test(raw);
-      if (!hasBareDigit && Array.isArray(e.items)) {
-        const one = /(?<![\p{L}\p{N}])(?:wa7ed|wa7da|wahed|wahda)(?![\p{L}\p{N}])/iu.test(raw);
-        const four = /(?<![\p{L}\p{N}])(?:arba3a|arba3)(?![\p{L}\p{N}])/iu.test(raw);
-        for (const it of e.items) {
-          if (!it) continue;
-          if (one && Number(it.qty) === 7) it.qty = 1;
-          if (four && Number(it.qty) === 3) it.qty = 4;
-        }
-      }
-    }
+
     // A message with NO WORDS (a bare Maps link, a shared pin, a number) cannot contain
     // a question — the extractor once wrote "What is this location for?" for a pin,
     // and that invented question got a whole friendly answer glued above the receipt.
@@ -320,9 +307,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           // «قسّم الحساب — عمر خد الناشفيل، وأحمد خد الكلاسيك» opens the split AND assigns.
           // The names were ignored on the opening turn and the guest had to repeat them
           // (reel bug 16 Oct). Anything beyond the bare trigger phrase is interpreted.
-          const TOOK = /(?<![\p{L}])(took|had|has|gets|ordered|for|khad|5ad|akhad|akhd|خد|اخد|أخد|خدت|اخدت|ليه|ليها|عليه|عليها|بتاع|بتاعة)(?![\p{L}])/iu;
-          const carriesNames = TOOK.test(msgS) || msgS.split(/\s+/).filter(Boolean).length >= 7
-            || state.lines.some((l) => { const n = normName(l.name); return n && normName(arOptionWords(msgS)).includes(n.split(" ").filter((t) => t.length >= 4).pop() || n); });
+          const TOOK = /(?<![\p{L}])(took|had|ordered|khad|5ad|akhad|akhd|خد|اخد|أخد|خدت|اخدت|ليه|ليها|عليه|عليها|بتاع|بتاعة)(?![\p{L}])/iu;
+          const saidSplit = normName(arOptionWords(msgS));
+          const carriesNames = TOOK.test(msgS)
+            || state.lines.some((l) => { const n = normName(l.name); const key = n.split(" ").filter((t) => t.length >= 4).pop() || n; return !!key && saidSplit.includes(key); });
           if (!opening || carriesNames) {
             // a deterministic read first — "split the rest" costs nothing to understand
             if (looksLikeSplitRest(msgS) && state.participants.length) {
@@ -470,9 +458,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         const tzc = config.basic_info?.timezone || "Africa/Cairo";
         const orderish = (e.items?.length || 0) > 0 || (e.edits?.length || 0) > 0 || ["order", "confirm", "repeat_last"].includes(e.intent)
           || (loaded.pending?.items?.length || 0) > 0 || !!e.order_type || !!e.payment_method;
-        if (closedMode !== "accept" && orderish && hasHours(config.hours) && !hoursToday(config.hours, tzc).openNow) {
+        const todayH = closedMode !== "accept" && orderish && hasHours(config.hours) ? hoursToday(config.hours, tzc) : null;
+        if (todayH && !todayH.openNow) {
           const opens = nextOpening(config.hours, tzc);
-          if (closedMode === "refuse") return { kind: "closed_now", opens, today: hoursToday(config.hours, tzc), items: loaded.pending?.items || [] };
+          if (closedMode === "refuse") return { kind: "closed_now", opens, today: todayH, items: loaded.pending?.items || [] };
           preorderOpens = opens;
         }
       }
@@ -875,18 +864,16 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const hay = normName(arOptionWords(`${w.notes || ""} ${input.message}`));
           const btW = brandTokensOf(loaded.menu, BRAND);
           const fits = loaded.menu.filter((m) => m.available !== false && normName(m.name).split(" ").some((t) => t.length >= 4 && !btW.en.has(t) && !["sandwich", "combo", "meal", "chicken", "burger"].includes(t) && ` ${hay} `.includes(` ${t} `)));
-          const already = (nmx) => (e.items || []).some((o) => o !== w && normName(o.name || "") === nmx);
-          const pick = fits.filter((m) => !already(normName(m.name)));
-          if (pick.length === 1) {
-            log(`order: format word "${w.name}" → ${pick[0].name} (from the note/message)`);
-            w.name = pick[0].name;
+          // a dish already on the list still counts — «ناشفيل ساندوتش وناشفيل كومبو» is two
+          // units of one dish in two formats, not a dish and a stray word
+          if (fits.length === 1) {
+            log(`order: format word "${w.name}" → ${fits[0].name} (from the note/message)`);
+            w.name = fits[0].name;
             w.notes = [String(w.notes || "").replace(/\b(classic|signature|truffle|fire|bbq|nashville|ranch|shawarma)\b/gi, "").trim(), nm.split(" ")[0]].filter(Boolean).join(" · ") || nm.split(" ")[0];
-          } else {
-            log(`order: dropped bare format word "${w.name}" (${pick.length} dishes fit)`);
-            w.name = ""; // the unknown path skips empty names; nothing to ask about
           }
+          // zero or several fits: leave it — the unknown/which-one path shows the guest
+          // something; a silent drop would lose part of the order
         }
-        if (Array.isArray(e.items)) e.items = e.items.filter((w) => w && String(w.name || "").trim());
         const wanted = (e.items || []).slice(0, 12);
         for (const w of wanted) {
           const n = normName(w.name);
@@ -2135,8 +2122,12 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           if (!hay.trim()) continue; // no real ingredient data → never claim anything
           let changed = false;
           const cleaned = String(it.notes).replace(REMOVE_NOTE, (full, what) => {
-            const said = String(what).trim();
-            if (SELF_CORRECTION_WORD.test(said)) { changed = true; return ""; } // conversational, never a note
+            let said = String(what).trim();
+            if (SELF_CORRECTION_WORD.test(said)) {
+              // "no actually onions" — the filler goes, the onion removal stays
+              said = said.replace(SELF_CORRECTION_WORD, "").replace(/^[\s,،]+/, "").trim();
+              if (!said) { changed = true; return ""; }
+            }
             // "without THE bbq" — the article isn't an ingredient; strip it or the
             // DB lookup ("the bbq" vs "bbq sauce") misses and the note gets eaten
             let en = said.toLowerCase().replace(/^(the|el)\s+/, "").replace(/^ال/, "");

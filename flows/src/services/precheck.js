@@ -7,7 +7,11 @@ const SESSION_TTL_MS = 4 * 60 * 60 * 1000;
 const MAX_TURNS_SESSION = 20;
 
 const AFFIRMATIVE = /^(yes|ya|yh|yea|yep|yeah|ok|okay|sure|confirm|done|tamam|tmam|aywa|ah|aiwa|maashi|mashy|akeed|اه|ايوه|أيوة|تمام|ماشي|اكيد|👍|✅)[\s!.]*$/i;
-const SELF_CORRECTION = /(?<![\p{L}\p{N}])(wait|actually|no wait|hold on|nvm|never ?mind|la2|la khalas|استنى|لا خلاص|مش كده|قصدي|asdi|2asdy)(?![\p{L}\p{N}])/iu;
+// The words a guest uses to take something back. Shared with the order flow (which
+// must never read "no wait, remove the fries" as a removal of "wait"), so a new word
+// lands in both places at once.
+export const CORRECTION_WORDS = "wait|actually|no wait|hold on|hang on|nvm|never ?mind|forget (?:it|that)|scratch that|la2|la khalas|khalas|استنى|استني|خلاص|لا خلاص|لحظة|مش كده|قصدي|asdi|2asdy|estanna|estana|le7za";
+const SELF_CORRECTION = new RegExp(`(?<![\\p{L}\\p{N}])(${CORRECTION_WORDS})(?![\\p{L}\\p{N}])`, "iu");
 
 export async function sessionPrecheck(db, sessionId, history) {
   const out = {

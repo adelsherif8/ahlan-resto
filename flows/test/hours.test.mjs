@@ -36,4 +36,6 @@ test("a harness phone (nine digits after +20) is test traffic; a real mobile is 
   assert.equal(isTestSession("+201515066123"), false); // Munadim's own number
   assert.equal(isTestSession("+201001234567"), false);
   assert.equal(isTestSession("+966501234567"), false); // not Egypt → never guessed
+  assert.equal(isTestSession("+20223456789"), false);  // a Cairo landline on WhatsApp is a real guest
+  assert.equal(isTestSession("+2010123456"), false);   // short but outside the harness blocks
 });

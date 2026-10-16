@@ -40,10 +40,11 @@ export function listFlows() {
 export function isTestSession(sessionId) {
   const s = String(sessionId || "");
   if (s.startsWith("web:") || /^\+?201555/.test(s)) return true;
-  // Every harness phone is +20 followed by NINE digits (+2015560101, +2015580001); a
-  // real Egyptian mobile carries TEN (+201XXXXXXXXX). Persona fixtures used to count as
-  // real guests in every stat — and in the kitchen-queue ETA.
-  const m = /^\+?20(\d+)$/.exec(s);
+  // Every harness phone sits in the +20155…/+20156… blocks with FEWER digits than a
+  // real mobile (+2015560101 vs +201XXXXXXXXX). Persona fixtures used to count as real
+  // guests in every stat — and in the kitchen-queue ETA. The block prefix matters: a
+  // bare "short +20 number" rule would also catch Cairo landlines (+20 2 XXXX XXXX).
+  const m = /^\+?20(15[56]\d+)$/.exec(s);
   return !!m && m[1].length < 10;
 }
 

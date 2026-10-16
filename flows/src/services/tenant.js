@@ -253,5 +253,12 @@ export function hoursToday(hours, tz = "Africa/Cairo") {
       if (hhmm >= r.open || hhmm < r.close) openNow = true;
     } else if (hhmm >= r.open && hhmm < r.close) openNow = true;
   }
+  // YESTERDAY's service may still be running: sat 10:00–02:00 is open at sunday 00:30
+  // even when sunday itself opens at 12:00 (or is closed). Reading today's ranges alone
+  // refused orders during the last two hours of every night that straddles a change.
+  const yday = DAYS[(now.getDay() + 6) % 7];
+  for (const r of hours?.[yday] || []) {
+    if (r?.close && r?.open && r.close < r.open && hhmm < r.close) openNow = true;
+  }
   return { day, ranges, openNow, localTime: hhmm, dateISO, weekday };
 }

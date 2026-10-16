@@ -87,9 +87,9 @@ export default function App() {
             POLL[mode] was undefined and setInterval fell back to 0ms — a tight loop
             hammering /api/executions, which fans out to every tenant database. */}
         {tab === "chat" ? <ChatView onWatch={(sid) => { setTab("flows"); setParams({ q: sid, group: "sessions" }); }} />
-          : tab === "health" ? <HealthView onOpenTrace={(id) => { setTab("flows"); setParams({ exec: id }, true); }} />
+          : tab === "health" ? <HealthView onOpenTrace={(id) => { setTab("flows"); setParams({ exec: id }); }} />
           : tab === "insights" ? <InsightsView />
-          : tab === "cost" ? <CostView onOpenTrace={(id) => { setTab("flows"); setParams({ exec: id }, true); }} />
+          : tab === "cost" ? <CostView onOpenTrace={(id) => { setTab("flows"); setParams({ exec: id }); }} />
           : <FlowsView params={params} setParams={setParams} />}
       </main>
     </div>

@@ -131,4 +131,8 @@ test("15 — an English greeting is English, even on an Arabic-default tenant", 
   assert.equal(resolveLanguage({ message: "sabah el kheir", sticky: null, fallback: AR }).lang, FRANCO);
   // and a bare dish name still never switches anything
   assert.equal(R("fries", AR), AR);
+  // but MID-conversation "thanks"/"hi" never flip an Arabic or Franco chat to English
+  assert.equal(R("thanks", AR), AR);
+  assert.equal(R("hi", FRANCO), FRANCO);
+  assert.equal(R("thank you!", AR), AR);
 });

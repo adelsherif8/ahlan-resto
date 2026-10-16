@@ -26,8 +26,6 @@ export function normId(v) {
   if (d.startsWith("0")) return `+20${d.slice(1)}`;
   return `+${d}`;
 }
-/** @deprecated — kept so older call sites keep working; normId handles usernames too. */
-export const normPhone = normId;
 
 /** A username is not a phone: we can store it, but we cannot match a webhook on it. */
 export const isHandle = (v) => /^@/.test(String(v || "").trim());
@@ -162,7 +160,9 @@ export async function claimHandleLead(db, phone) {
       started_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + DEMO_HOURS * 3600_000).toISOString(),
     })
-    .eq("id", held.id).select().maybeSingle();
+    // conditional on the row STILL being the handle: two unknown numbers arriving in
+    // the same second must not both "win" it — the second update matches 0 rows
+    .eq("id", held.id).eq("phone_number", held.phone_number).select().maybeSingle();
   return claimed || null;
 }
 

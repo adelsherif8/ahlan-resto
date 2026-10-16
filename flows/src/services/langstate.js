@@ -121,7 +121,10 @@ export function resolveLanguage({ message, sticky = null, itemNames = [], fallba
   if (asked) return { lang: asked, reason: "explicit request", switched: !!prev && prev !== asked };
 
   const ev = messageEvidence(message, itemNames);
-  if (ev) return { lang: ev.lang, reason: ev.reason, switched: !!prev && prev !== ev.lang };
+  // "thanks" / "hi" are English evidence on the FIRST turn only (the one with nothing to
+  // fall back on). Mid-conversation they are what every Egyptian chat ends with, in any
+  // language — flipping an Arabic order's goodbye to English was a bilingual ping-pong.
+  if (ev && !(prev && ev.reason === "english greeting")) return { lang: ev.lang, reason: ev.reason, switched: !!prev && prev !== ev.lang };
 
   if (prev) return { lang: prev, reason: "kept (no evidence in this message)", switched: false };
   return { lang: VALID.has(fallback) ? fallback : EN, reason: "restaurant default", switched: false };

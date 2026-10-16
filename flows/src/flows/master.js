@@ -573,7 +573,10 @@ Return: {"bucket": "...", "confidence": 0-1, "mood": "...", "language": "..."}`;
       }
       const r = await chatJSON(MODEL_NANO, system, message, { temperature: 0, maxTokens: 120 });
       if (jevP) {
-        const j = await jevP;
+        // shadow is invisible by contract: Jev ran in parallel with nano, so it is usually
+        // done; it gets 400ms more at most, then the trace simply records "jev: late"
+        const j = await Promise.race([jevP, new Promise((res) => setTimeout(() => res(undefined), 400))]);
+        if (j === undefined && r?.value) { bump("jev_late"); r.value.jev = { late: true, mode: JEV_MODE }; }
         if (j && r?.value) {
           const agrees = j.bucket === r.value.bucket;
           bump(agrees ? "jev_agree" : "jev_disagree");
