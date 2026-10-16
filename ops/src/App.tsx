@@ -1,18 +1,27 @@
 import { useEffect, useState } from "react";
-import { Flame, Workflow, MessageCircle, Activity, LogOut } from "lucide-react";
+import { Flame, Workflow, MessageCircle, Activity, DollarSign, TrendingUp, LogOut } from "lucide-react";
 import { ops, getToken, setToken, clearToken } from "./config";
-import { Card, Btn, Input } from "./ui";
+import { Btn, Input } from "./ui";
+import { useUrl } from "./urlstate";
 import FlowsView from "./FlowsView";
 import ChatView from "./ChatView";
 import HealthView from "./HealthView";
+import CostView from "./CostView";
+import InsightsView from "./InsightsView";
 
-type Tab = "flows" | "chat" | "health";
+const TABS = [
+  { id: "flows", label: "Flows & Executions", icon: <Workflow size={14} /> },
+  { id: "chat", label: "Test Chat", icon: <MessageCircle size={14} /> },
+  { id: "health", label: "Health", icon: <Activity size={14} /> },
+  { id: "insights", label: "Insights", icon: <TrendingUp size={14} /> },
+  { id: "cost", label: "Cost", icon: <DollarSign size={14} /> },
+];
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
-  const [tab, setTab] = useState<Tab>("flows");
   const [tokenInput, setTokenInput] = useState("");
   const [error, setError] = useState("");
+  const { tab, params, setTab, setParams } = useUrl();
 
   useEffect(() => {
     if (!getToken()) return setAuthed(false);
@@ -54,24 +63,34 @@ export default function App() {
       </div>
     );
 
+  // The shell owns the viewport: header is fixed height, the view gets the rest and
+  // scrolls its own panes. Nothing below the header scrolls the page itself, so the
+  // canvas stays put while you walk an execution list.
   return (
-    <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
+    <div className="flex h-screen flex-col overflow-hidden">
+      <header className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-6 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-zinc-950"><Flame size={16} /></div>
           <div className="text-sm font-bold">Munadim Ops</div>
           <nav className="ml-6 flex gap-1">
-            <TabBtn active={tab === "flows"} onClick={() => setTab("flows")} icon={<Workflow size={14} />} label="Flows & Executions" />
-            <TabBtn active={tab === "chat"} onClick={() => setTab("chat")} icon={<MessageCircle size={14} />} label="Test Chat" />
-            <TabBtn active={tab === "health"} onClick={() => setTab("health")} icon={<Activity size={14} />} label="Health" />
+            {TABS.map((t) => (
+              <TabBtn key={t.id} active={tab === t.id} onClick={() => setTab(t.id)} icon={t.icon} label={t.label} />
+            ))}
           </nav>
         </div>
         <button onClick={() => { clearToken(); location.reload(); }} className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400">
           <LogOut size={13} /> Sign out
         </button>
       </header>
-      <main className="p-6">
-        {tab === "flows" ? <FlowsView /> : tab === "chat" ? <ChatView /> : <HealthView />}
+      <main className="min-h-0 flex-1 overflow-hidden">
+        {/* `group` must be a value from FlowsView's Mode union. It read "session" once, so
+            POLL[mode] was undefined and setInterval fell back to 0ms — a tight loop
+            hammering /api/executions, which fans out to every tenant database. */}
+        {tab === "chat" ? <ChatView onWatch={(sid) => { setTab("flows"); setParams({ q: sid, group: "sessions" }); }} />
+          : tab === "health" ? <HealthView onOpenTrace={(id) => { setTab("flows"); setParams({ exec: id }, true); }} />
+          : tab === "insights" ? <InsightsView />
+          : tab === "cost" ? <CostView onOpenTrace={(id) => { setTab("flows"); setParams({ exec: id }, true); }} />
+          : <FlowsView params={params} setParams={setParams} />}
       </main>
     </div>
   );

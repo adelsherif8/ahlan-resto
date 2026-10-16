@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, Bot, RefreshCw } from "lucide-react";
+import { Send, Bot, RefreshCw, Workflow } from "lucide-react";
 import { ops } from "./config";
 import { Card, Btn, Input } from "./ui";
 
@@ -14,7 +14,7 @@ function getSessionId() {
   return sid;
 }
 
-export default function ChatView() {
+export default function ChatView({ onWatch }: { onWatch?: (sessionId: string) => void }) {
   const [sessionId, setSessionId] = useState(getSessionId());
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
@@ -62,11 +62,16 @@ export default function ChatView() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-140px)] max-w-3xl flex-col">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm text-zinc-400">
-          Testing as guest <span className="font-mono text-zinc-300">{sessionId}</span> — messages merge after ~8s of silence, then run the full pipeline. Watch it live in Flows.
+    <div className="mx-auto flex h-full max-w-3xl flex-col p-6">
+      <div className="mb-3 flex items-center gap-3">
+        <div className="min-w-0 flex-1 text-sm text-zinc-400">
+          Testing as guest <span className="font-mono text-zinc-300">{sessionId}</span> — messages merge after ~8s of silence, then run the full pipeline.
         </div>
+        {onWatch && (
+          <Btn variant="ghost" onClick={() => onWatch(sessionId)}>
+            <span className="flex items-center gap-1.5"><Workflow size={14} /> Watch trace</span>
+          </Btn>
+        )}
         <Btn variant="ghost" onClick={newSession}><span className="flex items-center gap-1.5"><RefreshCw size={14} /> New guest</span></Btn>
       </div>
       <Card className="flex min-h-0 flex-1 flex-col">
