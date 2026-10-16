@@ -2459,6 +2459,13 @@ app.get("/api/executions/:id", opsAuth, async (req, res) => {
 // race (and stops duplicate replies). claimBurst still guards the same burst; this
 // guards different bursts of the SAME session running concurrently.
 const flushLocks = new Map(); // bufferKey -> tail of its turn queue
+// ONE queued flush per session, never a queue of them. The worker ticks every 250ms and
+// re-fired flushHandler for a session whose turn was still running; every call queued
+// another flushOnce behind the lock, so a 33s turn left ~130 flushes waiting. The first
+// claimed the burst; the rest ran as "nothing to claim" at ~100ms each — 70 seconds of
+// empty respond runs per long turn, each a trace row and two DB round-trips, and the
+// guest's NEXT real message queued behind all of them (seen as a 157s wait, 16 Oct).
+const queuedFlush = new Set(); // bufferKeys that already have a flush waiting its turn
 async function flushOnce(bufferKey, channel = "web") {
   const sep = String(bufferKey).indexOf("|");
   const restaurantId = sep > 0 ? bufferKey.slice(0, sep) : null;
@@ -2469,8 +2476,12 @@ async function flushOnce(bufferKey, channel = "web") {
   if (error) await handleFlushFailure(ctx, error);
 }
 function flushHandler(bufferKey, channel = "web") {
+  if (queuedFlush.has(bufferKey)) return flushLocks.get(bufferKey) || Promise.resolve();
+  queuedFlush.add(bufferKey);
   const prev = flushLocks.get(bufferKey) || Promise.resolve();
-  const run = prev.catch(() => {}).then(() => flushOnce(bufferKey, channel));
+  // the flag drops the moment this flush STARTS, so a message that lands mid-turn can
+  // queue exactly one more — the one that will claim it
+  const run = prev.catch(() => {}).then(() => { queuedFlush.delete(bufferKey); return flushOnce(bufferKey, channel); });
   // The queue tail must NEVER be a rejected promise. Nothing awaits it once the burst
   // is done, so a transient failure (a network blip while resolving the tenant) came
   // back as an unhandledRejection and Node killed the whole service — every chat in

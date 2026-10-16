@@ -1040,7 +1040,9 @@ defineFlow({
           const spokenHere = (nm) => { const n = normName(nm); return !!n && msgN0.includes(n); };
           if (items.length === 1 && !loaded.pending.awaiting_option) {
             const line = prev.find((it) => normName(it.name) === normName(items[0].name));
-            if (line && Number(items[0].qty) !== Number(line.qty) && /\d|one|two|three|واحد|اتنين|٢|١/i.test(input.message)) {
+            // the count may be a Franco/Arabic word ("khaleehom etnen", «خليهم تلاتة») — judged
+            // on the count-expanded text, or the qty the model read correctly was thrown away
+            if (line && Number(items[0].qty) !== Number(line.qty) && /\d|one|two|three|four|واحد|اتنين|تلاتة|اربعة|أربعة|[٠-٩]/i.test(expandFrancoCounts(input.message))) {
               line.qty = items[0].qty;
             } else if (!line && (answeredAmbiguity || spokenHere(items[0].name) || ADD_VERB.test(input.message) || /^\s*\d/.test(input.message))) {
               // answering our which-one question, naming the dish outright, "add a
