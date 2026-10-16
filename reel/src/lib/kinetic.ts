@@ -5,7 +5,8 @@
  * figure appears as fact unless it is ours. The commission reel is framed as «لو»
  * (a worked example) with a footnote, because the market figures we found are not
  * Egyptian. There is no customer testimonial here — we have no clients to quote yet,
- * so the founder speaks for himself instead.
+ * so the founder speaks for himself instead. R12's chat lines are real ticket messages
+ * recorded from the live bot (flows/_reel.mjs).
  *
  * Wrap a word in *stars* to set it in brass.
  */
@@ -17,6 +18,8 @@ export type Beat =
   | { k: 'list'; items: string[]; stamp: string; d: number }
   /** The worked commission example: a 100 EGP order, a slice off, what is left. */
   | { k: 'math'; base: number; pct: number; d: number }
+  /** munadim.com's own calculator: what the app takes vs. Munadim, and the difference. */
+  | { k: 'compare'; app: number; munadim: number; plan: string; d: number }
   /** A mini WhatsApp card for a time of day — the day-in-the-life montage. */
   | { k: 'chat'; stamp: string; msgs: [boolean, string][]; d: number };
 
@@ -28,16 +31,16 @@ export interface Kinetic {
 }
 
 export const KINETIC: Record<string, Kinetic> = {
-  // R2 · the commission math, as a worked example
+  // R2 · the money, exactly as munadim.com's calculator shows it (600 orders × 150 EGP, apps ≈ a fifth).
+  // Munadim is not free: Start is 3,500/mo with 300 orders, then 9 EGP an order → 6,200 at 600 orders.
   R2: {
     id: 'R2',
     beats: [
-      { k: 'line', big: true, text: 'أوردر بـ ١٠٠ جنيه…\nالمطعم بياخد *كام*؟', d: 66 },
-      { k: 'math', base: 100, pct: 25, d: 120 },
-      { k: 'line', text: 'وكمان الزبون…\n*مش بتاعك*.', d: 56 },
-      { k: 'line', text: 'على واتساب:\n١٠٠ جنيه = *١٠٠ جنيه*.', d: 62 },
+      { k: 'line', big: true, text: '600 أوردر في الشهر…\nالتطبيق بياخد *كام*؟', d: 64 },
+      { k: 'compare', app: 18000, munadim: 6200, plan: 'Start', d: 150 },
+      { k: 'line', text: 'الفرق ده…\n*في جيبك* كل شهر.', d: 54 },
     ],
-    payoff: 'من غير عمولة على الأوردر.\nوالزبون يفضل عندك.',
+    payoff: 'مفيش عمولة.\nاشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.',
   },
 
   // R3 · rent vs own — the thesis
@@ -61,7 +64,7 @@ export const KINETIC: Record<string, Kinetic> = {
       { k: 'line', big: true, text: '٣ أوردرات واتساب ضاعت النهاردة…\nوإنت *مش واخد بالك*.', d: 70 },
       {
         k: 'list', stamp: 'أوردر راح', d: 150,
-        items: ['رسالة واتساب وإنت مشغول في المطبخ', 'سؤال عن المنيو اترد عليه بعد ساعتين', 'أوردر الساعة ٢ بالليل… محدش رد'],
+        items: ['رسالة واتساب وإنت مشغول في المطبخ', 'سؤال عن المنيو اترد عليه بعد ساعتين', 'أوردر الساعة ١٢ بالليل… محدش رد'],
       },
     ],
     payoff: 'مُنادِم بيرد على التلاتة.\nعلى طول.',
@@ -97,9 +100,9 @@ export const KINETIC: Record<string, Kinetic> = {
     id: 'R12',
     beats: [
       { k: 'line', big: true, text: 'يوم واحد…\nكل الأوردرات على *واتساب*.', d: 60 },
-      { k: 'chat', stamp: 'الضهر · ١:٣٠', d: 62, msgs: [[true, 'ناشفيل كومبو'], [false, 'مُنادم ناشفيل تشيكن (كومبو) — 280 جنيه. أأكد؟']] },
-      { k: 'chat', stamp: 'العصر · ٥:٤٥', d: 62, msgs: [[true, 'ترافل برجر كومبو'], [false, 'مُنادم ترافل برجر (كومبو) — 335 جنيه 🙂 أأكد؟']] },
-      { k: 'chat', stamp: 'بالليل · ١١:٢٠', d: 66, msgs: [[true, '٢ كلاسيك وأم علي'], [false, '٢× مُنادم كلاسيك برجر + مُنادم أم علي — 470 جنيه. أأكد؟']] },
+      { k: 'chat', stamp: 'الضهر · ١:٣٠', d: 62, msgs: [[true, 'تأكيد'], [false, '🎫 طلبك O-593F اتسجل — حوالي 39 دقيقة!']] },
+      { k: 'chat', stamp: 'العصر · ٥:٤٥', d: 62, msgs: [[true, 'تأكيد'], [false, '🎫 طلبك O-CC5T اتسجل — حوالي 27 دقيقة!']] },
+      { k: 'chat', stamp: 'بالليل · ١١:٢٠', d: 66, msgs: [[true, 'تأكيد'], [false, '🎫 طلبك O-RSTJ اتسجل — حوالي 24 دقيقة!']] },
     ],
     payoff: 'يوم كامل.\nولا رسالة ضاعت.',
   },

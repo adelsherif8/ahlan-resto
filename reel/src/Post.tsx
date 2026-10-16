@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { AbsoluteFill, Audio, Img, Sequence, continueRender, delayRender, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { C } from './lib/brand';
 import { POSTS, type Bubble, type Post as PostData } from './lib/posts';
+import { EMOJI_FACES } from './lib/emojiFaces';
 
 const FACES: [string, string, string][] = [
   ['Plex', 'fonts/ibm-plex-sans-arabic-v15-arabic_latin-regular.woff2', '400'],
@@ -25,14 +26,17 @@ export function useFontsReady() {
   const [h] = useState(() => delayRender('post-fonts'));
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    Promise.all(FACES.map(([fam, file, w]) => new FontFace(fam, `url(${staticFile(file)})`, { weight: w }).load()))
+    Promise.all([
+      ...FACES.map(([fam, file, w]) => new FontFace(fam, `url(${staticFile(file)})`, { weight: w }).load()),
+      ...EMOJI_FACES.map(([file, range]) => new FontFace('NotoEmoji', `url(${staticFile(file)})`, { unicodeRange: range }).load()),
+    ])
       .then((fs) => { fs.forEach((x) => document.fonts.add(x)); setReady(true); continueRender(h); });
   }, [h]);
   return ready;
 }
 
-const AR = 'Amiri';
-const UI = 'Plex';
+const AR = 'Amiri, NotoEmoji';
+const UI = 'Plex, NotoEmoji';
 const MONO = 'PlexMono';
 
 const BUBBLE_IN = 18;
@@ -45,9 +49,13 @@ export const postTiming = (p: PostData) => {
   let t = 44; // the headline reveal + rule draw read first
   for (const b of p.script) {
     if (b.kind === 'day') { starts.push(t); t += 28; continue; } // a date chip: no typing, short beat
-    if (!b.me) t += TYPING;
+    if (!b.me) t += p.real ? 20 : TYPING;
     starts.push(t);
-    t += BUBBLE_IN + GUEST_GAP;
+    if (p.real) {
+      // real bot messages run long (a bill is ~15 lines): hold a beat longer on the long ones
+      const lines = b.kind === 'text' ? b.text.split('\n').length : 2;
+      t += b.me ? 26 : 26 + Math.min(30, Math.round(lines * 2.2));
+    } else t += BUBBLE_IN + GUEST_GAP;
   }
   const endStart = t + 30;
   // a payoff line needs its own beat to be read before the CTA lands
@@ -98,7 +106,32 @@ const StatusBar = ({ clock = '9:41' }: { clock?: string }) => (
   </div>
 );
 
-const Bubble = ({ b, p, pop }: { b: Bubble; p: number; pop: number }) => {
+/* WhatsApp formatting, exactly as the bot writes it: *bold*, _italic_, ―― rules, blank lines */
+// emoji that default to text style (🍽 ⏱) need U+FE0F to draw in colour, as phones do
+const emo = (s: string) => s.replace(/([🍽⏱☎⚠✔])(?!\uFE0F)/gu, '$1\uFE0F');
+const inline = (s: string) => emo(s).split(/(\*[^*\n]+\*|_[^_\n]+_)/g).map((x, i) =>
+  /^\*.+\*$/.test(x) ? <b key={i} style={{ fontWeight: 700 }}>{x.slice(1, -1)}</b>
+    : /^_.+_$/.test(x) ? <i key={i}>{x.slice(1, -1)}</i> : x);
+const RichText = ({ text }: { text: string }) => (
+  <span style={{ display: 'flex', flexDirection: 'column' }}>
+    {text.split('\n').map((ln, i) => /^―{3,}/.test(ln.trim())
+      ? <span key={i} style={{ borderTop: '1.5px solid rgba(17,27,33,0.16)', margin: '9px 0' }} />
+      : ln.trim() === '' ? <span key={i} style={{ height: '0.55em' }} />
+        : <span key={i} dir="auto" style={{ textAlign: 'start' }}>{inline(ln)}</span>)}
+  </span>
+);
+/* a WhatsApp interactive row under the message: reply button or list opener */
+const BtnRow = ({ label, list }: { label: string; list?: boolean }) => (
+  <span style={{ borderTop: '1px solid rgba(17,27,33,0.10)', padding: '15px 12px', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', gap: 10, color: '#027EB5', fontWeight: 500, fontSize: 29 }}>
+    {list
+      ? <Ic d="M4 6h16M4 12h16M4 18h16" s="#027EB5" w={2.2} size={28} />
+      : <Ic d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-2" s="#027EB5" w={2.2} size={28} />}
+    <span dir="auto">{emo(label)}</span>
+  </span>
+);
+
+const Bubble = ({ b, p, pop, small, rtl = true }: { b: Bubble; p: number; pop: number; small?: boolean; rtl?: boolean }) => {
   const me = b.me;
   const a = Math.min(p, 1);
   const y = (1 - a) * 28;
@@ -106,19 +139,19 @@ const Bubble = ({ b, p, pop }: { b: Bubble; p: number; pop: number }) => {
   return (
     <div style={{
       alignSelf: me ? 'flex-end' : 'flex-start',
-      maxWidth: '85%',
+      maxWidth: small ? '88%' : '85%',
       background: me ? C.waOut : C.waIn,
       borderRadius: 20,
-      [me ? 'borderTopLeftRadius' : 'borderTopRightRadius']: 5,
-      padding: '20px 24px 13px',
+      [me === rtl ? 'borderTopLeftRadius' : 'borderTopRightRadius']: 5,
+      padding: small ? '16px 20px 11px' : '20px 24px 13px',
       boxShadow: pop > 0 ? `0 2px 10px rgba(185,132,50,${0.35 * pop}), 0 1px 2px rgba(0,0,0,0.12)` : '0 1px 2px rgba(0,0,0,0.12)',
       opacity: a,
       transform: `translateY(${y}px) scale(${sc})`,
-      transformOrigin: me ? 'bottom right' : 'bottom left',
+      transformOrigin: me === rtl ? 'bottom left' : 'bottom right',
       color: '#111B21',
       fontFamily: UI,
-      fontSize: 38,
-      lineHeight: 1.5,
+      fontSize: small ? 30 : 38,
+      lineHeight: small ? 1.42 : 1.5,
       whiteSpace: 'pre-wrap',
     }}>
       {b.kind === 'voice' && (
@@ -140,7 +173,17 @@ const Bubble = ({ b, p, pop }: { b: Bubble; p: number; pop: number }) => {
           <span style={{ fontSize: 27, color: '#5A6B72' }}>الموقع المرسَل</span>
         </span>
       )}
-      {b.kind === 'text' && <span dir="auto">{b.text}</span>}
+      {b.kind === 'text' && (small ? <RichText text={b.text} /> : <span dir="auto">{b.text}</span>)}
+      {b.kind === 'doc' && (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 16, background: '#F5F6F6', borderRadius: 12, padding: '14px 18px', minWidth: 420 }}>
+          <span style={{ width: 50, height: 60, borderRadius: 8, background: '#E5483B', color: '#fff', fontSize: 16, fontWeight: 700, display: 'grid', placeItems: 'center' }}>PDF</span>
+          <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
+            <span dir="ltr" style={{ fontSize: 28, fontWeight: 500 }}>{b.name}</span>
+            <span style={{ fontSize: 22, color: '#667781' }}>PDF</span>
+          </span>
+        </span>
+      )}
+      {b.kind === 'doc' && b.caption && <span style={{ display: 'block', marginTop: 10 }}><RichText text={b.caption} /></span>}
       {b.kind === 'bill' && (
         <span style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {b.lines.map(([label, val], i) => (
@@ -167,9 +210,14 @@ const Bubble = ({ b, p, pop }: { b: Bubble; p: number; pop: number }) => {
         </span>
       )}
       <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 5 }}>
-        <span style={{ fontFamily: MONO, fontSize: 22, color: '#667781' }}>{b.time}</span>
+        <span style={{ fontFamily: MONO, fontSize: small ? 20 : 22, color: '#667781' }}>{b.time}</span>
         {me && <Tick blue />}
       </span>
+      {b.kind === 'text' && !b.me && (b.list || b.buttons?.length) ? (
+        <span style={{ display: 'flex', flexDirection: 'column', margin: small ? '10px -20px -11px' : '12px -24px -13px' }}>
+          {b.list ? <BtnRow label={b.list} list /> : b.buttons!.map((l, i) => <BtnRow key={i} label={l} />)}
+        </span>
+      ) : null}
     </div>
   );
 };
@@ -183,8 +231,8 @@ const DayChip = ({ label, p }: { label: string; p: number }) => (
   </div>
 );
 
-const Typing = () => (
-  <div style={{ alignSelf: 'flex-start', background: C.waIn, borderRadius: 20, borderTopRightRadius: 5,
+const Typing = ({ rtl = true }: { rtl?: boolean }) => (
+  <div style={{ alignSelf: 'flex-start', background: C.waIn, borderRadius: 20, [rtl ? 'borderTopRightRadius' : 'borderTopLeftRadius']: 5,
     padding: '22px 26px', display: 'flex', gap: 9, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}>
     {[0, 1, 2].map((i) => <span key={i} style={{ width: 12, height: 12, borderRadius: 999, background: '#8696A0', display: 'block' }} />)}
   </div>
@@ -236,6 +284,11 @@ export const Post: React.FC<{ post?: string }> = ({ post = '1A' }) => {
   const float = Math.sin((frame - 20) / 24) * 7;
   const logoA = interpolate(frame, [30, 50], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   const zoom = interpolate(frame, [0, endStart], [1.012, 1.055], { extrapolateRight: 'clamp' });
+  // real recordings: the restaurant's own chat (name + avatar), and the diner's phone language
+  const rtl = (data.ui ?? 'ar') === 'ar';
+  const dir = rtl ? 'rtl' : 'ltr';
+  const small = !!data.real;
+  const lead = data.real ? 20 : TYPING;
 
   return (
     <AbsoluteFill style={{ background: C.semna, fontFamily: UI }}>
@@ -268,12 +321,14 @@ export const Post: React.FC<{ post?: string }> = ({ post = '1A' }) => {
 
             <StatusBar clock={data.clock} />
             {/* chat header */}
-            <div style={{ background: '#F6F7F8', padding: '12px 24px 18px', display: 'flex', alignItems: 'center', gap: 14, direction: 'rtl', borderBottom: '1px solid rgba(17,27,33,0.06)', position: 'relative' }}>
-              <Ic d="M15 18l-6-6 6-6" s="#0B7A6A" w={2.6} size={34} />
-              <div style={{ width: 66, height: 66, borderRadius: 999, background: C.karkadeh, display: 'grid', placeItems: 'center', color: '#fff', fontFamily: AR, fontWeight: 700, fontSize: 36 }}>ش</div>
+            <div style={{ background: '#F6F7F8', padding: '12px 24px 18px', display: 'flex', alignItems: 'center', gap: 14, direction: dir, borderBottom: '1px solid rgba(17,27,33,0.06)', position: 'relative' }}>
+              <Ic d={rtl ? 'M9 18l6-6-6-6' : 'M15 18l-6-6 6-6'} s="#0B7A6A" w={2.6} size={34} />
+              {data.real
+                ? <Img src={staticFile('avatar-whatsapp.svg')} style={{ width: 66, height: 66, borderRadius: 999 }} />
+                : <div style={{ width: 66, height: 66, borderRadius: 999, background: C.karkadeh, display: 'grid', placeItems: 'center', color: '#fff', fontFamily: AR, fontWeight: 700, fontSize: 36 }}>ش</div>}
               <div style={{ lineHeight: 1.22 }}>
-                <div style={{ fontSize: 32, fontWeight: 600, color: '#111B21' }}>شنام</div>
-                <div style={{ fontSize: 24, color: '#1FA855' }}>متصل الآن</div>
+                <div style={{ fontSize: 32, fontWeight: 600, color: '#111B21' }}>{data.real ? (rtl ? 'مُنادم' : 'Munadim') : 'شنام'}</div>
+                <div style={{ fontSize: 24, color: '#1FA855' }}>{rtl ? 'متصل الآن' : 'online'}</div>
               </div>
               <span style={{ marginInlineStart: 'auto', display: 'flex', gap: 24, alignItems: 'center' }}>
                 <Ic d="M23 7l-7 5 7 5V7zM1 5h14v14H1z" s="#54656F" w={2} size={34} />
@@ -289,26 +344,34 @@ export const Post: React.FC<{ post?: string }> = ({ post = '1A' }) => {
             ))}
 
             {/* thread — anchored to the bottom like a live chat */}
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: '26px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: 18, direction: 'rtl', position: 'relative' }}>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: '26px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: small ? 14 : 18, direction: dir, position: 'relative' }}>
               {data.script.map((b, i) => {
                 const p = spring({ frame: frame - starts[i]!, fps, config: { damping: b.me ? 200 : 13, stiffness: 140 }, durationInFrames: BUBBLE_IN });
                 if (p <= 0) return null;
                 if (b.kind === 'day') return <DayChip key={i} label={b.label} p={p} />;
                 const pop = b.me ? 0 : interpolate(frame, [starts[i]!, starts[i]! + 8, starts[i]! + 26], [0, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-                return <Bubble key={i} b={b} p={p} pop={pop} />;
+                const el = <Bubble b={b} p={p} pop={pop} small={small} rtl={rtl} />;
+                if (!small) return <React.Fragment key={i}>{el}</React.Fragment>;
+                // a long message grows in and pushes the thread up smoothly, like a live chat scroll
+                const g = interpolate(frame, [starts[i]!, starts[i]! + 12], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+                return (
+                  <div key={i} style={{ display: 'grid', gridTemplateRows: `${g}fr`, flexShrink: 0 }}>
+                    <div style={{ minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '0 2px 3px' }}>{el}</div>
+                  </div>
+                );
               })}
               {data.script.map((b, i) => {
                 if (b.me || b.kind === 'day') return null;
-                const show = frame >= starts[i]! - TYPING && frame < starts[i]!;
-                return show ? <Typing key={`t${i}`} /> : null;
+                const show = frame >= starts[i]! - lead && frame < starts[i]!;
+                return show ? <Typing key={`t${i}`} rtl={rtl} /> : null;
               })}
             </div>
 
             {/* input bar */}
-            <div style={{ background: '#F6F7F8', padding: '16px 22px calc(16px + 10px)', display: 'flex', alignItems: 'center', gap: 16, direction: 'rtl' }}>
+            <div style={{ background: '#F6F7F8', padding: '16px 22px calc(16px + 10px)', display: 'flex', alignItems: 'center', gap: 16, direction: dir }}>
               <div style={{ flex: 1, background: '#fff', borderRadius: 999, padding: '18px 24px', fontSize: 27, color: '#8696A0', display: 'flex', alignItems: 'center', gap: 14 }}>
                 <Ic d="M12 5v14M5 12h14" s="#8696A0" w={2.2} size={30} />
-                <span>اكتب رسالة</span>
+                <span>{rtl ? 'اكتب رسالة' : 'Message'}</span>
                 <span style={{ marginInlineStart: 'auto', display: 'flex', gap: 16 }}>
                   <Ic d="M23 7l-7 5 7 5V7zM1 5h14v14H1z" s="#8696A0" w={2} size={28} />
                 </span>

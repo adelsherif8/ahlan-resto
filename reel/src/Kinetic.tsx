@@ -12,8 +12,8 @@ import { C, DEMO_LABEL } from './lib/brand';
 import { KINETIC, kineticTiming, type Beat } from './lib/kinetic';
 import { PostEnd, useFontsReady } from './Post';
 
-const AR = 'Amiri';
-const UI = 'Plex';
+const AR = 'Amiri, NotoEmoji';
+const UI = 'Plex, NotoEmoji';
 const MONO = 'PlexMono';
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
@@ -96,6 +96,40 @@ const MathBeat: React.FC<{ b: Extract<Beat, { k: 'math' }>; f: number }> = ({ b,
   );
 };
 
+/* munadim.com's calculator as motion: two bars grow, the difference counts up */
+const CompareBeat: React.FC<{ b: Extract<Beat, { k: 'compare' }>; f: number }> = ({ b, f }) => {
+  const W = 900;
+  const g1 = interpolate(f, [6, 34], [0, 1], clamp);
+  const g2 = interpolate(f, [40, 64], [0, 1], clamp);
+  const diff = Math.round(interpolate(f, [72, 104], [0, b.app - b.munadim], clamp));
+  const n = (x: number) => x.toLocaleString('en-US');
+  const row = (label: string, val: number, w: number, col: string, g: number) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, opacity: Math.min(1, g * 3) }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', direction: 'rtl' }}>
+        <span style={{ fontFamily: AR, fontWeight: 700, fontSize: 52, color: C.semna }}>{label}</span>
+        <span style={{ fontFamily: MONO, fontSize: 56, color: col === C.karkadeh ? C.semna : col, direction: 'ltr' }}>{n(Math.round(val * g))} <span style={{ fontFamily: UI, fontSize: 30, color: 'rgba(245,239,231,0.55)' }}>جنيه</span></span>
+      </div>
+      <div style={{ height: 34, borderRadius: 17, background: 'rgba(245,239,231,0.08)', direction: 'rtl', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${w * g * 100}%`, background: col, borderRadius: 17 }} />
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ width: W, display: 'flex', flexDirection: 'column', gap: 54 }}>
+      <div style={{ fontFamily: UI, fontSize: 34, color: 'rgba(245,239,231,0.6)', direction: 'rtl', textAlign: 'center' }}>600 أوردر · متوسط الأوردر 150 جنيه · في الشهر</div>
+      {row('التطبيق', b.app, 1, C.karkadeh, g1)}
+      {row(`مُنادِم · ${b.plan}`, b.munadim, b.munadim / b.app, C.brassLight, g2)}
+      <div style={{ textAlign: 'center', direction: 'rtl', opacity: interpolate(f, [70, 82], [0, 1], clamp) }}>
+        <div style={{ fontFamily: AR, fontWeight: 700, fontSize: 56, color: C.semna }}>الفرق في جيبك</div>
+        <div style={{ fontFamily: MONO, fontSize: 120, color: C.brassLight, direction: 'ltr', lineHeight: 1.1 }}>{n(diff)}</div>
+      </div>
+      <div style={{ fontFamily: UI, fontSize: 26, lineHeight: 1.6, color: 'rgba(245,239,231,0.45)', direction: 'rtl', textAlign: 'center', opacity: interpolate(f, [90, 104], [0, 1], clamp) }}>
+        على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com. عمولتك الفعلية في فاتورتك الشهرية.
+      </div>
+    </div>
+  );
+};
+
 const ChatBeat: React.FC<{ b: Extract<Beat, { k: 'chat' }>; f: number }> = ({ b, f }) => {
   const card = spring({ frame: f, fps: 30, config: { damping: 200 }, durationInFrames: 18 });
   return (
@@ -103,8 +137,8 @@ const ChatBeat: React.FC<{ b: Extract<Beat, { k: 'chat' }>; f: number }> = ({ b,
       <div style={{ fontFamily: AR, fontWeight: 700, fontSize: 84, color: C.brassLight, direction: 'rtl' }}>{b.stamp}</div>
       <div style={{ width: 960, background: C.waBg, borderRadius: 38, overflow: 'hidden', boxShadow: '0 40px 90px -30px rgba(0,0,0,0.7)', position: 'relative' }}>
         <div style={{ background: '#F6F7F8', padding: '18px 26px', display: 'flex', alignItems: 'center', gap: 14, direction: 'rtl' }}>
-          <div style={{ width: 56, height: 56, borderRadius: 999, background: C.karkadeh, display: 'grid', placeItems: 'center', color: '#fff', fontFamily: AR, fontWeight: 700, fontSize: 30 }}>ش</div>
-          <div style={{ fontFamily: UI, fontSize: 30, fontWeight: 600, color: '#111B21' }}>شنام</div>
+          <Img src={staticFile('avatar-whatsapp.svg')} style={{ width: 56, height: 56, borderRadius: 999 }} />
+          <div style={{ fontFamily: UI, fontSize: 30, fontWeight: 600, color: '#111B21' }}>مُنادم</div>
           <div style={{ marginInlineStart: 'auto', fontFamily: UI, fontSize: 22, color: '#667781' }}>{DEMO_LABEL}</div>
         </div>
         <div style={{ padding: '28px 24px 32px', display: 'flex', flexDirection: 'column', gap: 18, direction: 'rtl' }}>
@@ -169,6 +203,7 @@ export const KineticReel: React.FC<{ reel?: string }> = ({ reel = 'R3' }) => {
             )}
             {b.k === 'list' && <ListBeat b={b} f={f} />}
             {b.k === 'math' && <MathBeat b={b} f={f} />}
+            {b.k === 'compare' && <CompareBeat b={b} f={f} />}
             {b.k === 'chat' && <ChatBeat b={b} f={f} />}
           </AbsoluteFill>
         );
