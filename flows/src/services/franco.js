@@ -73,6 +73,24 @@ export function looksFranco(text) {
  * connector before extraction keeps the items separate. Only for Latin-script text —
  * Arabic «و» is already understood, and English "w/" is left alone.
  */
+// Franco COUNT words carry a digit-letter inside them: "wa7ed" (one) has a 7, "arba3a"
+// (four) has a 3. The extractor read "3ayez wa7ed chicken ranch" as SEVEN chicken ranch —
+// a 1,365 EGP bill for one sandwich (hand-run, 16 Oct). Standalone count words become
+// digits before the model sees them; nothing else in the message changes. Latin text only.
+const FRANCO_COUNTS = [
+  [/(?<![\p{L}\p{N}])(?:wa7ed|wa7da|wahed|wahda|wa7id)(?![\p{L}\p{N}])/giu, "1"],
+  [/(?<![\p{L}\p{N}])(?:etnen|etneen|etnin|tnen|tneen|itnen)(?![\p{L}\p{N}])/giu, "2"],
+  [/(?<![\p{L}\p{N}])(?:talata|tlata|talaata|talatah)(?![\p{L}\p{N}])/giu, "3"],
+  [/(?<![\p{L}\p{N}])(?:arba3a|arba3|arbaa)(?![\p{L}\p{N}])/giu, "4"],
+  [/(?<![\p{L}\p{N}])(?:khamsa|5amsa)(?![\p{L}\p{N}])/giu, "5"],
+];
+export function expandFrancoCounts(text) {
+  let s = String(text || "");
+  if (/[؀-ۿ]/.test(s)) return s;
+  for (const [re, d] of FRANCO_COUNTS) s = s.replace(re, d);
+  return s;
+}
+
 export function expandFrancoConnectors(text) {
   const s = String(text || "");
   if (/[؀-ۿ]/.test(s)) return s;

@@ -37,8 +37,8 @@ flows/
 │   ├── engine/flow.js     the tiny flow runtime (defineFlow / f.node / f.flow + tracing)
 │   ├── flows/             the agents — one file per flow (see below)
 │   └── services/          pure helpers the flows call (delivery, menu, PDFs, WhatsApp …)
-├── persona-test.mjs       54-persona conversation suite (EN/AR/Franco) — the release gate
-├── personas-{en,ar,fr}.json
+├── persona-test.mjs       persona conversation suite (EN/AR/Franco + per-tenant) — the release gate
+├── personas-{en,ar,fr,munadim}.json
 ├── convo-test.mjs         fixture runner: assertion-based conversations
 ├── convos-*.json          the fixtures (one file per bug family / feature)
 ├── timing-test.mjs, greet10.mjs, rsv300.mjs, _translit.mjs   one-off audits
@@ -102,6 +102,9 @@ The n8n replacement, ~200 lines. `defineFlow({ id, nodes, run })` returns a flow
 - `whatsapp.js` — WhatsApp Cloud API adapter (text, buttons, lists, documents, images, locations, typing).
 - `fastpaths.js` — zero-LLM answers: closings, FAQ cache (hours / location / contact), menu category taps.
 - `metrics.js` — in-memory ops metrics (buffer savings, latency).
+- `langstate.js` — the single place the conversation's language is decided (sticky state + message evidence, item names and receipts never count as evidence).
+- `checksplit.js` / `splitintent.js` — splitting the bill in chat: the pure money engine (integer piastres, largest-remainder, must reconcile exactly) and the intent reader around it.
+- `demolead.js` — the Munadim demo gate: who may use the showcase number and until when. Access is granted by hand (`tools/demo-lead.mjs`), not self-serve; `ai.demo_mode` keeps it off for every real client.
 - `regression.js` — the assertion-based regression suite run from the ops console (`/api/ops/run-regression`), results persisted as a `flow_executions` row so the console shows the last run after restarts.
 
 ## `src/server.js` — HTTP surface
@@ -122,7 +125,7 @@ All ops endpoints read every tenant (`resolveAllRestaurants()`), so the console 
 
 Two harnesses, both run real conversations through the live pipeline (a local server or production) on test phone numbers, and read cost from `flow_executions`.
 
-**`persona-test.mjs` — the release gate.** 54 personas × 3 languages (`personas-en.json`, `personas-ar.json`, `personas-fr.json` = Franco/Latin Egyptian). Each persona is a scripted guest (turns, seeded history, expectations, forbidden strings, a completion rule: order confirmed / ticket / question answered). A turn can be conditional — `{"if": "<regex on our last reply>", "say": "…"}` — so a script answers a which-one only when it was asked. The harness also checks the script of every reply (no Arabic to a Latin guest, Arabic to an Arabic guest), repeated questions, filler, and prints pass/fail + cost per conversation.
+**`persona-test.mjs` — the release gate.** 58 personas across 3 languages plus a 6-persona Munadim file (`personas-en.json`, `personas-ar.json`, `personas-fr.json` = Franco/Latin Egyptian). Each persona is a scripted guest (turns, seeded history, expectations, forbidden strings, a completion rule: order confirmed / ticket / question answered). A turn can be conditional — `{"if": "<regex on our last reply>", "say": "…"}` — so a script answers a which-one only when it was asked. The harness also checks the script of every reply (no Arabic to a Latin guest, Arabic to an Arabic guest), repeated questions, filler, and prints pass/fail + cost per conversation.
 
 ```bash
 # against production (needs OPS_TOKEN in flows/.env)
@@ -133,7 +136,7 @@ node persona-test.mjs https://flows.munadim.com luciz personas-fr.json
 PORT=5142 node src/server.js &   # then point the harness at http://localhost:5142
 ```
 
-Last full live run: **54/54**, ≈ $0.0054 per conversation.
+Last full local run (2026-10-07): **22/22 EN · 17/17 AR · 19/19 FR · 6/6 Munadim**, ≈ $0.004 per conversation.
 
 **`convo-test.mjs` + `convos-*.json` — fixtures.** Short assertion-based conversations, one file per bug family; assertions run against the last reply. Names tell you what each covers:
 
@@ -148,6 +151,7 @@ Last full live run: **54/54**, ≈ $0.0054 per conversation.
 | `convos-iteminfo9`, `halluc`, `menu3`, `friendlymenu`, `cats3` | dish info cards, no invented dishes/prices, menu requests, Arabic categories |
 | `convos-greet12`, `greetings30`, `msg1`, `name3`, `keep3`, `lang3`, `crash` | greetings, returning guests, sticky language, names |
 | `convos-luciz`, `adel` | founder-reported live cases |
+| `convos-munadim5`, `photos4`, `split4`, `split-edge3`, `lang8` | Munadim menu ride-throughs, photo-in-bubble, check split, language stickiness |
 
 ```bash
 node convo-test.mjs http://localhost:5142 luciz convos-notes9.json

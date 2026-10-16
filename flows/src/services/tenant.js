@@ -179,6 +179,15 @@ export async function resolveRestaurantBySlug(slug) {
   return lookup("slug", slug);
 }
 
+// The restaurant that OWNS the live WhatsApp number — the one real guests talk to.
+// RESTAURANT_SLUG is a config default that has pointed at Just Smash since July; the
+// number moved to Munadim in September. Health, metrics and anything "about the live
+// bot" should mean this one. Falls back to the default when nobody holds a number.
+export async function resolveLiveRestaurant() {
+  const all = await resolveAllRestaurants();
+  return all.find((t) => t.record.wpid) || (await lookup("slug", RESTAURANT_SLUG));
+}
+
 export async function resolveRestaurant(wpid = null) {
   if (wpid) return resolveRestaurantByWpid(wpid);
   return lookup("slug", RESTAURANT_SLUG);

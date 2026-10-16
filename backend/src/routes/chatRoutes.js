@@ -233,7 +233,7 @@ router.post("/sessions/:sessionId/draft-reply", async (req, res, next) => {
     const r = await fetch(`${FLOWS_URL}/api/ops/draft-reply`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(FLOWS_OPS_TOKEN ? { "x-ops-token": FLOWS_OPS_TOKEN } : {}) },
-      body: JSON.stringify({ sessionId: req.params.sessionId }),
+      body: JSON.stringify({ sessionId: req.params.sessionId, restaurant: req.restaurant?.slug || null }),
     });
     if (!r.ok) return res.status(502).json({ error: `flows ${r.status}` });
     res.json(await r.json());
@@ -545,7 +545,7 @@ router.post("/sessions/:sessionId/messages", async (req, res, next) => {
         const r = await fetch(`${FLOWS_URL}/api/staff/reply`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(FLOWS_OPS_TOKEN ? { "x-ops-token": FLOWS_OPS_TOKEN } : {}) },
-          body: JSON.stringify({ sessionId: req.params.sessionId, message }),
+          body: JSON.stringify({ sessionId: req.params.sessionId, message, restaurant: req.restaurant?.slug || null }),
         });
         delivery = r.ok ? await r.json() : { delivered: false, reason: `flows ${r.status}` };
       } catch (e) {

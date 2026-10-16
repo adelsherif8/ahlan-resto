@@ -11,7 +11,8 @@ import { sessionPrecheck, detectAffirmative, detectSelfCorrection } from "../ser
 import { processWaMedia } from "../services/media.js";
 import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction, sendDocument, markReadWithTyping, WA_PHONE_NUMBER_ID, sendLocationRequest } from "../services/whatsapp.js";
 import { bump } from "../services/metrics.js";
-import { log } from "../config.js";
+import { log, PUBLIC_BASE } from "../config.js";
+import { demoOn, getLead, touchLead, leadState, isTester, claimHandleLead, notRegistered, expired as demoExpired } from "../services/demolead.js";
 
 const HISTORY_TTL_MS = 60 * 60 * 1000; // fresh conversation after 1h of silence (removebuffer.json behavior, on read)
 
@@ -41,12 +42,15 @@ const P2 = (lang, en, ar, fr) => (lang === "ar" ? ar : lang === "fr" ? fr : en);
 export function setSessionLanguage(key, l) {
   if (l && l !== "unknown") sessionLang.set(key, l);
 }
+/** The conversation's current language, for code outside the pipeline (the demo form). */
+export const getSessionLanguage = (restaurantId, sessionId) =>
+  sessionLang.get(`${restaurantId || "default"}|${sessionId}`) || null;
 // spam guard state
-const spam = new Map(); // sessionId -> { count, windowStart, cooled }
+const spam = new Map(); // "<restaurantId>|<sessionId>" -> { count, windowStart, cooled }
 // dead-letter state
-const failures = new Map(); // sessionId -> consecutive failures
+const failures = new Map(); // "<restaurantId>|<sessionId>" -> consecutive failures
 // button pacing: never two buttoned replies in a row (host, not phone menu)
-const lastHadButtons = new Map(); // sessionId -> boolean
+const lastHadButtons = new Map(); // "<restaurantId>|<sessionId>" -> boolean
 
 defineFlow({
   name: "ingest",
@@ -103,10 +107,10 @@ defineFlow({
     // ---- spam_guard ----
     const spamResult = await f.node("spam_guard", async () => {
       const now = Date.now();
-      const s = spam.get(ctx.sessionId) || { count: 0, windowStart: now, cooled: false };
+      const s = spam.get(bufKey(ctx)) || { count: 0, windowStart: now, cooled: false };
       if (now - s.windowStart > 60_000) { s.count = 0; s.windowStart = now; s.cooled = false; }
       s.count += 1;
-      spam.set(ctx.sessionId, s);
+      spam.set(bufKey(ctx), s);
       if (s.count > 12) {
         bump("spam_blocks");
         if (!s.cooled) {
@@ -124,9 +128,9 @@ defineFlow({
       if (config.ai?.chat_enabled === false) {
         // staff still see the message; guest gets ONE canned note per session per hour
         await logMessage(db, ctx.sessionId, "guest", event.text || "[message]", ctx.channel);
-        const s = spam.get(`gate:${ctx.sessionId}`);
+        const s = spam.get(`gate:${bufKey(ctx)}`);
         if (!s || Date.now() - s.windowStart > 3_600_000) {
-          spam.set(`gate:${ctx.sessionId}`, { windowStart: Date.now() });
+          spam.set(`gate:${bufKey(ctx)}`, { windowStart: Date.now() });
           await respondDirect(ctx, config.ai?.off_hours?.reply || "Thanks for your message! The team will get back to you shortly 🙏");
         }
         return { pass: false, reason: "restaurant bot disabled (ai.chat_enabled=false) — logged for staff, canned reply sent" };
@@ -209,6 +213,7 @@ defineFlow({
     { id: "gates", label: "AI Gates", icon: "shield" },
     { id: "load_history", label: "History (1h TTL)", icon: "history" },
     { id: "session_precheck", label: "Session Precheck", icon: "route" },
+    { id: "demo_gate", label: "Demo Gate (demo tenants)", icon: "shield" },
     { id: "master", label: "MASTER (sub-flow)", icon: "branch" },
     { id: "humanize_delay", label: "Humanize Delay", icon: "timer" },
     { id: "deliver", label: "Deliver", icon: "send" },
@@ -269,10 +274,54 @@ defineFlow({
     const sticky = sessionLang.get(langKey(ctx)) || precheck.stored_language || null;
     if (!sessionLang.get(langKey(ctx)) && precheck.stored_language) sessionLang.set(langKey(ctx), precheck.stored_language);
 
+    // ---- demo gate (the Munadim showcase number only) ----
+    // Access is granted by hand: Adel qualifies the prospect on WhatsApp and runs
+    // tools/demo-lead.mjs, which opens a 24-hour window on their number. Anyone we
+    // haven't vouched for gets a polite invite-only line instead of a free bot.
+    // `ai.demo_mode` is false everywhere else, so a real client's guests never see this.
+    const demo = demoOn(ctx.tenant.config) ? await f.node("demo_gate", async () => {
+      // our own numbers never meet the gate
+      if (isTester(ctx.tenant.config, ctx.sessionId)) return { pass: true, state: "tester" };
+      const lang = pipeLang(ctx.sessionId, merged, langKey(ctx));
+      const contact = ctx.tenant.config.ai?.demo_contact || "";
+      let lead = null;
+      try {
+        lead = await getLead(db, ctx.sessionId);
+      } catch (e) {
+        // the demo_leads table is unreachable — serve them rather than hold the
+        // conversation hostage to our own paperwork
+        log(`demo gate skipped: ${e.message}`);
+        return { pass: true, state: "unavailable" };
+      }
+      const state = leadState(lead);
+      if (state === "active") return { pass: true, state, expires_at: lead.expires_at };
+      if (state === "expired") {
+        // a finished trial is a lead to call, not a dead end — flag it, don't re-notify
+        await setSessionFlags(db, ctx.sessionId, { needs_attention: true, handoff_reason: `demo expired — ${lead.business_name || "unknown"}` }).catch(() => {});
+        return { pass: false, state, reply: demoExpired(lang, contact) };
+      }
+      // vouched for by username only? then this is them — claim the row onto their number
+      if (!lead) {
+        const claimed = await claimHandleLead(db, ctx.sessionId).catch(() => null);
+        if (claimed) {
+          log(`demo: ${claimed.note?.split(" · ")[0] || "handle"} claimed by ${ctx.sessionId}`);
+          await notifyDashboard(db, "handoff", `🎬 Demo started: ${claimed.business_name || ctx.sessionId}`,
+            [claimed.name, claimed.business_type, claimed.city, claimed.website, claimed.note].filter(Boolean).join(" · "), ctx.sessionId).catch(() => {});
+          return { pass: true, state: "claimed", expires_at: claimed.expires_at };
+        }
+      }
+      // never vouched for: note that they turned up, so Adel sees the knock
+      await touchLead(db, ctx.sessionId, { prompted_at: new Date().toISOString() }).catch(() => {});
+      if (!lead) await notifyDashboard(db, "handoff", `👋 New number on the demo line: ${ctx.sessionId}`, merged.slice(0, 180), ctx.sessionId).catch(() => {});
+      return { pass: false, state, reply: notRegistered(lang, contact) };
+    }, { input: { sessionId: ctx.sessionId } }) : { pass: true, state: "off" };
+
     let reply = null;
     let routed = null;
 
-    if (precheck.loop_detected || precheck.circuit_breaker) {
+    if (!demo.pass) {
+      reply = demo.reply;
+    } else if (precheck.loop_detected || precheck.circuit_breaker) {
       reply = P2(pipeLang(ctx.sessionId, merged, langKey(ctx)), "Let me get a team member to help you directly — one moment 🙏", "هجيبلك حد من الفريق يساعدك على طول — لحظة 🙏", "Hageblak 7ad men el team ysa3dak — le7za 🙏");
       await setSessionFlags(db, ctx.sessionId, { needs_attention: true, handoff_reason: precheck.loop_detected ? "loop detected" : "circuit breaker (too many turns)" });
       await notifyDashboard(db, "handoff", "Human needed: conversation stuck", `Session ${ctx.sessionId} — ${precheck.loop_detected ? "bot repeated itself" : "20+ turns"}`, ctx.sessionId);
@@ -340,8 +389,8 @@ defineFlow({
       const list = routed?.menuList || null;
       // pacing: no back-to-back buttons — EXCEPT at order decision points, where a
       // missing button strands the guest (a confirm bill with no Confirm button)
-      if (qrs.length && lastHadButtons.get(ctx.sessionId) && !routed?.forceButtons) qrs = [];
-      lastHadButtons.set(ctx.sessionId, qrs.length > 0 || !!list);
+      if (qrs.length && lastHadButtons.get(bufKey(ctx)) && !routed?.forceButtons) qrs = [];
+      lastHadButtons.set(bufKey(ctx), qrs.length > 0 || !!list);
       if (lastHadButtons.size > 2000) lastHadButtons.clear();
       // emoji reaction on the guest's message — lands before the text reply, like a human
       if (routed?.reactEmoji && isWa && String(burst.last_message_id || "").startsWith("wamid.")) {
@@ -465,7 +514,7 @@ defineFlow({
       return { more_pending: 0 };
     }, { input: { sessionId: ctx.sessionId } });
 
-    failures.delete(ctx.sessionId);
+    failures.delete(bufKey(ctx));
     return { replied: true, reply, fast_path: routed?.fast_path || null, bucket: routed?.bucket || null, chained: post.more_pending > 0 };
   },
 });
@@ -492,7 +541,7 @@ function splitReply(reply) {
 }
 
 async function deliverToChannel(ctx, text) {
-  const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
+  const route = sessionRoutes.get(bufKey(ctx)) || { channel: ctx.channel };
   const phoneNumberId = route.phoneNumberId || WA_PHONE_NUMBER_ID;
   if (route.channel === "whatsapp" && phoneNumberId) {
     const to = ctx.sessionId.replace(/^\+/, "");
@@ -504,7 +553,7 @@ async function deliverToChannel(ctx, text) {
 }
 
 async function deliverPhoto(ctx, photo) {
-  const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
+  const route = sessionRoutes.get(bufKey(ctx)) || { channel: ctx.channel };
   const phoneNumberId = route.phoneNumberId || WA_PHONE_NUMBER_ID;
   if (route.channel === "whatsapp" && phoneNumberId) {
     await sendImage(phoneNumberId, ctx.sessionId.replace(/^\+/, ""), photo.url, photo.caption)
@@ -522,7 +571,7 @@ export async function deliverStaffReply(ctx, text) {
 
 // Interactive senders — fall back to plain text if the interactive send fails.
 async function deliverButtons(ctx, text, labels) {
-  const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
+  const route = sessionRoutes.get(bufKey(ctx)) || { channel: ctx.channel };
   const phoneNumberId = route.phoneNumberId || WA_PHONE_NUMBER_ID;
   if (!phoneNumberId) return deliverToChannel(ctx, text);
   await sendButtons(phoneNumberId, ctx.sessionId.replace(/^\+/, ""), text, labels)
@@ -530,7 +579,7 @@ async function deliverButtons(ctx, text, labels) {
 }
 
 async function deliverList(ctx, text, list) {
-  const route = sessionRoutes.get(ctx.sessionId) || { channel: ctx.channel };
+  const route = sessionRoutes.get(bufKey(ctx)) || { channel: ctx.channel };
   const phoneNumberId = route.phoneNumberId || WA_PHONE_NUMBER_ID;
   if (!phoneNumberId) return deliverToChannel(ctx, text);
   await sendList(phoneNumberId, ctx.sessionId.replace(/^\+/, ""), text, list.button, list.sections)
@@ -562,14 +611,14 @@ async function respondDirect(ctx, text) {
 
 // Dead-letter wrapper used by the server's flush handler
 export async function handleFlushFailure(ctx, err) {
-  const n = (failures.get(ctx.sessionId) || 0) + 1;
-  failures.set(ctx.sessionId, n);
+  const n = (failures.get(bufKey(ctx)) || 0) + 1;
+  failures.set(bufKey(ctx), n);
   bump("dead_letters");
   try {
     await ctx.tenant.db.from("routing_failures").insert({ phone_number: ctx.sessionId, stage: "respond", error: String(err?.message || err).slice(0, 500) });
   } catch {}
   if (n >= 2) {
-    failures.delete(ctx.sessionId);
+    failures.delete(bufKey(ctx));
     await respondDirect(ctx, P2(pipeLang(ctx.sessionId, null, langKey(ctx)), "So sorry — we're having a technical hiccup 🙏 A team member will reply to you personally.", "معلش — عندنا مشكلة تقنية 🙏 حد من الفريق هيرد عليك بنفسه.", "Ma3lesh — 3andena moshkela tany2a 🙏 7ad men el team hayrod 3aleik."));
     await setSessionFlags(ctx.tenant.db, ctx.sessionId, { needs_attention: true, handoff_reason: "dead-letter: pipeline failed twice" }).catch(() => {});
     await notifyDashboard(ctx.tenant.db, "system", "Pipeline failure", `Two consecutive failures for ${ctx.sessionId} — guest got apology, needs human`, ctx.sessionId).catch(() => {});

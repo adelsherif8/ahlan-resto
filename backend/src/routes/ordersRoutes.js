@@ -77,7 +77,7 @@ router.post("/pos-extract", async (req, res) => {
     const r = await fetch(`${FLOWS_URL}/api/ops/pos-extract`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-ops-token": FLOWS_OPS_TOKEN },
-      body: JSON.stringify({ text: String(req.body?.text || "") }),
+      body: JSON.stringify({ text: String(req.body?.text || ""), restaurant: req.restaurant?.slug || null }),
     });
     res.status(r.status).json(await r.json());
   } catch (e) {
@@ -373,13 +373,13 @@ router.post("/:id/assign", async (req, res, next) => {
 });
 
 // tell the guest their order moved (fire-and-forget; never blocks the kitchen)
-async function pushStatus(code, status) {
+async function pushStatus(code, status, restaurant = null) {
   if (!FLOWS_URL || !code) return;
   try {
     await fetch(`${FLOWS_URL}/api/order/status`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(FLOWS_OPS_TOKEN ? { "x-ops-token": FLOWS_OPS_TOKEN } : {}) },
-      body: JSON.stringify({ code, status }),
+      body: JSON.stringify({ code, status, restaurant }),
     });
   } catch (e) { log("order status push failed:", e.message); }
 }
@@ -426,7 +426,7 @@ router.patch("/:id", async (req, res, next) => {
         });
       } catch (err) { log("diner CRM adjust on status change failed:", err.message); }
     }
-    if (patch.status && !movingBack) pushStatus(row.code, patch.status); // guest gets the update (never for undos)
+    if (patch.status && !movingBack) pushStatus(row.code, patch.status, req.restaurant?.slug || null); // guest gets the update (never for undos)
     res.json(row);
   } catch (e) { next(e); }
 });

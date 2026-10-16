@@ -106,6 +106,8 @@ router.post("/tidy", async (req, res, next) => {
     const r = await fetch(`${FLOWS_URL}/api/ops/tidy-menu`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(FLOWS_OPS_TOKEN ? { "x-ops-token": FLOWS_OPS_TOKEN } : {}) },
+      // which restaurant's menu to tidy — flows must never fall back to its default tenant
+      body: JSON.stringify({ restaurant: req.restaurant?.slug || null }),
     });
     if (!r.ok) return res.status(502).json({ error: `flows ${r.status}` });
     res.json(await r.json());

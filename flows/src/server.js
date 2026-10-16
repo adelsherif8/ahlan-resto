@@ -2,7 +2,7 @@ import { orderedCategories } from "./services/categories.js";
 import express from "express";
 import cors from "cors";
 import { PORT, log, llmReady, PUBLIC_BASE } from "./config.js";
-import { resolveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, resolveRestaurantBySlug, resolveAllRestaurants, recordServiceBoot, listServiceBoots, upsertCostDaily, readCostDaily } from "./services/tenant.js";
+import { resolveRestaurant, resolveLiveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, resolveRestaurantBySlug, resolveAllRestaurants, recordServiceBoot, listServiceBoots, upsertCostDaily, readCostDaily } from "./services/tenant.js";
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb, isTestSession } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
@@ -10,7 +10,8 @@ import { metrics, bump } from "./services/metrics.js";
 import { runRegression, regressionStatus, loadLastRegression } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
 import { TRACE_MAX_AGE_D as TRACE_RETENTION_D, TRACE_ERROR_MAX_AGE_D as TRACE_ERROR_RETENTION_D } from "./flows/janitor.js";
-import { getSession, logMessage } from "./services/chatlog.js";
+import { getSession, logMessage, notifyDashboard } from "./services/chatlog.js";
+import { startIgPoster } from "./services/igpost.js";
 import { riderCopy } from "./services/ridercopy.js";
 import { verifyBuildToken, renderBuilderPage, priceBuild, describeBuild, builderConfig, priceMeal, signBuildToken, signTrackToken, LAYERS as BUILDER_LAYERS, MODEL_BASE } from "./services/builder.js";
 import { nextOrderCode } from "./services/ordercode.js";
@@ -78,6 +79,17 @@ async function tenantFromQuery(req) {
   return all[0] || resolveRestaurant();
 }
 
+// The restaurant a dashboard/ops call is ABOUT. The backend names it (`restaurant` in
+// the body or query); with nothing named we fall back to the default tenant exactly as
+// before. These endpoints used to ignore the caller entirely and resolve the default —
+// so a Munadim staff reply or ticket status was looked up in Just Smash's schema and
+// the guest heard nothing.
+async function tenantForReq(req) {
+  const slug = String(req.body?.restaurant || req.query?.restaurant || "").trim().toLowerCase();
+  if (slug) return resolveRestaurantBySlug(slug);
+  return resolveRestaurant();
+}
+
 // Both spellings are served here. Bills, receipt QRs and older WhatsApp messages
 // carry /menu.pdf and /receipt/:code — those used to reach us through the Vercel
 // dashboard's rewrites, so once PUBLIC_BASE moved onto this service directly they
@@ -135,8 +147,9 @@ app.get(["/pdf/receipt/:code", "/receipt/:code"], async (req, res) => {
 
 app.get("/health", async (_req, res) => {
   try {
-    const t = await resolveRestaurant();
-    res.json({ ok: true, llm: llmReady, restaurant: t.record.name });
+    // the restaurant that owns the live WhatsApp number — not the config default
+    const t = await resolveLiveRestaurant();
+    res.json({ ok: true, llm: llmReady, restaurant: t.record.name, live_number: t.record.wpid ? "yes" : "none" });
   } catch (e) {
     res.json({ ok: false, llm: llmReady, error: e.message });
   }
@@ -203,7 +216,9 @@ app.post("/api/web/typing", opsAuth, (req, res) => {
 
 // Durable poll: reads chat_messages from the tenant DB (survives redeploys,
 // shows the same thread the restaurant dashboard sees — incl. staff replies).
-app.get("/api/web/poll", async (req, res) => {
+// Token-locked like /send: without it anyone holding a guest's phone number could read
+// that guest's whole conversation — addresses included — by polling it.
+app.get("/api/web/poll", opsAuth, async (req, res) => {
   const { sessionId } = req.query;
   if (!sessionId) return res.status(400).json({ error: "sessionId required" });
   try {
@@ -229,7 +244,7 @@ app.post("/api/staff/reply", (req, res, next) => opsAuth(req, res, next), async 
   try {
     const { sessionId, message } = req.body || {};
     if (!sessionId || !message) return res.status(400).json({ error: "sessionId and message required" });
-    const tenant = await resolveRestaurant();
+    const tenant = await tenantForReq(req);
     const session = await getSession(tenant.db, String(sessionId));
     const channel = session?.channel || (String(sessionId).startsWith("web:") ? "web" : "whatsapp");
     await deliverStaffReply({ sessionId: String(sessionId), tenant, channel }, String(message).slice(0, 3500));
@@ -245,7 +260,7 @@ app.post("/api/ops/draft-reply", (req, res, next) => opsAuth(req, res, next), as
   try {
     const { sessionId } = req.body || {};
     if (!sessionId) return res.status(400).json({ error: "sessionId required" });
-    const tenant = await resolveRestaurant();
+    const tenant = await tenantForReq(req);
     const { getHistory } = await import("./services/history.js");
     const { chatText } = await import("./services/llm.js");
     const { MODEL_FAST } = await import("./config.js");
@@ -271,7 +286,7 @@ app.post("/api/ops/pos-extract", (req, res, next) => opsAuth(req, res, next), as
   try {
     const text = String(req.body?.text || "").slice(0, 400);
     if (!text.trim()) return res.status(400).json({ error: "text required" });
-    const tenant = await resolveRestaurant();
+    const tenant = await tenantForReq(req);
     const { chatJSON } = await import("./services/llm.js");
     const { MODEL_FAST } = await import("./config.js");
     const { getMenu } = await import("./services/menucache.js");
@@ -298,7 +313,7 @@ Rules: qty defaults 1; ONLY names from MENU (closest match); Arabic/Franco input
 
 app.post("/api/ops/tidy-menu", (req, res, next) => opsAuth(req, res, next), async (req, res) => {
   try {
-    const tenant = await resolveRestaurant();
+    const tenant = await tenantForReq(req);
     const { chatJSON } = await import("./services/llm.js");
     const { MODEL_FAST } = await import("./config.js");
     const { data: menu } = await tenant.db.from("menu_items").select("id,name,description").order("sort_order");
@@ -394,7 +409,7 @@ app.post("/api/order/status", (req, res, next) => opsAuth(req, res, next), async
   try {
     const { code, status } = req.body || {};
     if (!code || !status) return res.status(400).json({ error: "code and status required" });
-    const tenant = await resolveRestaurant();
+    const tenant = await tenantForReq(req);
     const { data: order } = await tenant.db.from("orders").select("*").eq("code", code).maybeSingle();
     if (!order) return res.status(404).json({ error: "order not found" });
     if (!order.phone_number || String(order.phone_number).startsWith("walkin:")) return res.json({ skipped: "no guest channel" });
@@ -923,7 +938,7 @@ app.get("/api/metrics", opsAuth, async (_req, res) => {
   // conversation outcomes from the tenant DB (supabase-js returns errors, doesn't throw —
   // a count is just null until the relevant migration has run)
   try {
-    const t = await resolveRestaurant();
+    const t = await resolveLiveRestaurant();
     const cnt = async (table, apply) => {
       let q = t.db.from(table).select("id", { count: "exact", head: true });
       if (apply) q = apply(q);
@@ -942,8 +957,11 @@ app.get("/api/metrics", opsAuth, async (_req, res) => {
 app.post("/api/ops/run-regression", opsAuth, (req, res) => {
   // {only: ["menudoc","photo"]} re-runs just those cases — cheap targeted verify
   const only = Array.isArray(req.body?.only) && req.body.only.length ? req.body.only : undefined;
-  runRegression({ only }); // async — poll status
-  res.json({ started: true, only: only || "all" });
+  // {restaurant: "<slug>"} runs the cases on another tenant — default stays the fixture
+  // tenant (RESTAURANT_SLUG), because the cases assert that tenant's menu and facts
+  const restaurant = req.body?.restaurant ? String(req.body.restaurant) : undefined;
+  runRegression({ only, restaurant }); // async — poll status
+  res.json({ started: true, only: only || "all", restaurant: restaurant || "default" });
 });
 app.get("/api/ops/regression", opsAuth, async (_req, res) => {
   const live = regressionStatus();
@@ -2463,6 +2481,10 @@ function flushHandler(bufferKey, channel = "web") {
   return run;
 }
 
+// The Instagram launch schedule. Off unless IG_AUTOPOST=1, isolated from the bot, and
+// it never throws — a publishing problem must not touch a single conversation.
+if (startIgPoster()) log("instagram auto-poster: ON (checks every 5 min)");
+
 process.on("unhandledRejection", (e) => log("unhandled rejection (kept running):", e?.message || e));
 process.on("uncaughtException", (e) => log("uncaught exception (kept running):", e?.message || e));
 
@@ -2499,21 +2521,25 @@ setInterval(async () => {
   }
 }, 900_000);
 
-// boot sweep: flush bursts stranded by a previous restart
-resolveRestaurant()
-  .then(async (t) => {
-    bootSweep(t.db, flushHandler, t.record.id);
-    // a deploy can kill a regression mid-run before its cleanup — sweep orphans here
-    try {
-      for (const pat of ["web:regress-%", "web:convo-%"]) {
-        for (const [tb, col] of [["chat_messages", "session_id"], ["chat_sessions", "session_id"], ["message_full", "phone_number"], ["diners", "phone_number"], ["waitlist", "phone_number"], ["feedback", "phone_number"], ["temp_reservation", "phone_number"]])
-          await t.db.from(tb).delete().like(col, pat);
-        await t.db.from("orders").delete().like("phone_number", pat);
-        await t.db.from("reservations").delete().like("diner_phone", pat);
-        await t.db.from("notifications").delete().like("ref_id", pat);
-      }
-      log("boot: orphaned test sessions swept");
-    } catch (e) { log("boot sweep of test sessions failed:", e.message); }
+// boot sweep: flush bursts stranded by a previous restart — for EVERY restaurant.
+// This used to run for the default tenant only, so a Munadim guest who typed during
+// a redeploy was never answered (the janitor deleted the row ten minutes later).
+resolveAllRestaurants()
+  .then(async (tenants) => {
+    for (const t of tenants) {
+      bootSweep(t.db, flushHandler, t.record.id).catch((e) => log(`boot sweep ${t.record.slug} skipped:`, e.message));
+      // a deploy can kill a regression mid-run before its cleanup — sweep orphans here
+      try {
+        for (const pat of ["web:regress-%", "web:convo-%"]) {
+          for (const [tb, col] of [["chat_messages", "session_id"], ["chat_sessions", "session_id"], ["message_full", "phone_number"], ["diners", "phone_number"], ["waitlist", "phone_number"], ["feedback", "phone_number"], ["temp_reservation", "phone_number"]])
+            await t.db.from(tb).delete().like(col, pat);
+          await t.db.from("orders").delete().like("phone_number", pat);
+          await t.db.from("reservations").delete().like("diner_phone", pat);
+          await t.db.from("notifications").delete().like("ref_id", pat);
+        }
+      } catch (e) { log(`boot sweep of test sessions failed (${t.record.slug}):`, e.message); }
+    }
+    log(`boot: ${tenants.length} restaurant(s) swept for stray bursts + orphaned test sessions`);
   })
   .catch((e) => log("boot sweep skipped:", e.message));
 

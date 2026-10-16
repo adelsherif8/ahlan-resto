@@ -43,6 +43,10 @@ export function explicitRequest(message) {
 // on purpose: "burger", "fries", "coke" are menu vocabulary in every language here.
 const EN_FUNCTION = /(?<![\p{L}\p{N}])(i|i'?m|my|me|we|you|your|can|could|would|please|the|a|an|is|are|do|does|don'?t|want|need|give|make|add|remove|take|change|cancel|send|show|how|what|when|where|why|which|much|many|for|with|without|and|but|thanks|thank|hello|hi|sorry|ready|order|from|to|of|on|at|that|this|it|also|still|now|later)(?![\p{L}\p{N}])/giu;
 
+// Latin-script openers that only an English speaker writes. Deliberately NOT "ok",
+// "yes" or "no": everyone types those, in every language.
+const EN_GREETING = /^(?:hello|hi|hey|hiya|heya|howdy)(?:\s+(?:there|again))?[\s!.,?]*$|^good\s+(?:morning|afternoon|evening|day)[\s!.,?]*$|^(?:thanks|thanx|thx|thank\s+(?:you|u))[\s!.,?]*$/i;
+
 /** Text the detector is allowed to look at: no links, no tags, no numbers, no dish names. */
 export function conversationalText(message, itemNames = []) {
   let s = String(message || "")
@@ -81,6 +85,14 @@ export function messageEvidence(message, itemNames = []) {
   if (fScore >= 2 || (fScore >= 1 && text.split(/\s+/).length >= 2)) {
     return { lang: FRANCO, reason: `franco markers (${fScore})` };
   }
+  // A greeting is a word CHOICE, not a dish name. "hello", "hi there", "good morning",
+  // "thanks" are unmistakably English however short, and they are nearly always the
+  // FIRST message — the one turn with no sticky yet, where the restaurant's default
+  // would otherwise decide the whole conversation and never let go (an English guest
+  // on an Arabic-default tenant got Arabic for "hello there", then stayed in Arabic
+  // because "menu pls" carries no evidence either). Franco openers — "salam", "sabah
+  // el kheir", "ezayak" — are caught by the franco check above and never reach here.
+  if (EN_GREETING.test(text.trim())) return { lang: EN, reason: "english greeting" };
   // English needs a real sentence, not one leftover word: two function words, or one
   // plus a few tokens. "fries" and "Coke Zero" deliberately fall through to sticky.
   const fn = (text.match(EN_FUNCTION) || []).length;

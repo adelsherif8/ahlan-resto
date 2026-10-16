@@ -18,7 +18,7 @@ Munadim is **three separately deployed services** plus two Supabase projects. Th
 **Two Supabase projects:**
 
 - **Control plane** — project `npznnysudtkesnliibvl`. Tables: `restaurants` (one row per restaurant = *all its config as JSON columns*), `restaurant_users` (dashboard logins). Env: `SUPABASE_AHLAN_URL` / `SUPABASE_AHLAN_SERVICE_KEY`.
-- **Tenant data** — project `sxthftiqvaojbdyjizjr`, **one Postgres schema per restaurant**: `r_luciz`, `r_justsmash`. Each schema has identical tables (menu, orders, diners, chats…). Each `restaurants` row stores its own tenant credentials (url/key/schema, encrypted) in `restaurants.integrations.supabase`.
+- **Tenant data** — project `sxthftiqvaojbdyjizjr`, **one Postgres schema per restaurant**: `r_munadim` (owns the live WhatsApp number), `r_luciz`, `r_justsmash`. Each schema has identical tables (menu, orders, diners, chats…). Each `restaurants` row stores its own tenant credentials (url/key/schema, encrypted) in `restaurants.integrations.supabase`.
 
 **The rule that ties it together:** the *bot* and the *dashboard* read and write **the same tenant tables**. A guest orders on WhatsApp → Flows inserts into `r_luciz.orders` → the dashboard's Orders/KDS page (polling the API) shows it seconds later. Staff edit the menu in the dashboard → API writes `r_luciz.menu_items` → the bot's next reply uses it (menu cache 20s). Nothing is duplicated between the two.
 
@@ -93,7 +93,7 @@ Everything the bot "knows" about a restaurant comes from these columns + the ten
 - `name_ar` is **omitted entirely** when blank — never `null` or `""`. Treat it as optional.
 - **Items still store the category NAME** in `menu_items.category`, not an id. Deliberate: no migration, and the bot keeps reading what it already reads. The cost is that renaming rewrites every affected item (the Manage-sections dialog does this for you, renames first so config and items can't disagree).
 - **Consumers must never drop a section.** Any category present on items but missing from config is appended *after* the configured ones in item-derived order. Null/empty config → today's item-derived behaviour exactly.
-- ⚠️ **Flows does not read this yet.** `flows/src/services/menupdf.js` and three places in `friendly.js` still derive order via `[...new Set(menu.map(m => m.category))]`. Until a shared `orderedCategories(menu, config)` helper lands there, the configured order and Arabic names affect the **dashboard only**.
+- ✅ **Flows reads this too** (since Sept 2026): `flows/src/services/categories.js` exports `orderedCategories(menu, config)`, used by the menu PDF, the friendly agent, the order agent and the menu fast path — so the configured order and Arabic names apply to the bot as well as the dashboard.
 
 ---
 

@@ -156,7 +156,6 @@ defineFlow({
       };
     }, { input: { ok_days: TRACE_MAX_AGE_D, error_days: TRACE_ERROR_MAX_AGE_D, cap: TRACE_BATCH * TRACE_MAX_BATCHES } });
 
-    return { done: true };
     // THE BOT MUST NOT DEGRADE SILENTLY. When OpenAI credits ran out (19 Aug) the
     // guests got fallbacks and slow turns for ~an hour before anyone noticed. Every
     // node error lands in flow_executions — so the hourly janitor counts the last
@@ -175,5 +174,7 @@ defineFlow({
       }
       return { errors_last_hour: n, alarmed: n >= 5 };
     });
+
+    return { done: true };
   },
 });

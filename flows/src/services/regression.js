@@ -1,7 +1,11 @@
-// Regression suite — 20 assertion-based conversations through the REAL pipeline.
+// Regression suite — ~113 assertion-based conversations through the REAL pipeline.
+// The CASES below are written against the Just Smash fixture tenant (its menu, branches,
+// hotline) — that is why the default restaurant is RESTAURANT_SLUG and not the one that
+// owns the live number. Pass {restaurant} to run them elsewhere (persona-*.json is the
+// per-tenant suite; this one is the engine-behaviour suite).
 // Run after any prompt/flow change; a case that passed must never silently break.
 import { runFlow } from "../engine/flow.js";
-import { resolveRestaurant } from "./tenant.js";
+import { resolveRestaurant, resolveRestaurantBySlug } from "./tenant.js";
 import { log } from "../config.js";
 
 const AR = "[\\u0600-\\u06FF]";
@@ -569,12 +573,14 @@ async function cleanup(db, runId) {
 
 // `only` runs a subset by id — for re-checking the cases you just touched without
 // paying for the whole suite. Omit it for the full run.
-export async function runRegression({ only } = {}) {
+export async function runRegression({ only, restaurant } = {}) {
   if (state.status === "running") return state;
+  const pickTenant = () => (restaurant ? resolveRestaurantBySlug(String(restaurant)) : resolveRestaurant());
   const runId = Date.now().toString(36);
   state = { status: "running", started_at: new Date().toISOString(), finished_at: null, total: CASES.length, passed: 0, failed: 0, results: [] };
   try {
-    const tenant = await resolveRestaurant();
+    const tenant = await pickTenant();
+    state.restaurant = tenant.config.slug;
     const rtype = tenant.config.basic_info?.restaurant_type || "fine";
     const reservable = rtype !== "casual" && tenant.config.ai?.reservations_enabled !== false;
     // "tables" cases exercise the ask-your-table gate — meaningless when the
@@ -620,6 +626,6 @@ export async function runRegression({ only } = {}) {
   }
   state.finished_at = new Date().toISOString();
   log(`regression: ${state.passed}/${state.passed + state.failed} passed`);
-  try { const tenant = await resolveRestaurant(); await persistRun(tenant.db, state); } catch {}
+  try { const tenant = await pickTenant(); await persistRun(tenant.db, state); } catch {}
   return state;
 }
