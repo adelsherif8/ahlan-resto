@@ -106,6 +106,7 @@ The n8n replacement, ~200 lines. `defineFlow({ id, nodes, run })` returns a flow
 - `checksplit.js` / `splitintent.js` — splitting the bill in chat: the pure money engine (integer piastres, largest-remainder, must reconcile exactly) and the intent reader around it.
 - `demolead.js` — the Munadim demo gate: who may use the showcase number and until when. Access is granted by hand (`tools/demo-lead.mjs`), not self-serve; `ai.demo_mode` keeps it off for every real client.
 - `intent.js` — Jev (TypeSafe AI System One) as a second opinion for the router's classify step. Dormant without `JEV_API_KEY`; `JEV_MODE=shadow` writes Jev's bucket + confidence next to the nano classifier's in every classify trace (`jev.agrees`), `primary` lets a confident Jev answer route with nano as fallback. English-first model — shadow on real Arabic/Franco traffic decides.
+- `orderprompt.js` — the order extractor's prompt, static-first so OpenAI caches the restaurant block (menu, rules, branches) across every call; also what the contract test and the replay tool feed.
 - `regression.js` — the assertion-based regression suite run from the ops console (`/api/ops/run-regression`), results persisted as a `flow_executions` row so the console shows the last run after restarts.
 
 ## `src/server.js` — HTTP surface
@@ -159,6 +160,18 @@ node convo-test.mjs http://localhost:5142 luciz convos-notes9.json
 ```
 
 Rules of the road: test on a local server before deploying; run the full persona suite **last**, after all changes; keep test data after runs (delete only when the founder says so).
+
+**Unit + fuzz tests (free, milliseconds):** `node --test test/` — the check-split engine, the demo gate, the language resolver, hours/next-opening, the Franco count words, the test-phone rule, and `bill.fuzz.test.mjs`: 400 random carts through `priceOrder`, 150 bills rendered in three languages, 300 random check splits — every total must reconcile.
+
+**Extractor contract (`tools/extract-contract.mjs`):** 41 real guest messages (`test/extract-cases.json`) through the CURRENT extractor prompt (`services/orderprompt.js`), compared with the recorded JSON. Run after any prompt edit; `--record` rewrites the expectations (review the diff). Cents per run.
+
+**Trace replay (`tools/replay-extract.mjs`):** yesterday's REAL guest messages (test sessions excluded) through today's prompt and menu, printing every turn whose extraction changed.
+
+**Transcript judge:** `persona-test.mjs … --judge` adds a cheap model pass per conversation against five written rules (no invented item/number, one language, one question per reply, no repeated question, no contradiction). Advisory — it flags, it never fails the run.
+
+**A live session → a fixture (`tools/fixture-from-session.mjs <slug> <sessionId>`):** after a demo or a reel recording, turns the guest's real messages into a convo-test scenario with an assertion skeleton. The suite grows from real failures.
+
+**Night run (`tools/night-run.sh --install`):** launchd job at 03:00 local that runs the Munadim fixtures + personas against production, logs to test-runs.log and pushes an ntfy alert on failure — the half of the day nobody tests.
 
 **One-off audits:** `timing-test.mjs` (why did the guest see "one sec"), `greet10.mjs` (greeting scenarios), `rsv300.mjs` (300 reservation scenarios), `_translit.mjs` (transliteration spot-checks).
 

@@ -16,6 +16,27 @@ const BASE = process.argv[2] || "https://flows.munadim.com";
 const SLUG = process.argv[3] || "luciz";
 const FILE = process.argv[4];
 const ONLY = (process.argv.find((a) => a.startsWith("--only=")) || "").replace("--only=", "").split(",").filter(Boolean);
+// --judge: a second, cheap pass per conversation — a model reads the WHOLE transcript
+// against five written rules and FLAGS (never decides). It catches the sloppy-but-passing
+// turns the regexes cannot ("coke · Coca-Cola", a question asked twice in two wordings).
+const JUDGE = process.argv.includes("--judge");
+const JUDGE_RULES = `You audit a WhatsApp conversation between a restaurant bot and a guest. Flag ONLY clear violations of these rules, one per line as "RULE n: <quote> — <why>"; output "OK" if none.
+1. The bot never names a dish, option, price, fee or total that the guest did not say and that is not printed in a code-built bill/list block (lines starting with • / Subtotal / Total / 🧾 / 🎫).
+2. The bot writes in ONE language per conversation, the guest's (Arabic script, or Latin letters for English/Franco); dish names may stay English inside Arabic.
+3. The bot asks at most ONE question per reply (a printed options list counts as one).
+4. The bot never asks the same question twice in a row in different words.
+5. The bot never contradicts itself (closed then takes an order, says removed then shows the item, says booked/placed before a 🎫 ticket).`;
+async function judge(transcript) {
+  if (!JUDGE || !process.env.OPENAI_API_KEY) return null;
+  const text = transcript.map((t) => `GUEST: ${t.guest}\nBOT: ${t.bot.join("\n")}`).join("\n\n");
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0, max_tokens: 300, messages: [{ role: "system", content: JUDGE_RULES }, { role: "user", content: text.slice(0, 12000) }] }) });
+    const j = await res.json();
+    const v = String(j.choices?.[0]?.message?.content || "").trim();
+    return /^ok\b/i.test(v) ? [] : v.split("\n").filter((l) => /^RULE/.test(l.trim()));
+  } catch { return null; }
+}
 const TOKEN = process.env.OPS_TOKEN;
 if (!TOKEN) { console.error("OPS_TOKEN missing — set it in flows/.env"); process.exit(1); }
 const INTERIM = /^(one sec|لحظة واحدة|le7za wa7da)/i;
@@ -122,13 +143,15 @@ for (const c of convos) {
   for (const [label, re] of Object.entries(c.expect_last || {})) if (!new RegExp(re, "i").test(last)) problems.push(`missing on last turn: ${label}`);
   for (const [label, re] of Object.entries(c.forbid || {})) if (new RegExp(re, "i").test(full)) problems.push(`FORBIDDEN: ${label}`);
   for (const [label, re] of Object.entries(c.forbid_last || {})) if (new RegExp(re, "i").test(last)) problems.push(`FORBIDDEN on last turn: ${label}`);
+  const flags = await judge(transcript);
+  if (flags?.length) { console.log(`   ⚠ judge: ${flags.length} flag(s)`); for (const f of flags) console.log(`      ⚠ ${f.slice(0, 160)}`); }
   const cost = await costOf(c.phone, startedAt);
   totalCost += cost.cost; totalTurns += cost.turns; totalIn += cost.tin; totalOut += cost.tout;
   const ok = problems.length === 0;
   if (ok) passed++; else failed++;
   console.log(`\n   ${ok ? "✅ PASS" : "❌ FAIL"} · ${cost.turns} turns · $${cost.cost.toFixed(4)} · ${cost.tin}→${cost.tout} tok`);
   for (const p of problems) console.log(`      • ${p}`);
-  summary.push({ id: c.id, ok, problems, cost: cost.cost, turns: cost.turns });
+  summary.push({ id: c.id, ok, problems, cost: cost.cost, turns: cost.turns, judge: flags || null });
 }
 console.log(`\n${"#".repeat(74)}`);
 try {
@@ -139,5 +162,6 @@ try {
 console.log(`PERSONAS: ${passed} passed, ${failed} failed of ${convos.length}`);
 console.log(`COST: $${totalCost.toFixed(4)} total · ${totalTurns} turns · $${(totalTurns ? totalCost / totalTurns : 0).toFixed(5)}/turn · $${(convos.length ? totalCost / convos.length : 0).toFixed(4)}/conversation · tokens ${totalIn}→${totalOut}`);
 for (const x of summary.filter((x) => !x.ok)) console.log(`  ❌ ${x.id}: ${x.problems.join(" | ")}`);
+if (JUDGE) { const flagged = summary.filter((x) => x.judge?.length); console.log(`JUDGE: ${flagged.length} conversation(s) flagged${flagged.length ? " — " + flagged.map((x) => x.id).join(", ") : ""} (advisory, never fails the run)`); }
 fs.writeFileSync(`/tmp/persona-${Date.now()}.json`, JSON.stringify({ summary, totalCost, totalTurns, totalIn, totalOut }, null, 1));
 process.exit(failed ? 1 : 0);

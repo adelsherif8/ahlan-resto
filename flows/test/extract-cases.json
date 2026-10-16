@@ -1,0 +1,214 @@
+[
+ {
+  "id": "c01",
+  "message": "munadim chicken ranch combo with karkadeh"
+ },
+ {
+  "id": "c02",
+  "message": "عايز مُنادم كشري كبير دليفري ماكسيم"
+ },
+ {
+  "id": "c03",
+  "message": "3ayez 3 munadim nashville chicken sandwich, 2 hot w wa7ed mild"
+ },
+ {
+  "id": "c04",
+  "message": "ابعت المنيو"
+ },
+ {
+  "id": "c05",
+  "message": "how much is the munadim om ali?"
+ },
+ {
+  "id": "c06",
+  "message": "عايز ٢ ناشفيل حار وواحد كلاسيك وبطاطس وكركديه"
+ },
+ {
+  "id": "c07",
+  "message": "نفس طلب امبارح وزوّدلي حاجة ساقعة"
+ },
+ {
+  "id": "c08",
+  "message": "عايز ناشفيل كومبو كوكاكولا وسط وكلاسيك ساندوتش وبطاطس، في المطعم ترابيزة T1"
+ },
+ {
+  "id": "c09",
+  "message": "one classic burger combo with coke then"
+ },
+ {
+  "id": "c10",
+  "message": "عايز مُنادم كلاسيك برجر"
+ },
+ {
+  "id": "c11",
+  "message": "show me a pic of classic burger"
+ },
+ {
+  "id": "c12",
+  "message": "what's in the munadim fire burger?"
+ },
+ {
+  "id": "c13",
+  "message": "ممكن صورة الكلاسيك برجر؟"
+ },
+ {
+  "id": "c14",
+  "message": "send me a picture of the shatta cup"
+ },
+ {
+  "id": "c15",
+  "message": "munadim classic burger sandwich, munadim fries and munadim om ali, pickup cash now"
+ },
+ {
+  "id": "c16",
+  "message": "مُنادم كلاسيك برجر ساندوتش ومُنادم بطاطس ومُنادم أم علي تيك اواي كاش دلوقتي"
+ },
+ {
+  "id": "c17",
+  "message": "munadim classic burger sandwich, munadim fries, munadim om ali, pickup cash delwa2ty"
+ },
+ {
+  "id": "c18",
+  "message": "عايز مُنادم كشري كبير دليفري بوينت ٩٠"
+ },
+ {
+  "id": "c19",
+  "message": "عايز مُنادم حواوشي حار وبطاطس تيك اواي كاش دلوقتي"
+ },
+ {
+  "id": "c20",
+  "message": "one coke and one sprite",
+  "pending": [
+   "Munadim Classic Burger",
+   "Munadim Classic Burger"
+  ]
+ },
+ {
+  "id": "c21",
+  "message": "actually add a loaded fries too",
+  "pending": [
+   "Munadim Classic Burger"
+  ]
+ },
+ {
+  "id": "c22",
+  "message": "no wait, remove the fries",
+  "pending": [
+   "Munadim Classic Burger",
+   "Munadim Loaded Fries"
+  ]
+ },
+ {
+  "id": "c23",
+  "message": "cash, coming in 15 min",
+  "pending": [
+   "Munadim Classic Burger"
+  ]
+ },
+ {
+  "id": "c24",
+  "message": "حار",
+  "pending": [
+   "Munadim Nashville Chicken"
+  ]
+ },
+ {
+  "id": "c25",
+  "message": "كركديه",
+  "pending": [
+   "Munadim Nashville Chicken"
+  ]
+ },
+ {
+  "id": "c26",
+  "message": "دليفري على ماكسيم مول",
+  "pending": [
+   "Munadim Nashville Chicken"
+  ]
+ },
+ {
+  "id": "c27",
+  "message": "خليهم اتنين",
+  "pending": [
+   "Munadim Classic Burger"
+  ]
+ },
+ {
+  "id": "c28",
+  "message": "غيّر المشروب فانتا",
+  "pending": [
+   "Munadim Classic Burger"
+  ]
+ },
+ {
+  "id": "c29",
+  "message": "sheel el batates",
+  "pending": [
+   "Munadim Classic Burger",
+   "Munadim Fries"
+  ]
+ },
+ {
+  "id": "c30",
+  "message": "no I want the chicken ranch instead",
+  "pending": [
+   "Munadim Classic Burger"
+  ]
+ },
+ {
+  "id": "c31",
+  "message": "بتوصلوا المعادي؟",
+  "pending": [
+   "Munadim Classic Burger"
+  ]
+ },
+ {
+  "id": "c32",
+  "message": "fein el order?"
+ },
+ {
+  "id": "c33",
+  "message": "cancel it all",
+  "pending": [
+   "Munadim Classic Burger"
+  ]
+ },
+ {
+  "id": "c34",
+  "message": "3ayez wa7ed munadim chicken ranch sandwich w karkadeh"
+ },
+ {
+  "id": "c35",
+  "message": "2 munadim classic burger combos please"
+ },
+ {
+  "id": "c36",
+  "message": "does the signature burger have onion?"
+ },
+ {
+  "id": "c37",
+  "message": "el karkadeh bekam?",
+  "pending": [
+   "Munadim Chicken Ranch"
+  ]
+ },
+ {
+  "id": "c38",
+  "message": "dine in, tarabeza T2",
+  "pending": [
+   "Munadim Chicken Ranch"
+  ]
+ },
+ {
+  "id": "c39",
+  "message": "split the check, Omar took the burger and Sara took the karkadeh"
+ },
+ {
+  "id": "c40",
+  "message": "ok one signature burger sandwich no onion and no ranch, and a karkadeh, dine in table T4"
+ },
+ {
+  "id": "c41",
+  "message": "٣ مُنادم تشيكن تندرز ٣ قطع، اتنين حار وواحد خفيف"
+ }
+]

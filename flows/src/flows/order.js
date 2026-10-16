@@ -18,6 +18,7 @@ import { menuPdfUrl } from "../services/menupdf.js";
 import { nextOrderCode } from "../services/ordercode.js";
 import { parseAddress, formatAddress, ADDRESS_TEMPLATE_EN, ADDRESS_TEMPLATE_AR } from "../services/address.js";
 import { signTrackToken } from "../services/builder.js";
+import { extractPrompt } from "../services/orderprompt.js";
 import { hoursToday, hasHours, nextOpening } from "../services/tenant.js";
 import { isTestSession } from "../engine/flow.js";
 import { CORRECTION_WORDS } from "../services/precheck.js";
@@ -103,38 +104,7 @@ defineFlow({
           order_type: null, table_number: null, pickup_time: null, notes: null, address: null,
           branch: null, reorder_ref: null, question: null }, __usage: null };
       }
-      const menuNames = loaded.menu.map((m) => `${m.name}${m.name_ar ? ` / ${m.name_ar}` : ""} (${m.category})`).join(" | ");
-      // Grounding the model in the ACTUAL current state beats asking it to infer intent
-      // from phrasing alone. Earlier this only had a paragraph of trigger phrases for
-      // "replace" ("no I want X", "actually X") and the model just never used it — a
-      // plain "No i want chicken ranch" kept coming back as items:[{name:"Chicken
-      // Ranch"}], edits:null, exactly like a fresh order for that item, because that IS
-      // the more natural reading of the sentence in isolation. Telling it directly what
-      // is already on the order removes the guesswork: it isn't inferring "this phrasing
-      // usually means a swap", it's comparing the name it just extracted against a name
-      // it was handed.
-      const pendingLine = loaded.pending?.items?.length
-        ? `\nTHE GUEST ALREADY HAS THIS ON THEIR ORDER (not yet finalized): ${loaded.pending.items.map((it) => `${it.qty}× ${it.name}`).join(", ")}. Three ways this message can relate to it:
-  (1) It uses ADD language ("add", "also", "kaman", "زود", "كمان") naming another dish → edits op "add" (unchanged from below).
-  (2) It answers a choice being asked about the item above (a size, a drink flavor, "sandwich" vs "combo", a modifier) → leave "items" and "edits" null, that answer is handled elsewhere.
-  (3) Otherwise, if it names a DIFFERENT main dish from MENU with no add-language — a correction, or just restating what they want — they are SWAPPING the item above OUT, not adding a second dish: edits op "replace", "item" = the name above, "with" = the new name.`
-        : "";
-      const sys = `Extract a food order from one WhatsApp message to a fast-casual restaurant. MENU (only these exist): ${menuNames}
-Recent conversation may add context: ${JSON.stringify((input.history || []).slice(-4).map((h) => h.message?.slice(0, 80)))}${pendingLine}
-Return JSON only:
-{"intent": "order"|"repeat_last"|"confirm"|"cancel_order"|"status"|"question"|"other",
- "payment_method": "cash"|"card"|"instapay"|null,
- "items": [{"name": "<closest MENU name>", "qty": number, "notes": "<modifiers for THIS item, e.g. 'no onion', 'extra cheese', 'well done'>"|null}]|null — a GENERIC category word without a specific dish (برجر/"a burger", تشيكن/"chicken", ساندوتش, بيتزا) stays the guest's LITERAL word as the item name — NEVER silently pick a specific dish for it; a requested DRINK or SIDE is its OWN items entry, NEVER another dish's notes ("a burger and a cola zero" = TWO items, even when the drink isn't on the menu; notes only modify the dish they ride on),
- "order_type": "pickup"|"delivery"|"dine_in"|null (dine_in when they mention a table / being inside),
- "table_number": string|null ("t3"/"table 3" → "T3"),
- "pickup_time": string|null, "notes": string|null (sauce prefs, no onions, etc. — ALSO cash-change requests: "change for 500"/"معايا ٥٠٠ طلع الباقي" → "change for 500"),
- "address": "<the delivery address EXACTLY as the guest wrote it, verbatim>"|null,
- "branch": "<exact branch NAME from this list if the guest names one, else null>",
- "edits": [{"op": "add"|"remove"|"set_qty"|"replace"|"set_option", "item": "<closest MENU name>", "qty": number|null, "with": "<closest MENU name, ONLY for op replace>"|null, "option": "<ONLY for op set_option: the choice they want for that item, e.g. 'combo'/'sandwich'/'large'>"|null}]|null,
- "reorder_ref": "<ONLY with intent repeat_last: if they point at a SPECIFIC past order — a weekday ('same as last Tuesday'), a dish ('the truffle one I got'), 'my first order' — put that phrase here; a plain 'the usual'/'same as last time' leaves this null>"|null,
- "question": "<people mix ordering and chatting in ONE message: 'add a J special, and is the jalapeno bites spicy?' — the NON-order part (a question, asking for a suggestion, chit-chat) goes here so it gets ANSWERED alongside the order step; null when the whole message is order actions. NEVER put it in notes. If the ENTIRE message is a question with no order content, use intent 'question' instead>"|null}
-BRANCHES: ${branches.map((b) => b.name).join(" | ") || "(single location)"}
-Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (category); menu entries read "English name / Arabic name" — BOTH refer to the SAME dish and you ALWAYS return the ENGLISH name; match within the RIGHT category ("fried chicken" → a Chicken item, NEVER a beef burger); a MEAL's sides/drinks spoken with it ("iconic meal with fries and a cola") are that meal's choices — put them in that item's "notes", NEVER as separate items; an unclear/GARBLED word (voice notes!) is SKIPPED, never guessed — but a CLEARLY named product we don't carry ("a cola zero", "red bull") goes into items AS THE GUEST SAID IT (code reports it as unavailable — silently dropping it loses part of the order); if the RECENT CONVERSATION shows the guest already AGREED to a specific dish we recommended ("thats nice i want this" after we pitched it) and it is NOT already in the draft, include that dish in items too — to the guest it's ALREADY on their order and dropping it loses it ("also I want X" means X in ADDITION to it); never duplicate a dish the draft already has; a NEGATION ("I didn't order X", "مطلبتش X") is edits op "remove", never an item — BUT a bare "no" + item + OPTION word ("no, nashville slaw combo, the other is not") is NEVER removal: it's correcting WHICH item has that option → edits op "set_option" per item. DIRECTION MATTERS: the item NAMED WITH the option RECEIVES it — "no, nashville slaw combo, the other is not" = Nashville Slaw GETS combo ([{op:"set_option", item:"Nashville Slaw", option:"combo"}]) and "the other" (the other draft item) gets the opposite ({op:"set_option", item:"<the other item>", option:"sandwich"}); NEVER swap them; removal needs remove-words (remove/take off/شيل/didn't order); an instruction about ONE item ("burger without onion") belongs in that item's "notes", NOT the order-level "notes"; "edits" is for CHANGING an order being built — "add a coke"/"زود كوكاكولا"/"zawed coke" → op add, "remove the fries"/"شيل البطاطس"/"sheel el batates" → op remove, "make it 2"/"خليهم ٢"/"khaleehom etnen"/"actually just one" → op set_qty with qty, "change the drink to fanta"/"غيّر المشروب فانتا"/"ghayar el mashroob fanta" (a drink/size/format CHOICE of an item already on the order) → op set_option with option = the choice (never a replace of dishes), "no I want the chicken ranch instead"/"actually give me X"/"change it to X"/"مش عايز كذا, عايز X"/"بدل ده هاتلي X" (naming a DIFFERENT menu item to SWAP for one already on the order, mid-question or not) → op replace with "item" = the item being swapped OUT (closest MENU name; omit/null if only one item is on the order so it's unambiguous) and "with" = the item being swapped IN (when they change something, use edits and leave "items" null); "cancel_order" = wants to cancel/scrap the WHOLE order or start over ("cancel it all", "cancel this order", "start over", "forget the whole thing", "الغي الاوردر", "بلاش كله", "من الأول") — removing ONE item is edits op "remove", never cancel_order; "status" = asking where their order is; "confirm" = agreeing to place the order we just summarised (yes/confirm/تمام/اوكي/go ahead); "repeat_last" = wants their usual / same as last time ("same as last time", "the usual", "نفس الطلب", "زي كل مرة", "nafs el order") — items stay null, we rebuild from their history; "question" = the guest is ASKING about the restaurant, not ordering — delivery coverage or fee ("do you deliver to Maadi?", "بتوصلوا المعادي؟ وبكام", "بتوصلوا لحد فين"), hours, ingredients, availability, "do you have tissues" — anything you'd ANSWER rather than put in a cart, even mid-order. CRITICAL: a bare ANSWER to a question WE asked — a size ("Medium"), a drink ("Sprite"), "cash"/"card", a branch name, an address, "yes" — is NEVER "question"; only a real interrogative about the place is.`;
+      const sys = extractPrompt({ menu: loaded.menu, pending: loaded.pending, history: input.history, branches });
       // the EXTRACTOR reads a Franco "w" as the word "and" (see expandFrancoConnectors);
       // the guest's original text is untouched everywhere else
       return chatJSON(MODEL_FAST, sys, expandFrancoConnectors(expandFrancoCounts(input.message)), { temperature: 0, maxTokens: 220, budget: config.ai?.budget_extraction === true });
@@ -208,6 +178,15 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
     const bareMsg = String(input.message || "").replace(/^\[voice\]\s*/i, "").trim();
     const menuAsked = /(منيو|مينيو|menu)/i.test(bareMsg) && bareMsg.length <= 45 && !(e.items?.length || e.edits?.length);
 
+    // THE ACT NODE, stage by stage (each early stage is a named function below — it
+    // returns an outcome, or null to fall through to the next; same closure, same order):
+    //   menu request · branch · status/cancel wording · stageCheckSplit · question →
+    //   friendly · chit-chat handoff · stageFutureDay · stageCancel · stageStatus ·
+    //   add-to-placed-order · stageClosedGate · then the sequential build: reorder /
+    //   which-one answer / item matching / guest's-number-wins / absorption / edits /
+    //   option walk (nextQuestion) / removals + phantom check / fulfilment (type, table,
+    //   branch, address → delivery quote) / payment / confirm / place (code, ETA,
+    //   receipt, ticket, notifications).
     const outcome = await f.node("act", async () => {
       const name = diner?.name || diner?.wa_profile_name || null;
       if (menuAsked) {
@@ -284,64 +263,68 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         diner.preferences = prefs;
         await db.from("diners").update({ preferences: prefs }).eq("id", diner.id).then(() => {}, () => {});
       };
-      // ── CHECK SPLIT ────────────────────────────────────────────────────────────
-      // After a receipt exists, the guest can split it between the people at the table.
-      // The placed order stays the source of truth: the split is DERIVED from it plus
-      // participants plus assignments, all of which live in the diner's preferences.
-      // Language never touches the arithmetic — English, Arabic and Franco sentences
-      // are interpreted into the same actions, then one engine does the money.
-      {
-        const splitSaved = diner?.preferences?.check_split;
-        const splitLive = splitSaved && loaded.openOrder && splitSaved.code === loaded.openOrder.code
-          && Date.now() - new Date(splitSaved.at || 0).getTime() < 6 * 3600_000;
-        const asksSplit = !!loaded.openOrder && !loaded.pending?.items?.length && looksLikeSplit(msgS);
-
-        if (splitLive && looksLikeDone(msgS)) {
-          await saveSplit(null);
-          return { kind: "split_done" };
-        }
-        if (asksSplit || splitLive) {
-          const state = stateFromOrder(loaded.openOrder, splitSaved?.code === loaded.openOrder.code ? splitSaved : {});
-          let clarify = null;
-          const opening = asksSplit && !splitLive;
-          // «قسّم الحساب — عمر خد الناشفيل، وأحمد خد الكلاسيك» opens the split AND assigns.
-          // The names were ignored on the opening turn and the guest had to repeat them
-          // (reel bug 16 Oct). Anything beyond the bare trigger phrase is interpreted.
-          const TOOK = /(?<![\p{L}])(took|had|ordered|khad|5ad|akhad|akhd|خد|اخد|أخد|خدت|اخدت|ليه|ليها|عليه|عليها|بتاع|بتاعة)(?![\p{L}])/iu;
-          const saidSplit = normName(arOptionWords(msgS));
-          const carriesNames = TOOK.test(msgS)
-            || state.lines.some((l) => { const n = normName(l.name); const key = n.split(" ").filter((t) => t.length >= 4).pop() || n; return !!key && saidSplit.includes(key); });
-          if (!opening || carriesNames) {
-            // a deterministic read first — "split the rest" costs nothing to understand
-            if (looksLikeSplitRest(msgS) && state.participants.length) {
-              splitUnassigned(state);
-            } else {
-              const r = await f.node("split_intent", async () =>
-                interpretSplit({ message: msgS, state, chat: chatJSON, model: MODEL_FAST }),
-                { input: { message: msgS, lines: state.lines.length, people: state.participants.length } });
-              clarify = r.clarify;
-              // a word that fits two lines equally is ASKED about, never guessed — the
-              // model may have picked one, so code checks every assignment itself
-              const actions = [];
-              for (const a of r.actions || []) {
-                if (String(a?.op || "").toUpperCase() === "ASSIGN_ITEM") {
-                  const amb = ambiguityFor(state, msgS, a.line);
-                  if (amb) { clarify = clarify || amb; continue; }
-                }
-                actions.push(a);
-              }
-              applyActions(state, actions);
-            }
+      const stageCheckSplit = async () => {
+        // ── CHECK SPLIT ────────────────────────────────────────────────────────────
+        // After a receipt exists, the guest can split it between the people at the table.
+        // The placed order stays the source of truth: the split is DERIVED from it plus
+        // participants plus assignments, all of which live in the diner's preferences.
+        // Language never touches the arithmetic — English, Arabic and Franco sentences
+        // are interpreted into the same actions, then one engine does the money.
+        {
+          const splitSaved = diner?.preferences?.check_split;
+          const splitLive = splitSaved && loaded.openOrder && splitSaved.code === loaded.openOrder.code
+            && Date.now() - new Date(splitSaved.at || 0).getTime() < 6 * 3600_000;
+          const asksSplit = !!loaded.openOrder && !loaded.pending?.items?.length && looksLikeSplit(msgS);
+  
+          if (splitLive && looksLikeDone(msgS)) {
+            await saveSplit(null);
+            return { kind: "split_done" };
           }
-          const result = computeSplit(state);
-          await saveSplit({ code: state.code, participants: state.participants, assignments: state.assignments, at: new Date().toISOString() });
-          return {
-            kind: "split_view", opening, clarify,
-            order_code: state.code, currency: state.currency, split: result,
-            clarify_lines: clarify ? state.lines.filter((l) => clarify.lineIds.includes(l.id)) : null,
-          };
+          if (asksSplit || splitLive) {
+            const state = stateFromOrder(loaded.openOrder, splitSaved?.code === loaded.openOrder.code ? splitSaved : {});
+            let clarify = null;
+            const opening = asksSplit && !splitLive;
+            // «قسّم الحساب — عمر خد الناشفيل، وأحمد خد الكلاسيك» opens the split AND assigns.
+            // The names were ignored on the opening turn and the guest had to repeat them
+            // (reel bug 16 Oct). Anything beyond the bare trigger phrase is interpreted.
+            const TOOK = /(?<![\p{L}])(took|had|ordered|khad|5ad|akhad|akhd|خد|اخد|أخد|خدت|اخدت|ليه|ليها|عليه|عليها|بتاع|بتاعة)(?![\p{L}])/iu;
+            const saidSplit = normName(arOptionWords(msgS));
+            const carriesNames = TOOK.test(msgS)
+              || state.lines.some((l) => { const n = normName(l.name); const key = n.split(" ").filter((t) => t.length >= 4).pop() || n; return !!key && saidSplit.includes(key); });
+            if (!opening || carriesNames) {
+              // a deterministic read first — "split the rest" costs nothing to understand
+              if (looksLikeSplitRest(msgS) && state.participants.length) {
+                splitUnassigned(state);
+              } else {
+                const r = await f.node("split_intent", async () =>
+                  interpretSplit({ message: msgS, state, chat: chatJSON, model: MODEL_FAST }),
+                  { input: { message: msgS, lines: state.lines.length, people: state.participants.length } });
+                clarify = r.clarify;
+                // a word that fits two lines equally is ASKED about, never guessed — the
+                // model may have picked one, so code checks every assignment itself
+                const actions = [];
+                for (const a of r.actions || []) {
+                  if (String(a?.op || "").toUpperCase() === "ASSIGN_ITEM") {
+                    const amb = ambiguityFor(state, msgS, a.line);
+                    if (amb) { clarify = clarify || amb; continue; }
+                  }
+                  actions.push(a);
+                }
+                applyActions(state, actions);
+              }
+            }
+            const result = computeSplit(state);
+            await saveSplit({ code: state.code, participants: state.participants, assignments: state.assignments, at: new Date().toISOString() });
+            return {
+              kind: "split_view", opening, clarify,
+              order_code: state.code, currency: state.currency, split: result,
+              clarify_lines: clarify ? state.lines.filter((l) => clarify.lineIds.includes(l.id)) : null,
+            };
+          }
         }
-      }
+        return null;
+      };
+      { const r0 = await stageCheckSplit(); if (r0) return r0; }
       if (e.intent === "question") return { kind: "handoff_to_friendly" };
       // Belt-and-suspenders: an "other" message carrying zero order content, when we're
       // not waiting on a specific answer, is chit-chat/a question too → hand it off.
@@ -395,38 +378,50 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         && !e.order_type && !e.address && !e.table_number && !e.payment_method && !e.pickup_time && !named;
       if (notAwaiting && noOrderContent) return { kind: "handoff_to_friendly" };
 
-      // WE DON'T TAKE ORDERS FOR ANOTHER DAY. "a mixed grill for tomorrow 9pm" was taken
-      // as an order for RIGHT NOW (probe, 21 Sep) — the guest would show up tomorrow to
-      // nothing. Say it plainly before anything else is built.
-      {
-        const FUTURE_DAY = /(?<![\p{L}])(tomorrow|tmrw|bokra|bokrah|day after tomorrow|next (week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|بكرة|بكره|بعد بكرة|الأسبوع الجاي|الاسبوع الجاي|يوم (الجمعة|السبت|الأحد|الاحد|الاثنين|الإثنين|الثلاثاء|الأربعاء|الاربعاء|الخميس))(?![\p{L}])/iu;
-        if (FUTURE_DAY.test(String(input.message || "")) && (e.items?.length || e.intent === "order")) {
-          return { kind: "no_scheduling", items: loaded.pending?.items || [] };
+      const stageFutureDay = async () => {
+        // WE DON'T TAKE ORDERS FOR ANOTHER DAY. "a mixed grill for tomorrow 9pm" was taken
+        // as an order for RIGHT NOW (probe, 21 Sep) — the guest would show up tomorrow to
+        // nothing. Say it plainly before anything else is built.
+        {
+          const FUTURE_DAY = /(?<![\p{L}])(tomorrow|tmrw|bokra|bokrah|day after tomorrow|next (week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|بكرة|بكره|بعد بكرة|الأسبوع الجاي|الاسبوع الجاي|يوم (الجمعة|السبت|الأحد|الاحد|الاثنين|الإثنين|الثلاثاء|الأربعاء|الاربعاء|الخميس))(?![\p{L}])/iu;
+          if (FUTURE_DAY.test(String(input.message || "")) && (e.items?.length || e.intent === "order")) {
+            return { kind: "no_scheduling", items: loaded.pending?.items || [] };
+          }
         }
-      }
-      if (e.intent === "cancel_order") {
-        // "cancel it ALL" means all of it — the DRAFT dies too, in every branch. It used
-        // to survive a cancel and resurrect on the next order with its stale items/options.
-        const clearDraft = async () => {
-          if (!diner?.id) return;
-          const { pending_order: _po, ...restp } = diner.preferences || {};
-          await db.from("diners").update({ preferences: restp }).eq("id", diner.id).then(() => {}, () => {});
-          loaded.pending = null;
-        };
-        // A DRAFT in progress is what "cancel" means mid-conversation — a stale placed
-        // order (yesterday's, already READY) must never hijack the answer.
-        if (loaded.pending?.items?.length) { await clearDraft(); return { kind: "draft_cleared" }; }
-        if (!loaded.openOrder) return { kind: "no_open_order" };
-        // Founder rule: CONFIRMED = receipt sent = the kitchen owns it — the bot never
-        // cancels a placed order. Staff get pinged and decide at the counter.
-        await notifyDashboard(db, "order", `⚠️ ${loaded.openOrder.code}: guest asked to CANCEL`, `${name || ctx.sessionId} asked to cancel after confirmation — your call`, ctx.sessionId).catch(() => {});
-        return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder) };
-      }
+        return null;
+      };
+      { const r0 = await stageFutureDay(); if (r0) return r0; }
+      const stageCancel = async () => {
+        if (e.intent === "cancel_order") {
+          // "cancel it ALL" means all of it — the DRAFT dies too, in every branch. It used
+          // to survive a cancel and resurrect on the next order with its stale items/options.
+          const clearDraft = async () => {
+            if (!diner?.id) return;
+            const { pending_order: _po, ...restp } = diner.preferences || {};
+            await db.from("diners").update({ preferences: restp }).eq("id", diner.id).then(() => {}, () => {});
+            loaded.pending = null;
+          };
+          // A DRAFT in progress is what "cancel" means mid-conversation — a stale placed
+          // order (yesterday's, already READY) must never hijack the answer.
+          if (loaded.pending?.items?.length) { await clearDraft(); return { kind: "draft_cleared" }; }
+          if (!loaded.openOrder) return { kind: "no_open_order" };
+          // Founder rule: CONFIRMED = receipt sent = the kitchen owns it — the bot never
+          // cancels a placed order. Staff get pinged and decide at the counter.
+          await notifyDashboard(db, "order", `⚠️ ${loaded.openOrder.code}: guest asked to CANCEL`, `${name || ctx.sessionId} asked to cancel after confirmation — your call`, ctx.sessionId).catch(() => {});
+          return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder) };
+        }
+        return null;
+      };
+      { const r0 = await stageCancel(); if (r0) return r0; }
 
-      if (e.intent === "status") {
-        if (!loaded.openOrder) return { kind: "no_open_order" };
-        return { kind: "order_status", order: publicOrder(loaded.openOrder) };
-      }
+      const stageStatus = async () => {
+        if (e.intent === "status") {
+          if (!loaded.openOrder) return { kind: "no_open_order" };
+          return { kind: "order_status", order: publicOrder(loaded.openOrder) };
+        }
+        return null;
+      };
+      { const r0 = await stageStatus(); if (r0) return r0; }
 
       // A CAPPED QUANTITY MUST BE SAID OUT LOUD. "500 classic burgers" quietly became 20
       // and the guest would have arrived expecting 500 (probe, 21 Sep). Code keeps the
@@ -447,24 +442,28 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder), add_request: true };
         }
       }
-      // CLOSED = NO TICKET. At 5:55 AM (hours 10:00–02:00) the bot said «احنا مقفولين
-      // حالياً» and then took the order and promised 15 minutes (reel bug 16 Oct) — the
-      // guest would have arrived to a shut door. ai.closed_orders decides: "refuse" (default)
-      // says when we open and takes nothing; "preorder" takes it with an honest "ready
-      // after we open at HH:MM"; "accept" is the old behaviour (fixture tenants).
       let preorderOpens = null;
-      {
-        const closedMode = String(config.ai?.closed_orders || "refuse");
-        const tzc = config.basic_info?.timezone || "Africa/Cairo";
-        const orderish = (e.items?.length || 0) > 0 || (e.edits?.length || 0) > 0 || ["order", "confirm", "repeat_last"].includes(e.intent)
-          || (loaded.pending?.items?.length || 0) > 0 || !!e.order_type || !!e.payment_method;
-        const todayH = closedMode !== "accept" && orderish && hasHours(config.hours) ? hoursToday(config.hours, tzc) : null;
-        if (todayH && !todayH.openNow) {
-          const opens = nextOpening(config.hours, tzc);
-          if (closedMode === "refuse") return { kind: "closed_now", opens, today: todayH, items: loaded.pending?.items || [] };
-          preorderOpens = opens;
+      const stageClosedGate = async () => {
+        // CLOSED = NO TICKET. At 5:55 AM (hours 10:00–02:00) the bot said «احنا مقفولين
+        // حالياً» and then took the order and promised 15 minutes (reel bug 16 Oct) — the
+        // guest would have arrived to a shut door. ai.closed_orders decides: "refuse" (default)
+        // says when we open and takes nothing; "preorder" takes it with an honest "ready
+        // after we open at HH:MM"; "accept" is the old behaviour (fixture tenants).
+        {
+          const closedMode = String(config.ai?.closed_orders || "refuse");
+          const tzc = config.basic_info?.timezone || "Africa/Cairo";
+          const orderish = (e.items?.length || 0) > 0 || (e.edits?.length || 0) > 0 || ["order", "confirm", "repeat_last"].includes(e.intent)
+            || (loaded.pending?.items?.length || 0) > 0 || !!e.order_type || !!e.payment_method;
+          const todayH = closedMode !== "accept" && orderish && hasHours(config.hours) ? hoursToday(config.hours, tzc) : null;
+          if (todayH && !todayH.openNow) {
+            const opens = nextOpening(config.hours, tzc);
+            if (closedMode === "refuse") return { kind: "closed_now", opens, today: todayH, items: loaded.pending?.items || [] };
+            preorderOpens = opens;
+          }
         }
-      }
+        return null;
+      };
+      { const r0 = await stageClosedGate(); if (r0) return r0; }
       // ---- build the order — CODE matches every item against the real menu and prices it ----
       // (ambiguous entries are deduped by candidate set just before rendering, below)
       let items = [];
@@ -1191,10 +1190,11 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               const near = opts.filter((o) => normName(o.name).includes(w) || w.includes(normName(o.name)));
               hit = near.length === 1 ? near[0] : null;
             }
-            if (hit) { it.options[g.key] = hit.name; return true; }
+            if (hit) { it.options[g.key] = hit.name; return { g, hit }; }
           }
           return false;
         };
+        const sayChange = (en, ar, fr) => outcomeNotices.push(L2(en, ar, fr));
         // An instruction we CANNOT apply must be said out loud. Silently skipping it
         // leaves the guest certain their change landed — they walk away believing the
         // fries are off the order and find them on the bill. Same rule as an unknown
@@ -1247,8 +1247,16 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           // a name back at us for something already unambiguous.
           if (!target && ed.op !== "add" && items.length === 1) {
             if (ed.op === "remove") { items.splice(0, 1); continue; }
-            if (ed.op === "set_option") { applyOptionTo(items[0], ed.option); continue; }
-            if (ed.op === "set_qty") { items[0].qty = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20); continue; }
+            if (ed.op === "set_option") {
+              const r0 = applyOptionTo(items[0], ed.option);
+              if (r0) sayChange(`${r0.g.label || r0.g.key} → *${r0.hit.name}* ✅`, `${arLabel(r0.g.label || r0.g.key)} → *${arWord(r0.hit.name)}* ✅`, `${r0.g.label || r0.g.key} → *${r0.hit.name}* ✅`);
+              continue;
+            }
+            if (ed.op === "set_qty") {
+              items[0].qty = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20);
+              sayChange(`*${items[0].name}* → ×${items[0].qty} ✅`, `*${dishDisp(items[0].name)}* → ×${items[0].qty} ✅`, `*${items[0].name}* → ×${items[0].qty} ✅`);
+              continue;
+            }
             if (ed.op === "replace") {
               const hit = findMenuItem(ed.with);
               if (!hit) { unknown.push(ed.with); continue; }
@@ -1285,6 +1293,7 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             const existing = items.find((it) => it.id === hit.id && !Object.keys(it.options || {}).length);
             if (existing) existing.qty = Math.min(existing.qty + q, 20);
             else items.push({ id: hit.id, name: hit.name, qty: q, price: Number(hit.price), notes: null, options: {}, option_defs: hit.options || [] });
+            sayChange(`Added: ${q}× *${hit.name}* ✅`, `ضفنا: ${q}× *${dishDisp(hit.name)}* ✅`, `Zawedna: ${q}× *${hit.name}* ✅`);
           } else {
             let idx = items.findIndex((it) => normName(it.name).includes(target) || target.includes(normName(it.name)));
             // set_option naming the CHOICE's own product ("Soft Drink" for «غيّر المشروب
@@ -1297,13 +1306,21 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
             }
             if (idx < 0) { editMisses.push(String(ed.item || "").trim()); continue; }
             if (ed.op === "remove") items.splice(idx, 1);
-            else if (ed.op === "set_option") applyOptionTo(items[idx], ed.option);
-            else if (ed.op === "set_qty") items[idx].qty = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20);
+            else if (ed.op === "set_option") {
+              const r0 = applyOptionTo(items[idx], ed.option);
+              if (r0) sayChange(`*${items[idx].name}* — ${r0.g.label || r0.g.key} → *${r0.hit.name}* ✅`, `*${dishDisp(items[idx].name)}* — ${arLabel(r0.g.label || r0.g.key)} → *${arWord(r0.hit.name)}* ✅`, `*${items[idx].name}* — ${r0.g.label || r0.g.key} → *${r0.hit.name}* ✅`);
+            }
+            else if (ed.op === "set_qty") {
+              items[idx].qty = Math.min(Math.max(Math.round(Number(ed.qty) || 1), 1), 20);
+              sayChange(`*${items[idx].name}* → ×${items[idx].qty} ✅`, `*${dishDisp(items[idx].name)}* → ×${items[idx].qty} ✅`, `*${items[idx].name}* → ×${items[idx].qty} ✅`);
+            }
             else if (ed.op === "replace") {
               const hit = findMenuItem(ed.with);
               if (!hit) { unknown.push(ed.with); continue; }
               loaded.pending.awaiting_option = null;
+              const was = items[idx].name;
               items[idx] = { id: hit.id, name: hit.name, qty: items[idx].qty, price: Number(hit.price), notes: null, options: {}, option_defs: hit.options || [] };
+              sayChange(`*${was}* → *${hit.name}* ✅`, `*${dishDisp(was)}* → *${dishDisp(hit.name)}* ✅`, `*${was}* → *${hit.name}* ✅`);
             }
           }
         }

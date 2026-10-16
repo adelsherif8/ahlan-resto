@@ -2543,6 +2543,34 @@ resolveAllRestaurants()
   })
   .catch((e) => log("boot sweep skipped:", e.message));
 
+// WARM THE SLOW THINGS before a guest pays for them. The menu PDF is built from the live
+// menu and cached by content hash — the first guest after a deploy or a menu edit waited
+// ~6s for pdfkit + storage and often saw "one sec". Built here at boot and refreshed
+// hourly (a menu edit changes the hash, so the next hourly pass rebuilds it; the guest
+// path still builds on demand if it has to). Never blocks boot, never throws.
+async function warmMenus() {
+  try {
+    const { menuPdfUrl } = await import("./services/menupdf.js");
+    for (const t of await resolveAllRestaurants()) {
+      try {
+        const cfg = t.config;
+        if (cfg.menu_config?.pdf_url) continue; // a designed PDF needs no build
+        const { data: rows } = await t.db.from("menu_items").select("*").order("sort_order");
+        const menu = (rows || []).filter((m) => m.available);
+        if (!menu.length) continue;
+        await menuPdfUrl(t.db, {
+          restaurant: cfg.name, menu, categories: orderedCategories(menu, cfg).map((c) => c.name),
+          currency: cfg.payments?.currency || "EGP", accent: cfg.basic_info?.brand?.primary || "#111111",
+          tagline: cfg.basic_info?.tagline || "", phone: cfg.basic_info?.phone || "", website: cfg.basic_info?.website || "",
+          logoUrl: cfg.basic_info?.brand?.logo_url || null,
+        });
+      } catch (e) { log(`menu warm ${t.config.slug}: ${e.message}`); }
+    }
+  } catch (e) { log("menu warm skipped:", e.message); }
+}
+setTimeout(() => { warmMenus(); }, 20_000).unref?.();
+setInterval(() => { warmMenus(); }, 3600_000).unref?.();
+
 // graceful drain on redeploy
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, async () => {
