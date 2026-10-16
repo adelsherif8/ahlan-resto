@@ -358,6 +358,9 @@ export const FRANCO_FOOD_WORDS = [
   ["tshiken", "chicken"], ["tsheken", "chicken"], ["farkha", "chicken"], ["shokolata", "chocolate"], ["shokolatah", "chocolate"],
   ["milkshek", "milkshake"], ["melkshek", "milkshake"], ["spisi", "spicy"], ["ransh", "ranch"],
   ["delivry", "delivery"], ["dilevery", "delivery"], ["delevary", "delivery"], ["tekaway", "takeaway"],
+  // the everyday name of the cola — so a note "coke" is recognised as the chosen drink
+  // and never printed beside it on the ticket ("Coca - Cola · coke", reel bug 16 Oct)
+  ["coke", "coca cola"], ["koka", "coca cola"], ["kola", "coca cola"],
 ];
 // Franco dictionary, spelling-proof: keys canonicalised once with francoNorm, guest
 // tokens matched by the same canon + edit-distance 1 — "me5alel", "mkhallel" and
@@ -456,7 +459,7 @@ export function nextQuestion(items, menu, message, pending, currency = "EGP") {
   for (const it2 of out) {
     if (!it2.notes) continue;
     const chosen = normName(Object.values(it2.options).filter((v) => typeof v === "string").join(" "));
-    const FILLER = new Set(["and", "with", "a", "an", "the", "please", "و", "مع", "pickup", "pick", "up", "delivery", "dine", "in", "takeaway", "cash", "card", "visa", "instapay", "for", "from", "to"]);
+    const FILLER = new Set(["and", "with", "a", "an", "the", "please", "pls", "plz", "then", "ok", "okay", "و", "مع", "بقى", "pickup", "pick", "up", "delivery", "dine", "in", "takeaway", "cash", "card", "visa", "instapay", "for", "from", "to"]);
     const words = normName(arOptionWords(it2.notes)).split(" ").filter((w) => w && !FILLER.has(w));
     if (!words.length || words.every((w) => chosen.includes(w))) it2.notes = null;
   }

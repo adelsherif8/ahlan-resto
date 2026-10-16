@@ -18,6 +18,8 @@ import { menuPdfUrl } from "../services/menupdf.js";
 import { nextOrderCode } from "../services/ordercode.js";
 import { parseAddress, formatAddress, ADDRESS_TEMPLATE_EN, ADDRESS_TEMPLATE_AR } from "../services/address.js";
 import { signTrackToken } from "../services/builder.js";
+import { hoursToday, hasHours, nextOpening } from "../services/tenant.js";
+import { isTestSession } from "../engine/flow.js";
 import { normName, modifiers, unitsForChoice, tidyNotes, arNzBrand, brandTokensOf, groupChoices, groupApplies, itemPrice, slotChoiceNames, arOptionWords, nextQuestion } from "../services/orderoptions.js";
 import { publicOrder, reorderChips, statusTimeline, savedAddresses, matchSaved, taxRate, priceOrder, fmtAmount, setArMenuNames, arWord, arPay, arLabel, renderSplit, renderBill } from "../services/orderbill.js";
 
@@ -315,7 +317,13 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const state = stateFromOrder(loaded.openOrder, splitSaved?.code === loaded.openOrder.code ? splitSaved : {});
           let clarify = null;
           const opening = asksSplit && !splitLive;
-          if (!opening) {
+          // «قسّم الحساب — عمر خد الناشفيل، وأحمد خد الكلاسيك» opens the split AND assigns.
+          // The names were ignored on the opening turn and the guest had to repeat them
+          // (reel bug 16 Oct). Anything beyond the bare trigger phrase is interpreted.
+          const TOOK = /(?<![\p{L}])(took|had|has|gets|ordered|for|khad|5ad|akhad|akhd|خد|اخد|أخد|خدت|اخدت|ليه|ليها|عليه|عليها|بتاع|بتاعة)(?![\p{L}])/iu;
+          const carriesNames = TOOK.test(msgS) || msgS.split(/\s+/).filter(Boolean).length >= 7
+            || state.lines.some((l) => { const n = normName(l.name); return n && normName(arOptionWords(msgS)).includes(n.split(" ").filter((t) => t.length >= 4).pop() || n); });
+          if (!opening || carriesNames) {
             // a deterministic read first — "split the rest" costs nothing to understand
             if (looksLikeSplitRest(msgS) && state.participants.length) {
               splitUnassigned(state);
@@ -451,6 +459,23 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           return { kind: "too_late_to_cancel", order: publicOrder(loaded.openOrder), add_request: true };
         }
       }
+      // CLOSED = NO TICKET. At 5:55 AM (hours 10:00–02:00) the bot said «احنا مقفولين
+      // حالياً» and then took the order and promised 15 minutes (reel bug 16 Oct) — the
+      // guest would have arrived to a shut door. ai.closed_orders decides: "refuse" (default)
+      // says when we open and takes nothing; "preorder" takes it with an honest "ready
+      // after we open at HH:MM"; "accept" is the old behaviour (fixture tenants).
+      let preorderOpens = null;
+      {
+        const closedMode = String(config.ai?.closed_orders || "refuse");
+        const tzc = config.basic_info?.timezone || "Africa/Cairo";
+        const orderish = (e.items?.length || 0) > 0 || (e.edits?.length || 0) > 0 || ["order", "confirm", "repeat_last"].includes(e.intent)
+          || (loaded.pending?.items?.length || 0) > 0 || !!e.order_type || !!e.payment_method;
+        if (closedMode !== "accept" && orderish && hasHours(config.hours) && !hoursToday(config.hours, tzc).openNow) {
+          const opens = nextOpening(config.hours, tzc);
+          if (closedMode === "refuse") return { kind: "closed_now", opens, today: hoursToday(config.hours, tzc), items: loaded.pending?.items || [] };
+          preorderOpens = opens;
+        }
+      }
       // ---- build the order — CODE matches every item against the real menu and prices it ----
       // (ambiguous entries are deduped by candidate set just before rendering, below)
       let items = [];
@@ -490,6 +515,15 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
         }
         if (!items.length) return { kind: "no_history" };
         if (["pickup", "delivery"].includes(last.order_type)) typeHint = last.order_type; // dine-in table changes — always re-ask
+        // «نفس طلب امبارح وزوّدلي حاجة ساقعة» — the reorder is the base, and anything
+        // else the guest named in the same message is an ADDITION to it. These rode in as
+        // `items` and were silently ignored (reel bug 16 Oct); they are add-edits now, so
+        // a generic word ("something cold") still reaches the which-one mapper.
+        for (const w of Array.isArray(e.items) ? e.items : []) {
+          if (!w?.name) continue;
+          e.edits = [...(e.edits || []), { op: "add", item: String(w.name), qty: Number(w.qty) || 1, notes: w.notes || null }];
+        }
+        e.items = null;
       } else {
         // A pending "which one did you mean?" — the answer names one candidate; the
         // remembered qty ("3 chicken") rides onto the chosen dish.
@@ -939,16 +973,23 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
               if (g.key === "slots") continue;
               const choices = (g.choices || []).filter((c) => c?.name);
               if (!choices.length) continue;
-              // A conditional group ("combo drink", only when format = Combo) can only
-              // swallow a sibling item when the guest did NOT name a gate value that rules
-              // it out. "…ranch SANDWICH w karkadeh" said Sandwich: the drink stays a line.
-              if (g.when && Object.entries(g.when).some(([wk]) => {
-                const gate = (host.option_defs || []).find((d) => d.key === wk);
-                if (!gate) return false;
-                const named = (gate.choices || []).map((c) => c?.name).filter(Boolean)
-                  .filter((n) => { const cn = normName(n); const c0 = cn.split(" ")[0]; return cn && (` ${saidForGate} `.includes(` ${cn} `) || (c0.length >= 4 && ` ${saidForGate} `.includes(` ${c0} `))); });
-                return named.length > 0 && !named.some((n) => groupApplies(g, { ...(host.options || {}), [wk]: n }));
-              })) continue;
+              // A CONDITIONAL group ("combo drink", only when format = Combo) may swallow a
+              // sibling item ONLY when that gate is already satisfied, or the guest said a
+              // word that satisfies it ("meal", "combo"). An undecided gate never absorbs:
+              // «٢ ناشفيل حار وواحد كلاسيك وبطاطس وكركديه» had its karkadeh folded into the
+              // Nashville SANDWICHES as a "combo drink" and the 45 EGP line vanished from the
+              // bill (reel bug 16 Oct). A separately named drink is a line until a combo is.
+              if (g.when && !groupApplies(g, host.options || {})) {
+                const GATE_STOP = new Set(["only", "with", "and", "the", "fries", "drink", "drinks", "side", "sides"]);
+                const gateSaid = Object.entries(g.when).every(([wk]) => {
+                  const gate = (host.option_defs || []).find((d) => d.key === wk);
+                  if (!gate) return false;
+                  const named = (gate.choices || []).map((c) => c?.name).filter(Boolean).filter((n) =>
+                    normName(n).split(" ").some((t) => t.length >= 4 && !GATE_STOP.has(t) && ` ${saidForGate} `.includes(` ${t} `)));
+                  return named.length > 0 && named.every((n) => groupApplies(g, { ...(host.options || {}), [wk]: n }));
+                });
+                if (!gateSaid) continue;
+              }
               for (const other of items) {
                 if (other === host || absorbed.has(other) || other.qty > host.qty) continue;
                 const oNorm = normName(other.name);
@@ -1164,7 +1205,10 @@ Rules: qty defaults 1; ONLY names from MENU — return the name WITHOUT the (cat
           const enOk = !!en && (saidForEdits.includes(en) || en.split(" ").filter((t) => t.length >= 4 && !btG.en.has(t)).some((t) => ` ${saidForEdits} `.includes(` ${t} `) || (t.length >= 5 && saidForEdits.split(" ").some((w) => editDistance(w, t) <= 1))));
           const ar = String(row?.name_ar || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
           const arOk = !!ar && ar.split(/\s+/).filter((t) => t.length >= 3 && !/^[٠-٩]+$/.test(t) && !btG.ar.has(arNzBrand(t))).some((t) => saidArForEdits.includes(t));
-          return enOk || arOk;
+          // not a menu item at all, but the guest's own words («حاجة ساقعة») — named, by
+          // definition; the unknown-item mapper turns it into a which-one question
+          const literal = !row && String(dish || "").trim().length >= 3 && saidArForEdits.toLowerCase().includes(String(dish).replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").toLowerCase());
+          return enOk || arOk || literal;
         };
         for (const ed of (e.edits || []).slice(0, 6)) {
           // "change the drink to fanta" — the model wrote replace Soft Drink→Fanta (two
@@ -2334,11 +2378,14 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // Only TODAY'S live tickets count — a pending order from three days ago is an
       // unclosed test/stale row, not tonight's kitchen load (11 of those once
       // inflated a quiet kitchen's quote to 45 minutes).
-      let q = db.from("orders").select("id", { count: "exact", head: true })
+      // Our own fixture orders are not kitchen load: five suite runs left "about 66 min" on
+      // a one-burger order. Harness phones (isTestSession) are filtered out of the count.
+      let q = db.from("orders").select("phone_number")
         .in("status", ["pending", "accepted", "preparing"])
-        .gte("created_at", new Date(Date.now() - 2 * 3600_000).toISOString());
+        .gte("created_at", new Date(Date.now() - 2 * 3600_000).toISOString()).limit(200);
       if (branch) q = q.eq("branch", branch);
-      const { count: queueDepth } = await q;
+      const { data: queueRows } = await q;
+      const queueDepth = (queueRows || []).filter((r) => !isTestSession(r.phone_number)).length;
       const basePrep = Number(config.menu_config?.prep_minutes) || Number(config.ai?.pickup_prep_min) || 15;
       const etaMinutes = Math.min(
         basePrep + (Number(queueDepth) || 0) * 3 + (orderType === "delivery" ? Number(config.menu_config?.delivery_minutes) || 25 : 0),
@@ -2495,7 +2542,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         `🍔 New ${orderType.replace("_", "-")} order ${code}${branchInfo ? ` — ${branchInfo.name}` : ""}`,
         `${name || ctx.sessionId}${tableNumber ? ` · table ${tableNumber}` : ""}${address ? ` · 📍 ${address}` : ""} — ${items.map((i) => `${i.qty}× ${i.name}${i.notes ? ` (${i.notes})` : ""}${modifiers(i).length ? ` [${modifiers(i).join(" · ")}]` : ""}`).join(", ")} · ${fmtAmount(bill.total)} ${currency}`,
         ctx.sessionId, branch);
-      return { kind: "order_placed", notices: outcomeNotices, loyalty, code, eta_minutes: etaQuote, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, track_url: trackUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
+      return { kind: "order_placed", notices: outcomeNotices, loyalty, code, eta_minutes: etaQuote, opens_at: preorderOpens?.time || null, opens_tomorrow: !!preorderOpens?.tomorrow, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, track_url: trackUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
     }, { input: { intent: e.intent, items: (e.items || []).length, order_type: e.order_type, table: e.table_number } });
 
     // The message wasn't about the order — answer it with the normal brain and return.
@@ -2520,7 +2567,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // dialect, and regularly re-asked a question the code block below already asks
       // (ar09: «هتدفع إزاي؟» twice in one bubble). The fallback map says it right in
       // all three languages; the backstop was replacing the model half the time anyway.
-      if (["stuck_handoff", "which_item", "menu_request", "ask_choice", "confirm_order", "need_pin", "which_place",
+      if (["stuck_handoff", "which_item", "menu_request", "ask_choice", "confirm_order", "need_pin", "which_place", "closed_now",
         "ask_items", "ask_fulfillment", "ask_payment", "order_placed", "order_status", "too_late_to_cancel", "no_scheduling",
         "split_view", "split_done"].includes(outcome.kind)) return { value: { reply: null, quick_replies: null } };
       // "Got it — pickup ✅ what would you like?" is a fixed phrase too: the model kept
@@ -2585,7 +2632,21 @@ LANGUAGE (last line so everything above stays cacheable): the conversation's lan
             `Orderak ${outcome.order?.code || ""} khalas 3and el kitchen 👨‍🍳 — mesh hayenfa3 azawed 3aleh men hena, bas balaghna el team w ye2darou yezawedouha 3and el counter. Te7eb a3melak order tany monfasel?`)
         : L2("The order is confirmed and with the kitchen 👨‍🍳 — it can't be cancelled from chat; the team has been pinged and can help at the counter or on the phone.", "الطلب متأكد وفي المطبخ 👨‍🍳 — مش هينفع يتلغي من الشات؛ بلغنا الفريق وهيساعدوك على الكاونتر أو التليفون.", "El order met2aked w fel kitchen 👨‍🍳 — mesh hayenfa3 yetlghy men el chat; balaghna el team."),
       order_status: L2("On it — here's where your order is 👇", "حاضر — ده وضع طلبك دلوقتي 👇", "7ader — da wad3 orderak delwa2ty 👇"),
-      order_placed: L2(`🎫 Order ${outcome.code} is in — about ${outcome.eta_minutes} min!`, `🎫 طلبك ${outcome.code} اتسجل — حوالي ${outcome.eta_minutes} دقيقة!`, `🎫 Orderak ${outcome.code} etsagel — 7awaly ${outcome.eta_minutes} d2ee2a!`),
+      order_placed: outcome.opens_at
+        ? L2(`🎫 Order ${outcome.code} is in — we're closed right now, the kitchen starts when we open at ${outcome.opens_at}${outcome.opens_tomorrow ? " tomorrow" : ""}, ready about ${outcome.eta_minutes} min after that.`,
+             `🎫 طلبك ${outcome.code} اتسجل — إحنا مقفولين دلوقتي، المطبخ هيبدأ لما نفتح ${outcome.opens_tomorrow ? "بكرة " : ""}الساعة ${outcome.opens_at}، وهيكون جاهز بعدها بحوالي ${outcome.eta_minutes} دقيقة.`,
+             `🎫 Orderak ${outcome.code} etsagel — e7na ma2fooleen delwa2ty, el kitchen haybda2 lama nefta7 ${outcome.opens_tomorrow ? "bokra " : ""}el sa3a ${outcome.opens_at}, w haykoon gahez ba3daha be 7awaly ${outcome.eta_minutes} d2ee2a.`)
+        : L2(`🎫 Order ${outcome.code} is in — about ${outcome.eta_minutes} min!`, `🎫 طلبك ${outcome.code} اتسجل — حوالي ${outcome.eta_minutes} دقيقة!`, `🎫 Orderak ${outcome.code} etsagel — 7awaly ${outcome.eta_minutes} d2ee2a!`),
+      closed_now: (() => {
+        const t = outcome.opens?.time || "";
+        const tmrw = !!outcome.opens?.tomorrow;
+        const todayH = (outcome.today?.ranges || []).map((r) => `${r.open}–${r.close}`).join(", ");
+        return L2(
+          `We're closed right now 🙏${todayH ? ` Today's hours: ${todayH}.` : ""}${t ? ` We open ${tmrw ? "tomorrow " : ""}at ${t} — message me then and I'll get your order straight in 🍔` : ""}`,
+          `إحنا مقفولين دلوقتي 🙏${todayH ? ` مواعيد النهاردة: ${todayH}.` : ""}${t ? ` بنفتح ${tmrw ? "بكرة " : ""}الساعة ${t} — كلمني وقتها وأنا أسجّل طلبك على طول 🍔` : ""}`,
+          `E7na ma2fooleen delwa2ty 🙏${todayH ? ` Mawa3eed el naharda: ${todayH}.` : ""}${t ? ` Benefta7 ${tmrw ? "bokra " : ""}el sa3a ${t} — kallemny wa2taha w ana asagel orderak 3ala tool 🍔` : ""}`,
+        );
+      })(),
       // Once they've told us the TYPE and already have the menu, don't hand it over
       // again — acknowledge and ask the one thing still missing.
       ask_items: (() => {
@@ -2887,7 +2948,7 @@ LANGUAGE (last line so everything above stays cacheable): the conversation's lan
       : outcome.kind === "which_item" ? (outcome.candidates || []).map((c) => (LANGV === "ar" ? dishDisp(c) : c))
       : outcome.kind === "which_place" ? (outcome.candidates || []).map((c) => String(c).slice(0, 20))
       : outcome.kind === "confirm_order" ? (LANGV === "ar" ? ["تأكيد ✅", "عدّل حاجة"] : ["Confirm ✅", "Change something"])
-      : outcome.kind === "ask_payment" ? (outcome.methods || []).map((m) => m.split(" ")[0].replace(/^\w/, (c) => c.toUpperCase()))
+      : outcome.kind === "ask_payment" ? (outcome.methods || []).map((m) => LANGV === "ar" ? arPay(m).slice(0, 20) : m.split(" ")[0].replace(/^\w/, (c) => c.toUpperCase()))
       // the receipt's own actions — Check Split sits beside them, one tap for a table
       // that wants to pay separately
       : outcome.kind === "order_placed" ? [L2("Check Split", "تقسيم الحساب", "Check Split")]
@@ -2906,15 +2967,17 @@ LANGUAGE (last line so everything above stays cacheable): the conversation's lan
       value.value = value.value || {};
       if (["ask_choice", "ask_fulfillment", "which_item"].includes(outcome.kind) && forced.length > 3) {
         // buttons cap at 3 on WhatsApp — a list holds 10, so every option is tappable
+        // the list button and its header speak the guest's language — «View options 🍽»
+        // sat hard-coded in English under Arabic bubbles (reel bug 16 Oct)
         const q0 = outcome.kind === "ask_fulfillment"
-          ? { label: "Choose your branch 🏪" }
+          ? { label: L2("Choose your branch 🏪", "اختار الفرع 🏪", "Ekhtar el branch 🏪") }
           : outcome.kind === "which_item"
-            ? { label: "Which one did you mean?" }
-            : outcome.questions?.[0] || { label: "Options" };
+            ? { label: L2("Which one did you mean?", "تقصد أنهي واحد؟", "Te2sod anhy wa7ed?") }
+            : outcome.questions?.[0] ? { ...outcome.questions[0], label: LANGV === "ar" ? arLabel(outcome.questions[0].label || "") : outcome.questions[0].label } : { label: L2("Options", "الاختيارات", "El options") };
         optionList = {
-          button: outcome.kind === "ask_fulfillment" ? "Choose branch 🏪" : outcome.kind === "which_item" ? "Pick your dish 🍔" : "View options 🍽",
+          button: outcome.kind === "ask_fulfillment" ? L2("Choose branch 🏪", "اختار الفرع 🏪", "Ekhtar el branch 🏪") : outcome.kind === "which_item" ? L2("Pick your dish 🍔", "اختار الأكلة 🍔", "Ekhtar el akla 🍔") : L2("View options 🍽", "شوف الاختيارات 🍽", "Shoof el options 🍽"),
           sections: [{
-            title: String(q0.label || "Options").slice(0, 24),
+            title: String(q0.label || L2("Options", "الاختيارات", "El options")).slice(0, 24),
             rows: forced.slice(0, 10).map((name2) => ({
               id: `opt_${normName(name2).replace(/\s+/g, "_").slice(0, 20)}`,
               title: String(name2).slice(0, 24),

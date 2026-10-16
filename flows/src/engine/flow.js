@@ -39,7 +39,12 @@ export function listFlows() {
  */
 export function isTestSession(sessionId) {
   const s = String(sessionId || "");
-  return s.startsWith("web:") || /^\+?201555/.test(s);
+  if (s.startsWith("web:") || /^\+?201555/.test(s)) return true;
+  // Every harness phone is +20 followed by NINE digits (+2015560101, +2015580001); a
+  // real Egyptian mobile carries TEN (+201XXXXXXXXX). Persona fixtures used to count as
+  // real guests in every stat — and in the kitchen-queue ETA.
+  const m = /^\+?20(\d+)$/.exec(s);
+  return !!m && m[1].length < 10;
 }
 
 export function listExecutions({ flow, limit = 50 } = {}) {

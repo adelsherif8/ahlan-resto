@@ -1,0 +1,116 @@
+[
+ {
+  "name": "REEL 1 — separate karkadeh stays its own line, never a sandwich's combo drink",
+  "phone": "+2015590001",
+  "turns": [
+   "عايز ٢ ناشفيل حار وواحد كلاسيك وبطاطس وكركديه"
+  ],
+  "expect_any": {
+   "karkadeh billed as its own line": "1× \\*مُنادم كركديه\\*|1× \\*Munadim Karkadeh\\*"
+  },
+  "forbid": {
+   "karkadeh folded into a sandwich": "ساندوتش · مُنادم كركديه|Sandwich · Munadim Karkadeh"
+  }
+ },
+ {
+  "name": "REEL 2 — (run while Munadim is CLOSED, 02:00–10:00 Cairo) no ticket, says when we open",
+  "phone": "+2015590002",
+  "turns": [
+   "عايز مُنادم كلاسيك برجر كومبو كوكاكولا، تيك أواي، كاش"
+  ],
+  "expect": {
+   "says closed + opening time": "مقفولين[\\s\\S]*10:00"
+  },
+  "forbid": {
+   "took the order anyway": "🎫|🧾|أكد وهيروح",
+   "promised minutes": "حوالي \\d+ دقيقة"
+  }
+ },
+ {
+  "name": "REEL 3 — reorder + an addition in the same breath",
+  "phone": "+2015590003",
+  "seed": {
+   "name": "Hossam",
+   "visit_count": 4,
+   "orders": [
+    {
+     "order_type": "pickup",
+     "items": [
+      {
+       "name": "Munadim Nashville Chicken",
+       "qty": 1,
+       "price": 280,
+       "options": {
+        "format": "Combo (fries + drink)",
+        "drink": "Sprite",
+        "spice": "Hot 🔥"
+       }
+      }
+     ],
+     "total": 280
+    }
+   ]
+  },
+  "turns": [
+   "نفس طلب امبارح وزوّدلي حاجة ساقعة"
+  ],
+  "expect_any": {
+   "the reorder is there": "ناشفيل|Nashville",
+   "the drink is asked or added": "كركديه|كوكاكولا|سبرايت|فانتا|Karkadeh|Coca|Sprite|Fanta|مية|Water"
+  },
+  "forbid": {
+   "addition silently dropped — bare bill with one line and a fulfilment ask": "^(?![\\s\\S]*(كركديه|كوكاكولا|سبرايت|فانتا|Karkadeh|Coca|Sprite|Fanta|مية|Water))[\\s\\S]*$"
+  }
+ },
+ {
+  "name": "REEL 4 — split request with the names in it assigns on the first turn",
+  "phone": "+2015590004",
+  "turns": [
+   "عايز ناشفيل كومبو كوكاكولا وسط وكلاسيك ساندوتش وبطاطس، في المطعم ترابيزة T1",
+   "كاش",
+   "تأكيد",
+   "قسّم الحساب — عمر خد الناشفيل، وأحمد خد الكلاسيك والبطاطس"
+  ],
+  "expect": {
+   "omar has a share": "\\*عمر\\*|\\*Omar\\*",
+   "ahmed has a share": "\\*أحمد\\*|\\*Ahmed\\*"
+  },
+  "forbid": {
+   "asked to repeat the names": "قوللي مين خد إيه"
+  }
+ },
+ {
+  "name": "REEL 5 — 'coke' is the drink, not also a note",
+  "phone": "+2015590005",
+  "turns": [
+   "one classic burger combo with coke then",
+   "pickup",
+   "cash, now"
+  ],
+  "expect_any": {
+   "coca cola chosen": "Coca - Cola"
+  },
+  "forbid": {
+   "coke duplicated as a note": "· coke\\)|· coke ·"
+  }
+ },
+ {
+  "name": "REEL 6 — no English buttons or words in an Arabic dine-in chat",
+  "phone": "+2015590006",
+  "turns": [
+   "عايز مُنادم كلاسيك برجر",
+   "في المطعم ترابيزة T2",
+   "ساندوتش",
+   "كاش"
+  ],
+  "expect_any": {
+   "payment buttons in Arabic": "▸ كاش",
+   "noted ack in Arabic": "تمام — "
+  },
+  "forbid": {
+   "english list button": "View options|Choose branch|Pick your dish",
+   "english payment buttons": "▸ Cash|▸ Card|▸ Online",
+   "mixed-script ack": "تمام — [^\\n]*(cash|card|pickup|dine-in|delivery)"
+  }
+ }
+]

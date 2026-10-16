@@ -214,6 +214,31 @@ function shapeConfig(r) {
 // ---- computed hours helpers (code, never LLM) ----
 const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
+/** Does this restaurant have ANY opening hours configured? (no hours = never "closed") */
+export function hasHours(hours) {
+  return Object.values(hours || {}).some((v) => Array.isArray(v) && v.some((r) => r?.open && r?.close));
+}
+
+/**
+ * The next time the doors open, from the restaurant's own hours — today's first slot if
+ * it hasn't started yet, else the next day that has one. Returns {time, day, today} or
+ * null when no hours are configured. Code, never a model's guess.
+ */
+export function nextOpening(hours, tz = "Africa/Cairo") {
+  if (!hasHours(hours)) return null;
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
+  const hhmm = now.toTimeString().slice(0, 5);
+  for (let i = 0; i < 8; i++) {
+    const d = new Date(now); d.setDate(now.getDate() + i);
+    const ranges = (hours?.[DAYS[d.getDay()]] || []).filter((r) => r?.open).sort((a, b) => (a.open < b.open ? -1 : 1));
+    for (const r of ranges) {
+      if (i === 0 && r.open <= hhmm) continue; // already started (or over) today
+      return { time: r.open, day: DAYS[d.getDay()], today: i === 0, tomorrow: i === 1 };
+    }
+  }
+  return null;
+}
+
 export function hoursToday(hours, tz = "Africa/Cairo") {
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
   const day = DAYS[now.getDay()];

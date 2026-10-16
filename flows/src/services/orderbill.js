@@ -174,7 +174,9 @@ export const arWord = (w) => {
   for (const [rx, ar] of AR_MENU_WORDS) if (rx.test(String(w).trim())) return ar;
   return w;
 };
-export const AR_PAY = { "cash on delivery": "كاش عند الاستلام", "cash at the counter": "كاش في الكاونتر", "cash at the cashier": "كاش عند الكاشير", "card": "كارت", "card at the cashier": "كارت عند الكاشير", "instapay": "انستاباي", "online link": "لينك أونلاين" };
+export const AR_PAY = { "cash on delivery": "كاش عند الاستلام", "cash at the counter": "كاش في الكاونتر", "cash at the cashier": "كاش عند الكاشير", "card": "كارت", "card at the cashier": "كارت عند الكاشير", "instapay": "انستاباي", "online link": "لينك أونلاين",
+  // the extractor's bare method words — «تمام — تيك أواي + cash ✅» mixed scripts (reel bug 16 Oct)
+  "cash": "كاش", "visa": "فيزا", "online": "أونلاين", "link": "لينك" };
 export const arPay = (m) => AR_PAY[String(m).toLowerCase().trim()] || m;
 export const arLabel = (l) => String(l).replace(/^If (.+?) — (.+)$/i, (m, cond, rest) => `لو ${arWord(cond)} — ${arWord(rest)}`)
   .replace(/^(?!لو )(.*)$/s, (m, x) => arWord(x));
