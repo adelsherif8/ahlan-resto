@@ -11,6 +11,8 @@ import { THREADS } from './lib/threads';
 import { POSTS } from './lib/posts';
 import { KineticReel } from './Kinetic';
 import { KINETIC, kineticTiming } from './lib/kinetic';
+import { Loop, LoopStill } from './Loop';
+import { loopTiming } from './lib/loop';
 
 const calc = ({ props }: { props: { variant?: Variant } }) => {
   setVariant(props.variant ?? 'holo');
@@ -73,6 +75,8 @@ export const Root = () => (
         return { durationInFrames: storyLength(st) };
       }}
     />
+    <Composition id="Loop" component={Loop} durationInFrames={loopTiming().end} fps={FPS} width={1080} height={1920} />
+    <Composition id="LoopStill" component={LoopStill} durationInFrames={1} fps={FPS} width={1080} height={1350} />
     <Composition id="OG" component={OG} durationInFrames={1} fps={FPS} width={1200} height={630} />
     <Composition id="Tex" component={Tex} durationInFrames={21} fps={FPS} width={1700} height={1500} />
     <Composition id="CityTex" component={CityTex} durationInFrames={5} fps={FPS} width={3072} height={3072} />
