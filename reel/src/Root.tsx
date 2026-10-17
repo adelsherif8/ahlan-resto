@@ -75,7 +75,7 @@ export const Root = () => (
         return { durationInFrames: storyLength(st) };
       }}
     />
-    <Composition id="Loop" component={Loop} durationInFrames={loopTiming().end} fps={FPS} width={1080} height={1920} />
+    <Composition id="Loop" component={Loop} durationInFrames={loopTiming().end} fps={FPS} width={1080} height={1920} defaultProps={{ video: false }} />
     <Composition id="LoopStill" component={LoopStill} durationInFrames={1} fps={FPS} width={1080} height={1350} />
     <Composition id="OG" component={OG} durationInFrames={1} fps={FPS} width={1200} height={630} />
     <Composition id="Tex" component={Tex} durationInFrames={21} fps={FPS} width={1700} height={1500} />
