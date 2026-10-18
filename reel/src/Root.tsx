@@ -82,7 +82,7 @@ export const Root = () => (
     />
     <Composition id="FilmShort" component={FilmShort} durationInFrames={shortEnd()} fps={FPS} width={1080} height={1920} />
     <Composition id="Carousel" component={Carousel} durationInFrames={1} fps={FPS} width={1080} height={1350} defaultProps={{ deck: 'A', slide: 0 }} />
-    <Composition id="StoryQ" component={StoryQ} durationInFrames={180} fps={FPS} width={1080} height={1920} defaultProps={{ index: 0 }} />
+    <Composition id="StoryQ" component={StoryQ} durationInFrames={210} fps={FPS} width={1080} height={1920} defaultProps={{ index: 0 }} />
     <Composition id="Film" component={Film} durationInFrames={filmTiming().end} fps={FPS} width={1080} height={1920} />
     <Composition id="Loop" component={Loop} durationInFrames={loopTiming().end} fps={FPS} width={1080} height={1920} defaultProps={{ video: false }} />
     <Composition id="LoopStill" component={LoopStill} durationInFrames={1} fps={FPS} width={1080} height={1350} />

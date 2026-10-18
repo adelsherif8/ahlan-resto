@@ -46,20 +46,20 @@ const END_CARD = 60;
 
 export const postTiming = (p: PostData) => {
   const starts: number[] = [];
-  let t = 44; // the headline reveal + rule draw read first
+  let t = 36; // the headline reveal + rule draw read first
   for (const b of p.script) {
     if (b.kind === 'day') { starts.push(t); t += 28; continue; } // a date chip: no typing, short beat
-    if (!b.me) t += p.real ? 20 : TYPING;
+    if (!b.me) t += p.real ? 12 : TYPING;
     starts.push(t);
     if (p.real) {
       // real bot messages run long (a bill is ~15 lines): hold a beat longer on the long ones
       const lines = b.kind === 'text' ? b.text.split('\n').length : 2;
-      t += b.me ? 26 : 26 + Math.min(30, Math.round(lines * 2.2));
+      t += b.me ? 16 : 20 + Math.min(14, Math.round(lines * 1.3));
     } else t += BUBBLE_IN + GUEST_GAP;
   }
-  const endStart = t + 30;
+  const endStart = t + 22;
   // a payoff line needs its own beat to be read before the CTA lands
-  return { starts, endStart, end: endStart + END_CARD + (p.payoff ? 30 : 0) };
+  return { starts, endStart, end: endStart + END_CARD + (p.payoff ? 42 : 12) };
 };
 
 /* ---------- small ui atoms ---------- */
@@ -251,7 +251,8 @@ export const PostEnd: React.FC<{ frame: number; endStart: number; payoff?: strin
         <div style={{ width: 120 * s(16), height: 5, background: C.brassLight, borderRadius: 3, margin: '52px 0 48px', opacity: s(16) }} />
         <Img src={staticFile('23-lockup-stacked-dark-nobg.svg')} style={{ width: 340, opacity: s(30), transform: `translateY(${(1 - s(30)) * 20}px)` }} />
         <div style={{ color: 'rgba(245,239,231,0.8)', fontFamily: AR, fontSize: 46, fontWeight: 700, marginTop: 34, opacity: s(38) }}>كل طلب يبقى زبون</div>
-        <div style={{ color: 'rgba(245,239,231,0.62)', fontFamily: UI, fontSize: 30, marginTop: 26, opacity: s(44) }}>اطلب على واتساب</div>
+        <div style={{ color: 'rgba(245,239,231,0.7)', fontFamily: UI, fontSize: 30, lineHeight: 1.6, marginTop: 22, textAlign: 'center', maxWidth: 820, opacity: s(42) }}>مُنادم: نظام أوردرات على واتساب باسم مطعمك — من غير تطبيق، ومن غير عمولة على الأوردر</div>
+        <div style={{ color: 'rgba(245,239,231,0.62)', fontFamily: UI, fontSize: 30, marginTop: 18, opacity: s(46) }}>اطلب على واتساب</div>
         <div style={{ color: C.brassLight, fontSize: 48, fontWeight: 500, marginTop: 10, opacity: s(46), fontFamily: MONO, letterSpacing: 3, direction: 'ltr' }}>01022034603</div>
       </AbsoluteFill>
     );
@@ -261,7 +262,8 @@ export const PostEnd: React.FC<{ frame: number; endStart: number; payoff?: strin
       <Img src={staticFile('23-lockup-stacked-dark-nobg.svg')} style={{ width: 500, opacity: s(2), transform: `translateY(${(1 - s(2)) * 28}px)` }} />
       <div style={{ width: 120 * s(8), height: 5, background: C.brassLight, borderRadius: 3, margin: '44px 0 36px', opacity: s(8) }} />
       <div style={{ color: C.semna, fontFamily: AR, fontSize: 66, fontWeight: 700, opacity: s(12), transform: `translateY(${(1 - s(12)) * 20}px)` }}>كل طلب يبقى زبون</div>
-      <div style={{ color: 'rgba(245,239,231,0.62)', fontFamily: UI, fontSize: 32, marginTop: 30, opacity: s(18) }}>اطلب على واتساب</div>
+      <div style={{ color: 'rgba(245,239,231,0.7)', fontFamily: UI, fontSize: 30, lineHeight: 1.6, marginTop: 24, textAlign: 'center', maxWidth: 820, opacity: s(16) }}>مُنادم: نظام أوردرات على واتساب باسم مطعمك — من غير تطبيق، ومن غير عمولة على الأوردر</div>
+      <div style={{ color: 'rgba(245,239,231,0.62)', fontFamily: UI, fontSize: 32, marginTop: 18, opacity: s(18) }}>اطلب على واتساب</div>
       <div style={{ color: C.brassLight, fontSize: 50, fontWeight: 500, marginTop: 14, opacity: s(20), fontFamily: MONO, letterSpacing: 3, direction: 'ltr' }}>01022034603</div>
     </AbsoluteFill>
   );

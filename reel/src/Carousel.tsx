@@ -27,10 +27,16 @@ export const Carousel: React.FC<{ deck?: string; slide?: number }> = ({ deck = '
 
   if (s.k === 'cover' || s.k === 'cta') {
     return (
-      <AbsoluteFill style={{ background: C.ink, padding: '0 96px', justifyContent: 'center', alignItems: 'flex-end', direction: 'rtl' }}>
-        <div style={{ fontFamily: AR, fontWeight: 700, fontSize: s.k === 'cover' ? 96 : 104, lineHeight: 1.32, color: C.semna, textAlign: 'right', whiteSpace: 'pre-line' }}>{s.title}</div>
-        <div style={{ width: 160, height: 6, background: C.brassLight, borderRadius: 3, margin: '40px 0 30px' }} />
-        <div style={{ fontFamily: UI, fontSize: 36, color: 'rgba(245,239,231,0.75)', textAlign: 'right' }}>{s.sub}</div>
+      <AbsoluteFill style={{ background: C.ink, padding: s.k === 'cover' && s.bg ? '0 96px 200px' : '0 96px', justifyContent: s.k === 'cover' && s.bg ? 'flex-end' : 'center', alignItems: 'flex-end', direction: 'rtl' }}>
+        {s.k === 'cover' && s.bg && <>
+          <Img src={staticFile(`storybg/${s.bg}`)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
+          <AbsoluteFill style={{ background: 'linear-gradient(180deg, rgba(20,17,16,0.35) 0%, rgba(20,17,16,0.55) 40%, rgba(20,17,16,0.96) 72%)' }} />
+        </>}
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <div style={{ fontFamily: AR, fontWeight: 700, fontSize: s.k === 'cover' ? 96 : 104, lineHeight: 1.32, color: C.semna, textAlign: 'right', whiteSpace: 'pre-line' }}>{s.title}</div>
+          <div style={{ width: 160, height: 6, background: C.brassLight, borderRadius: 3, margin: '40px 0 30px' }} />
+          <div style={{ fontFamily: UI, fontSize: 36, color: 'rgba(245,239,231,0.75)', textAlign: 'right' }}>{s.sub}</div>
+        </div>
         {s.k === 'cta' && s.foot && <div style={{ position: 'absolute', left: 96, right: 96, bottom: 150, fontFamily: UI, fontSize: 22, lineHeight: 1.6, color: 'rgba(245,239,231,0.5)', textAlign: 'right' }}>{s.foot}</div>}
         {s.k === 'cover' && <div style={{ position: 'absolute', left: 64, top: 56, fontFamily: 'Cinzel', fontSize: 20, letterSpacing: '0.22em', color: C.brassLight }}>MUNADIM</div>}
         <Counter i={slide + 1} n={n} dark />
@@ -69,11 +75,15 @@ export const Carousel: React.FC<{ deck?: string; slide?: number }> = ({ deck = '
 
   if (s.k === 'qa') {
     return (
-      <AbsoluteFill style={{ background: C.semna, padding: '0 96px', justifyContent: 'center', alignItems: 'flex-end', direction: 'rtl' }}>
+      <AbsoluteFill style={{ background: C.semna, padding: '330px 96px 0', justifyContent: 'center', alignItems: 'flex-end', direction: 'rtl' }}>
+        {s.bg && <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 420, overflow: 'hidden' }}>
+          <Img src={staticFile(`storybg/${s.bg}`)} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.85)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(20,17,16,0.25) 0%, rgba(245,239,231,0) 55%, ${C.semna} 100%)` }} />
+        </div>}
         <div style={{ fontFamily: 'Cinzel', fontSize: 20, letterSpacing: '0.22em', color: C.brass, alignSelf: 'flex-end', marginBottom: 30 }}>THE OWNER ASKS</div>
-        <div style={{ fontFamily: AR, fontWeight: 700, fontSize: 78, lineHeight: 1.36, color: C.karkadeh, textAlign: 'right' }}>{s.q}</div>
+        <div style={{ fontFamily: AR, fontWeight: 700, fontSize: 70, lineHeight: 1.36, color: C.karkadeh, textAlign: 'right' }}>{s.q}</div>
         <div style={{ width: 160, height: 6, background: C.karkadeh, borderRadius: 3, margin: '40px 0 34px' }} />
-        <div style={{ fontFamily: UI, fontWeight: 500, fontSize: 44, lineHeight: 1.75, color: C.ink, textAlign: 'right' }}>{s.a}</div>
+        <div style={{ fontFamily: UI, fontWeight: 500, fontSize: 40, lineHeight: 1.7, color: C.ink, textAlign: 'right' }}>{s.a}</div>
         <Counter i={slide + 1} n={n} />
         <Lockup />
       </AbsoluteFill>
