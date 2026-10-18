@@ -2,7 +2,7 @@
 import React from 'react';
 import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { C, MONO } from './lib/brand';
-import { FILM, SHOTS, SHOT_FRAMES, filmTiming } from './lib/film';
+import { FILM, SHOTS, SHOT_FRAMES, SHOT_LEN, filmTiming } from './lib/film';
 import { PostEnd, useFontsReady } from './Post';
 
 const AR = 'Amiri, NotoEmoji';
@@ -32,6 +32,14 @@ const Pop: React.FC<{ from: number; until: number; x: number; y: number; childre
   );
 };
 
+/** shots whose Seedance render carries its own synced sound (engine, landing, bag) */
+const NATIVE_AUDIO = new Set<number>([4, 5]);
+/** a slow handheld drift per shot, so nothing sits dead-still like a render */
+const drift = (frame: number, n: number) => ({
+  x: Math.sin(frame / 37 + n) * 6 + Math.sin(frame / 11 + n * 2) * 1.5,
+  y: Math.cos(frame / 43 + n) * 5 + Math.cos(frame / 13 + n) * 1.2,
+});
+
 export const Film: React.FC = () => {
   const frame = useCurrentFrame();
   const T = filmTiming();
@@ -44,17 +52,28 @@ export const Film: React.FC = () => {
 
   return (
     <AbsoluteFill style={{ background: C.ink, overflow: 'hidden' }}>
-      <Audio src={staticFile('sfx/bed.wav')} volume={0.35} />
+      {/* sound: a night-traffic bed under the whole film, the generated SFX on their beats, the brand bed under the end card */}
+      <Audio src={staticFile('loop/sfx-ambience.wav')} volume={(f) => interpolate(f, [0, 20, T.endStart - 20, T.endStart + 20], [0, 0.55, 0.55, 0.15], clamp)} loop />
       <Sequence from={T.orderAt} durationInFrames={30}><Audio src={staticFile('sfx/pop-out.wav')} /></Sequence>
       <Sequence from={T.replyAt} durationInFrames={30}><Audio src={staticFile('sfx/pop-in.wav')} /></Sequence>
+      <Sequence from={T.shotStart(3) + 30} durationInFrames={60}><Audio src={staticFile('loop/sfx-bag.wav')} volume={0.6} /></Sequence>
+      <Sequence from={T.shotStart(6) + 40} durationInFrames={60}><Audio src={staticFile('loop/sfx-bag.wav')} volume={0.8} /></Sequence>
+      <Sequence from={T.endStart - 10} durationInFrames={120}><Audio src={staticFile('sfx/bed.wav')} volume={0.4} /></Sequence>
 
       {SHOTS.map((n) => (
-        <Sequence key={n} from={T.shotStart(n)} durationInFrames={SHOT_FRAMES} layout="none">
-          <OffthreadVideo src={staticFile(`loop/shot-${n}.mp4`)} muted playbackRate={0.8} style={{ position: 'absolute', inset: 0, width: 1080, height: 1920, objectFit: 'cover' }} />
+        <Sequence key={n} from={T.shotStart(n)} durationInFrames={SHOT_LEN[n] ?? SHOT_FRAMES} layout="none">
+          <OffthreadVideo src={staticFile(`loop/shot-${n}.mp4`)} muted={!NATIVE_AUDIO.has(n)} volume={NATIVE_AUDIO.has(n) ? 0.9 : 0} playbackRate={0.8}
+            style={{ position: 'absolute', inset: 0, width: 1080, height: 1920, objectFit: 'cover', transform: `translate(${drift(frame, n).x}px, ${drift(frame, n).y}px) scale(1.03)` }} />
           {/* a 6-frame dip to ink between shots, so the cuts feel edited, not pasted */}
-          <AbsoluteFill style={{ background: C.ink, opacity: interpolate(frame - T.shotStart(n), [0, 6, SHOT_FRAMES - 6, SHOT_FRAMES], [1, 0, 0, 1], clamp), pointerEvents: 'none' }} />
+          <AbsoluteFill style={{ background: C.ink, opacity: interpolate(frame - T.shotStart(n), [0, 6, (SHOT_LEN[n] ?? SHOT_FRAMES) - 6, SHOT_LEN[n] ?? SHOT_FRAMES], [1, 0, 0, 1], clamp), pointerEvents: 'none' }} />
         </Sequence>
       ))}
+
+      {/* the grade — film grain, a soft vignette and a warm lift; this is what takes the AI sheen off */}
+      <AbsoluteFill style={{ pointerEvents: 'none', backgroundImage: `url(${staticFile('loop/grain.png')})`, backgroundSize: '512px 512px',
+        backgroundPosition: `${(frame * 97) % 512}px ${(frame * 61) % 512}px`, mixBlendMode: 'overlay', opacity: 0.28 }} />
+      <AbsoluteFill style={{ pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 62% at 50% 48%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%)' }} />
+      <AbsoluteFill style={{ pointerEvents: 'none', background: 'rgba(185,132,50,0.06)', mixBlendMode: 'soft-light' }} />
 
       {/* headline over shot 1 */}
       <div style={{ position: 'absolute', inset: '0 0 auto 0', height: 520, background: 'linear-gradient(180deg, rgba(20,17,16,0.9) 0%, rgba(20,17,16,0.5) 55%, rgba(20,17,16,0) 100%)', opacity: headA }} />
