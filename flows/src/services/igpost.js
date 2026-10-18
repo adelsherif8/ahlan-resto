@@ -203,14 +203,18 @@ export async function remindStoriesDue({ send = false } = {}) {
     if (!send) { sent.push({ ...s, dry: true }); continue; }
     try {
       const { assets } = loadPlan();
-      const img = assets[s.asset];
+      // Attach the poster frame, not the clip: the story is a 5-10 MB video now, and ntfy
+      // shows a video as a download rather than something readable on the lock screen.
+      // The poster is a still lifted from the clip with the question already on it.
+      const img = assets[s.poster] || assets[s.asset];
+      const imgName = assets[s.poster] ? s.poster : s.asset;
       await fetch(`https://ntfy.sh/${topic}`, {
         method: "POST",
         headers: {
           Title: `Munadim day ${s.day} - ${s.kind} at ${ampm(s.time)}`,
           Priority: "default",
           Tags: "camera",
-          ...(img ? { Attach: img, Filename: s.asset } : {}),
+          ...(img ? { Attach: img, Filename: imgName } : {}),
         },
         body,
       });

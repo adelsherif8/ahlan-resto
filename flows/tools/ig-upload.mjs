@@ -26,6 +26,7 @@ const sched = JSON.parse(fs.readFileSync(new URL("./ig-schedule.json", import.me
 const assets = [...new Set([
   ...sched.slots.flatMap((s) => (s.type === "carousel" ? (s.slides || []) : [s.asset])),
   ...(sched.stories || []).map((s) => s.asset),
+  ...(sched.stories || []).map((s) => s.poster),
 ].filter(Boolean))];
 
 /** The artifact slugified the filenames; on disk they are human names with spaces,
