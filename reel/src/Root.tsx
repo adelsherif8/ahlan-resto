@@ -12,6 +12,8 @@ import { POSTS } from './lib/posts';
 import { KineticReel } from './Kinetic';
 import { KINETIC, kineticTiming } from './lib/kinetic';
 import { Loop, LoopStill } from './Loop';
+import { Film } from './Film';
+import { filmTiming } from './lib/film';
 import { loopTiming } from './lib/loop';
 
 const calc = ({ props }: { props: { variant?: Variant } }) => {
@@ -75,6 +77,7 @@ export const Root = () => (
         return { durationInFrames: storyLength(st) };
       }}
     />
+    <Composition id="Film" component={Film} durationInFrames={filmTiming().end} fps={FPS} width={1080} height={1920} />
     <Composition id="Loop" component={Loop} durationInFrames={loopTiming().end} fps={FPS} width={1080} height={1920} defaultProps={{ video: false }} />
     <Composition id="LoopStill" component={LoopStill} durationInFrames={1} fps={FPS} width={1080} height={1350} />
     <Composition id="OG" component={OG} durationInFrames={1} fps={FPS} width={1200} height={630} />
