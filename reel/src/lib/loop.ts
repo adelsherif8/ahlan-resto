@@ -32,6 +32,7 @@ export function loopTiming() {
     climbStart: b.up0,
     climbEnd: b.up1,
     replyAt: b.up1 + 6,                    // the ticket lands as the car arrives
+    backStart: b.down0,
     backAt: b.down1,
     endStart: b.down1,                     // end card rises as the car pulls up to the customer
     end: b.frames,

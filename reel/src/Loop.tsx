@@ -2,7 +2,7 @@
  * Loop (video) + LoopStill — see lib/loop.ts for the words and beats, lib/loopGeo.ts for the
  * screen anchors the 3D camera projected.
  *
- * The plate is the Blender render (public/loop/bg-video.mp4): the queue on the wall and the
+ * The plate is the Higgsfield image + two image-to-video clips: the queue on the wall and the
  * Munadim car doing the run. This layer adds only what must be real text: the Amiri headline, the
  * guest's order popping from the last car in the queue, the bot's real ticket line landing at the
  * restaurant, the lockup and the end card.
@@ -47,7 +47,7 @@ const Anchored: React.FC<{ x: number; y: number; from: number; children: React.R
   );
 };
 
-/** `video: true` uses public/loop/bg-video.mp4 (the Blender render) instead of the still plate. */
+/** `video: true` plays the two Higgsfield clips (public/loop/clipA.mp4 up, clipB.mp4 back) over the 2K still. */
 export const Loop: React.FC<{ video?: boolean }> = ({ video = false }) => {
   const frame = useCurrentFrame();
   const T = loopTiming();
@@ -66,9 +66,21 @@ export const Loop: React.FC<{ video?: boolean }> = ({ video = false }) => {
       <Sequence from={T.replyAt} durationInFrames={30}><Audio src={staticFile('sfx/pop-in.wav')} /></Sequence>
 
       <AbsoluteFill style={{ transform: `scale(${zoom})`, transformOrigin: '50% 62%' }}>
-        {video
-          ? <OffthreadVideo src={staticFile('loop/bg-video.mp4')} muted style={{ width: 1080, height: 1920, objectFit: 'cover' }} />
-          : <Img src={staticFile('loop/bg-video.jpg')} style={{ width: 1080, height: 1920, objectFit: 'cover' }} />}
+        {/* the plate: the 2K still, then clip A (the run up), a held frame at the top, clip B (the run back), the still again */}
+        <Img src={staticFile('loop/loop-start-2k.png')} style={{ width: 1080, height: 1920, objectFit: 'cover' }} />
+        {video && (
+          <>
+            <Sequence from={T.climbStart} durationInFrames={T.climbEnd - T.climbStart} layout="none">
+              <OffthreadVideo src={staticFile('loop/clipA.mp4')} muted playbackRate={(6 * 30) / (T.climbEnd - T.climbStart)} style={{ position: 'absolute', inset: 0, width: 1080, height: 1920, objectFit: 'cover' }} />
+            </Sequence>
+            <Sequence from={T.climbEnd} durationInFrames={T.backStart - T.climbEnd} layout="none">
+              <Img src={staticFile('loop/loop-end.png')} style={{ position: 'absolute', inset: 0, width: 1080, height: 1920, objectFit: 'cover' }} />
+            </Sequence>
+            <Sequence from={T.backStart} durationInFrames={T.backAt - T.backStart} layout="none">
+              <OffthreadVideo src={staticFile('loop/clipB.mp4')} muted playbackRate={(6 * 30) / (T.backAt - T.backStart)} style={{ position: 'absolute', inset: 0, width: 1080, height: 1920, objectFit: 'cover' }} />
+            </Sequence>
+          </>
+        )}
 
         {/* the last car in the queue sends the order */}
         <Anchored x={LOOP_GEO.order.x} y={LOOP_GEO.order.y} from={T.orderAt} side="right">
