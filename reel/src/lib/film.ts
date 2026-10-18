@@ -14,7 +14,7 @@ export const SHOT_FRAMES = SHOT_SECONDS * FPS;          // 180
 export const SHOTS = [1, 2, 3, 4, 5, 6] as const;        // public/loop/shot-N.mp4
 /** timeline frames per shot — shot 5 is cut as the hand reaches the bag (3.8 s of the 6), before the model's
  *  continuity slip (it seats the hero in the wrong car); the cut to him eating carries the handoff. */
-export const SHOT_LEN: Record<number, number> = { 1: 180, 2: 180, 3: 180, 4: 180, 5: 142, 6: 180 };
+export const SHOT_LEN: Record<number, number> = { 1: 180, 2: 180, 3: 180, 4: 180, 5: 180, 6: 180 };
 export const END_CARD_FRAMES = 90;
 
 export const FILM = {

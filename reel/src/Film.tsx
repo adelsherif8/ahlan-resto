@@ -33,7 +33,7 @@ const Pop: React.FC<{ from: number; until: number; x: number; y: number; childre
 };
 
 /** shots whose Seedance render carries its own synced sound (engine, landing, bag) */
-const NATIVE_AUDIO = new Set<number>([4, 5]);
+const NATIVE_AUDIO = new Set<number>([1, 2, 4, 5, 6]);
 /** a slow handheld drift per shot, so nothing sits dead-still like a render */
 const drift = (frame: number, n: number) => ({
   x: Math.sin(frame / 37 + n) * 6 + Math.sin(frame / 11 + n * 2) * 1.5,
@@ -53,11 +53,10 @@ export const Film: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: C.ink, overflow: 'hidden' }}>
       {/* sound: a night-traffic bed under the whole film, the generated SFX on their beats, the brand bed under the end card */}
-      <Audio src={staticFile('loop/sfx-ambience.wav')} volume={(f) => interpolate(f, [0, 20, T.endStart - 20, T.endStart + 20], [0, 0.55, 0.55, 0.15], clamp)} loop />
+      <Audio src={staticFile('loop/sfx-ambience.wav')} volume={(f) => interpolate(f, [0, 20, T.endStart - 20, T.endStart + 20], [0, 0.4, 0.4, 0.12], clamp)} loop />
       <Sequence from={T.orderAt} durationInFrames={30}><Audio src={staticFile('sfx/pop-out.wav')} /></Sequence>
       <Sequence from={T.replyAt} durationInFrames={30}><Audio src={staticFile('sfx/pop-in.wav')} /></Sequence>
       <Sequence from={T.shotStart(3) + 30} durationInFrames={60}><Audio src={staticFile('loop/sfx-bag.wav')} volume={0.6} /></Sequence>
-      <Sequence from={T.shotStart(6) + 40} durationInFrames={60}><Audio src={staticFile('loop/sfx-bag.wav')} volume={0.8} /></Sequence>
       <Sequence from={T.endStart - 10} durationInFrames={120}><Audio src={staticFile('sfx/bed.wav')} volume={0.4} /></Sequence>
 
       {SHOTS.map((n) => (
