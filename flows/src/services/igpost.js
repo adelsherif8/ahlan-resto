@@ -57,20 +57,50 @@ async function graphGet(path, params, token) {
   return j;
 }
 
-/** Container → wait for processing → publish. Returns the media id. */
-export async function publishSlot(slot, url, caption) {
-  const token = process.env.IG_TOKEN, ig = process.env.IG_USER_ID;
-  const container = await graphPost(`${ig}/media`, slot.type === "reel"
-    ? { media_type: "REELS", video_url: url, caption, share_to_feed: "true" }
-    : { image_url: url, caption }, token);
-
+/** Poll a container until it is ready to publish. */
+async function awaitContainer(id, token) {
   for (let i = 0; i < 60; i++) {
-    const st = await graphGet(container.id, { fields: "status_code,status" }, token);
-    if (st.status_code === "FINISHED") break;
+    const st = await graphGet(id, { fields: "status_code,status" }, token);
+    if (st.status_code === "FINISHED") return;
     if (st.status_code === "ERROR") throw new Error(`container error: ${st.status}`);
-    if (i === 59) throw new Error("container never finished processing");
     await new Promise((z) => setTimeout(z, 5000));
   }
+  throw new Error("container never finished processing");
+}
+
+/** Container → wait for processing → publish. Returns the media id. */
+export async function publishSlot(slot, url, caption, assets = {}) {
+  const token = process.env.IG_TOKEN, ig = process.env.IG_USER_ID;
+
+  // A carousel is built the long way: one child container per slide, then a parent
+  // that holds their ids. The caption lives on the parent only.
+  if (slot.type === "carousel") {
+    const children = [];
+    for (const slide of slot.slides || []) {
+      const u = assets[slide];
+      if (!u) throw new Error(`slide not uploaded: ${slide}`);
+      const c = await graphPost(`${ig}/media`, { image_url: u, is_carousel_item: "true" }, token);
+      await awaitContainer(c.id, token);
+      children.push(c.id);
+    }
+    if (children.length < 2) throw new Error("a carousel needs at least 2 slides");
+    const parent = await graphPost(`${ig}/media`, {
+      media_type: "CAROUSEL", children: children.join(","), caption,
+    }, token);
+    await awaitContainer(parent.id, token);
+    const out = await graphPost(`${ig}/media_publish`, { creation_id: parent.id }, token);
+    return out.id;
+  }
+
+  // A story carries no caption and no sticker — the API refuses both. It is the film
+  // itself, 24 hours, driving people to the reel on the grid.
+  const params =
+    slot.type === "reel" ? { media_type: "REELS", video_url: url, caption, share_to_feed: "true" }
+    : slot.type === "story" ? { media_type: "STORIES", video_url: url }
+    : { image_url: url, caption };
+  const container = await graphPost(`${ig}/media`, params, token);
+
+  await awaitContainer(container.id, token);
   const out = await graphPost(`${ig}/media_publish`, { creation_id: container.id }, token);
   return out.id;
 }
@@ -104,7 +134,9 @@ export async function publishDue({ arm = false, only = null, windowMs = 2 * 3600
 
   const done = [];
   for (const s of due) {
-    const url = assets[s.asset];
+    const url = s.type === "carousel"
+      ? ((s.slides || []).every((x) => assets[x]) ? assets[s.slides[0]] : null)
+      : assets[s.asset];
     if (!url) { log(`ig: skip day ${s.day} ${s.time} — ${s.pending ? "no asset made yet" : "not uploaded"}`); continue; }
     const caption = schedule.tagsInCaption ? `${s.caption}\n\n${s.tags}` : s.caption;
     if (!arm) { done.push({ ...s, dry: true }); continue; }
@@ -113,7 +145,7 @@ export async function publishDue({ arm = false, only = null, windowMs = 2 * 3600
     posted[slotKey(s)] = { claimed_at: new Date().toISOString(), asset: s.asset };
     await writePosted(db, ai, posted);
     try {
-      const media_id = await publishSlot(s, url, caption);
+      const media_id = await publishSlot(s, url, caption, assets);
       posted[slotKey(s)] = { media_id, at: new Date().toISOString(), asset: s.asset };
       await writePosted(db, ai, posted);
       log(`ig: published day ${s.day} ${s.time} → ${media_id}`);
@@ -194,6 +226,59 @@ export async function remindStoriesDue({ send = false } = {}) {
   return { due: due.length, sent };
 }
 
+/**
+ * LinkedIn reminders. Nothing is auto-posted there — we hold no LinkedIn API access —
+ * so this is purely "don't forget", with the Arabic body in the notification ready to
+ * paste. Shares the stories' record so one nudge never repeats.
+ */
+export async function remindLinkedInDue({ send = false } = {}) {
+  const topic = process.env.NTFY_TOPIC;
+  if (!topic) return { skipped: "no NTFY_TOPIC" };
+  const { schedule } = loadPlan();
+  if (!schedule.linkedin?.length) return { due: 0, sent: [] };
+  const db = sb();
+  const { data } = await db.from("restaurants").select("ai").eq("slug", "munadim").single();
+  const ai = data?.ai || {};
+  const reminded = ai.ig_reminded || {};
+  const now = cairoNow(schedule.timezone);
+
+  const due = schedule.linkedin.filter((x) => {
+    const k = `li-${x.date}-${x.time}`;
+    if (reminded[k]) return false;
+    const t = new Date(`${x.date}T${x.time}:00`);
+    return t <= now && now - t < 6 * 3600 * 1000;
+  });
+
+  const sent = [];
+  for (const x of due) {
+    const k = `li-${x.date}-${x.time}`;
+    const body = [
+      `LINKEDIN DAY ${x.day}  ·  ${ampm(x.time)}  ·  ${x.kind.toUpperCase()}`,
+      ``,
+      x.label,
+      x.video ? `\n▶ attach  igvideos/${x.video}` : "",
+      x.text ? `\n${x.text}` : "",
+      x.options ? `\nPoll options:\n${x.options.map((o) => `· ${o}`).join("\n")}` : "",
+      x.also ? `\n— ${x.also}` : "",
+    ].filter((l) => l !== "").join("\n");
+    if (!send) { sent.push({ ...x, dry: true }); continue; }
+    try {
+      await fetch(`https://ntfy.sh/${topic}`, {
+        method: "POST",
+        headers: { Title: `Munadim LinkedIn day ${x.day} - ${x.kind}`, Priority: "default", Tags: "briefcase" },
+        body,
+      });
+      reminded[k] = new Date().toISOString();
+      await db.from("restaurants").update({ ai: { ...ai, ig_reminded: reminded } }).eq("slug", "munadim");
+      log(`ig: linkedin reminder sent — day ${x.day} ${x.kind} (${x.date})`);
+      sent.push(x);
+    } catch (e) {
+      log(`ig: linkedin reminder failed — ${e.message}`);
+    }
+  }
+  return { due: due.length, sent };
+}
+
 /** Called by the flows service. Off unless IG_AUTOPOST=1, and it never throws. */
 export function startIgPoster() {
   if (process.env.IG_AUTOPOST !== "1") return false;
@@ -202,6 +287,8 @@ export function startIgPoster() {
     catch (e) { log(`ig poster tick failed (kept running): ${e.message}`); }
     try { await remindStoriesDue({ send: true }); }
     catch (e) { log(`ig story reminder tick failed (kept running): ${e.message}`); }
+    try { await remindLinkedInDue({ send: true }); }
+    catch (e) { log(`linkedin reminder tick failed (kept running): ${e.message}`); }
   };
   setTimeout(tick, 20_000).unref?.();
   setInterval(tick, 5 * 60_000).unref?.();

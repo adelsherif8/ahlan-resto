@@ -20,10 +20,15 @@ const posted = data?.ai?.ig_posted || {};
 
 if (process.argv.includes("--list")) {
   for (const s of schedule.slots) {
-    const st = posted[slotKey(s)]?.media_id ? "POSTED" : s.pending ? "no asset yet" : assets[s.asset] ? "ready" : "not uploaded";
+    // a carousel is ready when every slide is hosted — its own name is never a key
+    const hosted = s.type === "carousel"
+      ? (s.slides || []).length > 0 && (s.slides || []).every((x) => assets[x])
+      : !!assets[s.asset];
+    const st = posted[slotKey(s)]?.media_id ? "POSTED" : s.pending ? "no asset yet" : hosted ? "ready" : "not uploaded";
     console.log(`day ${String(s.day).padStart(2)} ${s.date} ${ampm(s.time).padStart(8)}  ${s.type.padEnd(4)}  ${String(s.asset ?? "—").padEnd(30)} ${st}`);
   }
-  const ready = schedule.slots.filter((s) => !posted[slotKey(s)] && assets[s.asset]).length;
+  const ready = schedule.slots.filter((s) => !posted[slotKey(s)] &&
+    (s.type === "carousel" ? (s.slides || []).every((x) => assets[x]) : assets[s.asset])).length;
   console.log(`\n${ready} ready · ${Object.values(posted).filter((p) => p.media_id).length} posted`);
   process.exit(0);
 }

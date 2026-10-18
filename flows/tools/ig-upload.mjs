@@ -23,7 +23,10 @@ const t = r.integrations.supabase;
 const store = createClient(t.url, t.key).storage.from("brand");
 
 const sched = JSON.parse(fs.readFileSync(new URL("./ig-schedule.json", import.meta.url), "utf8"));
-const assets = [...new Set([...sched.slots, ...(sched.stories || [])].map((s) => s.asset).filter(Boolean))];
+const assets = [...new Set([
+  ...sched.slots.flatMap((s) => (s.type === "carousel" ? (s.slides || []) : [s.asset])),
+  ...(sched.stories || []).map((s) => s.asset),
+].filter(Boolean))];
 
 /** The artifact slugified the filenames; on disk they are human names with spaces,
  *  commas and apostrophes ("One receipt, two outcomes.png"). Punctuation is dropped,
@@ -37,12 +40,22 @@ function indexFiles(dir) {
   const files = [];
   for (const e of fs.readdirSync(dir, { withFileTypes: true, recursive: true })) {
     if (!e.isFile()) continue;
-    files.push(path.join(e.parentPath ?? e.path ?? dir, e.name));
+    const full = path.join(e.parentPath ?? e.path ?? dir, e.name);
+    // Never index an archive directory: _retired, _dropped, _singles-spacers, _png-old,
+    // _pre-v2-backup, _pre-v3-backup. They hold the SAME basenames as the live set and sort
+    // after it, so last-wins would quietly host a superseded cut. (It did: 1B, 2B and 5A were
+    // hosted from _pre-v3-backup on 18 Oct.)
+    if (path.relative(dir, full).split(path.sep).some((seg) => seg.startsWith("_"))) continue;
+    files.push(full);
   }
   // ig-ready/ holds the 4:5-corrected copies; index it LAST so it wins over the original
   const corrected = (p) => /(?:^|\/)(?:ig|stories)-ready\//.test(p);
   files.sort((a, b) => Number(corrected(a)) - Number(corrected(b)));
-  for (const full of files) out.set(slug(path.basename(full)), full);
+  for (const full of files) {
+    out.set(slug(path.basename(full)), full);
+    const two = full.split(path.sep).slice(-2);
+    if (two.length === 2) out.set(`${slug(two[0])}/${slug(two[1])}`, full);  // carousel-a/01
+  }
   return out;
 }
 
@@ -69,7 +82,10 @@ let ok = 0, missing = 0, small = 0;
 const urls = {};
 for (const name of assets) {
   // "g-"/"e-" are the artifact's folder markers (goodposts / editposts), not part of the name
-  const want = slug(name).replace(/^[ge]-/, "");
+  const parts = name.split("/");
+  const want = parts.length === 2
+    ? `${slug(parts[0])}/${slug(parts[1])}`
+    : slug(name).replace(/^[ge]-/, "");
   const p = index.get(want) ?? index.get(slug(name));
   if (!p) { console.log(`✗ MISSING   ${name}`); missing++; continue; }
   const buf = fs.readFileSync(p);
@@ -84,7 +100,7 @@ for (const name of assets) {
   }
   if (CHECK) { console.log(`✓ ok        ${name}  ${label}  ← ${path.basename(p)}`); ok++; continue; }
   const ext = path.extname(p).toLowerCase();
-  const dest = `${PREFIX}/${name.replace(/\.[^.]+$/, "")}${ext}`;
+  const dest = `${PREFIX}/${name.replace(/\.[^.]+$/, "")}${ext}`;  // keeps "carousel-A/01.png" grouped
   const { error } = await store.upload(dest, buf, {
     contentType: ext === ".mp4" ? "video/mp4" : ext === ".png" ? "image/png" : "image/jpeg",
     upsert: true,
