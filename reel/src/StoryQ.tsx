@@ -47,9 +47,9 @@ export const StoryQ: React.FC<{ index?: number }> = ({ index = 0 }) => {
     <AbsoluteFill style={{ background: C.ink, overflow: 'hidden' }}>
       {/* a chat reel carries its own headline at the top — the frame is pushed up so only the phone is in view */}
       {bg.kind === 'video' ? (
-        <AbsoluteFill style={{ transform: `translateY(-380px) scale(${zoom * 1.25})`, transformOrigin: '50% 50%' }}>
+        <AbsoluteFill style={{ clipPath: 'inset(0 0 480px 0)' }}><AbsoluteFill style={{ transform: `translateY(-380px) scale(${zoom * 1.25})`, transformOrigin: '50% 50%' }}>
           <OffthreadVideo src={staticFile(bg.src)} muted playbackRate={0.8} style={{ width: 1080, height: 1920, objectFit: 'cover' }} />
-        </AbsoluteFill>
+        </AbsoluteFill></AbsoluteFill>
       ) : (
         <>
           {/* the photo itself, soft and full-bleed, as the room; then the same photo sharp as a card the question sits above */}
