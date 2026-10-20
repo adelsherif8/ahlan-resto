@@ -6,10 +6,14 @@
 //   node tools/ig-publish.mjs --due            # dry
 //   node tools/ig-publish.mjs --due --arm
 //   node tools/ig-publish.mjs --day 1 --slot 2 --arm
+//
+//   node tools/ig-publish.mjs --li              # LinkedIn: what is due, dry
+//   node tools/ig-publish.mjs --li --arm        # LinkedIn: publish it via the Make scenario
+//   node tools/ig-publish.mjs --li-day 3 --arm  # one LinkedIn day, ignoring the 2 h window
 import dotenv from "dotenv";
 dotenv.config({ path: new URL("../.env", import.meta.url), quiet: true });
 import { createClient } from "@supabase/supabase-js";
-import { loadPlan, publishDue, slotKey, ampm } from "../src/services/igpost.js";
+import { loadPlan, publishDue, publishLinkedInDue, LI_AUTO, slotKey, ampm } from "../src/services/igpost.js";
 
 const arm = process.argv.includes("--arm");
 const { schedule, assets } = loadPlan();
@@ -17,6 +21,29 @@ const { schedule, assets } = loadPlan();
 const db = createClient(process.env.SUPABASE_AHLAN_URL, process.env.SUPABASE_AHLAN_SERVICE_KEY);
 const { data } = await db.from("restaurants").select("ai").eq("slug", "munadim").single();
 const posted = data?.ai?.ig_posted || {};
+
+const liDayI = process.argv.indexOf("--li-day");
+if (process.argv.includes("--li") || liDayI > -1) {
+  const day = liDayI > -1 ? Number(process.argv[liDayI + 1]) : null;
+  const r = await publishLinkedInDue({
+    arm,
+    only: day ? (x) => x.day === day : null,
+    // --li-day is an explicit instruction about one day, so neither the freshness window
+    // nor "has its time come" applies — those exist to stop an arm-up dumping the backlog
+    force: !!day,
+  });
+  if (r.skipped) { console.log(`skipped: ${r.skipped}`); process.exit(1); }
+  for (const x of r.done || []) {
+    const head = `linkedin day ${String(x.day).padStart(2)} ${x.date} ${ampm(x.time)}  ${x.kind.padEnd(6)}`;
+    if (x.error) console.log(`${head} FAILED — ${x.error}`);
+    else if (x.dry) console.log(`${head} would send → ${JSON.stringify(x.payload).slice(0, 160)}…`);
+    else console.log(`${head} sent → ${x.response}`);
+  }
+  const auto = (schedule.linkedin || []).filter(LI_AUTO).length;
+  console.log(`\n${r.due} due · ${(r.done || []).length} handled · ${auto}/${(schedule.linkedin || []).length} days are machine-postable` +
+              `${arm ? "" : "  (dry — add --arm to publish)"}`);
+  process.exit(0);
+}
 
 if (process.argv.includes("--list")) {
   for (const s of schedule.slots) {

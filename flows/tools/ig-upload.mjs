@@ -27,6 +27,9 @@ const assets = [...new Set([
   ...sched.slots.flatMap((s) => (s.type === "carousel" ? (s.slides || []) : [s.asset])),
   ...(sched.stories || []).map((s) => s.asset),
   ...(sched.stories || []).map((s) => s.poster),
+  // LinkedIn's own media. Until now day 4 only worked because munadim-2B.mp4 happens to
+  // appear in the Instagram schedule too; a LinkedIn-only asset was never hosted.
+  ...(sched.linkedin || []).flatMap((x) => [x.video, x.image]),
 ].filter(Boolean))];
 
 /** The artifact slugified the filenames; on disk they are human names with spaces,

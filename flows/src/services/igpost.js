@@ -235,6 +235,85 @@ export async function remindStoriesDue({ send = false } = {}) {
  * so this is purely "don't forget", with the Arabic body in the notification ready to
  * paste. Shares the stories' record so one nudge never repeats.
  */
+/** Which LinkedIn days a machine can post at all. A native poll has no creation
+ *  endpoint in LinkedIn's API — not through Make, not through anything — and an
+ *  "active" day is engagement only, with nothing to publish. Both stay reminders. */
+export const LI_AUTO = (x) => x.kind === "text" || x.kind === "video" || x.kind === "image";
+export const liKey = (x) => `li-${x.day}`;
+/** The video/image title LinkedIn shows: the post's own opening line, not our
+ *  internal label ("the demo", "dine-in"), which is jargon and would be public. */
+const liHook = (x) => (x.text || "").split("\n").map((l) => l.trim()).filter(Boolean)[0] || "";
+
+async function readLi(db) {
+  const { data } = await db.from("restaurants").select("ai").eq("slug", "munadim").single();
+  return { ai: data?.ai || {}, posted: data?.ai?.li_posted || {} };
+}
+async function writeLi(db, posted) {
+  const { data } = await db.from("restaurants").select("ai").eq("slug", "munadim").single();
+  const { error } = await db.from("restaurants").update({ ai: { ...(data?.ai || {}), li_posted: posted } }).eq("slug", "munadim");
+  if (error) throw new Error(`could not record the LinkedIn post: ${error.message}`);
+}
+
+/**
+ * Publish the due LinkedIn days through the Make.com scenario
+ * (tools/munadim-linkedin-blueprint.json), which holds the LinkedIn connection and
+ * the company page. We only hand it a payload; it does the posting.
+ *
+ * The 2 h window is load-bearing, exactly as in publishDue: without it, arming this
+ * for the first time would post every past day at once — days 1 and 3 were already
+ * gone when it was wired up, and both would have landed on the page together.
+ */
+export async function publishLinkedInDue({ arm = false, only = null, force = false, windowMs = 2 * 3600 * 1000 } = {}) {
+  const hookUrl = process.env.LINKEDIN_HOOK_URL;
+  if (!hookUrl) return { skipped: "no LINKEDIN_HOOK_URL" };
+  const { schedule, assets } = loadPlan();
+  if (!schedule.linkedin?.length) return { due: 0, done: [] };
+  const db = sb();
+  let { posted } = await readLi(db);
+  const now = cairoNow(schedule.timezone);
+
+  const due = (only ? schedule.linkedin.filter(only) : schedule.linkedin).filter((x) => {
+    if (!LI_AUTO(x)) return false;
+    if (posted[liKey(x)]) return false;
+    if (force) return true;            // named explicitly on the CLI — publish on command
+    const t = new Date(`${x.date}T${x.time}:00`);
+    return t <= now && now - t < windowMs;
+  });
+
+  const done = [];
+  for (const x of due) {
+    const media = x.video || x.image;
+    const media_url = media ? assets[media] : undefined;
+    if (media && !media_url) { log(`linkedin: skip day ${x.day} — ${media} is not hosted`); continue; }
+    const payload = { type: x.kind, text: x.text, day: x.day, hook: liHook(x), ...(media_url ? { media_url } : {}) };
+    if (!arm) { done.push({ ...x, payload, dry: true }); continue; }
+
+    // claim first, same as the Instagram side: a second host ticking mid-post finds it taken
+    posted[liKey(x)] = { claimed_at: new Date().toISOString(), kind: x.kind };
+    await writeLi(db, posted);
+    try {
+      const r = await fetch(hookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = (await r.text()).slice(0, 200);
+      if (!r.ok) throw new Error(`make webhook ${r.status}: ${body}`);
+      posted[liKey(x)] = { at: new Date().toISOString(), kind: x.kind, response: body };
+      await writeLi(db, posted);
+      log(`linkedin: published day ${x.day} (${x.kind}) → ${body}`);
+      done.push({ ...x, response: body });
+    } catch (e) {
+      delete posted[liKey(x)];
+      await writeLi(db, posted).catch(() => {});
+      log(`linkedin: FAILED day ${x.day} — ${e.message}`);
+      done.push({ ...x, error: e.message });
+    }
+    ({ posted } = await readLi(db));
+  }
+  return { checked: schedule.linkedin.length, due: due.length, done };
+}
+
 export async function remindLinkedInDue({ send = false } = {}) {
   const topic = process.env.NTFY_TOPIC;
   if (!topic) return { skipped: "no NTFY_TOPIC" };
@@ -258,6 +337,12 @@ export async function remindLinkedInDue({ send = false } = {}) {
     const k = `li-${x.date}-${x.time}`;
     const body = [
       `LINKEDIN DAY ${x.day}  ·  ${ampm(x.time)}  ·  ${x.kind.toUpperCase()}`,
+      ``,
+      // Without this line the reminder reads as "go and post it", and a day that the
+      // Make scenario already published would get posted a second time by hand.
+      process.env.LINKEDIN_HOOK_URL && LI_AUTO(x)
+        ? "AUTO-POSTED — do not post this by hand. Yours is the routine below."
+        : "POST THIS BY HAND.",
       ``,
       x.label,
       x.video ? `\n▶ attach  igvideos/${x.video}` : "",
@@ -291,6 +376,8 @@ export function startIgPoster() {
     catch (e) { log(`ig poster tick failed (kept running): ${e.message}`); }
     try { await remindStoriesDue({ send: true }); }
     catch (e) { log(`ig story reminder tick failed (kept running): ${e.message}`); }
+    try { await publishLinkedInDue({ arm: true }); }
+    catch (e) { log(`linkedin poster tick failed (kept running): ${e.message}`); }
     try { await remindLinkedInDue({ send: true }); }
     catch (e) { log(`linkedin reminder tick failed (kept running): ${e.message}`); }
   };

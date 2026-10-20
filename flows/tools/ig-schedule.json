@@ -968,102 +968,96 @@
   "linkedin": [
     {
       "day": 1,
-      "date": "2026-10-18",
-      "kind": "text",
-      "label": "the problem — launch",
+      "date": "2026-10-21",
+      "time": "10:00",
+      "kind": "image",
+      "label": "the problem — ownership",
       "text": "الزبون اللي طلب منك ٨ مرات — عندك رقمه؟\n\nكل أوردر بيجيلك من التطبيقات بياخد منك حوالي خُمس قيمته. أول مرة تمام — جابولك حد جديد. لكن الزبون اللي طلب ٨ مرات؟ بتدفع نفس العمولة كل مرة، ولسه مش قادر تكلمه.\n\nمنادم بيخلّي كل أوردر — دليفري، تيك أواي، أو صالة — زبون تعرفه: رقم، وتاريخ طلبات، وخط توصله تاني. على نفس الواتساب اللي بيكلموك منه.\n\nكل طلب يبقى زبون.\n\n#مطاعم_مصر #واتساب",
       "also": "Post from the company page, reshare from your profile with a line. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "time": "10:00"
+      "_from": "was day 1 in the 10-day plan",
+      "image": "Munadim dashboard on a Cairo restaurant counter.png",
+      "_imageNote": "approved single, 4:5 corrected — text-only posts reach ~0.42x the median, single images ~1.21x"
     },
     {
       "day": 2,
-      "date": "2026-10-19",
-      "kind": "active",
-      "label": "no post — pure engagement",
-      "text": "",
-      "also": "Connect with 5 founders with a personal note, comment on 3–5 founders' posts (useful, not a pitch). Reply to anyone who engaged with yesterday's post.",
-      "time": "10:00"
-    },
-    {
-      "day": 3,
-      "date": "2026-10-20",
-      "kind": "text",
+      "date": "2026-10-22",
+      "time": "10:00",
+      "kind": "image",
       "label": "from the trade",
       "text": "قعدت الصبح بتفرّج على الأوردرات بتدخل في محل برجر صغير في القاهرة.\n\nكلها على الواتساب. فرانكو، ڤويس نوت، «زي كل مرة». ومفيش ولا رقم واحد منهم محفوظ في مكان صاحب المحل يقدر يستخدمه.\n\nدي المشكلة كلها. الطلب أصلاً موجود في موبايله — بس مش قادر يعمل بيه حاجة.",
       "also": "Message the founders who accepted your connection — one ownership question, no pitch. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "time": "10:00"
+      "_from": "was day 3 in the 10-day plan",
+      "image": "Munadim WhatsApp Order at Egyptian Counter.png",
+      "_imageNote": "approved single, 4:5 corrected — text-only posts reach ~0.42x the median, single images ~1.21x"
+    },
+    {
+      "day": 3,
+      "date": "2026-10-25",
+      "time": "10:00",
+      "kind": "video",
+      "label": "the demo",
+      "text": "اكتب غلط… وهيفهمك.\n\nأوردر حقيقي من الأول للآخر — باللغة اللي الزبون بيكتب بيها فعلاً. عربي، فرانكو، أو ڤويس نوت. من غير تطبيق تنزّله، ومن غير جهاز جديد.\n\nدي الحاجة اللي البوتات الأجنبية مش بتعملها: كلها نصوص وبس، وضعيفة في العامية. المصري بيبعت ڤويس نوت وبيكتب فرانكو — فده اللي منادم بياخده.\n\n#مطاعم_مصر",
+      "also": "Reply fast to comments on the demo — video posts live or die on the first hour. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+      "_from": "was day 4 in the 10-day plan",
+      "video": "munadim-2B-li.mp4"
     },
     {
       "day": 4,
-      "date": "2026-10-21",
-      "kind": "video",
-      "label": "the demo",
-      "video": "munadim-2B.mp4",
-      "text": "اكتب غلط… وهيفهمك.\n\nأوردر حقيقي من الأول للآخر — باللغة اللي الزبون بيكتب بيها فعلاً. عربي، فرانكو، أو ڤويس نوت. من غير تطبيق تنزّله، ومن غير جهاز جديد.\n\nدي الحاجة اللي البوتات الأجنبية مش بتعملها: كلها نصوص وبس، وضعيفة في العامية. المصري بيبعت ڤويس نوت وبيكتب فرانكو — فده اللي منادم بياخده.\n\n#مطاعم_مصر",
-      "also": "Reply fast to comments on the demo — video posts live or die on the first hour. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "time": "10:00"
+      "date": "2026-10-27",
+      "time": "10:00",
+      "kind": "text",
+      "label": "founding 10",
+      "text": "بنبني مع ١٠ مطاعم بس في البداية.\n\nبناخد ١٠ مطاعم مؤسِّسين نبني منادم معاهم. بيتركبلهم من غير رسوم تجهيز، والسعر متثبّت سنتين، والمؤسس نفسه بيبنيه معاهم — في المقابل رأيهم الصريح وإننا نعرض الأوردرات الحقيقية.\n\nلو عندك مطعم في القاهرة وزهقت إنك بتأجّر زباينك من التطبيقات، تعالى نتكلم. عرض ١٥ دقيقة على الواتساب — هبعت أوردر حقيقي قدامك.\n\n01022034603\n\n#مطاعم_مصر",
+      "also": "This is a soft call — expect DMs; answer them as a person, not a brand. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+      "_from": "was day 6 in the 10-day plan"
     },
     {
       "day": 5,
-      "date": "2026-10-22",
+      "date": "2026-10-28",
+      "time": "10:00",
+      "kind": "video",
+      "label": "dine-in",
+      "text": "اللي قاعد في مطعمك دلوقتي هو أكتر زبون متعرفوش.\n\nزبون الدليفري على الأقل بيسيب عنوان. اللي قاعد في الصالة مجهول تمامًا. كود على الترابيزة بيحوّله لرقم تعرفه — بيطلب من مكانه، على الواتساب.\n\nمفيش منافس يقدر يعمل ده: التطبيقات مش هيعملوه، والـ POS بيسجّل البيعة مش الشخص.\n\n#مطاعم_مصر",
+      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+      "_from": "was day 9 in the 10-day plan",
+      "video": "munadim-5A-li.mp4"
+    },
+    {
+      "day": 6,
+      "date": "2026-10-29",
+      "time": "10:00",
+      "kind": "text",
+      "label": "a question to founders",
+      "text": "سؤال لأصحاب المطاعم:\n\nإيه أكتر حاجة نفسك تعرفها عن زباينك الدايمين — ومش عارفها؟\n\nبسأل بجد. ده شغلي كل يوم والإجابات دايمًا بتفاجئني.",
+      "also": "Reply to every answer on this post — questions win when the author stays in the thread. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+      "_from": "was day 8 in the 10-day plan"
+    },
+    {
+      "day": 7,
+      "date": "2026-11-01",
+      "time": "10:00",
+      "kind": "text",
+      "label": "the arithmetic",
+      "text": "فكرة بتفضل في دماغي.\n\nمطعم بيعمل ٣٠٠ أوردر في الشهر على التطبيقات، متوسط الأوردر ١٥٠ جنيه — بيدفع حوالي ٩٬٠٠٠ جنيه عمولة في الشهر. علشان يوصل لناس أصلاً عارفينه وطلبوا منه قبل كده.\n\nده مرتب موظف. مقابل خط لزباين المطعم لسه مش قادر يكلمهم.",
+      "also": "Close the fortnight by booking at least one demo. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+      "_from": "was day 10 in the 10-day plan"
+    },
+    {
+      "day": 8,
+      "date": "2026-11-03",
+      "time": "10:00",
       "kind": "poll",
       "label": "poll",
       "text": "أصحاب المطاعم — زباينكم الدايمين بيطلبوا منكم إزاي أكتر؟\n\n(فضولي أعرف النسبة. صوّت 👇)",
+      "also": "Use LinkedIn's NATIVE Poll, not a text list — far more reach. Then follow up any founder who showed interest → offer a 15-min WhatsApp demo. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+      "_from": "was day 5 in the 10-day plan",
       "options": [
         "واتساب",
         "تليفون",
         "تطبيق توصيل",
         "بيجوا المحل"
-      ],
-      "also": "Use LinkedIn's NATIVE Poll, not a text list — far more reach. Then follow up any founder who showed interest → offer a 15-min WhatsApp demo. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "time": "10:00"
-    },
-    {
-      "day": 6,
-      "date": "2026-10-25",
-      "kind": "text",
-      "label": "founding 10",
-      "text": "بنبني مع ١٠ مطاعم بس في البداية.\n\nبناخد ١٠ مطاعم مؤسِّسين نبني منادم معاهم. بيتركبلهم من غير رسوم تجهيز، والسعر متثبّت سنتين، والمؤسس نفسه بيبنيه معاهم — في المقابل رأيهم الصريح وإننا نعرض الأوردرات الحقيقية.\n\nلو عندك مطعم في القاهرة وزهقت إنك بتأجّر زباينك من التطبيقات، تعالى نتكلم. عرض ١٥ دقيقة على الواتساب — هبعت أوردر حقيقي قدامك.\n\n01022034603\n\n#مطاعم_مصر",
-      "also": "This is a soft call — expect DMs; answer them as a person, not a brand. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "time": "10:00"
-    },
-    {
-      "day": 7,
-      "date": "2026-10-26",
-      "kind": "active",
-      "label": "no post — pure engagement",
-      "text": "",
-      "also": "Connect with 5 new founders and comment on 3–5 posts. Congratulate anyone who opened a branch — «مبروك الفرع الجديد 👏» is a warm first touch that isn't an ask.",
-      "time": "10:00"
-    },
-    {
-      "day": 8,
-      "date": "2026-10-27",
-      "kind": "text",
-      "label": "a question to founders",
-      "text": "سؤال لأصحاب المطاعم:\n\nإيه أكتر حاجة نفسك تعرفها عن زباينك الدايمين — ومش عارفها؟\n\nبسأل بجد. ده شغلي كل يوم والإجابات دايمًا بتفاجئني.",
-      "also": "Reply to every answer on this post — questions win when the author stays in the thread. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "time": "10:00"
-    },
-    {
-      "day": 9,
-      "date": "2026-10-28",
-      "kind": "video",
-      "label": "dine-in",
-      "video": "munadim-13A.mp4",
-      "text": "اللي قاعد في مطعمك دلوقتي هو أكتر زبون متعرفوش.\n\nزبون الدليفري على الأقل بيسيب عنوان. اللي قاعد في الصالة مجهول تمامًا. كود على الترابيزة بيحوّله لرقم تعرفه — بيطلب من مكانه، على الواتساب.\n\nمفيش منافس يقدر يعمل ده: التطبيقات مش هيعملوه، والـ POS بيسجّل البيعة مش الشخص.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "time": "10:00"
-    },
-    {
-      "day": 10,
-      "date": "2026-10-29",
-      "kind": "text",
-      "label": "the arithmetic",
-      "text": "فكرة بتفضل في دماغي.\n\nمطعم بيعمل ٣٠٠ أوردر في الشهر على التطبيقات، متوسط الأوردر ١٥٠ جنيه — بيدفع حوالي ٩٬٠٠٠ جنيه عمولة في الشهر. علشان يوصل لناس أصلاً عارفينه وطلبوا منه قبل كده.\n\nده مرتب موظف. مقابل خط لزباين المطعم لسه مش قادر يكلمهم.",
-      "also": "Close the fortnight by booking at least one demo. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "time": "10:00"
+      ]
     }
   ],
-  "_linkedinNote": "From artifact JTNiw4jGm1ncL2QiLFf2Qd (Munadim on LinkedIn, 10 days 18-29 Oct). Reminders only — no LinkedIn API. 10:00 Cairo. Days 2 and 7 are engagement-only, no post."
+  "_linkedinNote": "REBUILT 20 Oct 2026 on the posting research. FOUR posts a week, never more: vendor guidance for company pages clusters at 2-4/week, caps at one a day, and several sources say more than once a day gets distribution throttled — so the '3 a day' idea would cost reach, not buy it. Days are Sun/Tue/Wed/Thu at 10:00 Cairo: Egypt's working week is SUNDAY-THURSDAY, so the global 'Tuesday-Thursday' finding maps onto Sun-Thu here, and Fri/Sat are skipped (weekday posts beat weekend by ~50%). No LinkedIn dataset for Egypt or MENA exists that I could find, so 10:00 is the defensible mid-morning choice, not a measured optimum - revisit against the page's own analytics. FORMAT drives more than timing: text-only reaches ~0.42x the median, single images ~1.21x, polls ~1.19x, document/PDF carousels ~1.40x. Two text days were therefore converted to image posts with the same approved copy. Day 8 is a native poll and cannot be published by any API - reminder only. Document carousels, the strongest format, need a LinkedIn document module the Make blueprint does not have."
 }
