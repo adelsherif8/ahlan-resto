@@ -104,7 +104,13 @@ for (const name of assets) {
   }
   if (CHECK) { console.log(`✓ ok        ${name}  ${label}  ← ${path.basename(p)}`); ok++; continue; }
   const ext = path.extname(p).toLowerCase();
-  const dest = `${PREFIX}/${name.replace(/\.[^.]+$/, "")}${ext}`;  // keeps "carousel-A/01.png" grouped
+  // Supabase refuses a storage key with characters like a curly apostrophe ("Invalid key:
+  // munadim/ig/Munadim’s one-word repeat order.png"), so the key is reduced to a safe set.
+  // ASCII names are unaffected, which is why every already-hosted asset keeps its URL; only a
+  // name that could not be stored at all changes. The map in ig-assets.json is still keyed by
+  // the schedule's own filename, so the schedule never has to know about this.
+  const safe = (t) => t.replace(/[^A-Za-z0-9 ._\/-]/g, "").replace(/\s+/g, " ").trim();
+  const dest = `${PREFIX}/${safe(name.replace(/\.[^.]+$/, ""))}${ext}`;  // keeps "carousel-A/01.png" grouped
   const { error } = await store.upload(dest, buf, {
     contentType: ext === ".mp4" ? "video/mp4" : ext === ".png" ? "image/png" : "image/jpeg",
     upsert: true,
