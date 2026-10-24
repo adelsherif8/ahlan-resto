@@ -22,6 +22,18 @@ const db = createClient(process.env.SUPABASE_AHLAN_URL, process.env.SUPABASE_AHL
 const { data } = await db.from("restaurants").select("ai").eq("slug", "munadim").single();
 const posted = data?.ai?.ig_posted || {};
 
+// --li-test "text" [--target person|organization]: one ad-hoc payload to the Make webhook,
+// for proving a route after the scenario changes. Nothing is recorded as posted.
+const liTestI = process.argv.indexOf("--li-test");
+if (liTestI > -1) {
+  const text = process.argv[liTestI + 1]; const ti = process.argv.indexOf("--target");
+  const target = ti > -1 ? process.argv[ti + 1] : "organization";
+  const hook = process.env.LINKEDIN_HOOK_URL; if (!hook) { console.log("no LINKEDIN_HOOK_URL"); process.exit(1); }
+  const payload = { type: "text", text, day: 0, hook: text.split("\n")[0].slice(0, 60), target };
+  if (!arm) { console.log("DRY  →", JSON.stringify(payload)); process.exit(0); }
+  const r = await fetch(hook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  console.log(`sent (${target}) → http ${r.status} ${(await r.text()).slice(0, 80)}`); process.exit(0);
+}
 const liDayI = process.argv.indexOf("--li-day");
 if (process.argv.includes("--li") || liDayI > -1) {
   const day = liDayI > -1 ? Number(process.argv[liDayI + 1]) : null;
