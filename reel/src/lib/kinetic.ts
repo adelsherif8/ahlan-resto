@@ -21,7 +21,10 @@ export type Beat =
   /** munadim.com's own calculator: what the app takes vs. Munadim, and the difference. */
   | { k: 'compare'; app: number; munadim: number; plan: string; d: number }
   /** A mini WhatsApp card for a time of day — the day-in-the-life montage. */
-  | { k: 'chat'; stamp: string; msgs: [boolean, string][]; d: number };
+  | { k: 'chat'; stamp: string; msgs: [boolean, string][]; d: number }
+  /** A cold open: live footage full-bleed under the hook. Measured 24 Oct: the film's
+   *  live opening holds 7.7 s, every text-card opening 2-3 s. `src` is a public/ path. */
+  | { k: 'cold'; src: string; text: string; d: number };
 
 export interface Kinetic {
   id: string;
@@ -49,6 +52,22 @@ export const KINETIC: Record<string, Kinetic> = {
     id: 'R3',
     beats: [
       { k: 'line', big: true, text: 'التطبيقات\nمش شركاءك.', d: 56 },
+      { k: 'line', text: 'بتأجّرلك *زباينك*.', d: 48 },
+      { k: 'line', text: 'الاسم. الرقم.\nبيحب ياكل إيه.', d: 56 },
+      { k: 'line', text: 'كله *عندهم*.\nمش عندك.', d: 50 },
+      { k: 'line', text: 'يوم ما يوقّفوا الإعلان…\nالزباين *تقف*.', d: 64 },
+      { k: 'line', text: 'واتساب بيقلب المعادلة.', d: 46 },
+      { k: 'chat', stamp: 'أوردر حقيقي · ١١:٤٧ بالليل', d: 74, msgs: [[true, 'مساء الخير، عايز كلاسيك برجر كومبو'], [false, '🎫 طلبك O-RSTJ اتسجل — حوالي 24 دقيقة!']] },
+    ],
+    payoff: 'الزبون بيطلب منك.\nرقمه عندك.\nوبيرجعلك إنت.',
+  },
+
+  // R3C · the same thesis, opened on the film's live shot instead of a text card.
+  // Prototype of the measured finding (24 Oct); R3 above is untouched for comparison.
+  R3C: {
+    id: 'R3C',
+    beats: [
+      { k: 'cold', src: 'loop/shot-1.mp4', text: 'التطبيقات\nمش شركاءك.', d: 66 },
       { k: 'line', text: 'بتأجّرلك *زباينك*.', d: 48 },
       { k: 'line', text: 'الاسم. الرقم.\nبيحب ياكل إيه.', d: 56 },
       { k: 'line', text: 'كله *عندهم*.\nمش عندك.', d: 50 },

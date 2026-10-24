@@ -7,7 +7,7 @@
  * end, and it closes on the same payoff end card as the chat reels.
  */
 import React from 'react';
-import { AbsoluteFill, Audio, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { C, DEMO_LABEL } from './lib/brand';
 import { KINETIC, kineticTiming, type Beat } from './lib/kinetic';
 import { PostEnd, useFontsReady } from './Post';
@@ -159,6 +159,23 @@ const ChatBeat: React.FC<{ b: Extract<Beat, { k: 'chat' }>; f: number }> = ({ b,
   );
 };
 
+/* the cold open: footage full-bleed, a dark floor rising from the bottom, the hook over it */
+const ColdBeat: React.FC<{ b: Extract<Beat, { k: 'cold' }>; f: number }> = ({ b, f }) => {
+  const floor = interpolate(f, [0, 18], [0, 1], clamp);
+  return (
+    <AbsoluteFill>
+      <OffthreadVideo src={staticFile(b.src)} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <AbsoluteFill style={{ background: `linear-gradient(to top, rgba(20,17,16,${0.92 * floor}) 0%, rgba(20,17,16,${0.55 * floor}) 45%, rgba(20,17,16,0.05) 100%)` }} />
+      <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'flex-end', padding: '0 80px 420px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 44 }}>
+          <Words text={b.text} f={f - 6} size={150} />
+          <div style={{ width: 200, height: 6, background: C.karkadeh, borderRadius: 3, transform: `scaleX(${interpolate(f, [18, 36], [0, 1], clamp)})` }} />
+        </div>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
 export const KineticReel: React.FC<{ reel?: string }> = ({ reel = 'R3' }) => {
   const data = KINETIC[reel] ?? KINETIC['R3']!;
   const frame = useCurrentFrame();
@@ -190,6 +207,7 @@ export const KineticReel: React.FC<{ reel?: string }> = ({ reel = 'R3' }) => {
         const f = frame - s;
         const out = interpolate(f, [b.d - 9, b.d], [1, 0], clamp);
         const lift = (1 - out) * -26;
+        if (b.k === 'cold') return <AbsoluteFill key={i} style={{ opacity: out }}><ColdBeat b={b} f={f} /></AbsoluteFill>;
         return (
           <AbsoluteFill key={i} style={{ alignItems: 'center', justifyContent: 'center', padding: '0 80px', opacity: out, transform: `translateY(${lift}px)` }}>
             {b.k === 'line' && (
