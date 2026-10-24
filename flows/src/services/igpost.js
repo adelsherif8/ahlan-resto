@@ -17,6 +17,32 @@ const here = (f) => new URL(`../../tools/${f}`, import.meta.url);
 const sb = () => createClient(process.env.SUPABASE_AHLAN_URL, process.env.SUPABASE_AHLAN_SERVICE_KEY);
 export const slotKey = (s) => `${s.day}-${s.time}`;
 
+/** Does the token we are holding allow a first comment? Checked once per process: the
+ *  brief wants hashtags in the first comment, but a token without
+ *  instagram_manage_comments would publish the post and then fail the comment, and the
+ *  tags would be gone for good. So the caption fallback is chosen BEFORE publishing. */
+let _canComment = null;
+export async function canComment() {
+  if (_canComment !== null) return _canComment;
+  try {
+    const r = await fetch(`https://graph.facebook.com/${V}/debug_token?input_token=${process.env.IG_TOKEN}&access_token=${process.env.IG_TOKEN}`);
+    const scopes = (await r.json())?.data?.scopes || [];
+    _canComment = scopes.includes("instagram_manage_comments");
+  } catch { _canComment = false; }
+  log(`ig: hashtags will go in the ${_canComment ? "first comment" : "caption (token lacks instagram_manage_comments)"}`);
+  return _canComment;
+}
+
+async function firstComment(mediaId, message) {
+  const r = await fetch(`https://graph.facebook.com/${V}/${mediaId}/comments`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, access_token: process.env.IG_TOKEN }),
+  });
+  const j = await r.json();
+  if (!r.ok || j.error) throw new Error(j.error?.message || `comment ${r.status}`);
+  return j.id;
+}
+
 export function loadPlan() {
   const schedule = JSON.parse(fs.readFileSync(here("ig-schedule.json"), "utf8"));
   const assets = fs.existsSync(here("ig-assets.json"))
@@ -119,7 +145,7 @@ export const ampm = (t) => {
  * A slot is claimed in Supabase BEFORE publishing, so two hosts ticking at once cannot
  * both post it; the claim is released if the publish then fails.
  */
-export async function publishDue({ arm = false, only = null, windowMs = 2 * 3600 * 1000 } = {}) {
+export async function publishDue({ arm = false, only = null, force = false, windowMs = 2 * 3600 * 1000 } = {}) {
   if (!process.env.IG_TOKEN || !process.env.IG_USER_ID) return { skipped: "no IG credentials" };
   const { schedule, assets } = loadPlan();
   const db = sb();
@@ -128,6 +154,7 @@ export async function publishDue({ arm = false, only = null, windowMs = 2 * 3600
 
   const due = (only ? schedule.slots.filter(only) : schedule.slots).filter((s) => {
     if (posted[slotKey(s)]) return false;
+    if (force) return true;            // named explicitly on the CLI — publish on command
     const t = new Date(`${s.date}T${s.time}:00`);
     return t <= now && now - t < windowMs;
   });
@@ -138,15 +165,21 @@ export async function publishDue({ arm = false, only = null, windowMs = 2 * 3600
       ? ((s.slides || []).every((x) => assets[x]) ? assets[s.slides[0]] : null)
       : assets[s.asset];
     if (!url) { log(`ig: skip day ${s.day} ${s.time} — ${s.pending ? "no asset made yet" : "not uploaded"}`); continue; }
-    const caption = schedule.tagsInCaption ? `${s.caption}\n\n${s.tags}` : s.caption;
-    if (!arm) { done.push({ ...s, dry: true }); continue; }
+    const inCaption = schedule.tagsInCaption || !(await canComment());
+    const caption = inCaption && s.tags ? `${s.caption}\n\n${s.tags}` : s.caption;
+    if (!arm) { done.push({ ...s, dry: true, tagsIn: inCaption ? "caption" : "first comment" }); continue; }
 
     // claim first — a second host that ticks mid-publish finds it taken
     posted[slotKey(s)] = { claimed_at: new Date().toISOString(), asset: s.asset };
     await writePosted(db, ai, posted);
     try {
       const media_id = await publishSlot(s, url, caption, assets);
-      posted[slotKey(s)] = { media_id, at: new Date().toISOString(), asset: s.asset };
+      let comment_id = null;
+      if (!inCaption && s.tags) {
+        try { comment_id = await firstComment(media_id, s.tags); }
+        catch (e) { log(`ig: first comment FAILED on ${media_id} — ${e.message} (post is live, tags are not)`); }
+      }
+      posted[slotKey(s)] = { media_id, comment_id, at: new Date().toISOString(), asset: s.asset };
       await writePosted(db, ai, posted);
       log(`ig: published day ${s.day} ${s.time} → ${media_id}`);
       done.push({ ...s, media_id });
@@ -369,6 +402,57 @@ export async function remindLinkedInDue({ send = false } = {}) {
 }
 
 /** Called by the flows service. Off unless IG_AUTOPOST=1, and it never throws. */
+/** Pull what the account did in the last 7 days and push it to ntfy. Runs from the
+ *  tick on Mondays at 09:00 Cairo, once per ISO week (recorded in ai.ig_digest).
+ *  This is the measurement the whole schedule was flying without until 24 Oct. */
+export async function igWeeklyDigest({ send = false, force = false } = {}) {
+  const topic = process.env.NTFY_TOPIC;
+  if (!topic || !process.env.IG_TOKEN || !process.env.IG_USER_ID) return { skipped: "no ntfy/IG env" };
+  const { schedule } = loadPlan();
+  const now = cairoNow(schedule.timezone);
+  const isoWeek = (() => { const t = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())); const dn = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - dn); const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return `${t.getUTCFullYear()}-W${String(Math.ceil(((t - y0) / 86400000 + 1) / 7)).padStart(2, "0")}`; })();
+  const db = sb();
+  const { data } = await db.from("restaurants").select("ai").eq("slug", "munadim").single();
+  const ai = data?.ai || {};
+  if (!force) {
+    if (now.getDay() !== 1 || now.getHours() !== 9) return { skipped: "not Monday 09:00" };
+    if (ai.ig_digest?.[isoWeek]) return { skipped: "already sent this week" };
+  }
+  const G = `https://graph.facebook.com/${V}`;
+  const get = async (p) => { const r = await fetch(`${G}/${p}${p.includes("?") ? "&" : "?"}access_token=${process.env.IG_TOKEN}`); return r.json(); };
+  const acct = await get(`${process.env.IG_USER_ID}?fields=followers_count,media_count`);
+  const media = (await get(`${process.env.IG_USER_ID}/media?fields=id,media_product_type,media_type,timestamp,caption&limit=25`)).data || [];
+  const since = Date.now() - 7 * 86400000;
+  const rows = [];
+  for (const m of media) {
+    if (new Date(m.timestamp).getTime() < since) continue;
+    const isReel = m.media_product_type === "REELS";
+    const ins = await get(`${m.id}/insights?metric=${isReel ? "reach,views,saved,shares,ig_reels_avg_watch_time" : "reach,views,saved,shares"}`);
+    const v = Object.fromEntries((ins.data || []).map((x) => [x.name, x.values?.[0]?.value ?? x.total_value?.value]));
+    rows.push({ when: m.timestamp.slice(5, 10), fmt: isReel ? "reel" : m.media_type === "CAROUSEL_ALBUM" ? "car " : "img ", cap: (m.caption || "").split("\n")[0].slice(0, 28),
+      reach: v.reach ?? 0, views: v.views ?? 0, saved: v.saved ?? 0, shares: v.shares ?? 0, watch: v.ig_reels_avg_watch_time ? (v.ig_reels_avg_watch_time / 1000).toFixed(1) + "s" : "" });
+  }
+  rows.sort((a, b) => b.reach - a.reach);
+  let split = "";
+  try {
+    const s30 = Math.floor((Date.now() - 30 * 86400000) / 1000);
+    const bd = await get(`${process.env.IG_USER_ID}/insights?metric=reach&period=day&metric_type=total_value&breakdown=follow_type&since=${s30}`);
+    const res = bd.data?.[0]?.total_value?.breakdowns?.[0]?.results || [];
+    const nf = res.find((r) => r.dimension_values[0] === "NON_FOLLOWER")?.value ?? 0, f = res.find((r) => r.dimension_values[0] === "FOLLOWER")?.value ?? 0;
+    split = `\n30-day reach: ${nf} non-followers · ${f} followers`;
+  } catch {}
+  const body = [
+    `@munadim.eg · ${acct.followers_count} followers · ${rows.length} posts this week${split}`, ``,
+    ...rows.map((r) => `${r.when} ${r.fmt} reach ${String(r.reach).padStart(4)} · views ${String(r.views).padStart(4)} · saves ${r.saved} · shares ${r.shares}${r.watch ? " · " + r.watch : ""}\n   ${r.cap}`),
+    ``, `best by reach is first. a reel under 3s watch is a hook that did not hold.`,
+  ].join("\n");
+  if (!send) return { week: isoWeek, body };
+  await fetch(`https://ntfy.sh/${topic}`, { method: "POST", headers: { Title: `Munadim IG week ${isoWeek}`, Tags: "bar_chart", Priority: "default" }, body });
+  await db.from("restaurants").update({ ai: { ...ai, ig_digest: { ...(ai.ig_digest || {}), [isoWeek]: new Date().toISOString() } } }).eq("slug", "munadim");
+  log(`ig: weekly digest sent for ${isoWeek}`);
+  return { week: isoWeek, sent: true };
+}
+
 export function startIgPoster() {
   if (process.env.IG_AUTOPOST !== "1") return false;
   const tick = async () => {
@@ -376,6 +460,8 @@ export function startIgPoster() {
     catch (e) { log(`ig poster tick failed (kept running): ${e.message}`); }
     try { await remindStoriesDue({ send: true }); }
     catch (e) { log(`ig story reminder tick failed (kept running): ${e.message}`); }
+    try { await igWeeklyDigest({ send: true }); }
+    catch (e) { log(`ig digest tick failed (kept running): ${e.message}`); }
     try { await publishLinkedInDue({ arm: true }); }
     catch (e) { log(`linkedin poster tick failed (kept running): ${e.message}`); }
     try { await remindLinkedInDue({ send: true }); }

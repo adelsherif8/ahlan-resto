@@ -68,14 +68,16 @@ if (di > -1) {
   const nth = si > -1 ? Number(process.argv[si + 1]) : null;
   const ofDay = schedule.slots.filter((s) => s.day === day);
   const want = nth ? [ofDay[nth - 1]] : ofDay;
-  only = (s) => want.includes(s);
+  // compare by key, not identity: publishDue re-reads the schedule and filters its OWN
+  // objects, so `want.includes(s)` never matched and --day silently did nothing
+  only = (s) => want.some((w) => w.day === s.day && w.time === s.time);
 } else if (!process.argv.includes("--due")) {
   console.error("pass --due, --day N [--slot 1|2], or --list");
   process.exit(1);
 }
 
-// an explicit --day is a deliberate catch-up, so ignore the 2h due window
-const r = await publishDue({ arm, only, windowMs: only ? Number.MAX_SAFE_INTEGER : undefined });
+// an explicit --day is an instruction, not a question: it ignores "has its time come"
+const r = await publishDue({ arm, only, force: di > -1 });
 if (r.skipped) { console.log("skipped:", r.skipped); process.exit(1); }
 for (const d of r.done) {
   console.log(d.error ? `FAILED day ${d.day} ${d.time} — ${d.error}`

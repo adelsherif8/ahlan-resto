@@ -1,8 +1,8 @@
 {
   "_readme": "The 14-day Munadim launch. Source of truth is the approved artifact RM8tXkC45FxkzvhL8AnsTW. Times are Africa/Cairo. `asset` is a filename, resolved to a public URL by ig-upload.mjs. Slots with `pending: true` have no asset yet and are skipped by the publisher.",
   "timezone": "Africa/Cairo",
-  "tagsInCaption": true,
-  "_tagsNote": "Posting a first comment needs instagram_manage_comments, which this token does not hold. Tags go in the caption instead — placement is reach-neutral (2,140 vs 2,190 in the test we checked).",
+  "tagsInCaption": false,
+  "_tagsNote": "Hashtags go in the FIRST COMMENT, as the brief asked, now that the token holds instagram_manage_comments (24 Oct). The publisher checks its own token's scopes at start-up and falls back to caption tags if that scope is ever missing, so a token swap can never silently drop the tags.",
   "slots": [
     {
       "day": 1,
@@ -92,23 +92,11 @@
       "day": 7,
       "date": "2026-10-24",
       "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-C",
-      "caption": "«موظفيني مش هيعرفوا يستخدموه» و٧ مخاوف تانية — أوردرات واتساب للمطاعم\n\nكل اعتراض وردّه الصريح.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #صحاب_المطاعم",
-      "note": "the site FAQ, verbatim",
-      "slides": [
-        "carousel-C/01.png",
-        "carousel-C/02.png",
-        "carousel-C/03.png",
-        "carousel-C/04.png",
-        "carousel-C/05.png",
-        "carousel-C/06.png",
-        "carousel-C/07.png",
-        "carousel-C/08.png",
-        "carousel-C/09.png",
-        "carousel-C/10.png"
-      ]
+      "type": "reel",
+      "asset": "munadim-R2.mp4",
+      "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — أوردرات واتساب للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\n📲 01022034603",
+      "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر",
+      "note": "the maths — kinetic; replaces tonight's carousel C (carousels reached 2-3 people)"
     },
     {
       "day": 8,
@@ -118,328 +106,107 @@
       "asset": "munadim-film-short.mp4",
       "caption": "الطابور طويل… وإنت مش فيه — أوردرات واتساب للمطاعم\n\nنسخة ١٢ ثانية من الفيلم.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n📲 01022034603",
       "tags": "#منادم #مطاعم_مصر #تسلا",
-      "note": "the 12 s re-cut — exactly a week after the film"
+      "note": "the 12 s re-cut, exactly a week after the film"
     },
     {
       "day": 9,
-      "date": "2026-10-26",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-B",
-      "caption": "«600 أوردر في الشهر… التطبيق بياخد كام؟» — أوردرات واتساب للمطاعم\n\nالحساب سلايد سلايد، من حاسبة munadim.com نفسها.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #عمولة_التطبيقات",
-      "note": "repost · evergreen save format",
-      "slides": [
-        "carousel-B/01.png",
-        "carousel-B/02.png",
-        "carousel-B/03.png",
-        "carousel-B/04.png",
-        "carousel-B/05.png",
-        "carousel-B/06.png",
-        "carousel-B/07.png",
-        "carousel-B/08.png",
-        "carousel-B/09.png"
-      ]
-    },
-    {
-      "day": 10,
       "date": "2026-10-27",
       "time": "21:30",
       "type": "reel",
       "asset": "munadim-R6.mp4",
       "caption": "«نفس طلب امبارح»… هيفهم؟ — أوردرات واتساب للمطاعم\n\nالزبون كتبها زي ما بيتكلم، والمطعم فاكر طلبه بالظبط وكمّل على طول لحد التأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
       "tags": "#منادم #بالمصري #اوردر_واتساب",
-      "note": "real chat 1/2 this week · R7 held to next week"
+      "note": "real chat — reorder from memory"
     },
     {
-      "day": 11,
-      "date": "2026-10-28",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-A",
-      "caption": "«٨ حاجات مُنادم بيعملها… وواتساب العادي مش بيعملها» — أوردرات واتساب للمطاعم\n\nاسحب وشوفهم.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #اوردر_واتساب",
-      "note": "repost",
-      "slides": [
-        "carousel-A/01.png",
-        "carousel-A/02.png",
-        "carousel-A/03.png",
-        "carousel-A/04.png",
-        "carousel-A/05.png",
-        "carousel-A/06.png",
-        "carousel-A/07.png",
-        "carousel-A/08.png",
-        "carousel-A/09.png",
-        "carousel-A/10.png",
-        "carousel-A/11.png"
-      ]
-    },
-    {
-      "day": 12,
+      "day": 10,
       "date": "2026-10-29",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R2.mp4",
-      "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — أوردرات واتساب للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\n📲 01022034603",
-      "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر",
-      "note": "the maths · pairs with carousel B two days earlier"
-    },
-    {
-      "day": 13,
-      "date": "2026-10-30",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-C",
-      "caption": "«موظفيني مش هيعرفوا يستخدموه» و٧ مخاوف تانية — أوردرات واتساب للمطاعم\n\nكل اعتراض وردّه الصريح.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #صحاب_المطاعم",
-      "note": "repost",
-      "slides": [
-        "carousel-C/01.png",
-        "carousel-C/02.png",
-        "carousel-C/03.png",
-        "carousel-C/04.png",
-        "carousel-C/05.png",
-        "carousel-C/06.png",
-        "carousel-C/07.png",
-        "carousel-C/08.png",
-        "carousel-C/09.png",
-        "carousel-C/10.png"
-      ]
-    },
-    {
-      "day": 14,
-      "date": "2026-10-31",
       "time": "21:30",
       "type": "reel",
       "asset": "munadim-1B.mp4",
       "caption": "لازم تنزّل تطبيق عشان تطلب؟ — أوردرات واتساب للمطاعم\n\nلأ. نفس الواتساب اللي في إيدك.\nأوردر كامل من غير تطبيق تنزّله ولا حساب تعمله.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
       "tags": "#منادم #من_غير_تطبيق #اوردر_واتساب",
-      "note": "real chat 2/2 this week · the #1 objection"
+      "note": "real chat — the #1 objection"
     },
     {
-      "day": 15,
-      "date": "2026-11-01",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-A",
-      "caption": "«٨ حاجات مُنادم بيعملها… وواتساب العادي مش بيعملها» — أوردرات واتساب للمطاعم\n\nاسحب وشوفهم.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #اوردر_واتساب",
-      "note": "repost",
-      "slides": [
-        "carousel-A/01.png",
-        "carousel-A/02.png",
-        "carousel-A/03.png",
-        "carousel-A/04.png",
-        "carousel-A/05.png",
-        "carousel-A/06.png",
-        "carousel-A/07.png",
-        "carousel-A/08.png",
-        "carousel-A/09.png",
-        "carousel-A/10.png",
-        "carousel-A/11.png"
-      ]
-    },
-    {
-      "day": 16,
-      "date": "2026-11-02",
+      "day": 11,
+      "date": "2026-11-04",
       "time": "21:30",
       "type": "reel",
       "asset": "munadim-R7.mp4",
       "caption": "الزبون ده هيرجع تاني؟ — أوردرات واتساب للمطاعم\n\nرجع، والمطعم ناداه باسمه وفاكر طلبه.\nالرقم بيفضل معاك إنت — مش مع التطبيق.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
       "tags": "#منادم #زباينك #صحاب_المطاعم",
-      "note": "real chat 1/2 this week · R6 was last week"
+      "note": "real chat — ownership (never within a week of R6)"
     },
     {
-      "day": 17,
-      "date": "2026-11-03",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-B",
-      "caption": "«600 أوردر في الشهر… التطبيق بياخد كام؟» — أوردرات واتساب للمطاعم\n\nالحساب سلايد سلايد، من حاسبة munadim.com نفسها.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #عمولة_التطبيقات",
-      "note": "repost",
-      "slides": [
-        "carousel-B/01.png",
-        "carousel-B/02.png",
-        "carousel-B/03.png",
-        "carousel-B/04.png",
-        "carousel-B/05.png",
-        "carousel-B/06.png",
-        "carousel-B/07.png",
-        "carousel-B/08.png",
-        "carousel-B/09.png"
-      ]
-    },
-    {
-      "day": 18,
-      "date": "2026-11-04",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R3.mp4",
-      "caption": "التطبيقات مش شركاءك — أوردرات واتساب للمطاعم\n\nبتأجّرلك زباينك. الاسم، الرقم، وبيحب ياكل إيه… كله عندهم.\nواتساب بيرجّع الزبون ليك إنت.\n\nابعتها لصاحب مطعم تعرفه 👇\n📲 01022034603",
-      "tags": "#منادم #صحاب_المطاعم #عمولة_التطبيقات",
-      "note": "repost of the thesis — swap in a founder reel the day one exists"
-    },
-    {
-      "day": 19,
-      "date": "2026-11-05",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-C",
-      "caption": "«موظفيني مش هيعرفوا يستخدموه» و٧ مخاوف تانية — أوردرات واتساب للمطاعم\n\nكل اعتراض وردّه الصريح.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #صحاب_المطاعم",
-      "note": "repost",
-      "slides": [
-        "carousel-C/01.png",
-        "carousel-C/02.png",
-        "carousel-C/03.png",
-        "carousel-C/04.png",
-        "carousel-C/05.png",
-        "carousel-C/06.png",
-        "carousel-C/07.png",
-        "carousel-C/08.png",
-        "carousel-C/09.png",
-        "carousel-C/10.png"
-      ]
-    },
-    {
-      "day": 20,
+      "day": 12,
       "date": "2026-11-06",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-5A.mp4",
-      "caption": "الحساب جه… مين عليه كام؟ — أوردرات واتساب للمطاعم\n\nسفرة واحدة، والحساب بيتقسم على الواتساب — كل واحد يعرف عليه كام من غير آلة حاسبة ولا خناقة.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #تقسيم_الحساب #مطاعم_مصر",
-      "note": "real chat 2/2 this week · the only dine-in proof"
-    },
-    {
-      "day": 21,
-      "date": "2026-11-07",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-A",
-      "caption": "«٨ حاجات مُنادم بيعملها… وواتساب العادي مش بيعملها» — أوردرات واتساب للمطاعم\n\nاسحب وشوفهم.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #اوردر_واتساب",
-      "note": "repost · 6 days after its last run, the widest gap week 3 allows",
-      "slides": [
-        "carousel-A/01.png",
-        "carousel-A/02.png",
-        "carousel-A/03.png",
-        "carousel-A/04.png",
-        "carousel-A/05.png",
-        "carousel-A/06.png",
-        "carousel-A/07.png",
-        "carousel-A/08.png",
-        "carousel-A/09.png",
-        "carousel-A/10.png",
-        "carousel-A/11.png"
-      ]
-    },
-    {
-      "day": 22,
-      "date": "2026-11-08",
       "time": "21:30",
       "type": "reel",
       "asset": "munadim-R4.mp4",
       "caption": "٤ حاجات في رسالة واحدة… هيلخبط؟ — أوردرات واتساب للمطاعم\n\n٢ ناشفيل حار، كلاسيك كومبو، وبطاطس — والفاتورة طلعت مظبوطة بالأسعار من أول مرة.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
       "tags": "#منادم #اوردر_واتساب #مطاعم_مصر",
-      "note": "real chat 1/2 this week · last unused reel in the set"
+      "note": "real chat — four items, one message"
     },
     {
-      "day": 23,
-      "date": "2026-11-09",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-B",
-      "caption": "«600 أوردر في الشهر… التطبيق بياخد كام؟» — أوردرات واتساب للمطاعم\n\nالحساب سلايد سلايد، من حاسبة munadim.com نفسها.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #عمولة_التطبيقات",
-      "note": "repost",
-      "slides": [
-        "carousel-B/01.png",
-        "carousel-B/02.png",
-        "carousel-B/03.png",
-        "carousel-B/04.png",
-        "carousel-B/05.png",
-        "carousel-B/06.png",
-        "carousel-B/07.png",
-        "carousel-B/08.png",
-        "carousel-B/09.png"
-      ]
-    },
-    {
-      "day": 24,
-      "date": "2026-11-10",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R2.mp4",
-      "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — أوردرات واتساب للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\n📲 01022034603",
-      "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر",
-      "note": "repost — swap in a founder reel the day one exists"
-    },
-    {
-      "day": 25,
-      "date": "2026-11-11",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-C",
-      "caption": "«موظفيني مش هيعرفوا يستخدموه» و٧ مخاوف تانية — أوردرات واتساب للمطاعم\n\nكل اعتراض وردّه الصريح.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #صحاب_المطاعم",
-      "note": "repost",
-      "slides": [
-        "carousel-C/01.png",
-        "carousel-C/02.png",
-        "carousel-C/03.png",
-        "carousel-C/04.png",
-        "carousel-C/05.png",
-        "carousel-C/06.png",
-        "carousel-C/07.png",
-        "carousel-C/08.png",
-        "carousel-C/09.png",
-        "carousel-C/10.png"
-      ]
-    },
-    {
-      "day": 26,
-      "date": "2026-11-12",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R1.mp4",
-      "caption": "١١:٤٧ بالليل… حد هيرد؟ — أوردرات واتساب للمطاعم\n\nالزبون جعان ومستني رد، والمطعم في عز الشغل.\nشوف الأوردر كامل: الاختيارات، التيك أواي، الفاتورة، والتأكيد — كله باسم المطعم على طول.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #مطاعم_مصر #اوردرات_بالليل",
-      "note": "real chat 2/2 this week · repost of the strongest chat"
-    },
-    {
-      "day": 27,
-      "date": "2026-11-13",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-A",
-      "caption": "«٨ حاجات مُنادم بيعملها… وواتساب العادي مش بيعملها» — أوردرات واتساب للمطاعم\n\nاسحب وشوفهم.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #اوردر_واتساب",
-      "note": "repost",
-      "slides": [
-        "carousel-A/01.png",
-        "carousel-A/02.png",
-        "carousel-A/03.png",
-        "carousel-A/04.png",
-        "carousel-A/05.png",
-        "carousel-A/06.png",
-        "carousel-A/07.png",
-        "carousel-A/08.png",
-        "carousel-A/09.png",
-        "carousel-A/10.png",
-        "carousel-A/11.png"
-      ]
-    },
-    {
-      "day": 28,
-      "date": "2026-11-14",
+      "day": 13,
+      "date": "2026-11-08",
       "time": "21:30",
       "type": "reel",
       "asset": "munadim-film.mp4",
       "caption": "تسلا بتطيّر عربيات. إحنا بنطيّر الأوردر.\n\nالطابور طويل؟ إنت مش فيه.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n\nالطابور للعربيات. طلبك على واتساب.\n📲 01022034603",
       "tags": "#منادم #مطاعم_مصر #تسلا",
-      "note": "the hero, re-run a month on · swap in a founder reel if one exists"
+      "note": "repost — 906 s total watch, 4x anything else; swap for a founder reel if one exists"
+    },
+    {
+      "day": 14,
+      "date": "2026-11-12",
+      "time": "21:30",
+      "type": "reel",
+      "asset": "munadim-5A.mp4",
+      "caption": "الحساب جه… مين عليه كام؟ — أوردرات واتساب للمطاعم\n\nسفرة واحدة، والحساب بيتقسم على الواتساب — كل واحد يعرف عليه كام من غير آلة حاسبة ولا خناقة.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+      "tags": "#منادم #تقسيم_الحساب #مطاعم_مصر",
+      "note": "real chat — the only dine-in proof"
+    },
+    {
+      "day": 15,
+      "date": "2026-11-14",
+      "time": "21:30",
+      "type": "reel",
+      "asset": "munadim-R2.mp4",
+      "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — أوردرات واتساب للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\n📲 01022034603",
+      "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر",
+      "note": "repost — 21 days clear"
+    },
+    {
+      "day": 16,
+      "date": "2026-11-16",
+      "time": "21:30",
+      "type": "reel",
+      "asset": "munadim-film-short.mp4",
+      "caption": "الطابور طويل… وإنت مش فيه — أوردرات واتساب للمطاعم\n\nنسخة ١٢ ثانية من الفيلم.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n📲 01022034603",
+      "tags": "#منادم #مطاعم_مصر #تسلا",
+      "note": "repost — 21 days clear"
+    },
+    {
+      "day": 17,
+      "date": "2026-11-18",
+      "time": "21:30",
+      "type": "reel",
+      "asset": "munadim-R6.mp4",
+      "caption": "«نفس طلب امبارح»… هيفهم؟ — أوردرات واتساب للمطاعم\n\nالزبون كتبها زي ما بيتكلم، والمطعم فاكر طلبه بالظبط وكمّل على طول لحد التأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+      "tags": "#منادم #بالمصري #اوردر_واتساب",
+      "note": "repost — 21 days clear"
+    },
+    {
+      "day": 18,
+      "date": "2026-11-20",
+      "time": "21:30",
+      "type": "reel",
+      "asset": "munadim-1B.mp4",
+      "caption": "لازم تنزّل تطبيق عشان تطلب؟ — أوردرات واتساب للمطاعم\n\nلأ. نفس الواتساب اللي في إيدك.\nأوردر كامل من غير تطبيق تنزّله ولا حساب تعمله.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+      "tags": "#منادم #من_غير_تطبيق #اوردر_واتساب",
+      "note": "repost — 21 days clear"
     }
   ],
   "stories": [
@@ -961,10 +728,140 @@
       "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
       "link": "https://wa.me/201022034603",
       "poster": "story-06-poster.jpg"
+    },
+    {
+      "day": 29,
+      "date": "2026-11-15",
+      "time": "21:45",
+      "kind": "Story set",
+      "asset": "story-07.mp4",
+      "sticker": "Quiz",
+      "question": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟",
+      "options": [
+        "١٥",
+        "حوالي ٣٠ ✅",
+        "٥"
+      ],
+      "text": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟\n   ١٥  /  حوالي ٣٠ ✅  /  ٥",
+      "visual": "Post story-07.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+      "link": "https://wa.me/201022034603",
+      "poster": "story-07-poster.jpg"
+    },
+    {
+      "day": 30,
+      "date": "2026-11-16",
+      "time": "21:45",
+      "kind": "Story set",
+      "asset": "story-10.mp4",
+      "sticker": "This / That",
+      "question": "رقم الزبون بيفضل مع مين؟",
+      "options": [
+        "التطبيق",
+        "مطعمك"
+      ],
+      "text": "رقم الزبون بيفضل مع مين؟\n   التطبيق  /  مطعمك",
+      "visual": "Post story-10.mp4 (7s, muted). Drop the This / That sticker on the dashed brass box, y≈1290–1480 of 1920.",
+      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+      "link": "https://wa.me/201022034603",
+      "poster": "story-10-poster.jpg"
+    },
+    {
+      "day": 31,
+      "date": "2026-11-17",
+      "time": "21:45",
+      "kind": "Story set",
+      "asset": "story-04.mp4",
+      "sticker": "Quiz",
+      "question": "الأوردر الكامل بياخد قد إيه على مُنادم؟",
+      "options": [
+        "دقيقتين ✅",
+        "١٠ دقايق",
+        "ربع ساعة"
+      ],
+      "text": "الأوردر الكامل بياخد قد إيه على مُنادم؟\n   دقيقتين ✅  /  ١٠ دقايق  /  ربع ساعة",
+      "visual": "Post story-04.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+      "link": "https://wa.me/201022034603",
+      "poster": "story-04-poster.jpg"
+    },
+    {
+      "day": 32,
+      "date": "2026-11-18",
+      "time": "21:45",
+      "kind": "Story set",
+      "asset": "story-05.mp4",
+      "sticker": "Poll",
+      "question": "أكتر حاجة بتضيع في الزحمة؟",
+      "options": [
+        "ملاحظات الأوردر",
+        "الأصناف",
+        "العنوان"
+      ],
+      "text": "أكتر حاجة بتضيع في الزحمة؟\n   ملاحظات الأوردر  /  الأصناف  /  العنوان",
+      "visual": "Post story-05.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+      "link": "https://wa.me/201022034603",
+      "poster": "story-05-poster.jpg"
+    },
+    {
+      "day": 33,
+      "date": "2026-11-19",
+      "time": "21:45",
+      "kind": "Story set",
+      "asset": "story-14.mp4",
+      "sticker": "Quiz",
+      "question": "مُنادم بيفهم أنهي حاجات؟",
+      "options": [
+        "فرانكو",
+        "ڤويس نوت",
+        "الاتنين ✅"
+      ],
+      "text": "مُنادم بيفهم أنهي حاجات؟\n   فرانكو  /  ڤويس نوت  /  الاتنين ✅",
+      "visual": "Post story-14.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+      "link": "https://wa.me/201022034603",
+      "poster": "story-14-poster.jpg"
+    },
+    {
+      "day": 34,
+      "date": "2026-11-20",
+      "time": "21:45",
+      "kind": "Story set",
+      "asset": "story-01.mp4",
+      "sticker": "Poll",
+      "question": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟",
+      "options": [
+        "آه كلهم",
+        "لأ ولا واحد"
+      ],
+      "text": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟\n   آه كلهم  /  لأ ولا واحد",
+      "visual": "Post story-01.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+      "link": "https://wa.me/201022034603",
+      "poster": "story-01-poster.jpg"
+    },
+    {
+      "day": 35,
+      "date": "2026-11-21",
+      "time": "21:45",
+      "kind": "Story set",
+      "asset": "story-06.mp4",
+      "sticker": "Poll",
+      "question": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟",
+      "options": [
+        "آه",
+        "صعب عليهم"
+      ],
+      "text": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟\n   آه  /  صعب عليهم",
+      "visual": "Post story-06.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+      "link": "https://wa.me/201022034603",
+      "poster": "story-06-poster.jpg"
     }
   ],
   "_storiesNote": "From IG-READY-MANIFEST. Run 7,10,4,5,14,1,6 (week 1), the same seven again (week 2), then the remaining 2,3,8,9,11,12,13 (week 3), then the opening seven again (week 4). Daily set = one question story + a reshare of the day's post + an «اسألنا» box. REMINDER-ONLY: the API cannot publish stickers, which is why the lower half of every clip is left empty for one. Each story also carries a `poster` — a still lifted from the clip with the question visible — because the ntfy reminder attaches that rather than a multi-megabyte video you cannot read at a glance.",
-  "_source": "Rebuilt 18 Oct 2026 from branding/IG-READY-MANIFEST.md — 28 days, 18 Oct to 14 Nov. One post a day, 21:30 Cairo. Reels and carousels alternate; the single exception is day 5→6 (R1 then R3), which the approved week-1 order requires. Real-chat reels capped at two a week, never back to back; R6 (wk2) and R7 (wk3) never share a week. film-short exactly a week after the film. Pins: film, R3, carousel-A. All 11 reels and 3 carousels are used; weeks 3-4 carry 7 reposts, which is what the set can cover — the fix is a founder reel a week.",
+  "_source": "REBUILT 24 Oct 2026 from measured insights, reels only. 30-day reach was 522 non-followers vs 7 followers: reels are the only distribution that exists, and carousels/images reached 2-8 people each — the six followers and nobody else. Carousels leave the feed and become pinned profile furniture (A, B). No reel repeats within 21 days: R1's second cut, six days after the first, fell from 55 reach to 6. ~every other night, so an eleven-reel inventory never has to fill a slot with a fresh duplicate; a night with nothing eligible is simply skipped. Real-chat reels stay capped at two a week and never consecutive, R6/R7 never within a week. Ordering follows measured total watch time: the film (906 s) is 4x anything else.",
   "linkedin": [
     {
       "day": 1,
