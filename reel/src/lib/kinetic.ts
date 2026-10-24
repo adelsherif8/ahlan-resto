@@ -62,6 +62,18 @@ export const KINETIC: Record<string, Kinetic> = {
     payoff: 'الزبون بيطلب منك.\nرقمه عندك.\nوبيرجعلك إنت.',
   },
 
+  // R2C · the maths, opened on a different film shot so R2C and R3C never read as one reel.
+  R2C: {
+    id: 'R2C',
+    beats: [
+      { k: 'cold', src: 'loop/shot-6.mp4', text: '600 أوردر في الشهر…\nالتطبيق بياخد *كام*؟', d: 70 },
+      { k: 'compare', app: 18000, munadim: 6200, plan: 'Start', d: 150 },
+      { k: 'line', text: 'الفرق ده…\n*في جيبك* كل شهر.', d: 54 },
+      { k: 'chat', stamp: 'أوردر حقيقي · من غير عمولة', d: 70, msgs: [[true, 'تأكيد'], [false, '🎫 طلبك O-RSTJ اتسجل — حوالي 24 دقيقة!']] },
+    ],
+    payoff: 'مفيش عمولة.\nاشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.',
+  },
+
   // R3C · the same thesis, opened on the film's live shot instead of a text card.
   // Prototype of the measured finding (24 Oct); R3 above is untouched for comparison.
   R3C: {

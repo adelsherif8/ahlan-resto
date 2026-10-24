@@ -318,20 +318,31 @@ export async function publishLinkedInDue({ arm = false, only = null, force = fal
     const media = x.video || x.image;
     const media_url = media ? assets[media] : undefined;
     if (media && !media_url) { log(`linkedin: skip day ${x.day} — ${media} is not hosted`); continue; }
-    const payload = { type: x.kind, text: x.text, day: x.day, hook: liHook(x), ...(media_url ? { media_url } : {}) };
-    if (!arm) { done.push({ ...x, payload, dry: true }); continue; }
+    const base = { type: x.kind, text: x.text, day: x.day, hook: liHook(x), ...(media_url ? { media_url } : {}) };
+    // Measured 24 Oct: the page got 65 impressions in a week and no followers. A company
+    // page with no followers has no distribution; the founder's profile has the network,
+    // and the copy is first-person anyway. With LINKEDIN_PERSON=1 the same post also goes
+    // out as the person. Off by default: the v1 Make scenario has no `target` filter and
+    // would publish both payloads to the page. Turn it on only once blueprint v2 is live.
+    const targets = process.env.LINKEDIN_PERSON === "1" ? ["person", "organization"] : ["organization"];
+    const payloads = targets.map((target) => ({ ...base, target }));
+    const payload = payloads[0];
+    if (!arm) { done.push({ ...x, payload, payloads, dry: true }); continue; }
 
     // claim first, same as the Instagram side: a second host ticking mid-post finds it taken
     posted[liKey(x)] = { claimed_at: new Date().toISOString(), kind: x.kind };
     await writeLi(db, posted);
     try {
-      const r = await fetch(hookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const body = (await r.text()).slice(0, 200);
-      if (!r.ok) throw new Error(`make webhook ${r.status}: ${body}`);
+      let body = "";
+      for (const pl of payloads) {
+        const r = await fetch(hookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pl) });
+        const b = (await r.text()).slice(0, 200);
+        if (!r.ok) throw new Error(`make webhook ${r.status} (${pl.target}): ${b}`);
+        body += `${pl.target}:${b} `;
+        // the page follows the person by a beat so the profile post is the one the network sees first
+        if (payloads.length > 1 && pl !== payloads[payloads.length - 1]) await new Promise((res) => setTimeout(res, 5 * 60_000));
+      }
+      body = body.trim();
       posted[liKey(x)] = { at: new Date().toISOString(), kind: x.kind, response: body };
       await writeLi(db, posted);
       log(`linkedin: published day ${x.day} (${x.kind}) → ${body}`);
