@@ -165,10 +165,11 @@ const ColdBeat: React.FC<{ b: Extract<Beat, { k: 'cold' }>; f: number }> = ({ b,
   return (
     <AbsoluteFill>
       <OffthreadVideo src={staticFile(b.src)} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      <AbsoluteFill style={{ background: `linear-gradient(to top, rgba(20,17,16,${0.92 * floor}) 0%, rgba(20,17,16,${0.55 * floor}) 45%, rgba(20,17,16,0.05) 100%)` }} />
+      <AbsoluteFill style={{ background: `linear-gradient(to top, rgba(20,17,16,${0.94 * floor}) 0%, rgba(20,17,16,${0.68 * floor}) 42%, rgba(20,17,16,0.05) 100%)` }} />
       <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'flex-end', padding: '0 80px 420px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 44 }}>
-          <Words text={b.text} f={f - 6} size={150} />
+          {/* a long hook over busy footage wraps to four lines at 150; drop it so it stays two or three */}
+          <Words text={b.text} f={f - 6} size={b.text.replace(/\*/g, '').length > 24 ? 128 : 150} />
           <div style={{ width: 200, height: 6, background: C.karkadeh, borderRadius: 3, transform: `scaleX(${interpolate(f, [18, 36], [0, 1], clamp)})` }} />
         </div>
       </AbsoluteFill>
