@@ -1,8 +1,8 @@
 {
   "_readme": "The 14-day Munadim launch. Source of truth is the approved artifact RM8tXkC45FxkzvhL8AnsTW. Times are Africa/Cairo. `asset` is a filename, resolved to a public URL by ig-upload.mjs. Slots with `pending: true` have no asset yet and are skipped by the publisher.",
   "timezone": "Africa/Cairo",
-  "tagsInCaption": false,
-  "_tagsNote": "Hashtags go in the FIRST COMMENT, as the brief asked, now that the token holds instagram_manage_comments (24 Oct). The publisher checks its own token's scopes at start-up and falls back to caption tags if that scope is ever missing, so a token swap can never silently drop the tags.",
+  "tagsInCaption": true,
+  "_tagsNote": "A/B, 25 Oct: the first post with hashtags as an API self-comment (R2, 24 Oct) got 0 reach. No evidence that the comment caused it, but it was the one new variable, so tags go back in the caption — where every 100+ reel had them — until film-short tonight shows whether distribution returns. Flip to false to restore the first comment.",
   "slots": [
     {
       "day": 1,
@@ -113,10 +113,10 @@
       "date": "2026-10-27",
       "time": "21:30",
       "type": "reel",
-      "asset": "munadim-R6.mp4",
+      "asset": "munadim-R6C.mp4",
       "caption": "«نفس طلب امبارح»… هيفهم؟ — أوردرات واتساب للمطاعم\n\nالزبون كتبها زي ما بيتكلم، والمطعم فاكر طلبه بالظبط وكمّل على طول لحد التأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
       "tags": "#منادم #بالمصري #اوردر_واتساب",
-      "note": "real chat — reorder from memory"
+      "note": "R6 behind a kitchen cold open — burger landing on the pass, grill audio (Seedance, 25 Oct)"
     },
     {
       "day": 10,
@@ -193,10 +193,10 @@
       "date": "2026-11-18",
       "time": "21:30",
       "type": "reel",
-      "asset": "munadim-R6.mp4",
-      "caption": "«نفس طلب امبارح»… هيفهم؟ — أوردرات واتساب للمطاعم\n\nالزبون كتبها زي ما بيتكلم، والمطعم فاكر طلبه بالظبط وكمّل على طول لحد التأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #بالمصري #اوردر_واتساب",
-      "note": "repost — 21 days clear"
+      "asset": "munadim-R1C.mp4",
+      "caption": "١١:٤٧ بالليل… حد هيرد؟ — أوردرات واتساب للمطاعم\n\nالزبون جعان ومستني رد، والمطعم في عز الشغل.\nشوف الأوردر كامل: الاختيارات، التيك أواي، الفاتورة، والتأكيد — كله باسم المطعم على طول.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+      "tags": "#منادم #مطاعم_مصر #اوردرات_بالليل",
+      "note": "R1 behind a night-kitchen cold open (phone lighting up on the counter) — 27 days after R1; replaces an R6 repost so R6 airs once"
     },
     {
       "day": 18,

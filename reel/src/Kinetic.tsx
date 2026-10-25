@@ -160,11 +160,11 @@ const ChatBeat: React.FC<{ b: Extract<Beat, { k: 'chat' }>; f: number }> = ({ b,
 };
 
 /* the cold open: footage full-bleed, a dark floor rising from the bottom, the hook over it */
-const ColdBeat: React.FC<{ b: Extract<Beat, { k: 'cold' }>; f: number }> = ({ b, f }) => {
+export const ColdBeat: React.FC<{ b: Extract<Beat, { k: 'cold' }>; f: number; startFrom?: number; sound?: boolean }> = ({ b, f, startFrom = 0, sound = false }) => {
   const floor = interpolate(f, [0, 18], [0, 1], clamp);
   return (
     <AbsoluteFill>
-      <OffthreadVideo src={staticFile(b.src)} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <OffthreadVideo src={staticFile(b.src)} muted={!sound} startFrom={startFrom} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       <AbsoluteFill style={{ background: `linear-gradient(to top, rgba(20,17,16,${0.94 * floor}) 0%, rgba(20,17,16,${0.68 * floor}) 42%, rgba(20,17,16,0.05) 100%)` }} />
       <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'flex-end', padding: '0 80px 420px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 44 }}>
