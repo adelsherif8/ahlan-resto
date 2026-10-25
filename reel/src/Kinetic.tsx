@@ -195,7 +195,9 @@ export const KineticReel: React.FC<{ reel?: string }> = ({ reel = 'R3' }) => {
       <AbsoluteFill style={{ opacity: 0.35, backgroundImage: 'radial-gradient(rgba(217,169,78,0.10) 1.6px, transparent 1.6px)', backgroundSize: '30px 30px' }} />
       <AbsoluteFill style={{ boxShadow: 'inset 0 0 260px 60px rgba(0,0,0,0.55)' }} />
 
-      <Audio src={staticFile('sfx/bed.wav')} volume={0.22} />
+      {/* measured 25 Oct: at 0.22 the kinetic reels sat at -40 dBFS RMS, ~20 dB under the film —
+          a bed nobody hears. 1.0 brings the floor up without the pops clipping (their peaks set the ceiling). */}
+      <Audio src={staticFile('sfx/bed.wav')} volume={1.0} />
 
       {/* progress hairline */}
       <div style={{ position: 'absolute', top: 70, right: 78, left: 78, height: 4, background: 'rgba(245,239,231,0.10)', borderRadius: 2 }}>
