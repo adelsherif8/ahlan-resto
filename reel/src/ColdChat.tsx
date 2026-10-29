@@ -9,11 +9,11 @@ import { ColdBeat } from './Kinetic';
 import { useFontsReady } from './Post';
 import { C } from './lib/brand';
 
-export type ColdChatProps = { clip: string; clipFrom: number; text: string; coldFrames: number; reel: string; reelFrames: number; reelFrom?: number };
+export type ColdChatProps = { clip: string; clipFrom: number; text: string; coldFrames: number; reel: string; reelFrames: number; reelFrom?: number; zoom?: number };
 
 export const coldChatMeta: CalculateMetadataFunction<ColdChatProps> = ({ props }) => ({ durationInFrames: props.coldFrames + props.reelFrames - (props.reelFrom ?? 0) });
 
-export const ColdChat: React.FC<ColdChatProps> = ({ clip, clipFrom, text, coldFrames, reel, reelFrom = 0 }) => {
+export const ColdChat: React.FC<ColdChatProps> = ({ clip, clipFrom, text, coldFrames, reel, reelFrom = 0, zoom = 1 }) => {
   const frame = useCurrentFrame();
   const ready = useFontsReady();
   if (!ready) return <AbsoluteFill style={{ background: C.ink }} />;
@@ -22,7 +22,7 @@ export const ColdChat: React.FC<ColdChatProps> = ({ clip, clipFrom, text, coldFr
     <AbsoluteFill style={{ background: C.ink }}>
       <Sequence durationInFrames={coldFrames}>
         <AbsoluteFill style={{ opacity: out }}>
-          <ColdBeat b={{ k: 'cold', src: clip, text, d: coldFrames }} f={frame} startFrom={clipFrom} sound />
+          <ColdBeat b={{ k: 'cold', src: clip, text, d: coldFrames }} f={frame} startFrom={clipFrom} sound zoom={zoom} />
         </AbsoluteFill>
       </Sequence>
       <Sequence from={coldFrames}>

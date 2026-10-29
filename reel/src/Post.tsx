@@ -254,6 +254,8 @@ export const PostEnd: React.FC<{ frame: number; endStart: number; payoff?: strin
         <div style={{ color: 'rgba(245,239,231,0.7)', fontFamily: UI, fontSize: 30, lineHeight: 1.6, marginTop: 22, textAlign: 'center', maxWidth: 820, opacity: s(42) }}>مُنادم: نظام أوردرات على واتساب باسم مطعمك — من غير تطبيق، ومن غير عمولة على الأوردر</div>
         <div style={{ color: 'rgba(245,239,231,0.62)', fontFamily: UI, fontSize: 30, marginTop: 18, opacity: s(46) }}>اطلب على واتساب</div>
         <div style={{ color: C.brassLight, fontSize: 48, fontWeight: 500, marginTop: 10, opacity: s(46), fontFamily: MONO, letterSpacing: 3, direction: 'ltr' }}>01022034603</div>
+        {/* 28 Oct: ~220 people reached in a week, 1 profile visit. Give the stranger the handle. */}
+        <div style={{ color: C.semna, fontSize: 40, fontWeight: 600, marginTop: 20, opacity: s(50), fontFamily: UI, direction: 'rtl' }}>تابعنا <span style={{ fontFamily: MONO, color: C.brassLight, direction: 'ltr', unicodeBidi: 'isolate' }}>@munadim.eg</span></div>
       </AbsoluteFill>
     );
   }
@@ -265,6 +267,7 @@ export const PostEnd: React.FC<{ frame: number; endStart: number; payoff?: strin
       <div style={{ color: 'rgba(245,239,231,0.7)', fontFamily: UI, fontSize: 30, lineHeight: 1.6, marginTop: 24, textAlign: 'center', maxWidth: 820, opacity: s(16) }}>مُنادم: نظام أوردرات على واتساب باسم مطعمك — من غير تطبيق، ومن غير عمولة على الأوردر</div>
       <div style={{ color: 'rgba(245,239,231,0.62)', fontFamily: UI, fontSize: 32, marginTop: 18, opacity: s(18) }}>اطلب على واتساب</div>
       <div style={{ color: C.brassLight, fontSize: 50, fontWeight: 500, marginTop: 14, opacity: s(20), fontFamily: MONO, letterSpacing: 3, direction: 'ltr' }}>01022034603</div>
+      <div style={{ color: C.semna, fontSize: 40, fontWeight: 600, marginTop: 20, opacity: s(24), fontFamily: UI, direction: 'rtl' }}>تابعنا <span style={{ fontFamily: MONO, color: C.brassLight, direction: 'ltr', unicodeBidi: 'isolate' }}>@munadim.eg</span></div>
     </AbsoluteFill>
   );
 };
