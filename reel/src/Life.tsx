@@ -221,7 +221,7 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
               </div>
             </AbsoluteFill>
           )}
-          <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 56, bottom: 44, width: 132, borderRadius: 14, boxShadow: onDark ? 'none' : '0 8px 24px rgba(0,0,0,0.3)', mixBlendMode: onDark ? 'lighten' : 'normal', opacity: out(T.end) }} />
+          <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 56, bottom: 44, width: 132, borderRadius: 14, boxShadow: onDark ? 'none' : '0 8px 24px rgba(0,0,0,0.3)', mixBlendMode: onDark ? 'lighten' : 'normal', opacity: onDark && f >= T.ticket ? 0 : out(T.end) }} />
         </AbsoluteFill>
       )}
 
