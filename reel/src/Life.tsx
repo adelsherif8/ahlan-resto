@@ -142,6 +142,29 @@ export const LIFE: Record<string, LifeData> = {
       { name: 'كريم', phone: '012•••8842', fav: 'بروشيتا', tag: 'راجع' },
     ],
   },
+  // menu: menuegypt.com/cairo-caizer, updated 2026-04-15, prices include VAT.
+  // Medium Box beef 352.99 + Fries 39.99 + Coca Cola M 24.99 = 417.97. Customers are fictional.
+  cairocaizer: {
+    name: 'Cairo Caizer', avatar: 'outreach-research/cc-logo.jpg', logo: 'outreach-research/cc-logo.jpg', food: 'outreach-research/cc-food.jpg',
+    page: '#141110', ink: '#F5EFE7', accent: '#C9812B', glow: 'radial-gradient(110% 45% at 50% 0%, rgba(232,163,61,0.18), transparent 70%)', flipLogo: true,
+    hook: '9:12 بالليل.\nوالشاورما شغالة.', pressure: 'والتليفون مبيبطلش.',
+    lost: 'واحد منهم مستناش.\nطلب من حد تاني.', flip: 'نفس الليلة.\nمع مُنادم.',
+    answered: 'كلهم اترد عليهم.\nوإنت لسه في المطبخ.', ticketLine: 'الأوردر بيوصلك جاهز.',
+    ownLine: 'وآخر الليلة؟\nأرقامهم عندك.', payoff: 'الشاورما شغالة…\nوزباينك معاك.',
+    messages: [
+      { from: 'أحمد', text: 'عايز ميديم بوكس شاورما لحم', reply: 'تمام 👌 تحب معاه إيه؟' },
+      { from: 'منة', text: 'الكومبو فيه إيه؟', reply: 'ساندوتش وبطاطس وسوفت درينك' },
+      { from: 'كريم', text: 'في حاجة للأطفال؟', reply: 'كاي ميل بـ 129.99، ومعاها لعبة' },
+      { from: 'سارة', text: 'عندكم آيس كريم؟', reply: 'أيوه، كون و Happy Cup 🍦' },
+      { from: 'عمر', text: 'الطحينة سبايسي؟', reply: 'في عادية وفي سبايسي' },
+    ],
+    ticket: { head: 'TAKEAWAY', lines: [['1× Medium Box Beef', '352.99'], ['1× Fries', '39.99'], ['1× Coca Cola M', '24.99']], total: 'EGP 417.97' },
+    customers: [
+      { name: 'أحمد', phone: '010•••4437', fav: 'شاورما لحم', tag: 'راجع' },
+      { name: 'منة', phone: '011•••2210', fav: 'شاورما فراخ', tag: 'جديد' },
+      { name: 'كريم', phone: '012•••8842', fav: 'كومبو 3', tag: 'راجع' },
+    ],
+  },
   monster: {
     name: 'Monster Burger', avatar: 'outreach-research/mo-logo2.jpg', logo: 'outreach-research/mo-logo-big.jpg', food: 'outreach-research/mo-food.jpg',
     page: '#141110', ink: '#F5EFE7', accent: '#F39A1E', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(243,154,30,0.30), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(190,40,30,0.22), transparent 70%)', flipLogo: true,
