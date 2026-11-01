@@ -41,9 +41,35 @@ export interface Post {
   ui?: 'ar' | 'en';
   /** A real conversation recorded from the live bot (flows/_reel.mjs) — chat name/avatar are the restaurant's. */
   real?: boolean;
+  /** PRIVATE OUTREACH ONLY: one restaurant's look, for a reel DMed to that owner and never
+   *  posted publicly. Its chat is an illustration priced from their published menu, not a
+   *  recording, so `english` must carry the «مثال توضيحي» label. */
+  brand?: { name: string; avatar: string; logo: string; page: string; grain: string; ink: string; accent: string; headSize?: number };
 }
 
 export const POSTS: Record<string, Post> = {
+  // OUTREACH · Square Burger. Prices from their menu (menuegypt.com, updated 2025-07-28):
+  // Cheesy Beef 150g 170 · Cheese French Fries 45 · CocaCola 22 → 2×170+45+22 = 407. VAT inclusive.
+  // Pickup only: their delivery fees are not published, so none is shown.
+  'OUT-square': {
+    id: 'OUT-square',
+    clock: '9:13',
+    headline: 'وإنتوا واقفين على التراك… مين بيرد على الواتساب؟',
+    english: 'مثال توضيحي — ده شكل Square Burger على مُنادم',
+    payoff: 'الأوردر اتاخد.\nوإنتوا شغالين على الجريل.',
+    real: true,
+    ui: 'ar',
+    brand: { name: 'Square Burger', avatar: 'outreach-research/sq-avatar.jpg', logo: 'outreach-research/sq-logo-crop.jpg', page: '#E9D4B5', grain: 'rgba(120,84,44,0.07)', ink: '#141110', accent: '#D8402B', headSize: 80 },
+    script: [
+      { me: true, kind: 'text', text: 'عايز 2 تشيزي بيف 150 جرام وبطاطس جبنة، تيك أواي', time: '9:12' },
+      { me: false, kind: 'text', text: 'تمام 👌 تحب تشرب إيه؟', time: '9:12', buttons: ['كوكاكولا', 'سبرايت', 'مش عايز'] },
+      { me: true, kind: 'text', text: 'كوكاكولا', time: '9:12' },
+      { me: false, kind: 'text', text: '🧾 *طلبك*\n――――――――――――――――――――――――\n• 2× *تشيزي بيف برجر* (150 جم) — 340 EGP\n• 1× *بطاطس جبنة* — 45 EGP\n• 1× *كوكاكولا* — 22 EGP\n――――――――――――――――――――――――\n*الإجمالي المطلوب: 407 EGP*\n_الأسعار شاملة الضريبة._\n――――――――――――――――――――――――\nتيك أواي\n\nكله تمام؟ أكد وهيروح للمطبخ على طول ✅', time: '9:13', buttons: ['تأكيد ✅', 'عدّل حاجة'] },
+      { me: true, kind: 'text', text: 'تأكيد', time: '9:13' },
+      { me: false, kind: 'doc', name: 'O-7K3M.pdf', time: '9:13', caption: '🎫 طلبك O-7K3M اتسجل!' },
+    ],
+  },
+
   // 1 · Ordering inside WhatsApp — the whole order in one thread
   '1A': {
     id: '1A',

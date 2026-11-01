@@ -54,10 +54,12 @@ export const postTiming = (p: PostData) => {
     if (p.real) {
       // real bot messages run long (a bill is ~15 lines): hold a beat longer on the long ones
       const lines = b.kind === 'text' ? b.text.split('\n').length : 2;
-      t += b.me ? 16 : 20 + Math.min(14, Math.round(lines * 1.3));
+      // an outreach reel is watched by one owner who must read his own prices: hold longer
+      const hold = p.brand ? (b.me ? 22 : 34 + lines * 6) : 0;
+      t += hold || (b.me ? 16 : 20 + Math.min(14, Math.round(lines * 1.3)));
     } else t += BUBBLE_IN + GUEST_GAP;
   }
-  const endStart = t + 22;
+  const endStart = t + (p.brand ? 50 : 22);
   // a payoff line needs its own beat to be read before the CTA lands
   return { starts, endStart, end: endStart + END_CARD + (p.payoff ? 42 : 12) };
 };
@@ -294,28 +296,31 @@ export const Post: React.FC<{ post?: string }> = ({ post = '1A' }) => {
   const dir = rtl ? 'rtl' : 'ltr';
   const small = !!data.real;
   const lead = data.real ? 20 : TYPING;
+  const b = data.brand;
 
   return (
-    <AbsoluteFill style={{ background: C.semna, fontFamily: UI }}>
-      {/* warm paper depth */}
-      <AbsoluteFill style={{ background: 'radial-gradient(130% 80% at 50% 8%, rgba(255,253,248,0.9), rgba(245,239,231,0) 60%)' }} />
+    <AbsoluteFill style={{ background: b?.page ?? C.semna, fontFamily: UI }}>
+      {/* warm paper depth (or the restaurant's own ground) */}
+      {b
+        ? <AbsoluteFill style={{ backgroundImage: `linear-gradient(90deg, ${b.grain} 0 2px, transparent 2px 218px, ${b.grain} 218px 220px, transparent 220px 497px, ${b.grain} 497px 499px, transparent 499px 760px, ${b.grain} 760px 762px, transparent 762px), radial-gradient(120% 70% at 50% 0%, rgba(255,245,225,0.55), transparent 65%), radial-gradient(120% 60% at 50% 100%, rgba(120,84,44,0.16), transparent 70%)` }} />
+        : <AbsoluteFill style={{ background: 'radial-gradient(130% 80% at 50% 8%, rgba(255,253,248,0.9), rgba(245,239,231,0) 60%)' }} />}
       <AbsoluteFill style={{ boxShadow: 'inset 0 -220px 240px -160px rgba(20,17,16,0.10)' }} />
 
       <AbsoluteFill style={{ transform: `scale(${zoom})`, padding: '96px 78px 0', display: 'flex', flexDirection: 'column' }}>
         {/* headline — Arabic leads, karkadeh rule draws, small English */}
         <div style={{ direction: 'rtl', textAlign: 'right' }}>
-          <div style={{ fontFamily: AR, fontWeight: 700, fontSize: 92, lineHeight: 1.32, color: C.ink, maxWidth: 960, opacity: headA, transform: `translateX(${headX}px)` }}>
+          <div style={{ fontFamily: b ? UI : AR, fontWeight: 700, fontSize: b?.headSize ?? 92, lineHeight: 1.32, color: b?.ink ?? C.ink, maxWidth: 960, opacity: headA, transform: `translateX(${headX}px)` }}>
             {data.headline}
           </div>
-          <div style={{ width: 210, height: 7, background: C.karkadeh, borderRadius: 4, margin: '34px 0 22px', transform: `scaleX(${rule})`, transformOrigin: 'right' }} />
-          <div style={{ fontFamily: UI, fontSize: 32, color: 'rgba(20,17,16,0.5)', direction: 'ltr', textAlign: 'right', opacity: engA }}>
+          <div style={{ width: 210, height: 7, background: b?.accent ?? C.karkadeh, borderRadius: 4, margin: '34px 0 22px', transform: `scaleX(${rule})`, transformOrigin: 'right' }} />
+          <div style={{ fontFamily: UI, fontSize: 32, fontWeight: b ? 600 : 400, color: b ? 'rgba(20,17,16,0.72)' : 'rgba(20,17,16,0.5)', direction: b ? 'rtl' : 'ltr', textAlign: 'right', opacity: engA }}>
             {data.english}
           </div>
         </div>
 
         {/* the phone, floating */}
         <div style={{
-          marginTop: 40, alignSelf: 'center', width: 770, height: 1210,
+          marginTop: b ? 28 : 40, alignSelf: 'center', width: 770, height: 1210,
           borderRadius: 60, border: '15px solid #1C1917', background: '#1C1917',
           boxShadow: '0 60px 120px -40px rgba(20,17,16,0.5)',
           opacity: phone, transform: `translateY(${(1 - phone) * 46 + float}px)`, overflow: 'hidden',
@@ -329,10 +334,10 @@ export const Post: React.FC<{ post?: string }> = ({ post = '1A' }) => {
             <div style={{ background: '#F6F7F8', padding: '12px 24px 18px', display: 'flex', alignItems: 'center', gap: 14, direction: dir, borderBottom: '1px solid rgba(17,27,33,0.06)', position: 'relative' }}>
               <Ic d={rtl ? 'M9 18l6-6-6-6' : 'M15 18l-6-6 6-6'} s="#0B7A6A" w={2.6} size={34} />
               {data.real
-                ? <Img src={staticFile('avatar-whatsapp.svg')} style={{ width: 66, height: 66, borderRadius: 999 }} />
+                ? <Img src={staticFile(b?.avatar ?? 'avatar-whatsapp.svg')} style={{ width: 66, height: 66, borderRadius: 999, objectFit: 'cover' }} />
                 : <div style={{ width: 66, height: 66, borderRadius: 999, background: C.karkadeh, display: 'grid', placeItems: 'center', color: '#fff', fontFamily: AR, fontWeight: 700, fontSize: 36 }}>ش</div>}
               <div style={{ lineHeight: 1.22 }}>
-                <div style={{ fontSize: 32, fontWeight: 600, color: '#111B21' }}>{data.real ? (rtl ? 'مُنادم' : 'Munadim') : 'شنام'}</div>
+                <div style={{ fontSize: 32, fontWeight: 600, color: '#111B21' }}>{b ? b.name : data.real ? (rtl ? 'مُنادم' : 'Munadim') : 'شنام'}</div>
                 <div style={{ fontSize: 24, color: '#1FA855' }}>{rtl ? 'متصل الآن' : 'online'}</div>
               </div>
               <span style={{ marginInlineStart: 'auto', display: 'flex', gap: 24, alignItems: 'center' }}>
@@ -389,6 +394,7 @@ export const Post: React.FC<{ post?: string }> = ({ post = '1A' }) => {
         </div>
       </AbsoluteFill>
 
+      {b && <Img src={staticFile(b.logo)} style={{ position: 'absolute', right: 78, bottom: 22, width: 118, borderRadius: 14, opacity: logoA }} />}
       {/* logo, bottom-left on the cream page */}
       <Img src={staticFile('21-lockup-horizontal-light-nobg.svg')}
         style={{ position: 'absolute', left: 78, bottom: 60, width: 300, opacity: logoA }} />
