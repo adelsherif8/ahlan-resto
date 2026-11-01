@@ -72,6 +72,30 @@ export const LIFE: Record<string, LifeData> = {
       { name: 'كريم', phone: '012•••8842', fav: 'تشيكن كاري', tag: 'راجع' },
     ],
   },
+  // Burger names from their QR menu listing (El Gouna, may differ in New Cairo); location, hours and
+  // vegetarian burgers from u-venues.com/place/le-garage. No logo or brand colours found: neutral dark
+  // look and the name in text only. No prices: sources disagree.
+  legarage: {
+    name: 'Le Garage', avatar: '', logo: '', food: 'outreach-research/lg-food.jpg',
+    page: '#141110', ink: '#F5EFE7', accent: '#C8892B', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(200,137,43,0.22), transparent 70%)',
+    hook: '9:12 بالليل.\nوالصالة مليانة.', pressure: 'والتليفون مبيبطلش.',
+    lost: 'واحد منهم مستناش.\nراح لحد تاني.', flip: 'نفس الليلة.\nمع مُنادم.',
+    answered: 'كلهم اترد عليهم.\nوإنت لسه في المطبخ.', ticketLine: 'الأوردر بيوصلك جاهز.',
+    ownLine: 'وآخر الليلة؟\nأرقامهم عندك.', payoff: 'الجراج شغال…\nوزباينك معاك.',
+    messages: [
+      { from: 'أحمد', text: 'عايز 2 Classic Burger', reply: 'تمام 👌 تحب معاهم إيه؟' },
+      { from: 'منة', text: 'عندكم برجر نباتي؟', reply: 'أيوه، عندنا برجر نباتي 🌱' },
+      { from: 'كريم', text: 'مكانكم فين في التجمع؟', reply: 'U Venues، الدور الأول' },
+      { from: 'سارة', text: 'فاتحين لحد امتى؟', reply: 'لحد 12، والخميس والجمعة لحد 1' },
+      { from: 'عمر', text: 'Avocado Burger لو سمحت', reply: 'تمام، تيك أواي ولا صالة؟' },
+    ],
+    ticket: { head: 'TAKEAWAY', lines: [['2× Classic Burger', ''], ['1× Swiss Burger', ''], ['1× Avocado Burger', '']], total: '' },
+    customers: [
+      { name: 'أحمد', phone: '010•••4437', fav: 'Classic Burger', tag: 'راجع' },
+      { name: 'منة', phone: '011•••2210', fav: 'Swiss Burger', tag: 'جديد' },
+      { name: 'كريم', phone: '012•••8842', fav: 'Avocado Burger', tag: 'راجع' },
+    ],
+  },
   monster: {
     name: 'Monster Burger', avatar: 'outreach-research/mo-logo2.jpg', logo: 'outreach-research/mo-logo-big.jpg', food: 'outreach-research/mo-food.jpg',
     page: '#141110', ink: '#F5EFE7', accent: '#F39A1E', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(243,154,30,0.30), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(190,40,30,0.22), transparent 70%)', flipLogo: true,
@@ -244,7 +268,7 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
               </div>
             </AbsoluteFill>
           )}
-          <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 56, bottom: 44, width: 132, borderRadius: 14, boxShadow: d.flipLogo ? 'none' : '0 8px 24px rgba(0,0,0,0.3)', mixBlendMode: onDark ? 'lighten' : d.flipLogo ? 'multiply' : 'normal', opacity: d.flipLogo && f >= T.ticket ? 0 : out(T.end) }} />
+          {d.logo && <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 56, bottom: 44, width: 132, borderRadius: 14, boxShadow: d.flipLogo ? 'none' : '0 8px 24px rgba(0,0,0,0.3)', mixBlendMode: onDark ? 'lighten' : d.flipLogo ? 'multiply' : 'normal', opacity: d.flipLogo && f >= T.ticket ? 0 : out(T.end) }} />}
         </AbsoluteFill>
       )}
 
