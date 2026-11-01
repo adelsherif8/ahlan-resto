@@ -96,6 +96,29 @@ export const LIFE: Record<string, LifeData> = {
       { name: 'كريم', phone: '012•••8842', fav: 'Avocado Burger', tag: 'راجع' },
     ],
   },
+  // menu: menuegypt.com/bam-smash-burger, updated 2026-10-05, prices include tax. 2×245 + 70 + 30 = 590.
+  // Fyves Mall branch and Sheikh Zayed delivery from the same page. Customers are fictional.
+  bam: {
+    name: 'Bam', avatar: 'outreach-research/ba-logo.jpg', logo: 'outreach-research/ba-logo-big.jpg', food: 'outreach-research/ba-food.jpg',
+    page: '#141110', ink: '#F5EFE7', accent: '#D9912A', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(242,190,95,0.24), transparent 70%)', flipLogo: true,
+    hook: '9:12 بالليل.\nوإيدك في السماش.', pressure: 'والتليفون مبيبطلش.',
+    lost: 'واحد منهم مستناش.\nطلب من حد تاني.', flip: 'نفس الليلة.\nمع مُنادم.',
+    answered: 'كلهم اترد عليهم.\nوإنت لسه على الجريل.', ticketLine: 'الأوردر بيوصلك جاهز.',
+    ownLine: 'وآخر الليلة؟\nأرقامهم عندك.', payoff: 'السماش شغال…\nوزباينك معاك.',
+    messages: [
+      { from: 'أحمد', text: 'عايز 2 Signature دبل', reply: 'تمام 👌 تحب معاهم إيه؟' },
+      { from: 'منة', text: 'الـ Nashville Tenders حار؟', reply: 'أيوه حار 🔥🔥 والميل بـ 300 جنيه' },
+      { from: 'كريم', text: 'عندكم برجر بالبيكون؟', reply: 'أيوه، Chipotle Bacon بـ 260 جنيه' },
+      { from: 'سارة', text: 'فين الفرع؟', reply: 'Fyves Mall، وصلة دهشور' },
+      { from: 'عمر', text: 'بتوصلوا زايد؟', reply: 'أيوه، ابعتلي موقعك 📍' },
+    ],
+    ticket: { head: 'TAKEAWAY', lines: [['2× Signature Double', '490'], ['1× Classic Fries', '70'], ['1× Drink', '30']], total: 'EGP 590' },
+    customers: [
+      { name: 'أحمد', phone: '010•••4437', fav: 'Signature دبل', tag: 'راجع' },
+      { name: 'منة', phone: '011•••2210', fav: 'Nashville Tenders', tag: 'جديد' },
+      { name: 'كريم', phone: '012•••8842', fav: 'Truffle Burger', tag: 'راجع' },
+    ],
+  },
   monster: {
     name: 'Monster Burger', avatar: 'outreach-research/mo-logo2.jpg', logo: 'outreach-research/mo-logo-big.jpg', food: 'outreach-research/mo-food.jpg',
     page: '#141110', ink: '#F5EFE7', accent: '#F39A1E', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(243,154,30,0.30), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(190,40,30,0.22), transparent 70%)', flipLogo: true,
