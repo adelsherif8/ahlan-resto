@@ -16,7 +16,7 @@ const MONO = 'PlexMono';
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
 export type LifeData = {
-  name: string; avatar: string; logo: string;
+  name: string; avatar: string; logo: string; food: string;
   page: string; ink: string; accent: string;
   hook: string; pressure: string; lost: string; flip: string; answered: string; ticketLine: string; ownLine: string; payoff: string;
   messages: { from: string; text: string; reply: string }[];
@@ -27,7 +27,7 @@ export type LifeData = {
 export const LIFE: Record<string, LifeData> = {
   // menu: menuegypt.com, updated 2025-07-28. 2×170 + 45 + 22 = 407. Customers are fictional.
   square: {
-    name: 'Square Burger', avatar: 'outreach-research/sq-avatar.jpg', logo: 'outreach-research/sq-logo-crop.jpg',
+    name: 'Square Burger', avatar: 'outreach-research/sq-avatar.jpg', logo: 'outreach-research/sq-logo-crop.jpg', food: 'outreach-research/sq-food.jpg',
     page: '#E9D4B5', ink: '#141110', accent: '#D8402B',
     hook: '9:12 بالليل.\nإيدك في الجريل.', pressure: 'والتليفون مبيبطلش.',
     lost: 'واحد منهم مستناش.\nطلب من حد تاني.', flip: 'نفس الليلة.\nمع مُنادم.',
@@ -51,6 +51,32 @@ export const LIFE: Record<string, LifeData> = {
 
 const T = { hook: 0, press: 72, lost: 215, flip: 295, ans: 345, ticket: 520, own: 625, end: 735 };
 export const lifeLength = () => T.end + 110;
+
+/* sparks off the grill: seeded, so every render is identical */
+const Embers: React.FC<{ f: number }> = ({ f }) => (
+  <AbsoluteFill style={{ overflow: 'hidden' }}>
+    {Array.from({ length: 34 }, (_, i) => {
+      const seed = (i * 7919) % 1000 / 1000, seed2 = (i * 104729) % 1000 / 1000;
+      const speed = 3.2 + seed * 5.5, life = 1000 + seed2 * 500;
+      const y = 1960 - ((f * speed + seed2 * life) % life);
+      const x = seed * 1080 + Math.sin((f + i * 13) / (14 + seed * 18)) * 42;
+      const size = 4 + seed2 * 9;
+      const fade = Math.max(0, (y - 700) / 1200);
+      return <div key={i} style={{ position: 'absolute', left: x, top: y, width: size, height: size, borderRadius: 99, background: seed > 0.5 ? '#FFB347' : '#FF6A2B', opacity: fade * (0.55 + 0.45 * Math.sin(f / 3 + i)), boxShadow: `0 0 ${size * 2.6}px ${size * 0.7}px rgba(255,120,40,${0.55 * fade})` }} />;
+    })}
+  </AbsoluteFill>
+);
+
+/* their own sandwich photo, rising under the two sparse beats */
+const FoodBand: React.FC<{ src: string; f: number; o: number; page: string }> = ({ src, f, o, page }) => {
+  const a = interpolate(f, [0, 16], [0, 1], clamp);
+  return (
+    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 500, overflow: 'hidden', opacity: o, transform: `translateY(${(1 - a) * 80}px)` }}>
+      <Img src={staticFile(src)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '30% 60%', transform: `scale(${1.06 + f * 0.0006})` }} />
+      <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(to bottom, ${page} 0%, transparent 34%)` }} />
+    </div>
+  );
+};
 
 const Big: React.FC<{ text: string; f: number; color: string; size?: number; font?: string }> = ({ text, f, color, size = 112, font = AR }) => {
   const a = interpolate(f, [0, 10], [0, 1], clamp);
@@ -91,6 +117,8 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
       {/* ── tonight: dark, grill glow from below ── */}
       <AbsoluteFill style={{ background: `radial-gradient(120% 55% at 50% 108%, rgba(232,90,30,${0.62 * flick}), rgba(20,17,16,0) 70%)` }} />
 
+      {f < T.flip && <Embers f={f} />}
+
       {f < T.press && <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: out(T.press) }}><Big text={d.hook} f={f + 10} color={C.semna} size={140} /></AbsoluteFill>}
 
       {f >= T.press && f < T.lost && (
@@ -112,7 +140,7 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
       )}
 
       {/* ── same night: their own colours wipe in ── */}
-      {f >= T.flip - 8 && f < T.end + 20 && (
+      {f >= T.flip - 8 && f < T.end + 2 && (
         <AbsoluteFill style={{ background: d.page, opacity: wipe / 100 }}>
           <AbsoluteFill style={{ background: 'radial-gradient(120% 70% at 50% 0%, rgba(255,245,225,0.6), transparent 65%), radial-gradient(120% 60% at 50% 100%, rgba(120,84,44,0.18), transparent 70%)' }} />
           {f < T.ans && <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: out(T.ans) }}><Big text={d.flip} f={f - T.flip} color={d.ink} size={140} /></AbsoluteFill>}
@@ -131,11 +159,12 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
             </AbsoluteFill>
           )}
 
+          {f >= T.ticket && f < T.end && <FoodBand src={d.food} f={f - T.ticket} o={out(T.end)} page={d.page} />}
           {f >= T.ticket && f < T.own && (
             <AbsoluteFill style={{ padding: '200px 50px 0', alignItems: 'center', opacity: out(T.own) }}>
               <Big text={d.ticketLine} f={f - T.ticket} color={d.ink} size={92} font={UI} />
-              <div style={{ marginTop: 56, width: 940, overflow: 'hidden', height: interpolate(f, [T.ticket, T.ticket + 26], [120, 860], clamp), borderRadius: '0 0 14px 14px', boxShadow: '0 30px 60px -24px rgba(0,0,0,0.5)' }}>
-                <div style={{ background: '#FFFDF7', padding: '56px 60px', fontFamily: MONO, color: '#141110', fontSize: 38, lineHeight: 1.7, height: 860, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ marginTop: 56, width: 940, overflow: 'hidden', height: interpolate(f, [T.ticket, T.ticket + 26], [120, 700], clamp), borderRadius: '0 0 14px 14px', boxShadow: '0 30px 60px -24px rgba(0,0,0,0.5)' }}>
+                <div style={{ background: '#FFFDF7', padding: '44px 60px', fontFamily: MONO, color: '#141110', fontSize: 38, lineHeight: 1.7, height: 700, display: 'flex', flexDirection: 'column' }}>
                   <div style={{ textAlign: 'center', fontWeight: 500, fontSize: 64 }}>{d.name}</div>
                   <div style={{ textAlign: 'center', fontSize: 40, marginBottom: 24 }}>{d.ticket.head} · O-7K3M</div>
                   <div style={{ borderTop: '3px dashed #999', margin: '6px 0 20px' }} />
@@ -166,7 +195,7 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
               </div>
             </AbsoluteFill>
           )}
-          <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 70, bottom: 52, width: 128, borderRadius: 14 }} />
+          <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 56, bottom: 44, width: 132, borderRadius: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.3)', opacity: out(T.end) }} />
         </AbsoluteFill>
       )}
 
