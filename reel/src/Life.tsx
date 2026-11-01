@@ -188,6 +188,29 @@ export const LIFE: Record<string, LifeData> = {
       { name: 'كريم', phone: '012•••8842', fav: 'Zeus Fries', tag: 'راجع' },
     ],
   },
+  // Cloud kitchen, founder Mike Nabil. Menu and delivery areas: SceneEats, 2025-02-16 ("no counter,
+  // no neon sign, no door"). No prices published: none shown. Customers are fictional.
+  mikes: {
+    name: "Mike's Burger", avatar: 'outreach-research/mi-logo.jpg', logo: 'outreach-research/mi-logo-big.jpg', food: 'outreach-research/mi-food.jpg',
+    page: '#FFFCF8', ink: '#1E1412', accent: '#D0202C', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(208,32,44,0.08), transparent 70%)', flipLogo: true,
+    hook: 'مفيش باب.\nمفيش كاونتر.', pressure: 'التليفون هو المحل.',
+    lost: 'واحد منهم مستناش.\nطلب من حد تاني.', flip: 'نفس الليلة.\nمع مُنادم.',
+    answered: 'كلهم اترد عليهم.\nوإنت لسه على الجريل.', ticketLine: 'الأوردر بيوصلك جاهز.',
+    ownLine: 'وآخر الليلة؟\nأرقامهم عندك.', payoff: 'مفيش باب…\nبس زباينك عارفين يوصلولك.',
+    messages: [
+      { from: 'أحمد', text: 'عايز 2 Classic دبل', reply: 'تمام 👌 تحب معاهم إيه؟' },
+      { from: 'منة', text: 'عندكم Truffle Burger؟', reply: 'أيوه 🍔 تحبيه دبل ولا تريبل؟' },
+      { from: 'كريم', text: 'في ساندوتشات فراخ؟', reply: 'أيوه، وكمان ناتشوز' },
+      { from: 'سارة', text: 'بتوصلوا مصر الجديدة؟', reply: 'أيوه، ابعتيلي موقعك 📍' },
+      { from: 'عمر', text: 'بتوصلوا مدينة نصر؟', reply: 'أيوه، ابعتلي موقعك 📍' },
+    ],
+    ticket: { head: 'DELIVERY', lines: [['2× Classic Double', ''], ['1× Truffle Burger', ''], ['1× Nachos', '']], total: '' },
+    customers: [
+      { name: 'أحمد', phone: '010•••4437', fav: 'Classic دبل', tag: 'راجع' },
+      { name: 'منة', phone: '011•••2210', fav: 'Truffle Burger', tag: 'جديد' },
+      { name: 'كريم', phone: '012•••8842', fav: 'ساندوتش فراخ', tag: 'راجع' },
+    ],
+  },
   monster: {
     name: 'Monster Burger', avatar: 'outreach-research/mo-logo2.jpg', logo: 'outreach-research/mo-logo-big.jpg', food: 'outreach-research/mo-food.jpg',
     page: '#141110', ink: '#F5EFE7', accent: '#F39A1E', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(243,154,30,0.30), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(190,40,30,0.22), transparent 70%)', flipLogo: true,
@@ -360,7 +383,7 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
               </div>
             </AbsoluteFill>
           )}
-          {d.logo && <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 56, bottom: 44, width: 132, borderRadius: 14, boxShadow: d.flipLogo ? 'none' : '0 8px 24px rgba(0,0,0,0.3)', mixBlendMode: onDark ? 'lighten' : d.flipLogo ? 'multiply' : 'normal', opacity: d.flipLogo && f >= T.ticket ? 0 : out(T.end) }} />}
+          {d.logo && <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 56, bottom: 44, width: 132, borderRadius: 14, boxShadow: d.flipLogo ? 'none' : '0 8px 24px rgba(0,0,0,0.3)', mixBlendMode: onDark ? 'lighten' : d.flipLogo ? 'multiply' : 'normal', opacity: d.flipLogo && (f < T.ans || f >= T.ticket) ? 0 : out(T.end) }} />}
         </AbsoluteFill>
       )}
 
