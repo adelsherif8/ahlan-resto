@@ -49,6 +49,29 @@ export const LIFE: Record<string, LifeData> = {
   },
   // menu: menuegypt.com, updated 2023-03-10, so prices are too old to show: this one has none.
   // Items and ingredients are from that menu; delivery to Nasr City per their Instagram. Customers are fictional.
+  // Talabat best sellers (Chicken Biriyani Rice, Chicken Samosa Set, Semolina Cake, Parotta) plus
+  // Butter Chicken and Chicken Curry; address from their Facebook page. No prices published: none shown.
+  charminar: {
+    name: 'Charminar', avatar: 'outreach-research/ch-logo.jpg', logo: 'outreach-research/ch-logo-big.jpg', food: 'outreach-research/ch-food.jpg',
+    page: '#F4E7CF', ink: '#3F0F22', accent: '#7B1E3A', glow: 'radial-gradient(110% 55% at 50% 0%, rgba(201,155,62,0.28), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(123,30,58,0.12), transparent 70%)', flipLogo: true,
+    hook: '9:12 بالليل.\nوالمطبخ مولّع.', pressure: 'والتليفون مبيبطلش.',
+    lost: 'واحد منهم مستناش.\nطلب من حد تاني.', flip: 'نفس الليلة.\nمع مُنادم.',
+    answered: 'كلهم اترد عليهم.\nوإنت لسه في المطبخ.', ticketLine: 'الأوردر بيوصلك جاهز.',
+    ownLine: 'وآخر الليلة؟\nأرقامهم عندك.', payoff: 'المطبخ شغال…\nوزباينك معاك.',
+    messages: [
+      { from: 'أحمد', text: 'عايز 2 برياني فراخ', reply: 'تمام 👌 تحب معاهم باروتا؟' },
+      { from: 'منة', text: 'عندكم بتر تشيكن؟', reply: 'أيوه، وكمان تشيكن كاري 🍛' },
+      { from: 'كريم', text: 'مكانكم فين؟', reply: 'شارع طه الديناري، الحي السابع' },
+      { from: 'سارة', text: 'في حاجة حلوة؟', reply: 'في كيكة السميد 🍰' },
+      { from: 'عمر', text: 'في سمبوسة؟', reply: 'أيوه، طقم سمبوسة فراخ' },
+    ],
+    ticket: { head: 'TAKEAWAY', lines: [['2× Chicken Biryani', ''], ['1× Butter Chicken', ''], ['1× Parotta', '']], total: '' },
+    customers: [
+      { name: 'أحمد', phone: '010•••4437', fav: 'برياني فراخ', tag: 'راجع' },
+      { name: 'منة', phone: '011•••2210', fav: 'بتر تشيكن', tag: 'جديد' },
+      { name: 'كريم', phone: '012•••8842', fav: 'تشيكن كاري', tag: 'راجع' },
+    ],
+  },
   monster: {
     name: 'Monster Burger', avatar: 'outreach-research/mo-logo2.jpg', logo: 'outreach-research/mo-logo-big.jpg', food: 'outreach-research/mo-food.jpg',
     page: '#141110', ink: '#F5EFE7', accent: '#F39A1E', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(243,154,30,0.30), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(190,40,30,0.22), transparent 70%)', flipLogo: true,
@@ -133,7 +156,7 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
   const unread = Math.min(99, 3 + Math.max(0, Math.floor((f - T.press) / 9)));
   const out = (end: number) => interpolate(f, [end - 8, end], [1, 0], clamp);
   const label = `مثال توضيحي — ليلة في ${d.name}`;
-  const onDark = d.ink !== '#141110';
+  const onDark = d.page === '#141110';
   return (
     <AbsoluteFill style={{ background: C.ink, fontFamily: UI }}>
       <Audio src={staticFile('sfx/bed.wav')} volume={2.6} />
@@ -167,7 +190,7 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
       {f >= T.flip - 8 && f < T.end + 2 && (
         <AbsoluteFill style={{ background: d.page, opacity: wipe / 100 }}>
           <AbsoluteFill style={{ background: d.glow ?? 'radial-gradient(120% 70% at 50% 0%, rgba(255,245,225,0.6), transparent 65%), radial-gradient(120% 60% at 50% 100%, rgba(120,84,44,0.18), transparent 70%)' }} />
-          {f < T.ans && <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: out(T.ans) }}>{d.flipLogo && <Img src={staticFile(d.logo)} style={{ width: 420, marginBottom: 50, mixBlendMode: 'lighten' }} />}<Big text={d.flip} f={f - T.flip} color={d.ink} size={140} /></AbsoluteFill>}
+          {f < T.ans && <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: out(T.ans) }}>{d.flipLogo && <Img src={staticFile(d.logo)} style={{ width: 420, marginBottom: 50, mixBlendMode: onDark ? 'lighten' : 'multiply' }} />}<Big text={d.flip} f={f - T.flip} color={d.ink} size={140} /></AbsoluteFill>}
 
           {f >= T.ans && f < T.ticket && (
             <AbsoluteFill style={{ padding: '160px 56px 0', opacity: out(T.ticket) }}>
@@ -221,7 +244,7 @@ export const Life: React.FC<{ who?: string }> = ({ who = 'square' }) => {
               </div>
             </AbsoluteFill>
           )}
-          <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 56, bottom: 44, width: 132, borderRadius: 14, boxShadow: onDark ? 'none' : '0 8px 24px rgba(0,0,0,0.3)', mixBlendMode: onDark ? 'lighten' : 'normal', opacity: onDark && f >= T.ticket ? 0 : out(T.end) }} />
+          <Img src={staticFile(d.logo)} style={{ position: 'absolute', right: 56, bottom: 44, width: 132, borderRadius: 14, boxShadow: d.flipLogo ? 'none' : '0 8px 24px rgba(0,0,0,0.3)', mixBlendMode: onDark ? 'lighten' : d.flipLogo ? 'multiply' : 'normal', opacity: d.flipLogo && f >= T.ticket ? 0 : out(T.end) }} />
         </AbsoluteFill>
       )}
 
