@@ -165,6 +165,29 @@ export const LIFE: Record<string, LifeData> = {
       { name: 'كريم', phone: '012•••8842', fav: 'كومبو 3', tag: 'راجع' },
     ],
   },
+  // menu: menuegypt.com/shawermakis, updated 2025-02-11: too old to show prices, so none. Items,
+  // ingredients and the Marghani Street address are from that menu. Customers are fictional.
+  shawermakis: {
+    name: 'Shawermakis', avatar: 'outreach-research/sh-logo.jpg', logo: 'outreach-research/sh-logo.jpg', food: 'outreach-research/sh-food.jpg',
+    page: '#F7F8FC', ink: '#1F3F8F', accent: '#C2185B', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(31,63,143,0.10), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(194,24,91,0.07), transparent 70%)', flipLogo: true,
+    hook: '9:12 بالليل.\nوالشاورما على السيخ.', pressure: 'والتليفون مبيبطلش.',
+    lost: 'واحد منهم مستناش.\nطلب من حد تاني.', flip: 'نفس الليلة.\nمع مُنادم.',
+    answered: 'كلهم اترد عليهم.\nوإنت لسه على السيخ.', ticketLine: 'الأوردر بيوصلك جاهز.',
+    ownLine: 'وآخر الليلة؟\nأرقامهم عندك.', payoff: 'السيخ شغال…\nوزباينك معاك.',
+    messages: [
+      { from: 'أحمد', text: 'عايز بوكس 6 كايزر', reply: 'تمام 👌 تحب معاه إيه؟' },
+      { from: 'منة', text: 'الكايزيكي فيه إيه؟', reply: 'شاورما، سلطة، تزاتزيكي، وبطاطس' },
+      { from: 'كريم', text: 'الـ Zeus Fries بفراخ؟', reply: 'أيوه، فراخ مشوية وتزاتزيكي' },
+      { from: 'سارة', text: 'عندكم حلو؟', reply: 'في Kunafakis، عصيان كنافة 😋' },
+      { from: 'عمر', text: 'فين المحل؟', reply: 'شارع الميرغني، جنب البنك العربي الدولي' },
+    ],
+    ticket: { head: 'DELIVERY', lines: [['1× Kaizer Box of 6', ''], ['1× Zeus Fries Chicken', ''], ['1× Kunafakis', '']], total: '' },
+    customers: [
+      { name: 'أحمد', phone: '010•••4437', fav: 'كايزر', tag: 'راجع' },
+      { name: 'منة', phone: '011•••2210', fav: 'كايزيكي فراخ', tag: 'جديد' },
+      { name: 'كريم', phone: '012•••8842', fav: 'Zeus Fries', tag: 'راجع' },
+    ],
+  },
   monster: {
     name: 'Monster Burger', avatar: 'outreach-research/mo-logo2.jpg', logo: 'outreach-research/mo-logo-big.jpg', food: 'outreach-research/mo-food.jpg',
     page: '#141110', ink: '#F5EFE7', accent: '#F39A1E', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(243,154,30,0.30), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(190,40,30,0.22), transparent 70%)', flipLogo: true,
