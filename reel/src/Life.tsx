@@ -119,6 +119,29 @@ export const LIFE: Record<string, LifeData> = {
       { name: 'كريم', phone: '012•••8842', fav: 'Truffle Burger', tag: 'راجع' },
     ],
   },
+  // Talabat best sellers (Bruschetta, Calamari, Margherita, Con Frutti Di Mare), Instagram/Facebook for
+  // restaurant & bakery in Degla, Maadi. No prices found: none shown. Customers are fictional.
+  capricci: {
+    name: 'Capricci', avatar: 'outreach-research/ca-logo.png', logo: 'outreach-research/ca-logo-big.jpg', food: 'outreach-research/ca-food.jpg',
+    page: '#FBF5EA', ink: '#2A1216', accent: '#A8173A', glow: 'radial-gradient(110% 55% at 50% 0%, rgba(168,23,58,0.10), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(168,23,58,0.08), transparent 70%)', flipLogo: true,
+    hook: '9:12 بالليل.\nوالفرن شغال.', pressure: 'والتليفون مبيبطلش.',
+    lost: 'واحد منهم مستناش.\nطلب من حد تاني.', flip: 'نفس الليلة.\nمع مُنادم.',
+    answered: 'كلهم اترد عليهم.\nوإنت لسه قدام الفرن.', ticketLine: 'الأوردر بيوصلك جاهز.',
+    ownLine: 'وآخر الليلة؟\nأرقامهم عندك.', payoff: 'الفرن شغال…\nوزباينك معاك.',
+    messages: [
+      { from: 'أحمد', text: 'عايز 2 بيتزا مارجريتا', reply: 'تمام 👌 تحب معاهم إيه؟' },
+      { from: 'منة', text: 'عندكم بيتزا سي فود؟', reply: 'أيوه، Con Frutti Di Mare 🍕' },
+      { from: 'كريم', text: 'مكانكم فين؟', reply: 'في دجلة، المعادي' },
+      { from: 'سارة', text: 'عندكم مخبوزات؟', reply: 'أيوه، إحنا مطعم ومخبز 🥖' },
+      { from: 'عمر', text: 'في مقبلات؟', reply: 'في بروشيتا وكاليماري' },
+    ],
+    ticket: { head: 'TAKEAWAY', lines: [['2× Margherita Pizza', ''], ['1× Bruschetta', ''], ['1× Calamari', '']], total: '' },
+    customers: [
+      { name: 'أحمد', phone: '010•••4437', fav: 'مارجريتا', tag: 'راجع' },
+      { name: 'منة', phone: '011•••2210', fav: 'Con Frutti Di Mare', tag: 'جديد' },
+      { name: 'كريم', phone: '012•••8842', fav: 'بروشيتا', tag: 'راجع' },
+    ],
+  },
   monster: {
     name: 'Monster Burger', avatar: 'outreach-research/mo-logo2.jpg', logo: 'outreach-research/mo-logo-big.jpg', food: 'outreach-research/mo-food.jpg',
     page: '#141110', ink: '#F5EFE7', accent: '#F39A1E', glow: 'radial-gradient(110% 50% at 50% 0%, rgba(243,154,30,0.30), transparent 70%), radial-gradient(110% 40% at 50% 100%, rgba(190,40,30,0.22), transparent 70%)', flipLogo: true,
