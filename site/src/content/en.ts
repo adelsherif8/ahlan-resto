@@ -10,7 +10,7 @@ import { WA_NUMBER_DISPLAY, DEMO_RESTAURANT_AR, DEMO_LABEL_EN } from '../lib/con
  */
 export const en: SiteContent = {
   meta: {
-    title: "Munadim — Your restaurant's direct ordering channel",
+    title: "Munadim — WhatsApp ordering system for restaurants in Egypt, no commission",
     description:
       "Guests order on WhatsApp in Arabic, Franco or English — delivery, pickup and dine-in. Every order leaves you the customer's number and their order history.",
   },

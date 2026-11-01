@@ -10,9 +10,15 @@ interface Props {
   path?: string;
   /** Fonts to preload (above-the-fold faces only). */
   preloadFonts?: string[];
+  /** schema.org objects, one JSON-LD block each. */
+  schema?: object[];
+  /** Page exists in Arabic only: no hreflang pair pointing at a missing English page. */
+  arOnly?: boolean;
+  /** Keep out of search results (internal pages). */
+  noindex?: boolean;
 }
 
-const { lang, title, description, path = '', preloadFonts = [] } = Astro.props;
+const { lang, title, description, path = '', preloadFonts = [], schema = [], arOnly = false, noindex = false } = Astro.props;
 const dir = lang === 'ar' ? 'rtl' : 'ltr';
 const site = 'https://munadim.com';
 ---
@@ -27,9 +33,11 @@ const site = 'https://munadim.com';
 
     <link rel="icon" type="image/svg+xml" href="/brand/08-favicon.svg" />
     <link rel="canonical" href={`${site}/${lang}${path}`} />
-    <link rel="alternate" hreflang="ar" href={`${site}/ar${path}`} />
-    <link rel="alternate" hreflang="en" href={`${site}/en${path}`} />
-    <link rel="alternate" hreflang="x-default" href={`${site}/ar${path}`} />
+    {!arOnly && <link rel="alternate" hreflang="ar" href={`${site}/ar${path}`} />}
+    {!arOnly && <link rel="alternate" hreflang="en" href={`${site}/en${path}`} />}
+    {!arOnly && <link rel="alternate" hreflang="x-default" href={`${site}/ar${path}`} />}
+    {noindex && <meta name="robots" content="noindex" />}
+    {schema.map((o) => <script type="application/ld+json" set:html={JSON.stringify(o)} />)}
 
     {preloadFonts.map((f) => (
       <link rel="preload" href={`/fonts/${f}`} as="font" type="font/woff2" crossorigin />

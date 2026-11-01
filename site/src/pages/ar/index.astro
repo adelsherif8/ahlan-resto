@@ -13,12 +13,14 @@ import Objections from '../../components/ObjectionsSticky.astro';
 import Closing from '../../components/ClosingChat.astro';
 import Footer from '../../components/FooterGiant.astro';
 import { ar as t } from '../../content/ar';
+import { organization, software, faq } from '../../lib/schema';
 ---
 
 <Base
   lang="ar"
   title={t.meta.title}
   description={t.meta.description}
+  schema={[organization(), software(t, 'ar'), faq(t.objections.items)]}
   preloadFonts={[
     'amiri-v30-arabic-700.woff2',
     'ibm-plex-sans-arabic-v15-arabic_latin-regular.woff2',

@@ -3,6 +3,7 @@
     the closing image, legal bar below. MUNADIM in brass across the page. */
 import type { SiteContent } from '../content/types';
 import { CONTACT_EMAIL } from '../lib/const';
+import { guides } from '../content/guides';
 
 interface Props { t: SiteContent; lang: 'ar' | 'en' }
 const { t, lang } = Astro.props;
@@ -23,6 +24,13 @@ const { t, lang } = Astro.props;
             </li>
           ))}
         </ul>
+        {lang === 'ar' && (
+          <ul class="space-y-1.5">
+            {guides.map((g) => (
+              <li><a href={`/ar/${g.slug}`} class="flex min-h-[44px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light">{g.h1}</a></li>
+            ))}
+          </ul>
+        )}
         <ul class="space-y-1.5">
           <li>
             <a href={`mailto:${CONTACT_EMAIL}`} class="flex min-h-[44px] items-center text-[0.95rem] text-semna/75 hover:text-brass-light" dir="ltr">{CONTACT_EMAIL}</a>

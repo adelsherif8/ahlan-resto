@@ -1,0 +1,53 @@
+---
+/** Search-intent pages. Content lives in content/guides.ts; Arabic only. */
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/HeaderPill.astro';
+import Footer from '../../components/FooterGiant.astro';
+import { ar } from '../../content/ar';
+import { guides, type Guide } from '../../content/guides';
+import { organization, faq as faqSchema } from '../../lib/schema';
+import { WA_LINK } from '../../lib/const';
+
+export function getStaticPaths() {
+  return guides.map((g) => ({ params: { slug: g.slug }, props: { g } }));
+}
+const { g } = Astro.props as { g: Guide };
+// the shared header and footer link to homepage anchors, which don't exist on this page
+const t = { ...ar, nav: { ...ar.nav, links: ar.nav.links.map((l) => ({ ...l, href: `/ar${l.href}` })) } };
+const others = guides.filter((x) => x.slug !== g.slug);
+const article = {
+  '@context': 'https://schema.org', '@type': 'Article', headline: g.h1, description: g.description,
+  inLanguage: 'ar', url: `https://munadim.com/ar/${g.slug}`, author: { '@type': 'Organization', name: 'Munadim' },
+};
+---
+
+<Base lang="ar" title={g.title} description={g.description} path={`/${g.slug}`} arOnly schema={[organization(), article, faqSchema(g.faq)]}>
+  <Header t={t} lang="ar" />
+  <main class="mx-auto max-w-5xl px-5 py-16">
+    <article class="max-w-[var(--measure)]">
+      <h1 class="text-[2rem] leading-snug">{g.h1}</h1>
+      <p class="mt-5 text-[1.15rem]">{g.intro}</p>
+      {g.sections.map((s) => (
+        <section>
+          <h2 class="mt-10 text-[1.35rem]">{s.h2}</h2>
+          {s.paras?.map((p) => <p class="mt-3">{p}</p>)}
+          {s.bullets && <ul class="mt-3 list-disc space-y-2 pe-1 ps-5">{s.bullets.map((b) => <li>{b}</li>)}</ul>}
+        </section>
+      ))}
+      <section>
+        <h2 class="mt-10 text-[1.35rem]">أسئلة بتتسأل</h2>
+        {g.faq.map((f) => (
+          <div class="mt-5"><h3 class="text-[1.05rem] font-semibold">{f.q}</h3><p class="mt-1">{f.a}</p></div>
+        ))}
+      </section>
+      <a href={WA_LINK} class="mt-10 inline-flex min-h-[44px] items-center justify-center rounded-full bg-karkadeh px-6 font-semibold text-semna hover:bg-[#741727]">وريني أوردر بيدخل</a>
+      <nav class="mt-12 border-t border-ink/10 pt-6">
+        <p class="font-semibold">اقرأ كمان</p>
+        <ul class="mt-2 space-y-1">
+          {others.map((o) => <li><a href={`/ar/${o.slug}`} class="flex min-h-[44px] items-center text-karkadeh underline">{o.h1}</a></li>)}
+        </ul>
+      </nav>
+    </article>
+  </main>
+  <Footer t={t} lang="ar" />
+</Base>

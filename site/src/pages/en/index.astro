@@ -13,12 +13,14 @@ import Objections from '../../components/ObjectionsSticky.astro';
 import Closing from '../../components/ClosingChat.astro';
 import Footer from '../../components/FooterGiant.astro';
 import { en as t } from '../../content/en';
+import { organization, software, faq } from '../../lib/schema';
 ---
 
 <Base
   lang="en"
   title={t.meta.title}
   description={t.meta.description}
+  schema={[organization(), software(t, 'en'), faq(t.objections.items)]}
   preloadFonts={[
     'cinzel-v26-latin-600.woff2',
     'ibm-plex-sans-arabic-v15-arabic_latin-regular.woff2',
