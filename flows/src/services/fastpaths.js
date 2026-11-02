@@ -66,6 +66,75 @@ const COMPOUND_PAT = /(\?[^?]*\?)|(?<![\p{L}\p{N}])(and|also|plus|kaman|كمان
 // full deterministic listing — every dish, price, flags. Zero LLM, zero teasing.
 import { getMenu } from "./menucache.js";
 import { resolveLanguage } from "./langstate.js";
+import { looksFranco } from "./franco.js";
+
+// "DO YOU HAVE DESSERTS?" FOR A CATEGORY WE DON'T SELL — code answers, never the model.
+// The host (any model) tends to deflect on this one: "let me pull up the menu", "the full
+// menu will be in my next message", "I don't have the dessert menu in front of me"
+// (gpt-6.1-terra, regression `desserts`, 2 Nov). The menu is data; whether a category is
+// on it is a lookup, so the honest "we don't have X — here it's A, B and C" is built here.
+const CATEGORY_WORDS = [
+  // whole words only, and "sweet" (the adjective: sweet pickles, sweet sauce) is not a category
+  { key: "desserts", re: /(?<![\p{L}])(desserts?|sweets|cakes?|brownies?|ice ?cream|حلو(يات|يه|ية)|حلويات|كيك|ايس ?كريم|آيس ?كريم|7alawiyat|7elw|7alw)(?![\p{L}])/iu, en: "desserts", ar: "حلويات", fr: "desserts" },
+  { key: "soup", re: /soups?|شوربة|شوربه|شوربات|shorba|shourba/iu, en: "soup", ar: "شوربة", fr: "shorba" },
+  { key: "salad", re: /salads?|سلطة|سلطه|سلطات|salata|salat/iu, en: "salads", ar: "سلطات", fr: "salads" },
+  { key: "breakfast", re: /breakfast|brunch|فطار|فطور|fetar|ftar|fotoor/iu, en: "breakfast", ar: "فطار", fr: "fetar" },
+  { key: "pizza", re: /pizzas?|بيتزا/iu, en: "pizza", ar: "بيتزا", fr: "pizza" },
+  { key: "pasta", re: /pasta|spaghetti|مكرونة|مكرونه|باستا|makarona|macarona/iu, en: "pasta", ar: "مكرونة", fr: "pasta" },
+  { key: "seafood", re: /(?<![\p{L}])(sea ?food|fish|shrimps?|prawns?|calamari|سمك|جمبري|جمبرى|سي ?فود|samak|gambari|gambary)(?![\p{L}])/iu, en: "seafood", ar: "سي فود", fr: "seafood" },
+  { key: "sushi", re: /sushi|سوشي|سوشى/iu, en: "sushi", ar: "سوشي", fr: "sushi" },
+  { key: "koshary", re: /koshar[iy]|kushar[iy]|كشري|كشرى/iu, en: "koshary", ar: "كشري", fr: "koshary" },
+  { key: "shawarma", re: /shawerma|shawarma|شاورما/iu, en: "shawarma", ar: "شاورما", fr: "shawerma" },
+  { key: "grill", re: /grills?|mixed grill|kebab|kofta|مشويات|مشوي|كباب|كفتة|كفته|mashwiyat|mashwy/iu, en: "grills", ar: "مشويات", fr: "mashwiyat" },
+  { key: "shisha", re: /shisha|hookah|شيشة|شيشه|sheesha/iu, en: "shisha", ar: "شيشة", fr: "shisha" },
+  { key: "alcohol", re: /beer|wine|alcohol|cocktails?|بيرة|بيره|نبيت|خمر|كحول/iu, en: "alcohol", ar: "كحوليات", fr: "alcohol" },
+  { key: "coffee", re: /coffee|espresso|latte|cappuccino|قهوة|قهوه|كابتشينو|لاتيه|2ahwa|ahwa|2hwa/iu, en: "coffee", ar: "قهوة", fr: "2ahwa" },
+  { key: "juice", re: /juices?|smoothies?|عصير|عصاير|عصائر|3aseer|3asir|3asayer/iu, en: "juices", ar: "عصاير", fr: "3asayer" },
+  { key: "shake", re: /(?<![\p{L}])(milk ?shakes?|shakes?|ميلك ?شيك|شيك)(?![\p{L}])/iu, en: "milkshakes", ar: "ميلك شيك", fr: "milkshakes" },
+  { key: "kids", re: /kids'? ?(meal|menu|box)|children'?s? (meal|menu)|وجبة اطفال|وجبه اطفال|وجبة أطفال|منيو اطفال|منيو أطفال|kids/iu, en: "a kids' menu", ar: "منيو أطفال", fr: "kids menu" },
+  { key: "vegan", re: /vegan|vegetarian|veggie|plant[- ]based|نباتي|نباتى|نباتية/iu, en: "vegan or vegetarian dishes", ar: "أكل نباتي", fr: "vegan" },
+  { key: "fries", re: /(?<![\p{L}])(fries|chips|بطاطس|بطاطا|batates|batata)(?![\p{L}])/iu, en: "fries", ar: "بطاطس", fr: "fries" },
+  { key: "chicken", re: /(?<![\p{L}])(chicken|فراخ|دجاج|fera5|ferakh|frakh)(?![\p{L}])/iu, en: "chicken", ar: "فراخ", fr: "ferakh" },
+  { key: "burger", re: /(?<![\p{L}])(burgers?|برجر|برغر|borgar)(?![\p{L}])/iu, en: "burgers", ar: "برجر", fr: "burgers" },
+];
+// the ask shape: "do you have X", "got any X", "fi X?", "3andoko X", «عندكم X», «في X؟», or just "X?"
+const HAVE_ASK = /(?<![\p{L}])(do (you|u) (have|sell|do|serve)|got any|any|is there|are there|fi+|feeh|fee|3andoko?m?|3andak|3andek|3ndko|عندكم|عندكو|عندك|عندكوا|في|فيه|فى|هل (عندكم|في|فيه)|بتعملوا|بتبيعوا)(?![\p{L}])/iu;
+
+export function missingCategoryReply(message, items, config = {}, sticky = null) {
+  const msg = String(message || "").trim();
+  if (!msg || msg.length > 80) return null;
+  if (COMPOUND_PAT.test(msg)) return null; // two questions — the host answers both
+  if (!HAVE_ASK.test(msg) && !/[?؟]\s*$/.test(msg)) return null;
+  const hit = CATEGORY_WORDS.find((c) => c.re.test(msg));
+  if (!hit) return null;
+  // one more word than the category itself is fine ("extra spicy koshary level 5" is not —
+  // that is an order attempt, and the order flow says what it cannot place)
+  const live = (items || []).filter((m) => m.available !== false);
+  // what a dish IS CALLED and where it SITS decide; its ingredients do not ("sweet sauce",
+  // "chicken stock" in a beef burger's description must not make desserts or chicken exist)
+  const hay = (m) => `${m.name || ""} ${m.name_ar || ""} ${m.category || ""} ${m.category_ar || ""}`;
+  // sold out today ≠ not sold: an unavailable dish still proves the category exists here,
+  // and the host explains "off today" — only a category with NO dish at all is answered
+  if ((items || []).some((m) => hit.re.test(hay(m)))) return null;
+  const cats = orderedCategories(live, config || {});
+  const isAr = /[\u0600-\u06FF]/.test(msg) || (sticky === "ar" && !/[a-z]{3,}/i.test(msg));
+  const isFr = !isAr && (looksFranco(msg) || sticky === "franco");
+  const catNames = (ar) => cats.slice(0, 3).map((c) => (ar && c.name_ar) ? c.name_ar : c.name).join(ar ? "، " : ", ");
+  const reply = isAr
+    ? `مفيش ${hit.ar} عندنا — إحنا ${catNames(true)} 🍔 تحب تشوف المنيو؟`
+    : isFr
+      ? `Mafeesh ${hit.fr} 3andena — e7na ${catNames(false)} 🍔 Te7eb teshoof el menu?`
+      : `We don't have ${hit.en} — here it's ${catNames(false)} 🍔 Want to see the menu?`;
+  return { kind: "missing_category", category: hit.key, reply, language: isAr ? "ar" : isFr ? "franco" : "en" };
+}
+
+export async function matchMissingCategory(db, message, config = null, sticky = null) {
+  const probe = String(message || "");
+  if (!HAVE_ASK.test(probe) && !/[?؟]\s*$/.test(probe.trim())) return null;
+  if (!CATEGORY_WORDS.some((c) => c.re.test(probe))) return null;
+  const data = await getMenu(db);
+  return missingCategoryReply(probe, data || [], config || {}, sticky);
+}
 
 export async function matchMenuCategory(db, message, currency = "EGP", config = null) {
   const probe = String(message).trim().split("\n")[0].trim();

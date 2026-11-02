@@ -272,11 +272,14 @@ async function fetchJson(url, ms = 5000) {
 export function streetCore(text) {
   let s = String(text || "");
   s = s.replace(/https?:\/\/\S+/g, " ");
+  // Unit words FIRST: the preposition strip below eats the first letter of «فيلا» (villa)
+  // and «عمارة» (building) — «فيلا ١٢» became «يلا ١٢», the geocoder got "ibrahim el mahdy
+  // yla 12" and found nothing, so the guest was asked for a pin (arstreet3, 2 Nov).
+  s = s.replace(/(?:^|[,،\s])(?:villa|فيلا|فيللا|building|bldg|عمارة|عماره|flat|apt|apartment|شقة|شقه|floor|الدور|دور|gate|بوابة|بوابه|block|بلوك|no\.?|رقم)\s*[#:]?\s*[0-9٠-٩]+[a-z]?/giu, " ");
   // Arabic prepositions glued to the place ("لبوينت ٩٠" = to Point 90, "فالرحاب" = in Rehab)
   s = s.replace(/(^|\s)(?:ل|لـ|ف|في|عند|على|ع|بـ|ب)(?=[\u0621-\u064A]{3,})/gu, "$1");
   // Franco prepositions before the place ("le point 90", "fel rehab", "fi narges", "3and el AUC")
   s = s.replace(/(^|\s)(?:le|la|lel|fel|fil|fi|f|3and|3ala|ala|3al|be|bel)\s+(?=[a-z0-9])/gi, "$1");
-  s = s.replace(/(?:^|[,،\s])(?:villa|فيلا|فيللا|building|bldg|عمارة|عماره|flat|apt|apartment|شقة|شقه|floor|الدور|دور|gate|بوابة|بوابه|block|بلوك|no\.?|رقم)\s*[#:]?\s*[0-9٠-٩]+[a-z]?/giu, " ");
   s = s.replace(/(?:next to|beside|near|behind|in front of|opposite|جنب|بجوار|بجانب|خلف|امام|أمام|قدام|قصاد|قريب من|عند)\s+.+$/iu, " ");
   s = s.replace(/[,،]+/g, " ").replace(/\s+/g, " ").trim();
   return s;

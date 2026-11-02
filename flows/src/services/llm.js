@@ -16,7 +16,10 @@ const PRICES = {
   // GPT-6 family (22 Sep 2026) — Luna is priced for exactly our hot path (extract,
   // classify, resolve) at a quarter of 4.1-mini's input. Listed so cost accounting
   // stays honest the moment one is switched on.
-  "gpt-6-luna": [0.1, 0.5, 0.25],
+  "gpt-6-luna": [0.1, 0.5, 0.1],       // cached input $0.01 (official pricing page, 2 Nov)
+  // GPT-6.1 Terra (26 Oct 2026) — the SMART candidate: half of 4.1's input, cached input
+  // billed at 5% ($0.05/M). Benchmarked 2026-11-01 via MODEL_SMART=gpt-6.1-terra.
+  "gpt-6.1-terra": [1.0, 5.0, 0.05, 1.25], // cache WRITES bill at $1.25 (4th entry = write multiplier)
   "gpt-6-sol": [2.0, 10.0, 0.25],
   "gpt-6-astra": [10.0, 50.0, 0.25],
   "gpt-5.6-luna": [0.2, 1.2, 0.25],
@@ -31,10 +34,13 @@ const PRICES = {
 // bills those at half price. Our system prompts are a stable per-restaurant block
 // (persona, facts, menu) followed by the volatile guest part, so most of the input
 // is cached — pricing it at full rate would overstate spend and hide the win.
-function cost(model, tin, tout, cached = 0) {
-  const [pi, po, cm = 0.5] = PRICES[model] || [1, 4, 0.5];
+function cost(model, tin, tout, cached = 0, written = 0) {
+  const [pi, po, cm = 0.5, wm = 1] = PRICES[model] || [1, 4, 0.5];
   const fresh = Math.max(0, tin - cached);
-  return (fresh * pi + cached * pi * cm + tout * po) / 1e6;
+  // GPT-6.1 bills the tokens it WRITES into the cache at a premium (terra: 1.25×); they
+  // are a subset of the fresh tokens, so only the surcharge is added
+  const writeSurcharge = Math.min(Math.max(0, written), fresh) * pi * (wm - 1);
+  return (fresh * pi + cached * pi * cm + writeSurcharge + tout * po) / 1e6;
 }
 
 const RETRYABLE = new Set([429, 500, 502, 503, 529]);
@@ -103,8 +109,11 @@ async function chat(model, messages, opts = {}) {
   const data = await res.json();
   const usage = data.usage || {};
   const cached = usage.prompt_tokens_details?.cached_tokens || 0;
+  const written = usage.prompt_tokens_details?.cache_write_tokens || 0;
   return {
-    text: data.choices?.[0]?.message?.content || "",
+    // typographic quotes → ASCII: the GPT-6 tier writes "don’t"; every fixture, every
+    // regex gate and the options engine's name matching expect "don't". One place.
+    text: String(data.choices?.[0]?.message?.content || "").replace(/[\u2018\u2019\u201B]/g, "'").replace(/[\u201C\u201D]/g, '"'),
     __usage: {
       // model_ , not model: a 429 degrade runs the cheaper model, and billing it
       // at the expensive one's rate makes the cost report wrong
@@ -112,7 +121,7 @@ async function chat(model, messages, opts = {}) {
       tokens_in: usage.prompt_tokens || 0,
       tokens_out: usage.completion_tokens || 0,
       tokens_cached: cached,
-      cost_usd: cost(model_, usage.prompt_tokens || 0, usage.completion_tokens || 0, cached),
+      cost_usd: cost(model_, usage.prompt_tokens || 0, usage.completion_tokens || 0, cached, written),
     },
   };
 }

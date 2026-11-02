@@ -4,6 +4,7 @@
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_FAST, MODEL_NANO, log } from "../config.js";
+import { matchMissingCategory } from "../services/fastpaths.js";
 import { detectCloser, matchFaq, matchApprovedFaq, matchMenuCategory, matchService, matchItemPrice, matchItemInfo, matchPriceMath, isGreetingish, isMenuRequest, menuReplyFor } from "../services/fastpaths.js";
 import { wantsBuilder } from "../services/fastpaths.js";
 import { signBuildToken, builderConfig, priceBuild, describeBuild, LAYERS as BUILDER_LAYERS } from "../services/builder.js";
@@ -40,6 +41,17 @@ const DEFAULT_GREETINGS_AR = [
 // their usual, and a way in. It used to cost a full premium model call (8-12s and real
 // money) on every "hi" from every regular — the single most repeated message a busy
 // restaurant gets. Code writes it now: same warmth, instant, free.
+// days until the next MM-DD (same arithmetic as friendly.js daysUntilMMDD)
+function daysUntilBirthday(mmdd) {
+  if (!/^\d{2}-\d{2}$/.test(String(mmdd || ""))) return null;
+  const [m, d] = String(mmdd).split("-").map(Number);
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let next = new Date(now.getFullYear(), m - 1, d);
+  if (next < today) next = new Date(now.getFullYear() + 1, m - 1, d);
+  return Math.round((next - today) / 86400000);
+}
 const WELCOME_BACK = {
   en: [
     "Welcome back, {name}! 👋 {usual}",
@@ -231,7 +243,12 @@ defineFlow({
         // their usual; no model. Anything richer than a welcome (a question, an order)
         // never reaches here, so the host still handles everything that needs thought.
         const knownName = (diner?.name || "").trim().split(/\s+/)[0];
-        if (knownName && !diner?.preferences?.pending_order) {
+        // A birthday inside two weeks is the one thing the canned welcome cannot say — that
+        // guest falls through to the host (regression `bdaysoon`: the fast path greeted Salma
+        // and never mentioned the 🎂 three days away).
+        const bdayIn = daysUntilBirthday(diner?.preferences?.occasions?.birthday);
+        const birthdaySoon = bdayIn != null && bdayIn <= 14;
+        if (knownName && !diner?.preferences?.pending_order && !birthdaySoon) {
           const lg = detectLang(message, sticky);
           const lgk = lg === "ar" ? "ar" : lg === "franco" ? "fr" : "en";
           let usual = null;
@@ -377,6 +394,10 @@ defineFlow({
       if (priceMath) { bump("price_math_hits"); return priceMath; }
       const itemInfo = await matchItemInfo(db, message, sticky, currency);
       if (itemInfo) { bump("item_info_hits"); return itemInfo; }
+      // "do you have desserts?" for a category the menu doesn't carry — an honest "no" from
+      // the menu data itself (services/fastpaths.js missingCategoryReply)
+      const missing = await matchMissingCategory(db, message, ctx.tenant.config, sticky);
+      if (missing) { bump("missing_category_hits"); return missing; }
       return { kind: "none — needs classification + LLM" };
     }, { input: { message, sticky_language: input.stickyLanguage || null } });
 

@@ -16,10 +16,15 @@ export const FLUSH_TICK_MS = Number(process.env.FLUSH_TICK_MS || 1000);
 // Model policy — one place, so "which brain" is never scattered across flows.
 // SMART = anything the guest reads or that needs judgment (composition, tone,
 // multi-fact reasoning). FAST = mechanical work (classify, extract, summarize).
-export const MODEL_SMART = process.env.MODEL_SMART || "gpt-4.1";
+// SMART = gpt-6.1-terra since 2026-11-02: half of gpt-4.1's price ($1/$5 vs $2/$8, cached input
+// 5%), 64/64 persona conversations with the 4.1 prompts untouched — docs/MODEL_BENCHMARK_2026-11-01.md.
+// gpt-4.1 itself shuts down 2027-01-14.
+export const MODEL_SMART = process.env.MODEL_SMART || "gpt-6.1-terra";
 export const MODEL_FAST = process.env.MODEL_FAST || "gpt-4.1-mini";
-// nano tier: the router's classify call is tiny and structural — quarter price
-export const MODEL_NANO = process.env.MODEL_NANO || "gpt-4.1-nano";
+// nano tier: the router's classify call is tiny and structural. gpt-4.1-nano was shut down
+// by OpenAI on 2026-10-23 (every classify call 404'd until 2026-11-01); the whole gpt-4.1
+// family has a shutdown date of 2027-01-14 — see docs/MODEL_BENCHMARK_2026-11-01.md.
+export const MODEL_NANO = process.env.MODEL_NANO || "gpt-4.1-mini";
 
 export const llmReady = !!OPENAI_API_KEY;
 

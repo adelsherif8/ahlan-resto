@@ -359,7 +359,7 @@ defineFlow({
       // extractor called it — "khaleehom etnen", "zawed …", "sheel …", "ghayar …",
       // «خليهم اتنين», «زود», «شيل», «غيّر». These were handed to chit-chat, which
       // narrated the change ("Gotcha, changing the drink…") and applied nothing.
-      const EDIT_VERB = /(?<![\p{L}])(khalee?h(om|a)?|khali(hom|ha)?|zawe?d(li)?|zawed|sheel|shil|shel|ghayy?ar|ghayar|badd?el|3ayez a?ghayar|make (it|them)|change|switch|remove|take off|add|خلي(هم|ها|ه)?|زود|زوّد|شيل|شيلي|غيّر|غير|بدّل|بدل|ضيف|أضف)(?![\p{L}])/iu;
+      const EDIT_VERB = /(?<![\p{L}])(khalee?h(om|a)?|khali(hom|ha)?|zawe?d(li)?|zawed|sheel|shil|shel|ghayy?ar|ghayar|badd?el|3ayez a?ghayar|make (it|them)|change|switch|remove|take off|add|dee?f(li|ly)?|khalli|خلي(هم|ها|ه)?|زود|زوّد|ضيف|ضيفي|ضيفلي|ضيفلى|شيل|شيلي|غيّر|غير|بدّل|بدل|ضيف|أضف)(?![\p{L}])/iu;
       const isEditCommand = !!loaded.pending?.items?.length && (EDIT_VERB.test(input.message) || EDIT_VERB.test(francoNorm(input.message))) && input.message.trim().length <= 60;
       // A DELIVERY draft with NO ADDRESS yet: a short non-command message is the address
       // ("point tes3een", «بوينت ٩٠», "villa 12 narges 4") — the model calls place
@@ -391,6 +391,14 @@ defineFlow({
         return null;
       };
       { const r0 = await stageFutureDay(); if (r0) return r0; }
+      // A REFUND ASK IS A COMPLAINT, NEVER AN ORDER OPERATION. "the order was wrong, I want a
+      // refund" came back as cancel/status and met "No active order found — want to start
+      // one?" (regression `refundask`). FRIENDLY owns complaints (apologize once, flag the
+      // feedback, promise the team's follow-up, never "process" a refund).
+      {
+        const REFUND = /(?<![\p{L}])(refund|money\s*back|chargeback|refun|استرجاع|استرجع|فلوسي|فلوسى|ارجعولي|رجعولي|ارجعلي|refund\w*|مش هدفع|mesh hadfa3|ragga3o?li|flousi|fluss?i)(?![\p{L}])/iu;
+        if (REFUND.test(String(input.message || "")) && !loaded.pending?.awaiting_option) return { kind: "handoff_to_friendly" };
+      }
       const stageCancel = async () => {
         if (e.intent === "cancel_order") {
           // "cancel it ALL" means all of it — the DRAFT dies too, in every branch. It used
@@ -748,7 +756,17 @@ defineFlow({
           // "wa7ed" into "wa 7 ed" once made SEVEN chicken ranch out of one (16 Oct)
           const msgQ = msg0.replace(/(?<![\p{L}\p{N}])[2357](?=[a-z])/giu, "").replace(/(?<=[a-z])[23578](?=[a-z])/giu, "h").replace(/(?<=[a-z])[23578](?![\p{L}\p{N}])/giu, "");
           const m = msgQ.match(/(?:^|[^\p{L}\p{N}])(\d{1,2}|one|two|three|four|five|six|واحدة?|ا?ت?نين|إتنين|تلاتة|ثلاثة|ا?ربعة|أربعة|خمسة|ستة|wa7ed|etne+n|t?lata|arba3a|khamsa|setta)\s*(?:x|×|\*)?\s*(?=[\p{L}])/iu);
-          if (m) {
+          // …and a number that belongs to the ADDRESS is not a count either: "كلاسيك برجر
+          // دليفري المعادي شارع ٩ دجلة" made NINE burgers of one (the Arabic-digit
+          // conversion above let "٩ دجلة" through). Skip when the extractor put the number
+          // in its address field, or when an address word sits right before it.
+          const addrDigits = String(e.address || "").replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+          const ADDR_WORD = /(?:^|[^\p{L}])(?:street|st\.?|st|road|rd\.?|floor|fl\.?|apartment|apt\.?|flat|building|bldg\.?|block|unit|villa|plot|point|zone|phase|gate|no\.?|number|km|شارع|ش|طريق|الدور|دور|طابق|شقة|شقه|عمارة|عماره|عمارات|مبنى|بلوك|فيلا|قطعة|قطعه|بوينت|محطة|محطه|كيلو|كم|رقم|نمرة|نمره|بوابة|بوابه|مجاورة|مجاوره|حي|منطقة|منطقه|مرحلة|مرحله|زون)\s*$/iu;
+          const addressNumber = m && (
+            (addrDigits && new RegExp(`(^|[^0-9])${m[1]}([^0-9]|$)`).test(addrDigits))
+            || ADDR_WORD.test(msgQ.slice(0, m.index + (m[0].length - m[0].trimStart().length) + (m[0].startsWith(m[1]) ? 0 : 1)))
+          );
+          if (m && !addressNumber) {
             const n = WORD_NUM[m[1]] ?? Number(m[1]);
             // never confuse the dish's own size number ("3 pcs", "10 pieces", "500 ml")
             const after = msgQ.slice(m.index + m[0].length, m.index + m[0].length + 12);
@@ -1388,7 +1406,12 @@ defineFlow({
       const mapLink = mapLinkRaw ? await resolveMapLink(mapLinkRaw) : null;
       // addresses they've used before — offered back instead of made to retype
       const saved = savedAddresses(diner);
-      let address = (e.address && String(e.address).trim()) || loaded.pending?.address || null;
+      // A Maps link the extractor filed as "address" is the PIN, not the address: "villa 7
+      // street 12 next to the pharmacy" from the turn before is what the rider reads, the
+      // link only prices the fee. Keep the typed text; the link lives in map_link.
+      const eAddr = (e.address && String(e.address).trim()) || null;
+      const addrIsLink = !!eAddr && /https?:\/\/|maps\.(?:app\.)?goo\.gl|google\.[a-z.]+\/maps|maps\.google|^-?\d{1,2}\.\d+\s*,\s*-?\d{1,3}\.\d+$/i.test(eAddr);
+      let address = (addrIsLink && loaded.pending?.address ? loaded.pending.address : eAddr) || loaded.pending?.address || null;
       // A LANDMARK the restaurant listed, written in a delivery message, IS the address —
       // even when the model filed it under order notes ("delivery point 90" for
       // «دليفري بوينت ٩٠») or nowhere. Code checks the message against the landmark

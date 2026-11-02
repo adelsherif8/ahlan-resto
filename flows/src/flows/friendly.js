@@ -164,6 +164,7 @@ VOICE & BEHAVIOR (this is what makes you feel human):
 - NEVER ask "first time with us?" if they already told you, or if GREETING & RELATIONSHIP says returning/long_time_no_see/dining_now.
 - Sell like a waiter who loves the food: describe taste and texture ("the short rib falls off the bone — 12 hours slow"), suggest pairings, HAVE favorites when asked (pick from our real menu and say why). Opinions about our menu: encouraged. Facts: only from FACTS below.
 - A WORD YOU CANNOT PLACE IS SAID BACK, NEVER ANSWERED AROUND: if the guest names a dish, drink, ingredient or thing that matches nothing in FACTS or the MENU, say plainly that you don't know that one here and ask what they mean ("مش عارف «X» عندنا — تقصد إيه؟" / "I don't have an X here — what did you mean?"). Never guess a nearest item, never describe something that isn't on the menu, never skip the word.
+- NEVER PROMISE TO CHECK, NEVER CLAIM A LIST IS MISSING. The MENU block below is the COMPLETE menu — nothing is sold outside it, so there is nothing to "pull up", "look at" or "get back" on, and no "dessert menu" exists apart from it. A category or dish that is not in it gets a plain "we don't have X" plus what we do have.
 - YOU ARE A RESTAURANT, NOT AN ASSISTANT: warm, human, easy — never generic service phrases ("how can I assist", "checking in"). If a sentence could come from a bank's chatbot, rewrite it.
 - A GREETING IS HOSPITALITY, NEVER MARKETING: welcome them simply and ask how you can help ("Hello! Welcome to ${config.name} 🍔 What can we get you today?"). NEVER pitch, describe or recommend menu items in a greeting to someone who hasn't asked — no "the X is a beast", no product descriptions, no upsells. Referencing THE GUEST'S OWN favorite from MEMORY is warm and allowed; advertising is not. Selling starts only AFTER they ask about food.
 - COMPLETE ANSWERS, FEWER QUESTIONS: when they ask what's in a category or for any list, give ALL of it (every item + price) — never a 2-item teaser. FORMAT any list of 3+ things (dishes, branches, options, hours) as bullets, one per line ("• Iconic Meal — 265 EGP"), never a comma run. Answer fully FIRST; at most ONE short question per reply, and only when it genuinely moves things forward. Never end every message with a question.
@@ -347,6 +348,9 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       if (context.isNewConversation) {
         const draft = r.value?.reply || "";
         const BOTISM = /what'?s your vibe|checking in|hit me up|how can i assist|back for another round|just say the word|quick rec/i;
+        // STALLING: "let me pull up the menu and check" (gpt-6.1-terra, `desserts`, 2 Nov) —
+        // the model has the whole menu in its prompt; a promise to look is an answer withheld
+        const STALL = /\b(let me|lemme|i'?ll|i will|i can|i'?m going to|gonna) (just )?(pull up|check|look|see|grab|get back|find out|take a look)(?! (with|w\/) (the )?(team|staff|kitchen|manager))|one (sec|second|moment)|give me a (sec|second|moment)|hold on|bear with me|in front of me|can'?t (tell|say|see) (you )?what('s| is) (available|on)|don'?t have (the|a) [a-z]+ (menu|list)|لحظة|ثواني|ثانية واحدة|هشوف|هبص|استنى|هتأكد|مش قدامي|مش معايا/i;
         const PITCH = /\b(is|are) (a|the) (beast|legend|must[- ]try)|you gotta try|don'?t miss|craving (that|our)/i;
         // name/restaurant enforcement ONLY when the guest actually just said hi —
         // a first-message QUESTION must keep its ANSWER, never become a greeting
@@ -364,7 +368,7 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         const missUsual = bareGreeting && usualName && context.situation === "returning" &&
           !draft.toLowerCase().includes(usualName.toLowerCase());
         const broken = (d) =>
-          BOTISM.test(d) || PITCH.test(d) ||
+          BOTISM.test(d) || PITCH.test(d) || STALL.test(d) ||
           (bareGreeting && firstName && context.situation !== "first_timer"
             && !d.toLowerCase().includes(firstName.toLowerCase())
             && !/^\s*(أهلا|أهلاً|اهلا|مرحبا|يا هلا|هلا|welcome|ahlan|ya hala)/i.test(d)) ||
@@ -379,7 +383,9 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
                 "warm and simple like a real host",
                 "NO dish pitching, NO assistant phrases",
               ].filter(Boolean).join("; ")
-            : "KEEP ALL the substance and the actual answer of your reply exactly — only remove the bot-ish/marketing phrasing";
+            : STALL.test(draft)
+              ? "the MENU block in your prompt is the COMPLETE menu — nothing exists outside it and there is nothing to check or look up. If what they asked for is not in it, we do not sell it: say \"we don't have <that>\" plainly and point to what we do have. Never say a menu or list is missing or not in front of you."
+              : "KEEP ALL the substance and the actual answer of your reply exactly — only remove the bot-ish/marketing phrasing";
           const r2 = await chatJSON(model, system, [
             ...convo,
             { role: "assistant", content: JSON.stringify(r.value) },

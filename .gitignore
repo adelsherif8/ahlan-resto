@@ -38,3 +38,7 @@ assets/
 igvideos/
 sandwich builder/
 flows/_*.mjs
+
+# env backups (flows/.env.bak-*)
+.env.*
+!.env.example

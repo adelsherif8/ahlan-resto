@@ -2,6 +2,7 @@ import { orderedCategories } from "./services/categories.js";
 import express from "express";
 import cors from "cors";
 import { PORT, log, llmReady, PUBLIC_BASE } from "./config.js";
+import { modelWatch, lastModelCheck } from "./services/modelcheck.js";
 import { resolveRestaurant, resolveLiveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, resolveRestaurantBySlug, resolveAllRestaurants, recordServiceBoot, listServiceBoots, upsertCostDaily, readCostDaily } from "./services/tenant.js";
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb, isTestSession } from "./engine/flow.js";
@@ -149,7 +150,10 @@ app.get("/health", async (_req, res) => {
   try {
     // the restaurant that owns the live WhatsApp number — not the config default
     const t = await resolveLiveRestaurant();
-    res.json({ ok: true, llm: llmReady, restaurant: t.record.name, live_number: t.record.wpid ? "yes" : "none" });
+    // models: the last model-watch verdict — a retired model is the one failure the
+    // rest of this endpoint cannot see (services/modelcheck.js)
+    const models = lastModelCheck();
+    res.json({ ok: !models || models.models.every((m) => m.ok), llm: llmReady, restaurant: t.record.name, live_number: t.record.wpid ? "yes" : "none", models: models?.models || null });
   } catch (e) {
     res.json({ ok: false, llm: llmReady, error: e.message });
   }
@@ -2539,8 +2543,13 @@ resolveAllRestaurants()
   .then(async (tenants) => {
     for (const t of tenants) {
       bootSweep(t.db, flushHandler, t.record.id).catch((e) => log(`boot sweep ${t.record.slug} skipped:`, e.message));
-      // a deploy can kill a regression mid-run before its cleanup — sweep orphans here
+      // a deploy can kill a regression mid-run before its cleanup — sweep orphans here.
+      // A regression that started on THIS process is not an orphan: the sweep ran ~10 s
+      // after boot and deleted a case's freshly seeded diner (2 Nov, `bdaysoon` on a local
+      // server) — so it waits a minute and stands down while a run is in progress.
       try {
+        await new Promise((r) => setTimeout(r, 60_000));
+        if (regressionStatus().status === "running") { log(`boot sweep (${t.record.slug}): regression running — test-session sweep skipped`); continue; }
         for (const pat of ["web:regress-%", "web:convo-%"]) {
           for (const [tb, col] of [["chat_messages", "session_id"], ["chat_sessions", "session_id"], ["message_full", "phone_number"], ["diners", "phone_number"], ["waitlist", "phone_number"], ["feedback", "phone_number"], ["temp_reservation", "phone_number"]])
             await t.db.from(tb).delete().like(col, pat);
@@ -2581,6 +2590,9 @@ async function warmMenus() {
 }
 setTimeout(() => { warmMenus(); }, 20_000).unref?.();
 setInterval(() => { warmMenus(); }, 3600_000).unref?.();
+// and ask OpenAI whether the models we run still exist (services/modelcheck.js)
+setTimeout(() => { modelWatch().catch(() => {}); }, 5_000).unref?.();
+setInterval(() => { modelWatch().catch(() => {}); }, 6 * 3600_000).unref?.();
 
 // graceful drain on redeploy
 for (const sig of ["SIGTERM", "SIGINT"]) {

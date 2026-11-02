@@ -28,7 +28,9 @@ const CASES = [
   { id: "delivery", name: "Delivery per config", msg: "do you deliver?", expect: [/deliver|pickup|pick.?up/i] },
   { id: "shisha", name: "Shisha policy", msg: "can I smoke shisha?", expect: [/no shisha|don['’]?t (allow|permit|do|have|offer).{0,20}shisha|(don['’]?t|do not) serve shisha|shisha.{0,30}(not|isn['’]?t) (allowed|permitted|available|served)|لا.*شيشة|مفيش شيشة|ممنوع.*شيشة/i] },
   { id: "photo", name: "A requested photo is ACTUALLY attached, not just promised",
-    msg: "can you send me a photo of the iconic?", expect: [/📷|photo|here|shot|pic|صورة/i], expect_media: "image" },
+    // "the iconic" names three dishes (Meal, Wrap Meal, Fries): an honest "which one?" is as
+    // right as a photo of the first — the media check stands down for a clarifying question
+    msg: "can you send me a photo of the iconic?", expect: [/📷|photo|here|shot|pic|صورة|which one|do you mean/i], expect_media: "image", media_unless: /which one|do you mean|أي واحد|تقصد/i },
   { id: "menudoc", name: "Menu request attaches the real PDF document",
     msg: "send me the menu please", expect: [/menu/i], expect_media: "document" },
   { id: "kids", name: "Kids policy", msg: "is it kid friendly?", expect: [/kids?( are)?( \w+)? welcome|family|أطفال/i] },
@@ -139,7 +141,9 @@ const CASES = [
   // the WRONG item rode to a real order. The swap must land and the old item must go.
   { id: "itemcorrection", needs: "casual", name: "'no I want the truck meal' mid-question swaps the item",
     turns: ["an iconic meal for pickup from Maadi", "no i want the american truck meal instead"],
-    expect: [/truck/i], forbid: [/iconic/i] },
+    // the change notice ("*Iconic Meal* → *American Truck Meal* ✅", 16 Oct) names the old dish
+    // on purpose — the old name is forbidden on every OTHER line
+    expect: [/truck/i], forbid: [/^(?!.*→).*iconic/im] },
   // Live bug (founder chat): "Yes" to "same address as before?" was not understood and
   // the question repeated. A bare yes must accept the saved address and move on.
   { id: "savedaddressyes", needs: "casual", name: "'Yes' accepts the saved delivery address and proceeds",
@@ -522,6 +526,7 @@ async function runCase(tenant, c, runId) {
         await new Promise((r) => setTimeout(r, 4000));
       }
       for (const want of [].concat(c.expect_media)) {
+        if (c.media_unless && c.media_unless.test(transcript)) continue; // asked which one instead — fine
         if (!kinds.includes(want)) failures.push(`no ${want} attachment actually sent`);
       }
     }
@@ -543,7 +548,9 @@ async function seedDiner(db, sid, spec) {
     d.preferences = { ...(d.preferences || {}), occasions: { ...(d.preferences?.occasions || {}), birthday: mmdd } };
     delete d.birthday_in_days;
   }
-  await db.from("diners").insert({ phone_number: sid, status: "customer", ...d });
+  // a silent seed failure makes every seeded case assert against an empty guest — say so
+  const { error } = await db.from("diners").insert({ phone_number: sid, status: "customer", ...d });
+  if (error) log(`regression seed ${sid}: diner insert failed — ${error.message}`);
 }
 
 async function seedReservation(db, sid, seed) {

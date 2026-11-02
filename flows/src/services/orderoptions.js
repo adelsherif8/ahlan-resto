@@ -60,12 +60,17 @@ export function unitsForChoice(said, at, len) {
 // same removal in two scripts/spellings ("no pickles · no mekhalel", "no onion · no
 // بصل") collapses to one, empty fragments go. Runs before EVERY bill render — the
 // type-first opener once printed "no pickles · no onions · · no mekhalel · no basal".
+const PRICE_TALK = /(?<![\p{L}])(\d+\s*(egp|le|l\.e\.?|geneh|gineh|pounds?|جنيه|جنية|ج\.?م)|price|cost|for free|free of charge|no charge|zero|0\s*egp|discount|\d+\s*%|مجان(ا|اً|ي)|ببلاش|بلاش فلوس|السعر|بسعر|خصم|مجانا)(?![\p{L}])/iu;
 export function tidyNotes(items) {
   for (const it of items || []) {
     if (!it?.notes) continue;
     const parts = String(it.notes).split(/\s*·\s*|\s*,\s*(?=no |without |من غير|بدون)/).map((x) => x.trim()).filter(Boolean);
     const seen = new Set(); const kept = [];
     for (const part0 of parts) {
+      // A note is about the FOOD. Money talk the extractor swept in ("price 0 EGP", "for
+      // free", «ببلاش») is never a kitchen instruction — and on a ticket it reads as if the
+      // guest set the price (abuse fixture A02, 2 Nov). Code prices; the note drops it.
+      if (PRICE_TALK.test(part0)) continue;
       const part = part0.replace(/^(without|men gheir|min gheir|bedoon|bdoon)\s+/i, "no ").replace(/^no\s+(the|el)\s+/i, "no ");
       const key = normName(arOptionWords(part)).replace(/^(no|without|men gheir|bedoon)\s+/, "no ").replace(/\b(the|el)\b\s*/g, "").replace(/s\b/g, "").trim();
       if (!key || seen.has(key)) continue;
@@ -385,9 +390,17 @@ export function francoDictPass(text) {
     return tok;
   }).join("");
 }
+// Arabic entries replace WHOLE WORDS (an attached و/ف/ب/ل/ال prefix is fine): «كولا» inside
+// «شوكولاته» used to turn chocolate into a Coca-Cola (context fixture, 2 Nov).
+const AR_WORD_RE = new Map();
+function arWordRe(ar) {
+  let re = AR_WORD_RE.get(ar);
+  if (!re) { re = new RegExp(`(?<![\\p{L}])(?:و|ف|ب|ل|ال|وال|بال|لل|ولل)?${ar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "gu"); AR_WORD_RE.set(ar, re); }
+  return re;
+}
 export function arOptionWords(message) {
   let m = String(message || "");
-  for (const [ar, en] of AR_OPTION_WORDS) m = m.split(ar).join(` ${en} `);
+  for (const [ar, en] of AR_OPTION_WORDS) m = m.replace(arWordRe(ar), ` ${en} `);
   for (const [fr, en] of FRANCO_FOOD_WORDS) m = m.replace(new RegExp(`(?<![a-z0-9])${fr}(?![a-z0-9])`, "gi"), ` ${en} `);
   m = francoDictPass(m);
   for (const [ar, en] of AR_COUNT_WORDS) m = m.split(ar).join(` ${en} `);

@@ -50,7 +50,9 @@ async function wipe(sid) {
   await db.from("orders").delete().eq("phone_number", sid);
   const { data: d } = await db.from("diners").select("id,preferences").eq("phone_number", sid).maybeSingle();
   if (d?.id) {
-    const { pending_order: _p, ...rest } = d.preferences || {};
+    // last_location too (persona-test already does): a re-run minutes later otherwise
+    // starts with the previous run's pin and "delivery" is refused before any address
+    const { pending_order: _p, last_location: _l, ...rest } = d.preferences || {};
     await db.from("diners").update({ preferences: rest }).eq("id", d.id);
   }
 }
