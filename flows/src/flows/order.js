@@ -397,7 +397,7 @@ defineFlow({
       // feedback, promise the team's follow-up, never "process" a refund).
       {
         const REFUND = /(?<![\p{L}])(refund|money\s*back|chargeback|refun|استرجاع|استرجع|فلوسي|فلوسى|ارجعولي|رجعولي|ارجعلي|refund\w*|مش هدفع|mesh hadfa3|ragga3o?li|flousi|fluss?i)(?![\p{L}])/iu;
-        if (REFUND.test(String(input.message || "")) && !loaded.pending?.awaiting_option) return { kind: "handoff_to_friendly" };
+        if (REFUND.test(String(input.message || ""))) return { kind: "handoff_to_friendly" };
       }
       const stageCancel = async () => {
         if (e.intent === "cancel_order") {
@@ -930,7 +930,11 @@ defineFlow({
             // (normName strips Arabic to "" — this check needs a script-aware normaliser)
             const arN = (s2) => String(s2 || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^؀-ۿ]+/g, " ").trim();
             const msgAr = ` ${arN(input.message)} `;
-            const arToksOf = (s2) => arN(s2).split(" ").filter((t) => t.length >= 3 && !/^[٠-٩]+$/.test(t));
+            // brand words never count toward "named it": «مُنادم أم علي» is named by «أم علي»
+            // alone — requiring «مُنادم» too made «ضيف أم علي» an unnamed fragment, silently
+            // dropped while a choice question was open (gate, 2 Nov)
+            const btA = brandTokensOf(loaded.menu, BRAND);
+            const arToksOf = (s2) => arN(s2).split(" ").filter((t) => t.length >= 2 && !/^[٠-٩]+$/.test(t) && !btA.ar.has(arNzBrand(t)) && !["في","من","مع","او","بس","على","عن","ال"].includes(t));
             const hitArToks = arToksOf(hit.name_ar);
             const arHits = (toks) => toks.filter((t) => msgAr.includes(` ${t} `)).length;
             // enough of the hit's Arabic words are in the message, and no OTHER dish's
@@ -1047,7 +1051,11 @@ defineFlow({
         // being swallowed by "how would you like to pay?" about old food
         const draftAgeMs = Date.now() - new Date(loaded.pending?.at || 0).getTime();
         const draftStale = draftAgeMs > 20 * 60_000;
-        if (loaded.pending?.items?.length && input.message.trim().length <= 28 && items.length && !e.edits?.length && !draftStale) {
+        // While a choice question is OPEN this block must not run: it reset `items` to the
+        // draft and threw the extracted dish away before the option-aware merge below could
+        // judge it — "add an om ali then" / «ضيف أم علي» vanished with no notice (gate, 2 Nov).
+        // That merge has its own choice-name filter, so "sprite" still never becomes a line.
+        if (loaded.pending?.items?.length && input.message.trim().length <= 28 && items.length && !e.edits?.length && !draftStale && !loaded.pending.awaiting_option) {
           const prev = loaded.pending.items;
           // A dish the guest NAMED is never chit-chat. This guard exists so a short
           // reply mid-draft ("sprite") isn't mistaken for a new order — but it used to
@@ -1120,12 +1128,17 @@ defineFlow({
           // when the message names neither the dish nor an add-word, it's an attempted
           // ANSWER for the open question and the resolver owns it.
           const msgN = normName(arOptionWords(input.message));
-          const ADD_WORDS = /(?<![\p{L}])(add|another|also|plus|كمان|تاني|زود|هات)(?![\p{L}])/iu;
+          const msgAr = String(input.message || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
+          const ADD_WORDS = /(?<![\p{L}])(add|another|also|plus|كمان|تاني|زود|زيد|زودلي|ضيف|ضيفي|ضيفلي|ضيفلى|هات|هاتلي|zawed|zeed|dee?f(?:li|ly)?|kaman|hat(?:li)?)(?![\p{L}])/iu;
           const additions = items.filter((ni) => {
             const n = normName(ni.name);
             if (loaded.pending.items.find((it) => normName(it.name) === n)) return false;
             if (choiceArr.some((cn) => cn === n || n.includes(cn) || cn.includes(n))) return false;
-            const spoken = msgN.includes(n) || n.split(" ").filter((t) => t.length >= 3).some((t) => msgN.includes(t));
+            // «ضيف أم علي» names the dish in Arabic — the English-name test alone said "not spoken"
+            const row = loaded.menu.find((m) => normName(m.name) === n);
+            const nAr = String(row?.name_ar || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
+            const spokenAr = !!nAr && nAr.split(/\s+/).filter((t) => t.length >= 3).some((t) => msgAr.includes(t));
+            const spoken = msgN.includes(n) || n.split(" ").filter((t) => t.length >= 3).some((t) => msgN.includes(t)) || spokenAr;
             return spoken || ADD_WORDS.test(input.message);
           });
           // The awaited dish re-spoken WITH a note carries this turn's modification —
@@ -1231,9 +1244,14 @@ defineFlow({
           const row = findMenuItem(dish);
           const en = normName(row?.name || dish || "");
           const btG = brandTokensOf(loaded.menu, BRAND);
-          const enOk = !!en && (saidForEdits.includes(en) || en.split(" ").filter((t) => t.length >= 4 && !btG.en.has(t)).some((t) => ` ${saidForEdits} `.includes(` ${t} `) || (t.length >= 5 && saidForEdits.split(" ").some((w) => editDistance(w, t) <= 1))));
+          // short dishes ("Om Ali", "Hawawshi" in Arabic «أم علي») have no single token
+          // long enough for the per-token test — the whole non-brand remainder spoken as
+          // a phrase is the guest naming it ("add an om ali then" dropped the om ali, 2 Nov)
+          const enRest = en.split(" ").filter((t) => !btG.en.has(t)).join(" ");
+          const enOk = !!en && (saidForEdits.includes(en) || (enRest.length >= 4 && ` ${saidForEdits} `.includes(` ${enRest} `)) || en.split(" ").filter((t) => t.length >= 4 && !btG.en.has(t)).some((t) => ` ${saidForEdits} `.includes(` ${t} `) || (t.length >= 5 && saidForEdits.split(" ").some((w) => editDistance(w, t) <= 1))));
           const ar = String(row?.name_ar || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
-          const arOk = !!ar && ar.split(/\s+/).filter((t) => t.length >= 3 && !/^[٠-٩]+$/.test(t) && !btG.ar.has(arNzBrand(t))).some((t) => saidArForEdits.includes(t));
+          const arRest = ar.split(/\s+/).filter((t) => t && !btG.ar.has(arNzBrand(t))).join(" ");
+          const arOk = !!ar && ((arRest.length >= 3 && saidArForEdits.includes(arRest)) || ar.split(/\s+/).filter((t) => t.length >= 3 && !/^[٠-٩]+$/.test(t) && !btG.ar.has(arNzBrand(t))).some((t) => saidArForEdits.includes(t)));
           // not a menu item at all, but the guest's own words («حاجة ساقعة») — named, by
           // definition; the unknown-item mapper turns it into a which-one question
           const literal = !row && String(dish || "").trim().length >= 3 && saidArForEdits.toLowerCase().includes(String(dish).replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").toLowerCase());
@@ -2208,6 +2226,12 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
           e.payment_method ? (LANGV === "ar" ? arPay(e.payment_method) : e.payment_method) : null,
         ].filter(Boolean);
         if (noted.length) outcomeNotices.push(L2(`Noted — ${noted.join(" + ")} ✅`, `تمام — ${noted.join(" + ")} ✅`, `Tamam — ${noted.join(" + ")} ✅`));
+        // "confirm" while a required choice is still open used to re-print the same
+        // question with no explanation (gate, 2 Nov: three guests said confirm, saw the
+        // choices again, and nothing told them why). Name the reason once, briefly.
+        if (e.intent === "confirm" && loaded.pending?.awaiting_option) {
+          outcomeNotices.push(L2("Almost there — just this choice and I'll place it 👇", "خلصنا تقريباً — بس الاختيار ده وأثبّت الطلب 👇", "Khalasna ta2riban — bas el ekhtiyar da w athabbet el order 👇"));
+        }
         // RE-ASK CIRCUIT BREAKER: the SAME question issued a 4th time means three
         // answers in a row didn't land — asking again is a loop, not persistence.
         // Hand them to a human instead of grinding (the last unguarded loop class).
@@ -3134,6 +3158,8 @@ LANGUAGE (last line so everything above stays cacheable): the conversation's lan
       reply,
       parts: bubbles,
       wantLocation: (outcome.kind === "ask_fulfillment" && !!outcome.need_address) || outcome.kind === "need_pin",
+      // a typed address is wanted (not a pin): the deliverer may ship the WhatsApp Flow form
+      wantAddressForm: outcome.kind === "ask_fulfillment" && !!outcome.need_address,
       menuList: optionList,
       // pipeline decision points keep their buttons even back-to-back — the
       // anti-spam pacing rule cost a guest their Confirm button and the order died

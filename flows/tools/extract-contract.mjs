@@ -34,7 +34,8 @@ const cases = JSON.parse(fs.readFileSync(FILE, "utf8"));
 const shape = (v) => ({
   intent: v.intent || null,
   items: (v.items || []).map((i) => ({ name: String(i.name || ""), qty: Number(i.qty) || 1 })),
-  edits: (v.edits || []).map((e) => ({ op: e.op, item: e.item || null, with: e.with || null, option: e.option || null, qty: e.qty ?? null })),
+  // option names are compared case-insensitively — "Fanta" vs "fanta" is the same answer
+  edits: (v.edits || []).map((e) => ({ op: e.op, item: e.item || null, with: e.with || null, option: e.option ? String(e.option).toLowerCase() : null, qty: e.qty ?? null })),
   order_type: v.order_type || null,
   payment_method: v.payment_method || null,
   table_number: v.table_number || null,

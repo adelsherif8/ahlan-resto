@@ -1,0 +1,119 @@
+[
+ {
+  "name": "GATE 1 EN — delivery order, desserts question mid-order (Munadim HAS desserts), cash",
+  "phone": "+2015669001",
+  "turns": [
+   "hi, I want a munadim classic burger and munadim fries, delivery please",
+   "sandwich",
+   "Street 90, building 12, 3rd floor, New Cairo",
+   "what desserts do you have?",
+   "add an om ali then",
+   "cash",
+   "confirm"
+  ],
+  "expect_any": {
+   "desserts listed from the menu": "Om Ali|Cookie|Milkshake",
+   "delivery priced": "Delivery.*50|50 EGP",
+   "om ali on the bill": "1× \\*Munadim Om Ali\\*",
+   "order placed": "🎫|O-[A-Z0-9]{4}"
+  },
+  "forbid": {
+   "no fake missing category": "don't have desserts|We don't have dessert",
+   "no stall": "pull up|in front of me|next message|one sec",
+   "no franco flip on an english address": "Tamam|3ashan|momken"
+  }
+ },
+ {
+  "name": "GATE 2 AR — chocolate milkshake must not become a soft drink, ضيف adds fries, pickup",
+  "phone": "+2015669002",
+  "turns": [
+   "عايز اتنين كلاسيك برجر وميلك شيك شوكولاتة",
+   "ساندوتش",
+   "ضيف بطاطس",
+   "استلام من المطعم",
+   "كاش",
+   "تمام اكد",
+   "دلوقتي",
+   "أكد"
+  ],
+  "expect_any": {
+   "chocolate shake kept": "ميلك شيك شوكولاتة",
+   "two burgers": "2× \\*مُنادم كلاسيك برجر\\*",
+   "fries added": "1× \\*مُنادم بطاطس\\*",
+   "order placed": "🎫|O-[A-Z0-9]{4}"
+  },
+  "forbid": {
+   "no cola line from chocolate": "× \\*(?:كوكاكولا|مشروب غازي|Soft Drink|Coca)",
+   "no filler": "لحظة واحدة|one sec"
+  }
+ },
+ {
+  "name": "GATE 3 Franco — missing category (sushi), then a real order, instapay, status ask",
+  "phone": "+2015669003",
+  "turns": [
+   "3andoko sushi?",
+   "tamam, hat nashville chicken w karkadeh, pickup",
+   "sandwich, medium",
+   "instapay",
+   "confirm",
+   "delwa2ty",
+   "akked",
+   "fein el order?"
+  ],
+  "expect_any": {
+   "sushi honestly missing": "sushi|سوشي",
+   "categories offered": "Burgers|Chicken|Egyptian|Desserts",
+   "nashville taken": "Nashville",
+   "karkadeh taken": "Karkadeh",
+   "order placed": "🎫|O-[A-Z0-9]{4}",
+   "status found": "O-[A-Z0-9]{4}.*(min|d2|da2|dakika|ready|gahez|جاهز|preparing|accepted|received|wasal|مستلم|بيتجهز)|(min|d2ay2|da2aye2|dakika).*O-[A-Z0-9]{4}"
+  },
+  "forbid": {
+   "no invented sushi": "Sushi .*EGP",
+   "no stall": "pull up|in front of me|next message",
+   "no 'no active order' after placing one": "Mafeesh order|no active order|No active order"
+  }
+ },
+ {
+  "name": "GATE 4 EN — confirmed pickup order, then refund request → complaint path, not 'no active order'",
+  "phone": "+2015669004",
+  "turns": [
+   "one munadim hawawshi and a mango juice for pickup",
+   "card",
+   "confirm",
+   "mild",
+   "now",
+   "confirm",
+   "I want a refund, the last order was cold",
+   "ok thanks"
+  ],
+  "expect_any": {
+   "confirm-while-open explains itself": "Almost there|just this choice",
+   "order confirmed": "🎫|O-[A-Z0-9]{4}",
+   "refund acknowledged": "sorry|apolog|team|follow up|refund"
+  },
+  "forbid": {
+   "no 'no active order'": "No active order|no active order|don't have an active",
+   "no silent cancel on a refund ask": "Order cancelled ✅"
+  }
+ },
+ {
+  "name": "GATE 5 AR — villa address in Tagamoa is priced (no pin request), then cancel",
+  "phone": "+2015669005",
+  "turns": [
+   "عايز مشكل مشويات وكشري دليفري",
+   "فيلا ١٢ شارع التسعين التجمع الخامس",
+   "Regular",
+   "كاش",
+   "الغي الطلب"
+  ],
+  "expect_any": {
+   "delivery fee quoted": "التوصيل[^\\n]*EGP",
+   "address kept": "التسعين|فيلا",
+   "cancelled": "اتلغى|إلغاء|مسح|cancel"
+  },
+  "forbid": {
+   "no pin request after a priced street": "ابعت اللوكيشن|ابعتلنا اللوكيشن|share your location|send your location"
+  }
+ }
+]

@@ -192,3 +192,58 @@ Late finds from the last fixture files (code, not model):
 
 Fixture harness/stale-fixture notes: `qty4`, `context5` need rewriting for the renamed Munadim
 menu before their three parked gaps can be worked.
+
+## Round 2 — 2 Nov afternoon: hand gate on production, luna as FAST
+
+Deployed 15:53 UTC (flows 005b2daf): Terra as SMART + everything above. The founder's
+5-conversation hand gate was then run by the harness AGAINST PRODUCTION (`convos-gate5.json`,
+Munadim, web channel — the Meta transport leg is unchanged by the deploy). What it found:
+
+1. **A dish added while a choice question is open was dropped with no notice** — both
+   "add an om ali then" and «ضيف أم علي» (parked gap #2 above, now understood). Three
+   separate guards each killed it: the short-reply block (`≤ 28 chars`) reset `items` to the
+   draft whenever `awaiting_option` was set, before the option-aware merge could run; the
+   edits path's `guestNamed()` needed one non-brand token of ≥ 4 letters ("om", "ali" have
+   none); and the matcher's `namedInArabic` counted the brand word «مُنادم» as a required
+   token, so «أم علي» alone read as an "answer fragment". All three fixed; the Franco/Egyptian
+   add-verbs («ضيف», "zawed", "deef") and the Arabic menu name now count as naming the dish.
+   Reproduced and verified locally in EN and AR (scratch `repro-addopt.json`).
+2. **"confirm" while a required choice is still open** re-printed the same question with no
+   explanation (3 of 5 conversations). Now a one-line lead-in: "Almost there — just this choice
+   and I'll place it 👇" (AR/Franco variants).
+3. **An English address line flipped the bot into Franco** — "3rd floor" is a digit glued to
+   letters, which `francoScore` counts as a Franco marker. English ordinals/units (`3rd`, `2nd`,
+   `5km`, `3pm`) are excluded; unit-tested.
+4. **A refund ask mid-draft was treated as a cancel** ("Order cancelled ✅" to "the last order
+   was cold") because the refund hand-off was gated on no open option question. Gate removed:
+   refund words always go to the complaint path.
+5. Not bugs, fixture design: option questions block the flow by design (a real guest answers
+   them); «كولا» appears legitimately in the printed drink choices; the cancel wording is
+   «تم مسح الطلب». The gate fixture was rewritten so guests answer the choices, and it now
+   asserts the real behaviours (dish added mid-ask, confirm lead-in, no Franco flip, address
+   kept, refund → apology, status finds the placed order).
+
+### gpt-6-luna as FAST (the 2027-01-14 deadline)
+- Extractor contract vs the recorded (4.1-mini) expectations: 31/41 match. Of the 10
+  differences, 6 are harmless or better (luna uses `edits` instead of echoing `items` for
+  "add"/"make it 2" — the code applies both paths; keeps "coke"/"sprite" literally so the
+  flavour note survives; reads "fein el order?" as `status`, which is right; maps «كلاسيك
+  ساندوتش» straight to the Classic Burger; "Fanta" vs "fanta" — the compare is now
+  case-insensitive). Two to watch in conversation: "cash, coming in 15 min" (luna: order_type
+  null, intent order — code still has payment and the pickup default) and «نفس طلب امبارح
+  وزوّدلي حاجة ساقعة» (luna adds the literal «حاجة ساقعة» as an item → a which-drink question
+  rather than silently dropping it, arguably better).
+- Persona suites on a local luna server (`MODEL_FAST=gpt-6-luna`): Munadim 6/6 at $0.0038 total
+  (vs ~$0.008 on 4.1-mini); EN 22/22 ($0.042), AR 17/17 ($0.041), FR 19/19 ($0.020) — 64/64,
+  first clean pass, ~45% of the 4.1-mini cost per conversation. Fixture battery + regression on
+  luna, then a second clean pass and the hand gate, before the FAST flip (Aug rule).
+- Luna fixture battery (3 Nov morning, local 5142): everything green that is green on 4.1-mini
+  except `tenders3` FR — "3ayez el chicken tenders nashville": luna extracts the generic
+  "chicken tenders" (→ which-one 3 Pcs / 5 Pcs) where 4.1-mini picks Nashville Chicken; the
+  follow-up "pickup" then dropped the which-one and sent the menu (that second step is
+  pre-existing code behaviour, not luna). Prompt tune for luna: "nashville" names a dish — keep
+  the distinguishing word. `js` (positional per-unit split) and `qty4`/`context5` fail on both
+  models (parked gaps / stale fixtures). Stall-induced fails (laptop slept mid-run, turns of
+  hours) were re-run in isolation and pass.
+- 4.1-mini side (local 5143, same code): regression 114/114; Munadim fixtures all green after
+  isolated re-runs; gate5 needed the pickup-time + final-confirm turns a real guest gives.

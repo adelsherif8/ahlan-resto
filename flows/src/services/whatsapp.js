@@ -66,7 +66,10 @@ export function parseEnvelope(body) {
           location: msg.location ? { lat: msg.location.latitude, lng: msg.location.longitude, name: msg.location.name || null, address: msg.location.address || null } : null,
           contacts_card: msg.contacts || null,
           reaction: msg.reaction ? { emoji: msg.reaction.emoji, to_message_id: msg.reaction.message_id } : null,
-          interactive: msg.interactive
+          interactive: msg.interactive?.type === "nfm_reply"
+            // a WhatsApp Flow completion: response_json is a STRING holding flow_token + the form fields
+            ? { kind: "nfm_reply", id: null, title: null, flow: parseFlowReply(msg.interactive.nfm_reply?.response_json), context_id: msg.context?.id || null }
+            : msg.interactive
             ? { kind: msg.interactive.type, id: msg.interactive.button_reply?.id || msg.interactive.list_reply?.id || null, title: msg.interactive.button_reply?.title || msg.interactive.list_reply?.title || null }
             : msg.button
             ? { kind: "button", id: msg.button.payload, title: msg.button.text }
@@ -78,6 +81,57 @@ export function parseEnvelope(body) {
   }
   return { events, statuses };
 }
+
+function parseFlowReply(responseJson) {
+  try {
+    const v = typeof responseJson === "string" ? JSON.parse(responseJson) : responseJson;
+    return v && typeof v === "object" ? v : {};
+  } catch {
+    return {}; // a broken completion is an empty form, never a dropped webhook
+  }
+}
+
+// ---------- WhatsApp Flows (native forms) — docs/WA-FLOWS-PLAN.md ----------
+// Send a Flow message: the guest taps `cta`, the form opens on `screen`, the completion
+// comes back as an nfm_reply carrying `token` and the form fields. `mode:"draft"` tests an
+// unpublished Flow (only Meta testers / the WABA's own numbers can open it).
+export async function sendFlow(phoneNumberId, to, bodyText, { flowId, cta, screen, token, mode = null, data = null }) {
+  if (!flowId) throw new Error("sendFlow: no flowId");
+  const parameters = {
+    flow_message_version: "3",
+    flow_id: String(flowId),
+    flow_cta: String(cta || "Open").slice(0, 30),
+    flow_action: "navigate",
+    flow_token: String(token || ""),
+    flow_action_payload: { screen: String(screen || "ADDRESS"), ...(data ? { data } : {}) },
+    ...(mode ? { mode } : {}),
+  };
+  return graphPost(phoneNumberId, {
+    to, type: "interactive",
+    interactive: { type: "flow", body: { text: String(bodyText).slice(0, 1024) }, action: { name: "flow", parameters } },
+  });
+}
+
+async function graphCall(method, path, payload = null) {
+  if (DRY_RUN) {
+    log(`[DRY_RUN WA ${method} ${path}] ${payload ? JSON.stringify(payload).slice(0, 160) : ""}`);
+    return { dry_run: true, data: [] };
+  }
+  const res = await fetch(`${GRAPH}/${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${WA_TOKEN}`, "Content-Type": "application/json" },
+    ...(payload ? { body: JSON.stringify(payload) } : {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`WA ${method} ${path} ${res.status}: ${JSON.stringify(data).slice(0, 240)}`);
+  return data;
+}
+
+// WABA-level Flow management (needs whatsapp_business_management on the token).
+export const listFlows = (wabaId) => graphCall("GET", `${wabaId}/flows?fields=id,name,status,categories`);
+export const createFlow = (wabaId, { name, flowJson, publish = false, categories = ["OTHER"] }) =>
+  graphCall("POST", `${wabaId}/flows`, { name, categories, flow_json: JSON.stringify(flowJson), publish });
+export const publishFlow = (flowId) => graphCall("POST", `${flowId}/publish`);
 
 async function graphPost(phoneNumberId, payload) {
   if (DRY_RUN) {

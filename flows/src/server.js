@@ -7,6 +7,7 @@ import { resolveRestaurant, resolveLiveRestaurant, resolveRestaurantByWpid, reso
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb, isTestSession } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
+import { ensureAddressFlows, tenantWabaId } from "./services/addressflow.js";
 import { metrics, bump } from "./services/metrics.js";
 import { runRegression, regressionStatus, loadLastRegression } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
@@ -2590,6 +2591,24 @@ async function warmMenus() {
 }
 setTimeout(() => { warmMenus(); }, 20_000).unref?.();
 setInterval(() => { warmMenus(); }, 3600_000).unref?.();
+
+// WhatsApp address Flows — looked up (or created) once per boot for every tenant that
+// has a WABA id; a missing Flow never blocks boot, the deliverer falls back to the
+// location request (docs/WA-FLOWS-PLAN.md).
+async function warmAddressFlows() {
+  try {
+    const all = await resolveAllRestaurants();
+    for (const t of all) {
+      if (!tenantWabaId(t.record)) continue;
+      const ids = await ensureAddressFlows(t.record);
+      if (ids) log(`address flows ready for ${t.record.slug}: en=${ids.en || "-"} ar=${ids.ar || "-"}`);
+    }
+  } catch (e) {
+    log(`address flows warm-up: ${e.message}`);
+  }
+}
+setTimeout(() => { warmAddressFlows(); }, 30_000).unref?.();
+setInterval(() => { warmAddressFlows(); }, 6 * 3600_000).unref?.();
 // and ask OpenAI whether the models we run still exist (services/modelcheck.js)
 setTimeout(() => { modelWatch().catch(() => {}); }, 5_000).unref?.();
 setInterval(() => { modelWatch().catch(() => {}); }, 6 * 3600_000).unref?.();

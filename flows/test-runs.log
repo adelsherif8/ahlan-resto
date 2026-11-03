@@ -253,3 +253,140 @@
 2026-11-02T12:55:40.567Z fixture convos-street6.json local PASS of 6
 2026-11-02T12:56:53.302Z fixture convos-delivery-pin2.json local PASS of 2
 2026-11-02T13:00:08.504Z fixture convos-place4.json local PASS of 4
+2026-11-02T16:18:46.772Z extract-contract munadim 31/41 cost=$0.0057
+2026-11-02T16:24:52.188Z fixture convos-gate5.json live 4 FAILED of 5
+2026-11-02T16:28:13.034Z fixture gate12.json live 1 FAILED of 2
+2026-11-02T16:35:48.557Z fixture repro-addopt.json local 2 FAILED of 2
+2026-11-02T16:37:48.076Z persona personas-munadim.json local 6/6 cost=$0.0038
+2026-11-02T16:40:44.329Z fixture repro-addopt.json local 1 FAILED of 2
+2026-11-02T16:45:54.246Z fixture repro-addopt.json local 1 FAILED of 2
+2026-11-02T16:47:20.831Z fixture repro-ar.json local 1 FAILED of 1
+2026-11-02T16:49:51.767Z fixture repro-addopt.json local PASS of 2
+2026-11-02T16:55:52.114Z persona personas-en.json local 22/22 cost=$0.0417
+2026-11-02T16:57:04.527Z fixture convos-abuse20.json local 2 FAILED of 20
+2026-11-02T16:58:56.335Z fixture convos-abuse6.json local 5 FAILED of 6
+2026-11-02T17:01:45.612Z fixture convos-addons3.json local PASS of 3
+2026-11-02T17:01:55.563Z fixture convos-adel.json local PASS of 1
+2026-11-02T17:02:45.456Z fixture convos-ar3.json local PASS of 3
+2026-11-02T17:05:09.463Z fixture convos-arstreet3.json local PASS of 3
+2026-11-02T17:05:36.701Z fixture convos-cats3.json local PASS of 3
+2026-11-02T17:06:48.469Z fixture convos-confirm3.json local PASS of 3
+2026-11-02T17:07:19.275Z persona personas-ar.json local 17/17 cost=$0.0410
+2026-11-02T17:09:38.037Z fixture convos-context5.json local PASS of 5
+2026-11-02T17:10:20.635Z fixture convos-crash.json local PASS of 4
+2026-11-02T17:11:35.689Z fixture convos-delivery-pin2.json local PASS of 2
+2026-11-02T17:14:02.724Z fixture convos-delivery6.json local PASS of 6
+2026-11-02T17:15:42.385Z fixture convos-dontadd4.json local PASS of 4
+2026-11-02T17:17:05.043Z fixture convos-fix3.json local 2 FAILED of 3
+2026-11-02T17:18:45.441Z fixture convos-flow6.json local PASS of 3
+2026-11-02T17:19:28.295Z fixture convos-friendlymenu.json local PASS of 4
+2026-11-02T17:21:58.592Z persona personas-fr.json local 19/19 cost=$0.0195
+2026-11-02T17:25:24.516Z fixture convos-gate5.json local 16 FAILED of 5
+2026-11-02T17:29:10.559Z fixture convos-abuse20.json local 2 FAILED of 20
+2026-11-02T17:29:23.916Z fixture convos-greet12.json local PASS of 12
+2026-11-02T17:31:11.375Z fixture convos-abuse6.json local 5 FAILED of 6
+2026-11-02T17:33:55.444Z fixture convos-addons3.json local PASS of 3
+2026-11-02T17:34:05.918Z fixture convos-adel.json local PASS of 1
+2026-11-02T17:34:55.846Z fixture convos-ar3.json local PASS of 3
+2026-11-02T17:37:25.931Z fixture convos-arstreet3.json local PASS of 3
+2026-11-02T17:37:55.399Z fixture convos-cats3.json local PASS of 3
+2026-11-02T17:38:59.180Z fixture convos-greetings30.json local PASS of 30
+2026-11-02T17:39:05.905Z fixture convos-confirm3.json local PASS of 3
+2026-11-02T17:39:24.646Z fixture convos-halluc.json local PASS of 2
+2026-11-02T17:42:10.431Z fixture convos-context5.json local 1 FAILED of 5
+2026-11-02T17:42:51.727Z fixture convos-crash.json local PASS of 4
+2026-11-02T17:44:05.217Z fixture convos-delivery-pin2.json local PASS of 2
+2026-11-02T17:44:58.910Z fixture convos-halluc24.json local PASS of 24
+2026-11-02T17:46:27.625Z fixture convos-iteminfo9.json local PASS of 9
+2026-11-02T17:46:28.642Z fixture convos-delivery6.json local PASS of 6
+2026-11-02T17:48:09.889Z fixture convos-dontadd4.json local PASS of 4
+2026-11-02T17:48:27.597Z fixture convos-js.json local 2 FAILED of 2
+2026-11-02T17:49:24.086Z fixture convos-keep3.json local PASS of 3
+2026-11-02T17:49:36.562Z fixture convos-fix3.json local 2 FAILED of 3
+2026-11-02T17:49:56.380Z fixture convos-lang3.json local PASS of 3
+2026-11-02T17:51:19.560Z fixture convos-flow6.json local PASS of 3
+2026-11-02T17:52:02.160Z fixture convos-friendlymenu.json local PASS of 4
+2026-11-02T17:54:20.331Z fixture convos-lang8.json local PASS of 8
+2026-11-02T17:57:35.070Z fixture convos-live5.json local 1 FAILED of 5
+2026-11-02T17:58:03.327Z fixture convos-gate5.json local 15 FAILED of 5
+2026-11-02T17:59:54.240Z fixture convos-luciz.json local PASS of 5
+2026-11-02T18:00:22.632Z fixture convos-menu3.json local PASS of 3
+2026-11-02T18:01:14.036Z fixture convos-msg1.json local PASS of 3
+2026-11-02T18:01:45.310Z fixture convos-greet12.json local PASS of 12
+2026-11-02T18:04:17.906Z fixture convos-munadim5.json local 9 FAILED of 5
+2026-11-02T18:04:48.734Z fixture convos-name3.json local PASS of 3
+2026-11-02T18:08:20.595Z fixture convos-notes9.json local PASS of 9
+2026-11-02T18:10:59.127Z fixture convos-greetings30.json local PASS of 30
+2026-11-02T18:11:24.392Z fixture convos-halluc.json local PASS of 2
+2026-11-02T18:12:42.685Z fixture convos-order12.json local PASS of 12
+2026-11-02T18:15:17.541Z fixture convos-order6.json local PASS of 6
+2026-11-02T18:17:04.139Z fixture convos-photos4.json local PASS of 5
+2026-11-02T18:17:06.259Z fixture convos-halluc24.json local PASS of 24
+2026-11-02T18:18:34.642Z fixture convos-iteminfo9.json local PASS of 9
+2026-11-02T18:20:56.029Z fixture convos-js.json local 2 FAILED of 2
+2026-11-02T18:21:09.538Z fixture convos-place4.json local PASS of 4
+2026-11-02T18:21:58.597Z fixture convos-keep3.json local PASS of 3
+2026-11-02T18:22:34.188Z fixture convos-lang3.json local PASS of 3
+2026-11-02T18:23:36.363Z fixture convos-poly3.json local PASS of 3
+2026-11-02T18:25:41.063Z fixture convos-qty4.json local PASS of 4
+2026-11-02T18:28:18.720Z fixture convos-reel6.json local 8 FAILED of 5
+2026-11-02T18:28:23.253Z fixture convos-lang8.json local PASS of 8
+2026-11-02T18:31:05.220Z fixture convos-split-edge3.json local 3 FAILED of 3
+2026-11-02T18:31:40.005Z fixture convos-live5.json local 1 FAILED of 5
+2026-11-02T18:34:03.046Z fixture convos-luciz.json local 1 FAILED of 5
+2026-11-02T18:34:31.475Z fixture convos-menu3.json local PASS of 3
+2026-11-02T18:35:13.904Z fixture convos-split4.json local 14 FAILED of 4
+2026-11-02T18:35:21.528Z fixture convos-msg1.json local PASS of 3
+2026-11-02T18:38:36.946Z fixture convos-munadim5.json local 9 FAILED of 5
+2026-11-02T18:39:05.872Z fixture convos-name3.json local PASS of 3
+2026-11-02T18:40:04.219Z fixture convos-street6.json local PASS of 6
+2026-11-02T18:41:18.837Z fixture convos-tenders3.json local PASS of 3
+2026-11-02T18:42:35.105Z fixture convos-notes9.json local PASS of 9
+2026-11-02T19:06:03.210Z fixture convos-iteminfo9.json local PASS of 9
+2026-11-02T19:06:45.111Z fixture convos-luciz.json local PASS of 5
+2026-11-02T19:08:34.663Z fixture convos-js.json local 1 FAILED of 2
+2026-11-02T19:08:35.630Z fixture convos-js.json local 1 FAILED of 2
+2026-11-02T19:09:38.842Z fixture convos-keep3.json local PASS of 3
+2026-11-02T19:10:12.309Z fixture convos-lang3.json local PASS of 3
+2026-11-02T19:14:58.155Z fixture convos-abuse20.json local PASS of 20
+2026-11-02T19:15:00.344Z fixture convos-lang8.json local PASS of 8
+2026-11-02T19:16:45.361Z fixture convos-abuse6.json local PASS of 6
+2026-11-02T19:18:05.354Z fixture convos-fix3.json local PASS of 3
+2026-11-02T19:18:16.711Z fixture convos-live5.json local 1 FAILED of 5
+2026-11-02T19:20:35.075Z fixture convos-luciz.json local PASS of 5
+2026-11-02T19:21:03.113Z fixture convos-menu3.json local PASS of 3
+2026-11-02T19:21:53.211Z fixture convos-msg1.json local PASS of 3
+2026-11-02T19:23:48.456Z fixture convos-gate5.json local 6 FAILED of 5
+2026-11-02T19:24:47.490Z fixture convos-munadim5.json local PASS of 5
+2026-11-02T19:25:17.979Z fixture convos-name3.json local PASS of 3
+2026-11-02T19:26:58.128Z fixture convos-live5.json local 1 FAILED of 5
+2026-11-02T19:28:46.866Z fixture convos-notes9.json local PASS of 9
+2026-11-02T19:29:47.914Z fixture convos-munadim5.json local PASS of 5
+2026-11-02T19:32:26.986Z fixture convos-reel6.json local PASS of 5
+2026-11-02T19:33:23.686Z fixture convos-order12.json local PASS of 12
+2026-11-02T19:39:38.615Z fixture convos-split-edge3.json local 3 FAILED of 3
+2026-11-02T19:45:54.495Z fixture convos-order6.json local 2 FAILED of 6
+2026-11-03T09:48:15.271Z fixture convos-photos4.json local 5 FAILED of 5
+2026-11-03T09:48:40.427Z fixture convos-split4.json local 8 FAILED of 4
+2026-11-03T09:50:48.785Z fixture convos-qty4.json local 5 FAILED of 4
+2026-11-03T09:51:29.820Z fixture convos-place4.json local PASS of 4
+2026-11-03T09:52:00.908Z fixture convos-tenders3.json local PASS of 3
+2026-11-03T09:53:43.628Z fixture convos-poly3.json local PASS of 3
+2026-11-03T09:54:54.460Z fixture convos-context5.json local 2 FAILED of 5
+2026-11-03T09:55:50.195Z fixture convos-qty4.json local 5 FAILED of 4
+2026-11-03T09:58:19.079Z fixture convos-reel6.json local PASS of 5
+2026-11-03T10:00:59.279Z fixture convos-split-edge3.json local PASS of 3
+2026-11-03T10:05:12.360Z fixture convos-split4.json local PASS of 4
+2026-11-03T10:09:57.747Z fixture convos-street6.json local PASS of 6
+2026-11-03T10:11:09.522Z fixture convos-tenders3.json local 2 FAILED of 3
+2026-11-03T10:17:10.208Z fixture convos-abuse20.json local PASS of 20
+2026-11-03T10:18:50.040Z fixture convos-abuse6.json local PASS of 6
+2026-11-03T10:19:33.833Z fixture convos-gate5.json local 5 FAILED of 5
+2026-11-03T10:20:06.891Z fixture convos-fix3.json local PASS of 3
+2026-11-03T10:22:06.556Z fixture convos-split-edge3.json local PASS of 3
+2026-11-03T10:25:20.752Z fixture convos-live5.json local 1 FAILED of 5
+2026-11-03T10:26:06.586Z fixture convos-gate5.json local 6 FAILED of 5
+2026-11-03T10:29:09.996Z fixture convos-split4.json local PASS of 4
+2026-11-03T10:29:47.477Z fixture convos-context5.json local 4 FAILED of 5
+2026-11-03T10:34:00.206Z fixture convos-live5.json local 1 FAILED of 5
+2026-11-03T10:41:02.549Z fixture convos-gate5.json local 1 FAILED of 5

@@ -28,7 +28,7 @@
    "[shared location]   (30.0203,31.4947)"
   ],
   "expect": {
-   "real fee line": "Delivery[^\\n]*: 50 EGP"
+   "real fee line": "(Delivery|التوصيل)[^\\n]*: 50 EGP"
   },
   "forbid": {
    "zero km": "~0 km"

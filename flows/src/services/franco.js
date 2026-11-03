@@ -50,13 +50,17 @@ const FRANCO_WORDS = new Set((
 
 // digit-letter inside a word is the strongest single Franco signal there is
 const DIGIT_WORD = /(?:[a-z][23578]|[23578][a-z])/;
+// English ordinals and units carry a digit glued to letters too — "3rd floor", "2nd
+// settlement", "5km", "2x", "3pm" — and read as Franco markers. An English guest who
+// typed "Street 90, building 12, 3rd floor" got the next reply in Franco (gate, 2 Nov).
+const ENGLISH_DIGIT_TOKEN = /^\d+(?:st|nd|rd|th|s|x|k|m|km|kg|g|l|ml|h|hr|hrs|min|mins|am|pm|p|egp|le)$/;
 
 export function francoScore(text) {
   const raw = String(text || "").replace(/https?:\/\/\S+/g, " ");
   if (/[؀-ۿ]/.test(raw)) return 0; // Arabic script is Arabic, not Franco
   let score = 0;
   for (const tok of raw.toLowerCase().split(/[^a-z0-9']+/).filter(Boolean)) {
-    if (DIGIT_WORD.test(tok)) { score += 2; continue; }
+    if (DIGIT_WORD.test(tok) && !ENGLISH_DIGIT_TOKEN.test(tok)) { score += 2; continue; }
     if (FRANCO_WORDS.has(francoNorm(tok))) score += 1;
   }
   return score;

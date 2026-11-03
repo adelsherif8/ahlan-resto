@@ -1,7 +1,13 @@
 # WhatsApp Flows — native address form (plan, 2026-11-01)
 
-Status: PLANNED, not started. Needs the Meta WA token rotation to land first (the Flows API
-runs on the same system-user token; creating a Flow is a WABA-level write).
+Status (2 Nov 2026): CODE-COMPLETE, OFF BY DEFAULT. `services/addressflow.js` (Flow JSON 7.3,
+completion → address line, per-tenant Flow lookup/create), `whatsapp.js` (`nfm_reply` parsing,
+`sendFlow`, `listFlows`/`createFlow`/`publishFlow`), `buffering.js` (ingest + delivery with the
+location request as fallback), `server.js` boot warm-up, `test/addressflow.test.mjs` (round-trip
+×100, envelope parsing). Nothing is sent to Meta until a tenant has
+`integrations.whatsapp.waba_id` AND `ai.address_flow = true`. Still to do, in order: rotate the
+Meta system-user token (docs/SECRETS-ROTATION-2026-11.md), store Munadim's WABA id, draft-mode
+send to a tester phone (the no-encryption proof), fixture `convos-addressflow3.json`, hand gate.
 
 ## Why
 

@@ -52,7 +52,8 @@ async function wipe(sid) {
   if (d?.id) {
     // last_location too (persona-test already does): a re-run minutes later otherwise
     // starts with the previous run's pin and "delivery" is refused before any address
-    const { pending_order: _p, last_location: _l, ...rest } = d.preferences || {};
+    // language too: a phone shared with an Arabic fixture otherwise answers the English guest in Arabic
+    const { pending_order: _p, last_location: _l, language: _lg, ...rest } = d.preferences || {};
     await db.from("diners").update({ preferences: rest }).eq("id", d.id);
   }
 }

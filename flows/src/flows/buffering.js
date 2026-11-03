@@ -9,7 +9,8 @@ import { appendHistory, getHistory } from "../services/history.js";
 import { resolveLanguage, toRenderLang } from "../services/langstate.js";
 import { sessionPrecheck, detectAffirmative, detectSelfCorrection } from "../services/precheck.js";
 import { processWaMedia } from "../services/media.js";
-import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction, sendDocument, markReadWithTyping, WA_PHONE_NUMBER_ID, sendLocationRequest } from "../services/whatsapp.js";
+import { sendText, sendImage, sendButtons, sendList, sendLocation, sendReaction, sendDocument, markReadWithTyping, WA_PHONE_NUMBER_ID, sendLocationRequest, sendFlow } from "../services/whatsapp.js";
+import { flowReplyToText, flowToken, parseFlowToken, addressFlowEnabled, cachedAddressFlowId, flowCta } from "../services/addressflow.js";
 import { bump } from "../services/metrics.js";
 import { log, PUBLIC_BASE } from "../config.js";
 import { demoOn, getLead, touchLead, leadState, isTester, claimHandleLead, notRegistered, expired as demoExpired } from "../services/demolead.js";
@@ -87,6 +88,15 @@ defineFlow({
         if (e.type === "reaction") return { kind: "reaction", text: `[reacted ${e.reaction.emoji}]`, raw: e.raw, no_reply: true, profileName: e.profileName };
         if (e.type === "location") return { kind: "location", text: `[shared location] ${e.location.name || ""} ${e.location.address || ""} (${e.location.lat},${e.location.lng})`, raw: e.raw, profileName: e.profileName };
         if (e.type === "contacts") return { kind: "contacts", text: `[shared contact card: ${(e.contacts_card || []).map((c) => c.name?.formatted_name).join(", ")}]`, raw: e.raw, profileName: e.profileName };
+        if (e.interactive?.kind === "nfm_reply") {
+          // WhatsApp Flow completion (the native address form): the order flow never
+          // learns a form exists — it sees the labelled one-liner parseAddress() reads.
+          // A completion from another tenant's token is still just text for THIS session.
+          const tok = parseFlowToken(e.interactive.flow?.flow_token);
+          const lang = /[\u0600-\u06FF]/.test(JSON.stringify(e.interactive.flow || {})) ? "ar" : "en";
+          const text = flowReplyToText(e.interactive.flow, lang);
+          return { kind: "text", text: text || "[form]", raw: e.raw, profileName: e.profileName, flow_form: { stale: !!tok && tok.sessionId !== ctx.sessionId } };
+        }
         if (e.interactive) return { kind: "interactive", text: e.interactive.title || e.interactive.id || "[button]", raw: e.raw, profileName: e.profileName };
         if (e.media) return { kind: e.media.kind, media: e.media, text: e.text, raw: e.raw, profileName: e.profileName };
         return { kind: "text", text: e.text || `[${e.type}]`, raw: e.raw, profileName: e.profileName };
@@ -420,9 +430,20 @@ defineFlow({
         const last = i === parts.length - 1;
         if (mergeDoc || mergePhoto) break; // delivered below, merged with the doc/photo
         if (last && isWa && routed?.wantLocation && !list && !qrs.length) {
-          // address ask ships as WhatsApp's native location-request — one tap, no typos
+          // address ask ships as WhatsApp's native location-request — one tap, no typos.
+          // Tenants opted into the address Flow (ai.address_flow + a WABA id) get the
+          // native FORM instead when a typed address is wanted; a pin ask stays a pin ask.
           const pnid = sessionRoutes.get(bufKey(ctx))?.phoneNumberId || ctx.tenant?.record?.wpid || WA_PHONE_NUMBER_ID;
-          const ok = pnid ? await sendLocationRequest(pnid, ctx.sessionId.replace(/^\+/, ""), parts[i]).then(() => true).catch(() => false) : false;
+          const to = ctx.sessionId.replace(/^\+/, "");
+          const rec = ctx.tenant?.record;
+          const flowLang = (routed?.language || sessionLang.get(langKey(ctx)) || "en") === "ar" ? "ar" : "en";
+          const flowId = routed?.wantAddressForm && addressFlowEnabled(rec) ? cachedAddressFlowId(rec, flowLang) : null;
+          let ok = false;
+          if (pnid && flowId) {
+            ok = await sendFlow(pnid, to, parts[i], { flowId, cta: flowCta(flowLang), screen: "ADDRESS", token: flowToken(rec?.id, ctx.sessionId) })
+              .then(() => true).catch((err) => { log(`address flow send failed (${err.message}) — location request instead`); return false; });
+          }
+          if (!ok && pnid) ok = await sendLocationRequest(pnid, to, parts[i]).then(() => true).catch(() => false);
           if (!ok) await deliverToChannel(ctx, parts[i]);
         }
         else if (last && isWa && list) await deliverList(ctx, parts[i], list);

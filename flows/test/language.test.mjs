@@ -3,6 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { resolveLanguage, messageEvidence, explicitRequest, conversationalText, EN, AR, FRANCO } from "../src/services/langstate.js";
+import { looksFranco } from "../src/services/franco.js";
 
 // the real Munadim/Luci'z vocabulary that must never count as language evidence
 const ITEMS = [
@@ -135,4 +136,13 @@ test("15 — an English greeting is English, even on an Arabic-default tenant", 
   assert.equal(R("thanks", AR), AR);
   assert.equal(R("hi", FRANCO), FRANCO);
   assert.equal(R("thank you!", AR), AR);
+});
+
+test("English ordinals and units are not Franco markers (an address line must not flip the language)", () => {
+  assert.equal(looksFranco("Street 90, building 12, 3rd floor, New Cairo"), false);
+  assert.equal(looksFranco("2nd settlement, 5km from the mall, 3pm"), false);
+  assert.notEqual(messageEvidence("Street 90, building 12, 3rd floor, New Cairo")?.lang, FRANCO);
+  // real Franco still reads as Franco
+  assert.equal(looksFranco("3ayez wa7ed classic burger"), true);
+  assert.equal(looksFranco("7elw, 2akked el order"), true);
 });
