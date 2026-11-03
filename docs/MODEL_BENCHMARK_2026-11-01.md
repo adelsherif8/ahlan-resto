@@ -247,3 +247,13 @@ Munadim, web channel — the Meta transport leg is unchanged by the deploy). Wha
   hours) were re-run in isolation and pass.
 - 4.1-mini side (local 5143, same code): regression 114/114; Munadim fixtures all green after
   isolated re-runs; gate5 needed the pickup-time + final-confirm turns a real guest gives.
+- Luna regression (3 Nov, local 5142, Just Smash fixture tenant): **106/114** — the first battery
+  is NOT clean. Fails: `itemnotes` (NO REPLY 50 s — stall, re-run), `perunitpos` (positional
+  per-unit drinks "coke for the first 2, sprite for the third" → luna merges them; 4.1-mini splits),
+  `bundle4x4` (compound option answer → "didn't catch that"), `acceptrec` (accepting the
+  recommended Loaded Fries not added), `repeatorder` ("same as last time" lost the Iconic),
+  `compound3` (parking half of a two-part question dropped), `branchflow`/`editadd` (order never
+  reached a code — flow stalled on the type/branch ask). `photos4` 5/5 fails on luna too. All are
+  extractor-shape differences (luna returns `edits` without `items`, drops the second half of
+  compound messages) → the luna prompt needs its own tuning pass (extractPrompt + options resolver)
+  before a second battery. 4.1-mini on the same code: 114/114.
