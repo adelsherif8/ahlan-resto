@@ -390,3 +390,4 @@
 2026-11-03T10:29:47.477Z fixture convos-context5.json local 4 FAILED of 5
 2026-11-03T10:34:00.206Z fixture convos-live5.json local 1 FAILED of 5
 2026-11-03T10:41:02.549Z fixture convos-gate5.json local 1 FAILED of 5
+2026-11-03T11:07:31.923Z fixture convos-gate5.json live PASS of 5

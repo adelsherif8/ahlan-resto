@@ -2,7 +2,7 @@
 
 Railway's notice: *"We strongly recommend that you revoke all environment variables stored in
 Railway, including API keys and private registry credentials."* Everything below was on the
-`flows` or `api` service on 21 Oct and is treated as exposed. Status as of 2 Nov 2026.
+`flows` or `api` service on 21 Oct and is treated as exposed. Status as of 3 Nov 2026.
 
 Rule for this file: NEVER paste a secret value here, in chat, or in a commit. New values go
 into `flows/.env` (git-ignored) and onto Railway with the script below.
@@ -11,9 +11,9 @@ into `flows/.env` (git-ignored) and onto Railway with the script below.
 
 | Variable | Service | Who can mint a new one | Status |
 |---|---|---|---|
-| `OPS_TOKEN` / `FLOWS_OPS_TOKEN` | flows / api | us (random) | rotated 16 Oct — **before** the incident → rotate again |
-| `JWT_SECRET` | api | us (random) | pending — logs every dashboard user out once |
-| `ENCRYPTION_KEY` | flows + api (must match) | us (random hex 32 bytes) | pending — nothing in the control plane is encrypted today (all tenant creds are plaintext rows), so only build/track tokens (24 h / 14 d) are invalidated |
+| `OPS_TOKEN` / `FLOWS_OPS_TOKEN` | flows / api | us (random) | **rotated 3 Nov 2026 10:40 UTC** (verified: production accepts the new token). Ops console: paste the new value from `flows/.env` once (localStorage) |
+| `JWT_SECRET` | api | us (random) | **rotated 3 Nov 2026** — dashboard users log in again once; api `/api/health` 200 after redeploy |
+| `ENCRYPTION_KEY` | flows + api (must match) | us (random hex 32 bytes) | **rotated 3 Nov 2026** on both services — nothing in the control plane was encrypted, so only build/track tokens (24 h / 14 d) were invalidated |
 | `WA_VERIFY_TOKEN` | flows | us, then Meta App → WhatsApp → Configuration → Webhook "Verify token" | founder: the webhook must be re-verified in the Meta app dashboard with the new value |
 | `NTFY_TOPIC` | flows | us (random topic name) | founder: re-subscribe the phone to the new topic (ntfy app → + → topic from `flows/.env`) |
 | `OPENAI_API_KEY` | flows | founder: platform.openai.com → API keys → create (project key), then delete the old one | pending |
