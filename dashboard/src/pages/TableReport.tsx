@@ -14,10 +14,15 @@ export default function TableReport() {
   const [days, setDays] = useState(30);
   const [orders, setOrders] = useState<any[] | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [branchNames, setBranchNames] = useState<Record<string, string>>({});
 
   usePoll(() => {
     api.get("/api/orders", { params: { branch: "all", since_days: days } }).then((r) => setOrders(Array.isArray(r.data) ? r.data : r.data?.orders || [])).catch(() => setOrders([]));
     api.get("/api/reviews").then((r) => setReviews(r.data?.reviews || [])).catch(() => {});
+    api.get("/api/settings").then((r) => {
+      const bs = (r.data?.basic_info || r.data?.config?.basic_info || {}).branches || [];
+      setBranchNames(Object.fromEntries(bs.filter((b: any) => b?.key).map((b: any) => [b.key, b.name || b.key])));
+    }).catch(() => {});
   }, 60000, [days]);
 
   // table orders = dine-in tickets that came from the table chat (POS tickets carry a cashier)
@@ -72,8 +77,8 @@ export default function TableReport() {
               <div className="mb-4 flex items-center gap-2 text-sm font-medium"><Clock size={16} className="text-emerald-400" />Busiest hours</div>
               <div className="flex h-40 items-end gap-1">
                 {m.hours.map((v, h) => (
-                  <div key={h} className="group flex flex-1 flex-col items-center gap-1">
-                    <div className="w-full rounded-t bg-emerald-500/70 transition group-hover:bg-emerald-400" style={{ height: `${(v / m.peak) * 100}%`, minHeight: v ? 4 : 0 }} title={`${h}:00 — ${v} orders`} />
+                  <div key={h} className="group flex h-full flex-1 flex-col items-center justify-end gap-1">
+                    <div className="w-full rounded-t bg-emerald-500/70 transition group-hover:bg-emerald-400" style={{ height: `${(v / m.peak) * 85}%`, minHeight: v ? 4 : 0 }} title={`${h}:00 — ${v} orders`} />
                     <span className="text-[9px] text-zinc-600">{h % 3 === 0 ? h : ""}</span>
                   </div>
                 ))}
@@ -95,7 +100,7 @@ export default function TableReport() {
               <div className="mb-3 flex items-center gap-2 text-sm font-medium"><Store size={16} className="text-emerald-400" />By branch</div>
               <div className="grid gap-2 sm:grid-cols-3">
                 {Object.entries(m.byBranch).sort((a, b) => b[1].rev - a[1].rev).map(([b, v]) => (
-                  <div key={b} className="rounded-xl border border-zinc-800 p-3"><div className="text-sm font-medium">{b}</div><div className="text-xs text-zinc-500">{v.n} orders · {money(v.rev)} EGP</div></div>
+                  <div key={b} className="rounded-xl border border-zinc-800 p-3"><div className="text-sm font-medium">{branchNames[b] || b}</div><div className="text-xs text-zinc-500">{v.n} orders · {money(v.rev)} EGP</div></div>
                 ))}
               </div>
             </Card>
