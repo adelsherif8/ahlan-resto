@@ -600,6 +600,10 @@ export function nextQuestion(items, menu, message, pending, currency = "EGP") {
     const open = [];
     for (const g of defs) {
       if (g.key === "slots" && Array.isArray(g.slot_groups)) continue;
+      // OPTIONAL groups (milk, extras, dips, toppings…) are never asked: they apply only
+      // when the guest names a choice ("oat milk", "extra shot") — a café guest who says
+      // "a latte" gets a latte, not three questions. Cafés mark them `optional: true`.
+      if (g.optional === true) continue;
       // conditional groups are SHOWN upfront ("if Full Meal — fries: ...") so the
       // guest can answer the whole item in one line; they only APPLY if unlocked
       const conditional = g.when && !groupApplies(g, it.options);

@@ -3,6 +3,7 @@
 //
 //   node tools/seed-koffee.mjs row     # upload logo + insert/update the restaurants row (no WhatsApp number)
 //   node tools/seed-koffee.mjs menu    # seed r_koffee menu + tables   (needs migrations/044_tenant_schema_koffee.sql run on the TENANT DB first)
+//   node tools/seed-koffee.mjs menu --update   # push option/price/description changes to rows that already exist
 //   node tools/seed-koffee.mjs status  # show where everything stands
 //
 // Menu sources (2026-11-05): the brand's own printed menu (menuegypt.com images, dated 2025-10-29 —
@@ -29,24 +30,26 @@ const KK_GREEN = "#3DAE2B"; // the menu's brand green
 
 // ---------- option groups ----------
 const size = (m, l) => ({ key: "size", label: "Size", required: true, choices: [{ name: "Medium", price: m }, { name: "Large", price: l }] });
+// `optional: true` groups are never asked — they apply only when the guest names a choice
+// ("oat milk", "extra shot"); the barista's default stands otherwise (orderoptions.js).
 // "KK extras" on the print: Shot 35 · Flavor 35 · Plant based milks 40 · Lactose free milk 35
-const EXTRAS = { key: "extras", label: "Extras", multi: true, choices: [
-  { name: "Extra shot", delta: 35 }, { name: "Extra flavor", delta: 35 }, { name: "Plant-based milk", delta: 40 }, { name: "Lactose-free milk", delta: 35 },
+const EXTRAS = { key: "extras", label: "Extras", optional: true, choices: [
+  { name: "Extra shot", delta: 35 }, { name: "Extra flavor", delta: 35 }, { name: "Lactose-free milk", delta: 35 },
 ] };
-const MILK = { key: "milk", label: "Milk", choices: [{ name: "Regular" }, { name: "Skim" }, { name: "Coconut", delta: 40 }, { name: "Oat", delta: 40 }] };
+const MILK = { key: "milk", label: "Milk", optional: true, choices: [{ name: "Regular" }, { name: "Skim" }, { name: "Coconut", delta: 40 }, { name: "Oat", delta: 40 }, { name: "Almond", delta: 40 }] };
 const SIDE = { key: "side", label: "Side", required: true, choices: [{ name: "Sweet potato fries" }, { name: "Savory salad" }] };
-const BAGEL = { key: "bagel", label: "Bagel", choices: [{ name: "Classic" }, { name: "Pretzel bagel", delta: 30 }, { name: "Jalapeño cheese bagel", delta: 30 }] };
-const BREAD = { key: "bread", label: "Baguette", required: true, choices: [{ name: "White" }, { name: "Brown" }] };
-const DIP = { key: "dip", label: "Add a dip", choices: [{ name: "No dip" }, { name: "Spicy mayo dip", delta: 15 }] };
-const OMELETTE_ADDONS = { key: "addons", label: "Add-ons", multi: true, choices: [
+const BAGEL = { key: "bagel", label: "Bagel", optional: true, choices: [{ name: "Classic" }, { name: "Pretzel bagel", delta: 30 }, { name: "Jalapeño cheese bagel", delta: 30 }] };
+const BREAD = { key: "bread", label: "Baguette", optional: true, choices: [{ name: "White" }, { name: "Brown" }] };
+const DIP = { key: "dip", label: "Add a dip", optional: true, choices: [{ name: "No dip" }, { name: "Spicy mayo dip", delta: 15 }] };
+const OMELETTE_ADDONS = { key: "addons", label: "Add-ons", optional: true, choices: [
   { name: "Avocado", delta: 35 }, { name: "Mushrooms", delta: 35 }, { name: "Turkey", delta: 45 }, { name: "Mixed veggies", delta: 30 }, { name: "Fried brie", delta: 45 },
 ] };
-const CHEESECAKE_UP = { key: "topping", label: "Upgrade with", choices: [{ name: "As is" }, { name: "Pistachio sauce", delta: 60 }, { name: "Caramel sauce", delta: 55 }, { name: "Chocolate sauce", delta: 55 }] };
+const CHEESECAKE_UP = { key: "topping", label: "Upgrade with", optional: true, choices: [{ name: "As is" }, { name: "Pistachio sauce", delta: 60 }, { name: "Caramel sauce", delta: 55 }, { name: "Chocolate sauce", delta: 55 }] };
 
 const P2025 = "price from the 2025 print — confirm with the café";
 let sort = 0;
 const it = (category, name, price, extra = {}) => ({ name, category, price, sort_order: ++sort, ...extra });
-const cold = (category, name, m, l, extra = {}) => it(category, name, m, { options: [size(m, l), EXTRAS], price_note: P2025, ...extra });
+const cold = (category, name, m, l, extra = {}) => it(category, name, m, { options: [size(m, l), MILK, EXTRAS], price_note: P2025, ...extra });
 
 // ---------- the menu ----------
 const MENU = [
@@ -299,7 +302,8 @@ async function stageRow() {
       name: "Koffee Kulture", name_ar: "كوفي كالتشر", area: "Sheikh Zayed & New Cairo", city: "Cairo",
       tagline: "Different People, Different Kultures, Different KOFFEE KUPS.",
       vibe: "Specialty koffee and breakfast kulture — croissants, bagels, matcha and a serious espresso bar.",
-      restaurant_type: "cafe", language: "en", timezone: "Africa/Cairo",
+      restaurant_type: "casual", // "casual" = the walk-in ORDER engine (master.js gates on it); a café is one
+      language: "en", timezone: "Africa/Cairo",
       brand: { mode: "light", primary: KK_GREEN, ...(logoUrl ? { logo_url: logoUrl } : {}) },
       address: "Arkan Plaza, Sheikh Zayed", google_maps: "https://maps.google.com/?q=30.02089,31.003292",
       contact: { phone: "01034999123", email: "amina@koffee-kulture.com" }, parking: "Mall parking", dress_code: "",
@@ -344,13 +348,21 @@ async function stageMenu() {
   const { data: have } = await tdb.from("menu_items").select("name");
   const haveN = new Set((have || []).map((m) => m.name));
   let ins = 0;
+  const UPDATE = process.argv.includes("--update");
+  let upd = 0;
   for (const m of MENU) {
-    if (haveN.has(m.name)) continue;
+    if (haveN.has(m.name)) {
+      if (!UPDATE) continue;
+      const { price_note, ...row } = toRow(m);
+      const { error } = await tdb.from("menu_items").update({ price: row.price, options: row.options || [], description: row.description || null, name_ar: row.name_ar || null, category: row.category, bestseller: !!row.bestseller, sort_order: row.sort_order }).eq("name", m.name);
+      if (error) throw new Error(`${m.name}: ${error.message}`);
+      upd++; continue;
+    }
     const { error } = await tdb.from("menu_items").insert(toRow(m));
     if (error) throw new Error(`${m.name}: ${error.message}`);
     ins++;
   }
-  console.log(`menu: ${ins} inserted, ${haveN.size} already there (${MENU.length} in the seed)`);
+  console.log(`menu: ${ins} inserted, ${upd} updated, ${haveN.size} already there (${MENU.length} in the seed)`);
   const { data: tbl } = await tdb.from("restaurant_tables").select("id").limit(1);
   if (!tbl?.length) {
     // 12 tables per branch for the pilot sites; the QR token carries branch + table
