@@ -31,6 +31,7 @@ const NAV = [
     { to: "/reservations", label: "Reservations", icon: CalendarClock, roles: ["admin", "manager", "host"] },
     { to: "/waitlist", label: "Waitlist", icon: Hourglass, roles: ["admin", "manager", "host"] },
     { to: "/orders", label: "Orders", icon: ChefHat, roles: ["admin", "manager", "kitchen"] },
+    { to: "/table-report", label: "Table ordering", icon: QrCode, roles: ["admin", "manager"] },
     { to: "/pos", label: "POS", icon: Calculator, roles: ["admin", "manager", "kitchen", "host"] },
     { to: "/delivery", label: "Delivery", icon: Bike, roles: ["admin", "manager", "kitchen"] },
     { to: "/floor", label: "Floor", icon: Grid3X3, roles: ["admin", "manager", "host"] },

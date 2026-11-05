@@ -8,7 +8,7 @@ import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buf
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb, isTestSession } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope, sendText as waSendText } from "./services/whatsapp.js";
 import { ensureAddressFlows, tenantWabaId } from "./services/addressflow.js";
-import { widgetConfig, verifyTableToken, geofenceVerdict, tableSessionOf, sessionMatchesToken, recordGeofence, claimForScan, sessionStillHolds, liveClaim, isShowroom, startVerify, takeVerify, VERIFY_RE, guestToken, verifyGuestToken, linkPhone, effectiveSession, guestProfile, touchClaim } from "./services/tabletoken.js";
+import { widgetConfig, verifyTableToken, geofenceVerdict, tableSessionOf, sessionMatchesToken, recordGeofence, claimForScan, sessionStillHolds, liveClaim, isShowroom, startVerify, takeVerify, VERIFY_RE, guestToken, verifyGuestToken, linkPhone, effectiveSession, guestProfile, touchClaim, inServiceWindow } from "./services/tabletoken.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { metrics, bump } from "./services/metrics.js";
@@ -314,9 +314,83 @@ app.get("/api/widget/poll", rateLimit("widget-poll", 240, 60_000, widgetKey), as
     res.json({
       messages: (data || []).map((m) => ({ sender: m.sender, message: m.message, at: m.created_at, media_url: m.media_url, media_type: m.media_type })),
       linked: runAs !== sessionId,
+      // this visit's orders with their live kitchen status (the widget draws the tracker)
+      orders: await (async () => {
+        const { data: os } = await tenant.db.from("orders").select("code,status,total,created_at,ready_at,served_at,items")
+          .in("phone_number", [...new Set([sessionId, runAs])]).gte("created_at", visitStart || new Date(Date.now() - 6 * 3600_000).toISOString())
+          .order("created_at", { ascending: true }).limit(10);
+        return (os || []).map((o) => ({ code: o.code, status: o.status, total: o.total, at: o.created_at, items: (o.items || []).map((i) => `${i.qty}× ${i.name}`) }));
+      })(),
       join_code: claim && claim.owner_session === sessionId ? claim.join_code : null,
       members: claim ? (claim.members || []).length + 1 : 1,
     });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// the menu drawer: categories → items with price, photo and options, only what's orderable now
+app.get("/api/widget/menu", rateLimit("widget-menu", 60, 60_000), async (req, res) => {
+  const w = await widgetTenant(req, res); if (!w) return;
+  try {
+    const { tenant } = w;
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await tenant.db.from("menu_items").select("name,name_ar,category,price,description,photo_url,bestseller,options,available,sold_out_until,available_from,available_to,sort_order,dietary_tags").order("sort_order");
+    const cats = (tenant.record.menu_config?.categories || []).map((c) => c.name);
+    const items = (data || []).filter((m) => m.available !== false).map((m) => {
+      const size = (m.options || []).find((g) => g.key === "size");
+      const soldOut = !!(m.sold_out_until && String(m.sold_out_until).slice(0, 10) >= today);
+      return { name: m.name, name_ar: m.name_ar, category: m.category, price: Number(m.price), price_l: size ? Number(size.choices?.[1]?.price) || null : null,
+        description: String(m.description || "").replace(/\s*\(price from the 2025 print[^)]*\)/, ""), photo: m.photo_url || null, bestseller: !!m.bestseller,
+        tags: m.dietary_tags || null, unavailable: soldOut ? "sold_out" : !inServiceWindow(m) ? "not_now" : null };
+    });
+    const order = (c) => { const i = cats.indexOf(c); return i < 0 ? 999 : i; };
+    const byCat = [...new Set(items.map((i) => i.category))].sort((a, b) => order(a) - order(b)).map((c) => ({ name: c, items: items.filter((i) => i.category === c) }));
+    res.json({ currency: tenant.record.payments?.currency || "EGP", service_charge: tenant.record.payments?.service_charge || null, categories: byCat });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// "call staff" — reaches the counter screen in seconds. One call per 2 min per table.
+const staffCalls = new Map();
+app.post("/api/widget/call-staff", rateLimit("widget-call", 10, 60_000, widgetKey), async (req, res) => {
+  const w = await widgetTenant(req, res); if (!w) return;
+  try {
+    const { tenant, tok } = w;
+    const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+    const key = `${tenant.record.id}|${tok.table}`;
+    if (staffCalls.get(key) > Date.now() - 120_000) return res.json({ ok: true, already: true });
+    staffCalls.set(key, Date.now());
+    const reason = String(req.body?.reason || "help").slice(0, 40);
+    const label = { help: "needs help", bill: "asks for the bill", water: "asks for water", other: "is calling" }[reason] || "is calling";
+    const branchName = (tenant.record.basic_info?.branches || []).find((b) => b?.key === tok.branch)?.name || null;
+    await notifyDashboard(tenant.db, "staff_call", `Table ${tok.table} ${label}`, `${branchName ? branchName + " · " : ""}table ${tok.table} tapped "${label}" in the table chat.`, `table:${tok.table}`, branchName);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// post-visit rating: 4–5 → the café's Google page; 1–3 → a private note to the manager
+app.post("/api/widget/feedback", rateLimit("widget-feedback", 6, 60_000, widgetKey), async (req, res) => {
+  const w = await widgetTenant(req, res); if (!w) return;
+  try {
+    const { tenant, tok } = w;
+    const sessionId = String(req.body?.sessionId || "");
+    if (!sessionMatchesToken(sessionId, tenant.record, tok)) return res.status(401).json({ error: "bad session" });
+    const rating = Math.max(1, Math.min(5, Math.round(Number(req.body?.rating) || 0)));
+    const comments = String(req.body?.comment || "").slice(0, 800);
+    const runAs = await effectiveSession(tenant.db, sessionId);
+    const { data: last } = await tenant.db.from("orders").select("code").eq("phone_number", runAs).order("created_at", { ascending: false }).limit(1);
+    const base = { phone_number: runAs, rating, comments: comments || null };
+    let ins = await tenant.db.from("feedback").insert({ ...base, order_code: last?.[0]?.code || null, source: "table_chat", status: rating <= 3 ? "new" : "closed" });
+    if (ins.error) ins = await tenant.db.from("feedback").insert(base);
+    if (rating <= 3) await notifyDashboard(tenant.db, "feedback", `Table ${tok.table} rated ${rating}/5`, comments || "No comment left.", `table:${tok.table}`).catch(() => {});
+    const bi = tenant.record.basic_info || {};
+    const branch = (bi.branches || []).find((b) => b?.key === tok.branch) || {};
+    const review = branch.google_review_url || bi.google_review_url || `https://www.google.com/maps/search/${encodeURIComponent(`${tenant.record.name} ${branch.name || ""}`.trim())}`;
+    res.json({ ok: true, review_url: rating >= 4 ? review : null });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

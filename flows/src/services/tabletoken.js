@@ -151,6 +151,14 @@ async function claimIsLive(db, claim) {
   return true;
 }
 
+// a resumed session must still have a live table session (it expires after the TTL)
+async function sessionAlive(db, sessionId) {
+  const { data: d } = await db.from("diners").select("preferences").eq("phone_number", sessionId).maybeSingle();
+  const runAs = d?.preferences?.linked_phone;
+  if (runAs) { const { data: p } = await db.from("diners").select("preferences").eq("phone_number", runAs).maybeSingle(); return !!tableSessionOf(p); }
+  return !!tableSessionOf(d);
+}
+
 export async function loadClaim(db, table) {
   const { data } = await db.from("widget_claims").select("*").eq("table_number", String(table).toUpperCase()).maybeSingle();
   return data || null;
@@ -186,13 +194,13 @@ export async function claimForScan(tenant, { branch, table, geoVerdict, resumeSe
   const T = String(table).toUpperCase();
   if (isShowroom(tenant.record, T)) {
     // the website demo table: every visitor gets their own private visit, no claims
-    if (resumeSessionId && sessionMatchesToken(resumeSessionId, tenant.record, { table: T })) return { status: "owner", sessionId: resumeSessionId, showroom: true };
+    if (resumeSessionId && sessionMatchesToken(resumeSessionId, tenant.record, { table: T }) && (await sessionAlive(db, resumeSessionId))) return { status: "owner", sessionId: resumeSessionId, showroom: true };
     const s = await startTableSession(tenant, { branch, table: T, geoVerdict });
     return { status: "owner", sessionId: s.sessionId, table_session: s.table_session, showroom: true };
   }
   const claim = await liveClaim(db, T);
   // returning phone that is already part of the live visit
-  if (claim && resumeSessionId && claimHas(claim, resumeSessionId)) {
+  if (claim && resumeSessionId && claimHas(claim, resumeSessionId) && (await sessionAlive(db, resumeSessionId))) {
     return { status: claim.owner_session === resumeSessionId ? "owner" : "member", sessionId: resumeSessionId, join_code: claim.owner_session === resumeSessionId ? claim.join_code : null };
   }
   if (!claim) {
@@ -300,4 +308,18 @@ export async function guestProfile(db, phone) {
   const { data: d } = await db.from("diners").select("name,visit_count").eq("phone_number", phone).maybeSingle();
   const { data: o } = await db.from("orders").select("id").eq("phone_number", phone).limit(1);
   return { name: d?.name || null, has_history: !!o?.length };
+}
+
+// ======================= menu time windows =======================
+// menu_items.available_from / available_to ("07:30", "12:00") — breakfast-only dishes are
+// neither offered nor accepted outside their window. Cairo time; a window may wrap midnight.
+export function inServiceWindow(item, now = new Date()) {
+  const f = item?.available_from, t = item?.available_to;
+  if (!f || !t) return true;
+  const toMin = (v) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(v)); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const a = toMin(f), b = toMin(t);
+  if (a == null || b == null) return true;
+  const c = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+  const n = c.getHours() * 60 + c.getMinutes();
+  return a <= b ? n >= a && n < b : n >= a || n < b;
 }

@@ -5,7 +5,7 @@ import { orderedCategories, categoryLabel } from "../services/categories.js";
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, publicLink, log } from "../config.js";
-import { tableSessionOf, touchClaim, MAX_ORDERS_PER_SESSION, MIN_SECONDS_BEFORE_ORDER } from "../services/tabletoken.js";
+import { tableSessionOf, touchClaim, MAX_ORDERS_PER_SESSION, MIN_SECONDS_BEFORE_ORDER, inServiceWindow } from "../services/tabletoken.js";
 import { notifyDashboard, setSessionFlags } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
 import { deliveryQuote, geocodeAddress, matchLandmark, pricingOf, resolvePlace, streetCore } from "../services/delivery.js";
@@ -67,7 +67,8 @@ defineFlow({
       // 86'd-for-today items stay matchable so we can say "sold out today" honestly
       // instead of pretending they don't exist; hard-disabled items don't exist
       const soldOutToday = new Set((menuRows || []).filter((m) => m.available && m.sold_out_until && String(m.sold_out_until).slice(0, 10) >= today_).map((m) => m.name));
-      const menu = (menuRows || []).filter((m) => m.available && !soldOutToday.has(m.name));
+      // outside its serving window (breakfast till noon…) a dish is neither offered nor taken
+      const menu = (menuRows || []).filter((m) => m.available && !soldOutToday.has(m.name) && inServiceWindow(m));
       const { data: open } = await db.from("orders").select("*")
         .eq("phone_number", ctx.sessionId)
         .in("status", ["pending", "accepted", "preparing", "ready", "out_for_delivery"])
@@ -2532,7 +2533,13 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         order_type: orderType, table_number: tableNumber, branch,
         // the charge breakdown lands in its own columns, so reporting can read it
         // without re-deriving anything from the total
-        items: items.map((it) => ({ ...it, unit_price: itemPrice(it) })),
+        // each line carries its station (Settings → POS → Kitchen stations: category → station)
+        // so the bar screen shows drinks and the kitchen screen food, same as POS tickets
+        items: items.map((it) => {
+          const cat = (loaded.menu.find((m) => m.id === it.id) || {}).category || "";
+          const st = (config.pos?.stations || []).find((x) => x?.name && String(x.cats || "").split(",").map((c) => c.trim().toLowerCase()).filter(Boolean).includes(String(cat).toLowerCase()));
+          return { ...it, unit_price: itemPrice(it), ...(st ? { station: st.name } : {}) };
+        }),
         subtotal, service_charge: bill.service_charge, tax: bill.tax, total: bill.total,
         address: orderType === "delivery" ? address : null,
         map_link: mapLink?.url || null,

@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import Users from "./pages/Users";
 import Profit from "./pages/Profit";
 import Quality from "./pages/Quality";
+import TableReport from "./pages/TableReport";
 
 function Home() {
   const { token, role } = session();
@@ -40,6 +41,7 @@ export default function App() {
         }
       >
         <Route path="/overview" element={<ProtectedRoute roles={["manager"]}><Overview /></ProtectedRoute>} />
+        <Route path="/table-report" element={<ProtectedRoute roles={["manager"]}><TableReport /></ProtectedRoute>} />
         {/* Hidden from the sidebar, admin-only, reachable by URL: Profit is parked until
             item costs exist; Bot quality is an internal tool that will move to the ops console. */}
         <Route path="/profit" element={<ProtectedRoute roles={["admin"]}><Profit /></ProtectedRoute>} />

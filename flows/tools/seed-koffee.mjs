@@ -335,7 +335,8 @@ async function stageRow() {
       { q: "What time do you open?", a: "Every day 7:30 AM to midnight." },
     ],
     menu_config: { categories: CATEGORIES, upsell: { enabled: true, placement: "confirm" }, display: munadim.menu_config?.display || {} },
-    pos: {},
+    // ticket lines route to the bar or kitchen screen by category
+    pos: { stations: [{ name: "Bar", cats: "Hot Koffee, Kold Koffee, Blended Koffee, Non Koffee, Matcha Kulture, Refreshers Kulture, Smoothies" }, { name: "Kitchen", cats: "The Bakery Kulture, The Egg Kulture, The Bagels Kulture, The Sandwich Kulture, Flat Sourdough Loafs, The Salad Klub, Sides, Pancakes, Sweet Tooth Kulture, Retail" }] },
   };
   const { data: existing } = await sb.from("restaurants").select("id").eq("slug", SLUG).maybeSingle();
   if (existing) { const { error } = await sb.from("restaurants").update(row).eq("id", existing.id); if (error) throw error; console.log("restaurants row UPDATED"); }
