@@ -324,7 +324,7 @@ async function stageRow() {
       // table comes from the QR token, so the type question never fires
       ask_type_first: false, default_order_type: "dine_in", compact_messages: true,
       suggest_enabled: true, suggest_dishes: ["Pistachio Konafa Kroissant", "Hot Salted Karamel Matcha"],
-      closed_orders: "refuse",
+      closed_orders: "accept", // testing mode (founder, 6 Nov): orders at any hour — set "refuse" before go-live
       // table-identity rules for the widget (docs/KOFFEE-KULTURE-DINE-IN.md)
       dine_in_widget: { enabled: true, table_token_ttl_min: 180, geofence_m: 120, geofence_required: true, showroom_tables: ["DEMO"] },
       demo_mode: false,
