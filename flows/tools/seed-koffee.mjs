@@ -36,7 +36,7 @@ const size = (m, l) => ({ key: "size", label: "Size", required: true, choices: [
 const EXTRAS = { key: "extras", label: "Extras", optional: true, choices: [
   { name: "Extra shot", delta: 35 }, { name: "Extra flavor", delta: 35 }, { name: "Lactose-free", delta: 35 }, // not "…milk": "oat milk" must only hit the Milk group
 ] };
-const MILK = { key: "milk", label: "Milk", optional: true, choices: [{ name: "Regular" }, { name: "Skim" }, { name: "Coconut", delta: 40 }, { name: "Oat", delta: 40 }, { name: "Almond", delta: 40 }] };
+const MILK = { key: "milk", label: "Milk", optional: true, choices: [{ name: "Regular" }, { name: "Skim" }, { name: "Coconut", delta: 40 }, { name: "Oat", delta: 40 }] };
 const SIDE = { key: "side", label: "Side", required: true, choices: [{ name: "Sweet potato fries" }, { name: "Savory salad" }] };
 const BAGEL = { key: "bagel", label: "Bagel", optional: true, choices: [{ name: "Classic" }, { name: "Pretzel bagel", delta: 30 }, { name: "Jalapeño cheese bagel", delta: 30 }] };
 const BREAD = { key: "bread", label: "Baguette", optional: true, choices: [{ name: "White" }, { name: "Brown" }] };

@@ -86,7 +86,7 @@
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   // emoji → icon where it carries meaning; every other emoji is dropped
-  const ICON = { "🎫": "fa-ticket", "📄": "fa-file-lines", "🧾": "fa-receipt", "📍": "fa-location-dot", "💳": "fa-credit-card", "✅": "fa-circle-check", "⭐": "fa-star", "🕐": "fa-clock", "🔥": "fa-fire", "🍟": "fa-plus" };
+  const ICON = { "🎫": "fa-ticket", "🧾": "fa-receipt", "📍": "fa-location-dot", "💳": "fa-credit-card", "✅": "fa-circle-check", "⭐": "fa-star", "🕐": "fa-clock", "🔥": "fa-fire", "🍟": "fa-plus" };
   const EMOJI = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍(?:\p{Extended_Pictographic}))*/gu;
   function render(text) {
     let h = esc(text || "")
