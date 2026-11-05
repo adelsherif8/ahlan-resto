@@ -86,3 +86,24 @@ Sources: menuegypt.com/koffee-kulture (print images, hotline 01034999123, branch
 egmenus.com/restaurant/koffee-kulture (Sept 2026 prices), Tripadvisor + RestaurantGuru (Arkan
 address, hours, coordinates, table service, outdoor seating). The brand site koffee-kulture.com
 was unreachable (HTTP 402).
+
+## 6. Anti-troll + remember-the-guest (built 5 Nov, night)
+
+GPS can't tell table 5 from table 7, so the TABLE is owned (`widget_claims`, migration 045):
+- First phone to scan owns the table and sees a 4-digit **table code**; a second phone scanning
+  the same table sees "This table already has an open order" and can only join with that code.
+- **"That's not my table — I'm sitting here"** takes the table over, cuts off every phone on the
+  old claim (409), flags the claim and posts a `table_dispute` notification to the counter.
+  One dispute per device per day, so a troll can't ping-pong a real table.
+- Claims end **90 min after the last activity/order**, or as soon as every order on the table is
+  paid/closed. Showroom table DEMO never claims (each website visitor gets a private visit).
+- Order limits: no order in the first 8 s of a session; at most 4 orders per session.
+- **Remember me**: after the first order the chat offers "Verify on WhatsApp" — a wa.me link that
+  sends `KK-VERIFY <6 digits>` from the guest's own phone to our number (no template needed; it
+  opens the 24h window). The webhook links the table session to that phone, takes the WhatsApp
+  profile name, and from then the chat runs AS the phone: name, orders, "same as last time",
+  loyalty — the same memory as WhatsApp. The browser keeps a signed guest token, so the next
+  visit greets them by name with a "My usual" button. Forged tokens are ignored.
+Verified end to end (scratch claims-e2e 14/14, remember-e2e 6/6).
+What it still cannot stop: a troll who claims an EMPTY table before its guests arrive — the real
+guests then see it claimed and take it back with one tap, and the counter is told.

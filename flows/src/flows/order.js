@@ -5,7 +5,7 @@ import { orderedCategories, categoryLabel } from "../services/categories.js";
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, publicLink, log } from "../config.js";
-import { tableSessionOf } from "../services/tabletoken.js";
+import { tableSessionOf, touchClaim, MAX_ORDERS_PER_SESSION, MIN_SECONDS_BEFORE_ORDER } from "../services/tabletoken.js";
 import { notifyDashboard, setSessionFlags } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
 import { deliveryQuote, geocodeAddress, matchLandmark, pricingOf, resolvePlace, streetCore } from "../services/delivery.js";
@@ -2518,6 +2518,14 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         if (ts && required && ts.geofence !== "ok" && ts.geofence !== "unknown") {
           return { kind: "outside_geofence", items, reason: ts.geofence, branch_name: ts.branch_name || null, notices: outcomeNotices };
         }
+        // anti-spam: a brand-new table session can't fire an order within seconds, and one
+        // session places at most a handful of orders (a real table re-orders, a script floods)
+        if (ts) {
+          const ageS = (Date.now() - new Date(ts.started_at || 0).getTime()) / 1000;
+          if (ageS < MIN_SECONDS_BEFORE_ORDER) return { kind: "table_limit", reason: "too_fast", items, notices: outcomeNotices };
+          const { count } = await db.from("orders").select("id", { count: "exact", head: true }).eq("phone_number", ctx.sessionId).gte("created_at", ts.started_at);
+          if ((count || 0) >= MAX_ORDERS_PER_SESSION) return { kind: "table_limit", reason: "max_orders", items, notices: outcomeNotices };
+        }
       }
       const row = {
         code, phone_number: ctx.sessionId, diner_name: name,
@@ -2643,6 +2651,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
         `🍔 New ${orderType.replace("_", "-")} order ${code}${branchInfo ? ` — ${branchInfo.name}` : ""}`,
         `${name || ctx.sessionId}${tableNumber ? ` · table ${tableNumber}` : ""}${address ? ` · 📍 ${address}` : ""} — ${items.map((i) => `${i.qty}× ${i.name}${i.notes ? ` (${i.notes})` : ""}${modifiers(i).length ? ` [${modifiers(i).join(" · ")}]` : ""}`).join(", ")} · ${fmtAmount(bill.total)} ${currency}`,
         ctx.sessionId, branch);
+      { const tsP = tableSessionOf(diner); if (tsP?.table_number) await touchClaim(db, tsP.table_number).catch(() => {}); }
       return { kind: "order_placed", notices: outcomeNotices, loyalty, code, eta_minutes: etaQuote, opens_at: preorderOpens?.time || null, opens_tomorrow: !!preorderOpens?.tomorrow, order_type: orderType, table_number: tableNumber, branch_pin: branchInfo ? { address: branchInfo.address || null, lat: branchInfo.lat, lng: branchInfo.lng } : null, branch: branchInfo?.name || null, address: orderType === "delivery" ? address : null, map_link: mapLink?.url || null, payment, receipt_url: receiptUrl, track_url: trackUrl, items, bill, currency, unknown, notes: e.notes || null, pickup_time: e.pickup_time || null };
     }, { input: { intent: e.intent, items: (e.items || []).length, order_type: e.order_type, table: e.table_number } });
 
@@ -2668,7 +2677,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // dialect, and regularly re-asked a question the code block below already asks
       // (ar09: «هتدفع إزاي؟» twice in one bubble). The fallback map says it right in
       // all three languages; the backstop was replacing the model half the time anyway.
-      if (["stuck_handoff", "outside_geofence", "which_item", "menu_request", "ask_choice", "confirm_order", "need_pin", "which_place", "closed_now",
+      if (["stuck_handoff", "outside_geofence", "table_limit", "which_item", "menu_request", "ask_choice", "confirm_order", "need_pin", "which_place", "closed_now",
         "ask_items", "ask_fulfillment", "ask_payment", "order_placed", "order_status", "too_late_to_cancel", "no_scheduling",
         "split_view", "split_done"].includes(outcome.kind)) return { value: { reply: null, quick_replies: null } };
       // "Got it — pickup ✅ what would you like?" is a fixed phrase too: the model kept
@@ -2767,6 +2776,9 @@ LANGUAGE (last line so everything above stays cacheable): the conversation's lan
       ask_choice: `For your ${outcome.item}:\n${(outcome.questions || []).map((q) => `${q.label}${q.of > 1 ? ` (${q.remaining} to pick)` : ""}:\n${q.options.map((o) => `• ${o}`).join("\n")}`).join("\n\n")}`,
       ask_payment: `${L2("How would you like to pay?", "تحب تدفع إزاي؟", "Te7eb tedfa3 ezay?")}\n${(outcome.methods || []).map((m) => `• ${LANGV === "ar" ? arPay(m) : m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}`,
       confirm_order: L2("All set — confirm and I'll send it to the kitchen ✅", "كله تمام — أكد وهيروح للمطبخ على طول ✅", "Kolo tamam — akked w hayro7 lel kitchen ✅"),
+      table_limit: outcome.reason === "too_fast"
+        ? L2("One sec — tap confirm again and it goes straight to the counter.", "ثانية واحدة — اضغط تأكيد تاني وهيروح للكاشير على طول.", "Sanya wa7da — edghat confirm tani w hayro7 lel cashier 3ala tool.")
+        : L2("This table has sent quite a few orders already — anything else, just ask at the counter.", "الترابيزة دي بعتت طلبات كتير — أي حاجة تانية اطلبها من الكاشير.", "El tarabeza di ba3atet talabat ketir — ay 7aga tanya otlobha men el cashier."),
       outside_geofence: outcome.reason === "missing"
         ? L2("I can only send a table order from inside the café 📍 Allow location in your browser and tap confirm again — or order at the counter.", "أقدر أبعت طلب الترابيزة من جوه الكافيه بس 📍 اسمح للمتصفح يعرف مكانك واضغط تأكيد تاني — أو اطلب من الكاشير.", "A2dar ab3at talab el tarabeza men gowa el cafe bas 📍 Esma7 lel browser ye3raf makanak w edghat confirm tani — aw otlob men el cashier.")
         : L2(`Looks like you're not at ${outcome.branch_name || "the café"} right now 📍 Table orders only go through from inside — come back to the table and tap confirm again.`, `شكلك مش في ${outcome.branch_name || "الكافيه"} دلوقتي 📍 طلبات الترابيزة بتتبعت من جوه بس — ارجع للترابيزة واضغط تأكيد تاني.`, `Shaklak mesh f ${outcome.branch_name || "el cafe"} delwa2ty 📍 Talabat el tarabeza betet3at men gowa bas — erga3 lel tarabeza w edghat confirm tani.`),

@@ -6,9 +6,9 @@ import { modelWatch, lastModelCheck } from "./services/modelcheck.js";
 import { resolveRestaurant, resolveLiveRestaurant, resolveRestaurantByWpid, resolveRestaurantById, resolveRestaurantBySlug, resolveAllRestaurants, recordServiceBoot, listServiceBoots, upsertCostDaily, readCostDaily } from "./services/tenant.js";
 import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buffer.js";
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb, isTestSession } from "./engine/flow.js";
-import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
+import { verifyHandshake, verifySignature, parseEnvelope, sendText as waSendText } from "./services/whatsapp.js";
 import { ensureAddressFlows, tenantWabaId } from "./services/addressflow.js";
-import { widgetConfig, verifyTableToken, geofenceVerdict, startTableSession, tableSessionOf, sessionMatchesToken, recordGeofence } from "./services/tabletoken.js";
+import { widgetConfig, verifyTableToken, geofenceVerdict, tableSessionOf, sessionMatchesToken, recordGeofence, claimForScan, sessionStillHolds, liveClaim, isShowroom, startVerify, takeVerify, VERIFY_RE, guestToken, verifyGuestToken, linkPhone, effectiveSession, guestProfile, touchClaim } from "./services/tabletoken.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { metrics, bump } from "./services/metrics.js";
@@ -180,6 +180,8 @@ app.post("/api/wa/webhook", rateLimit("wa", 600, 60_000), async (req, res) => {
     const { events, statuses } = parseEnvelope(req.body);
     if (statuses.length) log(`WA statuses: ${statuses.map((s) => s.status).join(",")}`);
     for (const event of events) {
+      // a table-chat "remember me" code sent from WhatsApp — never reaches the bot
+      if (event.type === "text" && await handleWidgetVerify(event).catch(() => false)) continue;
       // WHOSE restaurant is this? The number the guest wrote to decides it.
       // An unknown number is dropped rather than answered by the default
       // restaurant — a cross-tenant reply is worse than no reply.
@@ -220,41 +222,73 @@ async function widgetTenant(req, res) {
 }
 const widgetKey = (req) => `${req.body?.slug || req.query?.slug}|${req.body?.sessionId || req.query?.sessionId || req.ip}`;
 
-// scan → session. Returns what the page needs to draw itself; the geofence is measured
-// here too so the page can say "we see you at Arkan" (or ask for location) up front.
+// scan → session. One visit owns a table (tabletoken.claimForScan): first phone owns it,
+// table-mates join with the 4-digit code, "that's not my table" releases + flags it.
+// A remembered guest (signed guest token from an earlier WhatsApp verification) is linked at once.
+async function widgetSessionPayload(tenant, tok, sessionId, extra = {}) {
+  const bi = tenant.record.basic_info || {};
+  const branch = (bi.branches || []).find((b) => b?.key === tok.branch) || null;
+  const { data: d } = await tenant.db.from("diners").select("preferences").eq("phone_number", sessionId).maybeSingle();
+  const ts = d?.preferences?.table_session || null;
+  const phone = d?.preferences?.linked_phone || null;
+  const guest = phone ? await guestProfile(tenant.db, phone) : null;
+  return {
+    sessionId, table: String(tok.table).toUpperCase(),
+    branch: branch ? { key: branch.key, name: branch.name, address: branch.address || null } : { key: tok.branch, name: tok.branch },
+    expires_at: ts?.expires_at || null,
+    restaurant: { name: tenant.record.name, logo: bi.brand?.logo_url || null, primary: bi.brand?.primary || "#222", language: bi.language || "en", greeting: tenant.record.ai?.greeting || `Welcome to ${tenant.record.name}` },
+    geofence: { status: ts?.geofence || "unknown", distance_m: ts?.distance_m ?? null },
+    guest: guest ? { name: guest.name, has_history: guest.has_history, verified: true } : null,
+    ...extra,
+  };
+}
+
 app.post("/api/widget/session", rateLimit("widget-session", 20, 60_000), async (req, res) => {
   const w = await widgetTenant(req, res); if (!w) return;
   try {
-    const { tenant, tok, cfg } = w;
-    const branch = (tenant.record.basic_info?.branches || []).find((b) => b?.key === tok.branch) || null;
+    const { tenant, tok } = w;
     const geo = geofenceVerdict(tenant.record, tok.branch, req.body?.geo || null, tok.table);
-    const { sessionId, table_session } = await startTableSession(tenant, { branch: tok.branch, table: tok.table, geoVerdict: geo });
-    const bi = tenant.record.basic_info || {};
-    res.json({
-      sessionId, table: table_session.table_number, branch: branch ? { key: branch.key, name: branch.name, address: branch.address || null } : { key: tok.branch, name: tok.branch },
-      expires_at: table_session.expires_at,
-      restaurant: { name: tenant.record.name, logo: bi.brand?.logo_url || null, primary: bi.brand?.primary || "#222", language: bi.language || "en",
-        greeting: tenant.record.ai?.greeting || `Welcome to ${tenant.record.name}` },
-      geofence: { status: geo.geofence, required: cfg.geofenceRequired, distance_m: geo.check?.distance_m ?? null, allowed_m: geo.check?.allowed_m ?? null },
+    const r = await claimForScan(tenant, {
+      branch: tok.branch, table: tok.table, geoVerdict: geo,
+      resumeSessionId: req.body?.sessionId && sessionMatchesToken(req.body.sessionId, tenant.record, tok) ? req.body.sessionId : null,
+      joinCode: req.body?.join_code || null, notMine: req.body?.not_mine === true, deviceId: req.body?.device || req.ip,
+      notify: (T) => notifyDashboard(tenant.db, "table_dispute", `Table ${T}: a guest says this table is theirs`,
+        `Someone else had claimed table ${T}. The new guest took it over — check any open order on ${T} before serving.`, `table:${T}`),
     });
+    if (!r.sessionId) return res.json({ status: r.status, table: String(tok.table).toUpperCase() });
+    await recordGeofence(tenant, r.sessionId, geo);
+    // remembered guest from an earlier visit on this device
+    const gphone = verifyGuestToken(tenant.record, req.body?.guest_token);
+    if (gphone) await linkPhone(tenant, r.sessionId, gphone);
+    res.json(await widgetSessionPayload(tenant, tok, r.sessionId, { status: r.status, join_code: r.join_code || null, disputed: !!r.disputed, showroom: !!r.showroom }));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
+async function widgetGuard(req, res, w) {
+  const { tenant, tok } = w;
+  const sessionId = String(req.body?.sessionId || req.query?.sessionId || "");
+  if (!sessionMatchesToken(sessionId, tenant.record, tok)) { res.status(401).json({ error: "session does not belong to this table" }); return null; }
+  if (!(await sessionStillHolds(tenant, tok.table, sessionId))) { res.status(409).json({ status: "lost", error: "this table was taken over by another guest" }); return null; }
+  return sessionId;
+}
+
 app.post("/api/widget/send", rateLimit("widget-send", 30, 60_000, widgetKey), async (req, res) => {
   const w = await widgetTenant(req, res); if (!w) return;
   try {
     const { tenant, tok } = w;
-    const { sessionId, message } = req.body || {};
-    if (!sessionId || !message) return res.status(400).json({ error: "sessionId and message required" });
-    if (!sessionMatchesToken(sessionId, tenant.record, tok)) return res.status(401).json({ error: "session does not belong to this table" });
-    const { data: diner } = await tenant.db.from("diners").select("preferences").eq("phone_number", sessionId).maybeSingle();
+    const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+    const message = req.body?.message;
+    if (!message) return res.status(400).json({ error: "message required" });
+    const runAs = await effectiveSession(tenant.db, sessionId);
+    const { data: diner } = await tenant.db.from("diners").select("preferences").eq("phone_number", runAs).maybeSingle();
     if (!tableSessionOf(diner)) return res.status(410).json({ error: "table session expired — scan the table's QR again" });
     const geo = geofenceVerdict(tenant.record, tok.branch, req.body?.geo || null, tok.table);
     const branchName = (tenant.record.basic_info?.branches || []).find((b) => b?.key === tok.branch)?.name || null;
-    await recordGeofence(tenant, sessionId, geo, branchName); // the order flow reads it from the session at placement
-    const ctx = { sessionId, tenant, channel: "web", trigger: "widget", widget: { table: tok.table, branch: tok.branch, branch_name: branchName, geofence: geo.geofence } };
+    await recordGeofence(tenant, runAs, geo, branchName);
+    if (!isShowroom(tenant.record, tok.table)) await touchClaim(tenant.db, tok.table).catch(() => {});
+    const ctx = { sessionId: runAs, tenant, channel: "web", trigger: "widget", widget: { table: tok.table, branch: tok.branch, branch_name: branchName, geofence: geo.geofence } };
     const { exec } = await runFlow("ingest", ctx, { message: String(message).slice(0, 2000), messageId: req.body.messageId || null });
     res.json({ accepted: true, executionId: exec.id, geofence: geo.geofence });
   } catch (e) {
@@ -265,19 +299,73 @@ app.post("/api/widget/send", rateLimit("widget-send", 30, 60_000, widgetKey), as
 app.get("/api/widget/poll", rateLimit("widget-poll", 240, 60_000, widgetKey), async (req, res) => {
   const w = await widgetTenant(req, res); if (!w) return;
   try {
-    const { tenant, tok } = w;
-    const sessionId = String(req.query.sessionId || "");
-    if (!sessionMatchesToken(sessionId, tenant.record, tok)) return res.status(401).json({ error: "session does not belong to this table" });
-    const since = req.query.since ? String(req.query.since) : null;
-    let q = tenant.db.from("chat_messages").select("sender,message,media_url,media_type,created_at").eq("session_id", sessionId).order("created_at", { ascending: true }).limit(80);
+    const { tenant } = w;
+    const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+    const runAs = await effectiveSession(tenant.db, sessionId);
+    // this VISIT only — a remembered guest's phone carries every earlier conversation
+    const { data: wd } = await tenant.db.from("diners").select("preferences").eq("phone_number", sessionId).maybeSingle();
+    const visitStart = wd?.preferences?.table_session?.started_at || null;
+    const since = req.query.since ? String(req.query.since) : visitStart;
+    let q = tenant.db.from("chat_messages").select("sender,message,media_url,media_type,created_at").in("session_id", [...new Set([sessionId, runAs])]).order("created_at", { ascending: true }).limit(80);
     if (since) q = q.gt("created_at", since);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    res.json({ messages: (data || []).map((m) => ({ sender: m.sender, message: m.message, at: m.created_at, media_url: m.media_url, media_type: m.media_type })), typing: false });
+    const claim = isShowroom(tenant.record, w.tok.table) ? null : await liveClaim(tenant.db, w.tok.table);
+    res.json({
+      messages: (data || []).map((m) => ({ sender: m.sender, message: m.message, at: m.created_at, media_url: m.media_url, media_type: m.media_type })),
+      linked: runAs !== sessionId,
+      join_code: claim && claim.owner_session === sessionId ? claim.join_code : null,
+      members: claim ? (claim.members || []).length + 1 : 1,
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
+
+// "remember me": the guest sends a one-time code FROM WhatsApp to our number — proves the phone
+// with no template, and opens the 24h window. The webhook below completes the link.
+app.post("/api/widget/identify", rateLimit("widget-identify", 6, 60_000, widgetKey), async (req, res) => {
+  const w = await widgetTenant(req, res); if (!w) return;
+  try {
+    const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+    const code = startVerify(w.tenant.record.slug, sessionId);
+    const waNumber = String(process.env.WIDGET_VERIFY_WA || "201515066123").replace(/\D/g, "");
+    res.json({ code, wa_link: `https://wa.me/${waNumber}?text=${encodeURIComponent(`KK-VERIFY ${code}`)}`, expires_in_s: 600 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/api/widget/identify", rateLimit("widget-identify-poll", 120, 60_000, widgetKey), async (req, res) => {
+  const w = await widgetTenant(req, res); if (!w) return;
+  try {
+    const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+    const runAs = await effectiveSession(w.tenant.db, sessionId);
+    if (runAs === sessionId) return res.json({ linked: false });
+    const g = await guestProfile(w.tenant.db, runAs);
+    res.json({ linked: true, name: g.name, has_history: g.has_history, guest_token: guestToken(w.tenant.record, runAs) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// WhatsApp side of the verification: "KK-VERIFY 123456" from any phone links that phone to the
+// waiting table session. Returns true when the message was a verification (so the bot skips it).
+async function handleWidgetVerify(event) {
+  const m = VERIFY_RE.exec(String(event?.text || ""));
+  if (!m) return false;
+  const v = takeVerify(m[1]);
+  const phone = `+${event.from}`;
+  const pnid = event.phoneNumberId;
+  if (!v) { if (pnid) await waSendText(pnid, event.from, "That code has expired — tap “Remember me” in the table chat again.").catch(() => {}); return true; }
+  try {
+    const tenant = await resolveRestaurantBySlug(v.slug);
+    await linkPhone(tenant, v.sessionId, phone, event.profileName || null);
+    if (pnid) await waSendText(pnid, event.from, `Verified — ${tenant.record.name} will remember you. You can go back to your table chat now.`).catch(() => {});
+    log(`widget verify: ${v.slug} ${v.sessionId} → ${phone}`);
+  } catch (e) { log(`widget verify failed: ${e.message}`); }
+  return true;
+}
 
 // ================= web live chat (ops test chat + future guest widget) =================
 app.post("/api/web/send", opsAuth, rateLimit("websend", 60, 60_000), async (req, res) => {

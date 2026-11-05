@@ -52,6 +52,21 @@
   button.send:hover { transform: scale(1.06) rotate(-8deg); } button.send:disabled { opacity: .45; transform: none; }
   .gate { margin: auto; padding: 30px 24px; text-align: center; color: var(--muted); animation: in .4s both; }
   .gate i { font-size: 44px; color: var(--brand); } .gate h2 { color: var(--ink); font-size: 19px; margin: 14px 0 6px; }
+  .banner { display: flex; align-items: center; gap: 10px; margin: 10px 14px 0; padding: 10px 12px; border-radius: 14px; background: var(--brand-soft); color: #1f5f17; font-size: 13.5px; animation: in .35s both; }
+  .banner b { font-size: 16px; letter-spacing: .18em; color: var(--ink); }
+  .banner i { color: var(--brand); font-size: 16px; }
+  .banner button { margin-left: auto; font: inherit; font-weight: 700; font-size: 12.5px; color: var(--brand); background: #fff; border: 0; border-radius: 999px; padding: 6px 10px; cursor: pointer; }
+  .card { margin: 4px 0 4px 36px; padding: 14px; border-radius: 18px; background: #fff; border: 1.5px solid var(--brand-soft); box-shadow: 0 6px 18px rgba(0,0,0,.05); animation: in .35s both; }
+  .card h4 { margin: 0 0 4px; font-size: 15px; display: flex; gap: 8px; align-items: center; } .card h4 i { color: var(--brand); }
+  .card p { margin: 0 0 10px; color: var(--muted); font-size: 13.5px; }
+  .card .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .card .wa { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 700; color: #fff; background: #25D366; border-radius: 999px; padding: 9px 14px; font-size: 14px; }
+  .card .skip { font: inherit; font-size: 14px; font-weight: 600; color: var(--muted); background: none; border: 0; cursor: pointer; padding: 9px 6px; }
+  .gate .code { display: flex; gap: 8px; justify-content: center; margin: 16px 0 8px; }
+  .gate .code input { width: 150px; text-align: center; font-size: 22px; letter-spacing: .4em; padding: 10px; border-radius: 14px; }
+  .gate .go { font: inherit; font-weight: 700; color: #fff; background: var(--brand); border: 0; border-radius: 14px; padding: 0 16px; cursor: pointer; }
+  .gate .mine { margin-top: 14px; font: inherit; font-weight: 700; color: #a35a00; background: #fff3e0; border: 0; border-radius: 999px; padding: 10px 16px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+  .gate .err { color: #b42318; font-size: 13px; min-height: 18px; }
   [dir="rtl"] { text-align: right; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
@@ -63,6 +78,7 @@
     <div class="t"><div class="name" id="rname">Connecting</div><div class="sub" id="rsub"><i class="fa-solid fa-circle-notch fa-spin"></i> Finding your table</div></div>
     <span class="pill" id="geo"><i class="fa-solid fa-location-crosshairs"></i></span>
   </header>
+  <div id="banner"></div>
   <div id="log"></div>
   <div class="chips" id="chips"></div>
   <div class="quick" id="quick" hidden>
@@ -80,12 +96,14 @@
   const slug = new URLSearchParams(location.search).get("r") || "koffee-kulture";
   const api = (p) => `${location.origin}${p}`;
   const $ = (id) => document.getElementById(id);
-  const log = $("log"), input = $("in"), send = $("send"), chips = $("chips"), geoPill = $("geo"), quick = $("quick");
-  let session = null, lastAt = null, geo = null, polling = null, typingRow = null;
+  const log = $("log"), input = $("in"), send = $("send"), chips = $("chips"), geoPill = $("geo"), quick = $("quick"), banner = $("banner");
+  let session = null, lastAt = null, geo = null, polling = null, typingRow = null, askedRemember = false, identifyTimer = null;
   const seen = new Set();
+  const LS = { get: (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+  const device = LS.get("kk:device") || (() => { const d = Math.random().toString(36).slice(2) + Date.now().toString(36); LS.set("kk:device", d); return d; })();
+  const guestKey = `kk:guest:${slug}`;
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  // emoji → icon where it carries meaning; every other emoji is dropped
   const ICON = { "🎫": "fa-ticket", "🧾": "fa-receipt", "📍": "fa-location-dot", "💳": "fa-credit-card", "✅": "fa-circle-check", "⭐": "fa-star", "🕐": "fa-clock", "🔥": "fa-fire", "🍟": "fa-plus" };
   const EMOJI = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍(?:\p{Extended_Pictographic}))*/gu;
   function render(text) {
@@ -124,9 +142,8 @@
     });
   }
   const stripChipLine = (t) => (t || "").split("\n").filter((l) => !l.trim().startsWith("▸")).join("\n").trim();
-
   function setGeoPill(status, dist) {
-    const map = { ok: ["ok", "fa-location-dot", "At the café"], showroom: ["ok", "fa-store", "Showroom"], outside: ["warn", "fa-location-arrow", dist ? `${dist > 999 ? (dist / 1000).toFixed(1) + " km" : dist + " m"} away` : "Not here"], missing: ["warn", "fa-location-crosshairs", "Location off"] };
+    const map = { ok: ["ok", "fa-location-dot", "At the café"], outside: ["warn", "fa-location-arrow", dist ? `${dist > 999 ? (dist / 1000).toFixed(1) + " km" : dist + " m"} away` : "Not here"], missing: ["warn", "fa-location-crosshairs", "Location off"] };
     const [cls, ic, label] = map[status] || ["", "fa-location-crosshairs", ""];
     geoPill.className = `pill ${cls}`; geoPill.innerHTML = `<i class="fa-solid ${ic}"></i>${label}`;
   }
@@ -136,45 +153,116 @@
       navigator.geolocation.getCurrentPosition((p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }), () => resolve(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
     });
   }
+  function setBanner(code, members) {
+    if (!code || session?.showroom) { banner.innerHTML = ""; return; }
+    banner.innerHTML = `<div class="banner"><i class="fa-solid fa-users"></i><span>Table code <b>${esc(code)}</b><br>Friends at this table enter it to order too${members > 1 ? ` · ${members} phones` : ""}</span></div>`;
+  }
+
+  async function openSession(extra = {}) {
+    const saved = LS.get("kk:" + token);
+    const guest = LS.get(guestKey);
+    const r = await fetch(api("/api/widget/session"), { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, token, geo, device, sessionId: saved?.sessionId || null, guest_token: guest?.token || null, ...extra }) }).catch(() => null);
+    if (!r) return { error: "network" };
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { error: j.error || "failed" };
+    return j;
+  }
 
   async function start() {
     if (!token) return gate("fa-qrcode", "Scan the code on your table", "It opens this chat already knowing where you sit.");
-    try { const saved = JSON.parse(localStorage.getItem("kk:" + token) || "null"); if (saved && new Date(saved.expires_at) > new Date()) session = saved; } catch {}
     geo = await getGeo();
-    if (!session) {
-      const r = await fetch(api("/api/widget/session"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, geo }) }).catch(() => null);
-      if (!r || !r.ok) { const e = r ? await r.json().catch(() => ({})) : {}; return gate("fa-triangle-exclamation", e.error === "bad table token" ? "This code isn't valid" : "Couldn't open your table", e.error === "bad table token" ? "Ask for a fresh one at the counter." : "Check your connection and try again."); }
-      session = await r.json();
-      try { localStorage.setItem("kk:" + token, JSON.stringify(session)); } catch {}
-    }
-    const R = session.restaurant || {};
+    const j = await openSession();
+    if (j.error) return gate("fa-triangle-exclamation", j.error === "bad table token" ? "This code isn't valid" : "Couldn't open your table", j.error === "bad table token" ? "Ask for a fresh one at the counter." : "Check your connection and try again.");
+    handleSession(j);
+  }
+
+  function handleSession(j) {
+    if (j.status === "claimed") return claimedGate(j.table);
+    if (j.status === "bad_code") return claimedGate(j.table, "That code doesn't match — check the phone that started the order.");
+    if (j.status === "dispute_limit") return claimedGate(j.table, "You've already reported a table today — please ask at the counter.");
+    session = j;
+    LS.set("kk:" + token, { sessionId: j.sessionId, expires_at: j.expires_at });
+    const R = j.restaurant || {};
     document.documentElement.style.setProperty("--brand", R.primary || "#3DAE2B");
     $("rname").textContent = R.name || "Order";
-    $("rsub").innerHTML = `<i class="fa-solid fa-chair"></i> Table ${esc(session.table)}${session.branch?.name ? ` · ${esc(session.branch.name)}` : ""}`;
+    $("rsub").innerHTML = `<i class="fa-solid fa-chair"></i> Table ${esc(j.table)}${j.branch?.name ? ` · ${esc(j.branch.name)}` : ""}`;
     if (R.logo) { $("logo").src = R.logo; $("logo").hidden = false; }
-    document.title = `${R.name || "Order"} · Table ${session.table}`;
-    setGeoPill(session.geofence?.status || "unknown", session.geofence?.distance_m);
-    if (!session.greeted) {
-      add("ai", `${(R.greeting || "Welcome!").replace(EMOJI, "").replace(/ {2,}/g, " ").trim()}\n\nYou're at *table ${session.table}*. Tell me what you'd like, or tap the menu below.`);
-      session.greeted = true; try { localStorage.setItem("kk:" + token, JSON.stringify(session)); } catch {}
+    document.title = `${R.name || "Order"} · Table ${j.table}`;
+    setGeoPill(j.showroom ? "ok" : (j.geofence?.status || "unknown"), j.geofence?.distance_m);
+    setBanner(j.join_code, 1);
+    log.innerHTML = ""; seen.clear(); lastAt = null;
+    const greet = (R.greeting || "Welcome!").replace(EMOJI, "").replace(/ {2,}/g, " ").trim();
+    const name = j.guest?.name ? j.guest.name.split(" ")[0] : null;
+    if (j.disputed) sys("fa-flag", "Table reclaimed — the counter has been told someone else was ordering here.");
+    if (j.status === "member") add("ai", `You've joined *table ${j.table}*. Order anything — it all goes on the same table.`);
+    else add("ai", name ? `Welcome back, *${name}*! You're at *table ${j.table}*. Same as last time, or something new?` : `${greet}\n\nYou're at *table ${j.table}*. Tell me what you'd like, or tap the menu below.`);
+    if (j.guest) askedRemember = true;
+    if (j.guest?.has_history && !quick.querySelector('[data-q="Same as last time"]')) {
+      const b = document.createElement("button"); b.dataset.q = "Same as last time"; b.innerHTML = '<i class="fa-solid fa-rotate-left"></i>My usual';
+      b.addEventListener("click", () => { input.value = b.dataset.q; sendMsg(); }); quick.prepend(b);
     }
     input.disabled = false; send.disabled = false; quick.hidden = false;
-    poll(); polling = setInterval(poll, 2000);
-    setInterval(async () => { const g = await getGeo(); if (g) geo = g; }, 45000);
+    clearInterval(polling); poll(); polling = setInterval(poll, 2000);
   }
-  function gate(icon, title, text) { log.innerHTML = `<div class="gate"><i class="fa-solid ${icon}"></i><h2>${esc(title)}</h2><p>${esc(text)}</p></div>`; quick.hidden = true; input.disabled = send.disabled = true; }
+
+  function claimedGate(table, err = "") {
+    clearInterval(polling); banner.innerHTML = ""; quick.hidden = true; input.disabled = send.disabled = true;
+    $("rname").textContent = "Koffee Kulture"; $("rsub").innerHTML = `<i class="fa-solid fa-chair"></i> Table ${esc(table || "")}`;
+    log.innerHTML = `<div class="gate"><i class="fa-solid fa-user-lock"></i><h2>This table already has an open order</h2>
+      <p>Joining friends? Enter the 4-digit table code from the phone that started the order.</p>
+      <div class="code"><input id="jc" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="one-time-code"><button class="go" id="jgo"><i class="fa-solid fa-arrow-right"></i></button></div>
+      <div class="err">${esc(err)}</div>
+      <button class="mine" id="mine"><i class="fa-solid fa-flag"></i>That's not my table — I'm sitting here</button></div>`;
+    const jc = $("jc"); jc.focus();
+    const join = async () => { if (!/^\d{4}$/.test(jc.value)) return; const j = await openSession({ join_code: jc.value }); j.error ? claimedGate(table, "Couldn't join — try again.") : handleSession(j); };
+    $("jgo").onclick = join; jc.addEventListener("keydown", (e) => { if (e.key === "Enter") join(); });
+    jc.addEventListener("input", () => { if (/^\d{4}$/.test(jc.value)) join(); });
+    $("mine").onclick = async () => { const j = await openSession({ not_mine: true }); j.error ? claimedGate(table, "Couldn't reclaim — ask at the counter.") : handleSession(j); };
+  }
+  function gate(icon, title, text) { log.innerHTML = `<div class="gate"><i class="fa-solid ${icon}"></i><h2>${esc(title)}</h2><p>${esc(text)}</p></div>`; quick.hidden = true; banner.innerHTML = ""; input.disabled = send.disabled = true; }
+
+  function rememberCard() {
+    if (askedRemember) return;
+    askedRemember = true;
+    const row = document.createElement("div"); row.className = "card";
+    row.innerHTML = `<h4><i class="fa-solid fa-heart"></i>Want us to remember you?</h4><p>Verify your number once on WhatsApp — next visit we'll greet you by name and have your usual ready.</p>
+      <div class="acts"><a class="wa" id="wa" href="#" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i>Verify on WhatsApp</a><button class="skip" id="skip">Not now</button></div>`;
+    log.appendChild(row); log.scrollTop = log.scrollHeight;
+    $("skip").onclick = () => row.remove();
+    $("wa").onclick = async (e) => {
+      e.preventDefault();
+      const r = await fetch(api("/api/widget/identify"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId }) }).catch(() => null);
+      const j = r && r.ok ? await r.json() : null;
+      if (!j) return sys("fa-rotate-right", "Couldn't start verification — try again.");
+      window.open(j.wa_link, "_blank");
+      row.querySelector("p").innerHTML = `Send the message WhatsApp opened (code <b>${esc(j.code)}</b>), then come back here.`;
+      clearInterval(identifyTimer);
+      identifyTimer = setInterval(async () => {
+        const u = new URL(api("/api/widget/identify")); u.searchParams.set("slug", slug); u.searchParams.set("token", token); u.searchParams.set("sessionId", session.sessionId);
+        const s = await fetch(u).then((x) => x.json()).catch(() => null);
+        if (s?.linked) { clearInterval(identifyTimer); LS.set(guestKey, { token: s.guest_token }); row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>Got it${s.name ? `, ${esc(s.name.split(" ")[0])}` : ""}!</h4><p>We'll remember you next time.</p>`; }
+      }, 2500);
+      setTimeout(() => clearInterval(identifyTimer), 10 * 60_000);
+    };
+  }
 
   async function poll() {
     if (!session) return;
     const u = new URL(api("/api/widget/poll")); u.searchParams.set("slug", slug); u.searchParams.set("token", token); u.searchParams.set("sessionId", session.sessionId); if (lastAt) u.searchParams.set("since", lastAt);
     let r; try { r = await fetch(u); } catch { return; }
+    if (r.status === 409) { clearInterval(polling); return gate("fa-user-slash", "Someone at this table took it over", "If this is your table, scan its code again and tap “That's not my table”."); }
     if (r.status === 410) { clearInterval(polling); return gate("fa-hourglass-end", "Your table session ended", "Scan the code on your table again to keep ordering."); }
     if (!r.ok) return;
-    const { messages } = await r.json();
-    for (const m of messages || []) {
+    const j = await r.json();
+    setBanner(j.join_code, j.members);
+    for (const m of j.messages || []) {
       const key = `${m.at}|${m.sender}|${(m.message || "").slice(0, 40)}`;
       if (seen.has(key)) continue; seen.add(key); lastAt = m.at;
-      if (m.sender === "ai" || m.sender === "staff") { showTyping(false); add("ai", stripChipLine(m.message), m.media_type === "image" ? m.media_url : null); chipsFrom(m.message); }
+      if (m.sender === "ai" || m.sender === "staff") {
+        showTyping(false); add("ai", stripChipLine(m.message), m.media_type === "image" ? m.media_url : null); chipsFrom(m.message);
+        if (/O-[A-Z0-9]{4}/.test(m.message || "")) setTimeout(rememberCard, 900);
+      }
     }
   }
   async function sendMsg() {
@@ -182,15 +270,16 @@
     input.value = ""; chips.innerHTML = ""; add("me", text); showTyping(true);
     if (!geo) geo = await getGeo();
     const r = await fetch(api("/api/widget/send"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, message: text, geo }) }).catch(() => null);
-    if (r?.status === 410) { clearInterval(polling); return gate("fa-hourglass-end", "Your table session ended", "Scan the code on your table again to keep ordering."); }
+    if (r?.status === 409) { showTyping(false); clearInterval(polling); return gate("fa-user-slash", "Someone at this table took it over", "If this is your table, scan its code again and tap “That's not my table”."); }
+    if (r?.status === 410) { showTyping(false); clearInterval(polling); return gate("fa-hourglass-end", "Your table session ended", "Scan the code on your table again to keep ordering."); }
     if (!r || !r.ok) { showTyping(false); return sys("fa-rotate-right", "Couldn't send that — try again."); }
     const j = await r.json().catch(() => ({}));
-    if (j.geofence) setGeoPill(j.geofence);
+    if (j.geofence && !session.showroom) setGeoPill(j.geofence);
   }
   $("f").addEventListener("submit", (e) => { e.preventDefault(); sendMsg(); });
   quick.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { input.value = b.dataset.q; sendMsg(); }));
-  // the host page's menu "+" buttons prefill an order line
   addEventListener("message", (e) => { if (e.data?.type === "kk:prefill" && e.data.text) { input.value = e.data.text; input.focus(); } });
+  setInterval(async () => { const g = await getGeo(); if (g) geo = g; }, 45000);
   start();
 })();
 </script>

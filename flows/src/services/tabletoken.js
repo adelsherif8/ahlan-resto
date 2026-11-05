@@ -124,3 +124,180 @@ export async function startTableSession(tenant, { branch, table, geoVerdict }) {
 // the session id itself names the table — a request must present a token for THAT table
 export const sessionMatchesToken = (sessionId, record, tok) =>
   typeof sessionId === "string" && sessionId.startsWith(`web:tbl:${record.slug}:${String(tok.table).toUpperCase()}:`);
+
+// ======================= table claims (one visit owns a table) =======================
+// docs/KOFFEE-KULTURE-DINE-IN.md §2. GPS can't tell table 5 from table 7, so the TABLE itself
+// is owned: the first phone to scan owns it for the visit; table-mates join with the 4-digit
+// code shown on the owner's screen; a guest who sits down and finds their table already
+// claimed taps "that's not my table" — the claim is released, the counter is told, and they
+// own it. Claims end 90 min after the last activity, or once every order on them is paid/closed.
+export const CLAIM_IDLE_MIN = 90;
+export const MAX_ORDERS_PER_SESSION = 4;
+export const MIN_SECONDS_BEFORE_ORDER = 8;
+const DISPUTES_PER_DEVICE_PER_DAY = 1;
+
+export const isShowroom = (record, table) => widgetConfig(record).showroomTables.includes(String(table).toUpperCase());
+const code4 = () => String(crypto.randomInt(0, 10000)).padStart(4, "0");
+const minsFromNow = (m) => new Date(Date.now() + m * 60_000).toISOString();
+
+// is the claim still the live visit? (released, idle past expiry, or every order paid/closed → no)
+async function claimIsLive(db, claim) {
+  if (!claim || claim.released_at) return false;
+  if (new Date(claim.expires_at).getTime() < Date.now()) return false;
+  const { data: orders } = await db.from("orders").select("status,payment_status,created_at")
+    .eq("table_number", claim.table_number).gte("created_at", claim.claimed_at).limit(50);
+  const mine = orders || [];
+  if (mine.length && mine.every((o) => o.payment_status === "paid" || ["completed", "delivered", "served", "cancelled", "closed"].includes(String(o.status)))) return false;
+  return true;
+}
+
+export async function loadClaim(db, table) {
+  const { data } = await db.from("widget_claims").select("*").eq("table_number", String(table).toUpperCase()).maybeSingle();
+  return data || null;
+}
+
+export async function liveClaim(db, table) {
+  const c = await loadClaim(db, table);
+  return (await claimIsLive(db, c)) ? c : null;
+}
+
+async function writeClaim(db, table, branch, ownerSession) {
+  const row = {
+    table_number: String(table).toUpperCase(), branch, owner_session: ownerSession, members: [], join_code: code4(),
+    claimed_at: new Date().toISOString(), last_activity_at: new Date().toISOString(), expires_at: minsFromNow(CLAIM_IDLE_MIN),
+    released_at: null, release_reason: null, flagged: false,
+  };
+  const { error } = await db.from("widget_claims").upsert(row, { onConflict: "table_number" });
+  if (error) throw new Error(`claim: ${error.message}`);
+  return row;
+}
+
+export const claimHas = (claim, sessionId) => !!claim && (claim.owner_session === sessionId || (claim.members || []).includes(sessionId));
+
+export async function touchClaim(db, table) {
+  const c = await loadClaim(db, table);
+  if (!c || c.released_at) return;
+  await db.from("widget_claims").update({ last_activity_at: new Date().toISOString(), expires_at: minsFromNow(CLAIM_IDLE_MIN) }).eq("table_number", c.table_number);
+}
+
+// The whole scan decision. Returns { status: "owner"|"member"|"claimed"|"bad_code"|"dispute_limit", ... }
+export async function claimForScan(tenant, { branch, table, geoVerdict, resumeSessionId = null, joinCode = null, notMine = false, deviceId = null, notify = null }) {
+  const db = tenant.db;
+  const T = String(table).toUpperCase();
+  if (isShowroom(tenant.record, T)) {
+    // the website demo table: every visitor gets their own private visit, no claims
+    if (resumeSessionId && sessionMatchesToken(resumeSessionId, tenant.record, { table: T })) return { status: "owner", sessionId: resumeSessionId, showroom: true };
+    const s = await startTableSession(tenant, { branch, table: T, geoVerdict });
+    return { status: "owner", sessionId: s.sessionId, table_session: s.table_session, showroom: true };
+  }
+  const claim = await liveClaim(db, T);
+  // returning phone that is already part of the live visit
+  if (claim && resumeSessionId && claimHas(claim, resumeSessionId)) {
+    return { status: claim.owner_session === resumeSessionId ? "owner" : "member", sessionId: resumeSessionId, join_code: claim.owner_session === resumeSessionId ? claim.join_code : null };
+  }
+  if (!claim) {
+    const s = await startTableSession(tenant, { branch, table: T, geoVerdict });
+    const c = await writeClaim(db, T, branch, s.sessionId);
+    return { status: "owner", sessionId: s.sessionId, table_session: s.table_session, join_code: c.join_code };
+  }
+  if (joinCode) {
+    if (String(joinCode).trim() !== claim.join_code) return { status: "bad_code" };
+    const s = await startTableSession(tenant, { branch, table: T, geoVerdict });
+    await db.from("widget_claims").update({ members: [...(claim.members || []), s.sessionId], last_activity_at: new Date().toISOString(), expires_at: minsFromNow(CLAIM_IDLE_MIN) }).eq("table_number", T);
+    return { status: "member", sessionId: s.sessionId, table_session: s.table_session };
+  }
+  if (notMine) {
+    // one dispute per device per day — a troll can't ping-pong a real table off its seat
+    if (deviceId && !(await allowDispute(db, deviceId))) return { status: "dispute_limit" };
+    const s = await startTableSession(tenant, { branch, table: T, geoVerdict });
+    const c = await writeClaim(db, T, branch, s.sessionId);
+    await db.from("widget_claims").update({ flagged: true, disputes: (claim.disputes || 0) + 1 }).eq("table_number", T);
+    if (notify) await notify(T, claim).catch(() => {});
+    return { status: "owner", sessionId: s.sessionId, table_session: s.table_session, join_code: c.join_code, disputed: true };
+  }
+  return { status: "claimed", since: claim.claimed_at };
+}
+
+// dispute budget lives on a tiny diner-less row keyed by device in the claims table's sibling
+// store — reuse diners (phone_number = "dev:<id>") so no extra table is needed
+async function allowDispute(db, deviceId) {
+  const key = `dev:${String(deviceId).slice(0, 40)}`;
+  const { data: d } = await db.from("diners").select("id,preferences").eq("phone_number", key).maybeSingle();
+  const today = new Date().toISOString().slice(0, 10);
+  const used = d?.preferences?.disputes?.[today] || 0;
+  if (used >= DISPUTES_PER_DEVICE_PER_DAY) return false;
+  const preferences = { ...(d?.preferences || {}), disputes: { [today]: used + 1 } };
+  if (d?.id) await db.from("diners").update({ preferences }).eq("id", d.id);
+  else await db.from("diners").insert({ phone_number: key, name: "device", status: "lead", preferences });
+  return true;
+}
+
+// can this request still act on the table? (showroom: always; real tables: must be in the live claim)
+export async function sessionStillHolds(tenant, table, sessionId) {
+  if (isShowroom(tenant.record, table)) return true;
+  const c = await liveClaim(tenant.db, table);
+  return claimHas(c, sessionId);
+}
+
+// ======================= guest identity (remember them like WhatsApp does) =======================
+// The guest proves the phone by SENDING a one-time code from WhatsApp to our number (wa.me link) —
+// no template needed, and it opens the 24h window. After that the table chat runs as that phone:
+// name, history, "your usual", loyalty — everything the WhatsApp bot knows.
+const pendingVerify = new Map(); // code → { slug, sessionId, exp }
+setInterval(() => { const now = Date.now(); for (const [k, v] of pendingVerify) if (v.exp < now) pendingVerify.delete(k); }, 60_000).unref?.();
+
+export function startVerify(slug, sessionId) {
+  let code; do { code = String(crypto.randomInt(100000, 1000000)); } while (pendingVerify.has(code));
+  pendingVerify.set(code, { slug, sessionId, exp: Date.now() + 10 * 60_000 });
+  return code;
+}
+export const VERIFY_RE = /^\s*(?:KK|TABLE)[-\s]?VERIFY\s+(\d{6})\s*$/i;
+export function takeVerify(code) {
+  const v = pendingVerify.get(String(code));
+  if (!v || v.exp < Date.now()) return null;
+  pendingVerify.delete(String(code));
+  return v;
+}
+
+// signed "remember me" token for the browser — proves a phone was verified on this device
+export function guestToken(record, phone) {
+  const p = b64u(JSON.stringify({ p: phone, r: record.id }));
+  return `g1.${p}.${b64u(crypto.createHmac("sha256", tenantSecret(record)).update(`guest|${p}`).digest())}`;
+}
+export function verifyGuestToken(record, tok) {
+  const m = /^g1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(String(tok || ""));
+  if (!m) return null;
+  const exp = crypto.createHmac("sha256", tenantSecret(record)).update(`guest|${m[1]}`).digest();
+  const got = unb64u(m[2]);
+  if (got.length !== exp.length || !crypto.timingSafeEqual(got, exp)) return null;
+  try { const v = JSON.parse(unb64u(m[1]).toString("utf8")); return v.r === record.id && /^\+\d{8,15}$/.test(v.p) ? v.p : null; } catch { return null; }
+}
+
+// link a widget session to a verified phone: the phone's diner row gets the table session,
+// so every later message runs as that guest
+export async function linkPhone(tenant, widgetSessionId, phone, profileName = null) {
+  const db = tenant.db;
+  const { data: w } = await db.from("diners").select("id,preferences").eq("phone_number", widgetSessionId).maybeSingle();
+  if (!w?.id) return null;
+  const ts = w.preferences?.table_session || null;
+  const { data: p } = await db.from("diners").select("id,name,preferences").eq("phone_number", phone).maybeSingle();
+  if (p?.id) {
+    await db.from("diners").update({ preferences: { ...(p.preferences || {}), table_session: ts }, ...(profileName && !p.name ? { name: profileName } : {}) }).eq("id", p.id);
+  } else {
+    await db.from("diners").insert({ phone_number: phone, name: profileName || null, status: "customer", preferences: { language: w.preferences?.language || "en", table_session: ts } });
+  }
+  await db.from("diners").update({ preferences: { ...(w.preferences || {}), linked_phone: phone } }).eq("id", w.id);
+  return phone;
+}
+
+// the identity a widget request runs as: the verified phone when linked, else the session itself
+export async function effectiveSession(db, widgetSessionId) {
+  const { data: w } = await db.from("diners").select("preferences").eq("phone_number", widgetSessionId).maybeSingle();
+  return w?.preferences?.linked_phone || widgetSessionId;
+}
+
+export async function guestProfile(db, phone) {
+  const { data: d } = await db.from("diners").select("name,visit_count").eq("phone_number", phone).maybeSingle();
+  const { data: o } = await db.from("orders").select("id").eq("phone_number", phone).limit(1);
+  return { name: d?.name || null, has_history: !!o?.length };
+}
