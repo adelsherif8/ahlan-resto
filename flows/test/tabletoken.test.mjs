@@ -55,6 +55,9 @@ test("geofence verdict: required → outside/missing block, unknown branch data 
   assert.equal(geofenceVerdict(record, "uvenues", null).geofence, "ok", "no coordinates on file → do not block on our own missing data");
   const relaxed = { ...record, ai: { dine_in_widget: { ...record.ai.dine_in_widget, geofence_required: false } } };
   assert.equal(geofenceVerdict(relaxed, "arkan", null).geofence, "ok");
+  // the showroom table on a real branch is never fenced; any other table on it is
+  assert.equal(geofenceVerdict(record, "arkan", null, "DEMO").geofence, "ok");
+  assert.equal(geofenceVerdict(record, "arkan", null, "A7").geofence, "missing");
   assert.equal(widgetConfig(relaxed).geofenceRequired, false);
 });
 

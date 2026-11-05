@@ -227,7 +227,7 @@ app.post("/api/widget/session", rateLimit("widget-session", 20, 60_000), async (
   try {
     const { tenant, tok, cfg } = w;
     const branch = (tenant.record.basic_info?.branches || []).find((b) => b?.key === tok.branch) || null;
-    const geo = geofenceVerdict(tenant.record, tok.branch, req.body?.geo || null);
+    const geo = geofenceVerdict(tenant.record, tok.branch, req.body?.geo || null, tok.table);
     const { sessionId, table_session } = await startTableSession(tenant, { branch: tok.branch, table: tok.table, geoVerdict: geo });
     const bi = tenant.record.basic_info || {};
     res.json({
@@ -251,7 +251,7 @@ app.post("/api/widget/send", rateLimit("widget-send", 30, 60_000, widgetKey), as
     if (!sessionMatchesToken(sessionId, tenant.record, tok)) return res.status(401).json({ error: "session does not belong to this table" });
     const { data: diner } = await tenant.db.from("diners").select("preferences").eq("phone_number", sessionId).maybeSingle();
     if (!tableSessionOf(diner)) return res.status(410).json({ error: "table session expired — scan the table's QR again" });
-    const geo = geofenceVerdict(tenant.record, tok.branch, req.body?.geo || null);
+    const geo = geofenceVerdict(tenant.record, tok.branch, req.body?.geo || null, tok.table);
     const branchName = (tenant.record.basic_info?.branches || []).find((b) => b?.key === tok.branch)?.name || null;
     await recordGeofence(tenant, sessionId, geo, branchName); // the order flow reads it from the session at placement
     const ctx = { sessionId, tenant, channel: "web", trigger: "widget", widget: { table: tok.table, branch: tok.branch, branch_name: branchName, geofence: geo.geofence } };

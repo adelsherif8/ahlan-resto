@@ -21,6 +21,8 @@ export const widgetConfig = (record) => ({
   ttlMin: Number(record?.ai?.dine_in_widget?.table_token_ttl_min) || 180,
   geofenceM: Number(record?.ai?.dine_in_widget?.geofence_m) || 120,
   geofenceRequired: record?.ai?.dine_in_widget?.geofence_required !== false,
+  // showroom tables (the munadim.com demo frame) sit on a real branch but skip the fence
+  showroomTables: (record?.ai?.dine_in_widget?.showroom_tables || ["DEMO"]).map((t) => String(t).toUpperCase()),
 });
 
 // per-tenant secret derived from the service secret — nothing extra to store or rotate
@@ -69,10 +71,11 @@ export function geofenceCheck(record, branchKey, geo) {
 
 // What the order flow needs from a widget request: "ok" lets an order through, anything
 // else refuses the PLACEMENT only (browsing and building the order still work).
-export function geofenceVerdict(record, branchKey, geo) {
+export function geofenceVerdict(record, branchKey, geo, table = null) {
   const cfg = widgetConfig(record);
   const chk = geofenceCheck(record, branchKey, geo);
   if (!cfg.geofenceRequired) return { geofence: "ok", check: chk };
+  if (table && cfg.showroomTables.includes(String(table).toUpperCase())) return { geofence: "ok", check: { ...chk, status: "showroom" } };
   if (chk.status === "unknown") return { geofence: "ok", check: chk }; // nothing to measure against — never block on our own missing data
   return { geofence: chk.status, check: chk };
 }

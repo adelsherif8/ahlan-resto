@@ -34,7 +34,7 @@ const size = (m, l) => ({ key: "size", label: "Size", required: true, choices: [
 // ("oat milk", "extra shot"); the barista's default stands otherwise (orderoptions.js).
 // "KK extras" on the print: Shot 35 · Flavor 35 · Plant based milks 40 · Lactose free milk 35
 const EXTRAS = { key: "extras", label: "Extras", optional: true, choices: [
-  { name: "Extra shot", delta: 35 }, { name: "Extra flavor", delta: 35 }, { name: "Lactose-free milk", delta: 35 },
+  { name: "Extra shot", delta: 35 }, { name: "Extra flavor", delta: 35 }, { name: "Lactose-free", delta: 35 }, // not "…milk": "oat milk" must only hit the Milk group
 ] };
 const MILK = { key: "milk", label: "Milk", optional: true, choices: [{ name: "Regular" }, { name: "Skim" }, { name: "Coconut", delta: 40 }, { name: "Oat", delta: 40 }, { name: "Almond", delta: 40 }] };
 const SIDE = { key: "side", label: "Side", required: true, choices: [{ name: "Sweet potato fries" }, { name: "Savory salad" }] };
@@ -326,7 +326,7 @@ async function stageRow() {
       suggest_enabled: true, suggest_dishes: ["Pistachio Konafa Kroissant", "Hot Salted Karamel Matcha"],
       closed_orders: "refuse",
       // table-identity rules for the widget (docs/KOFFEE-KULTURE-DINE-IN.md)
-      dine_in_widget: { enabled: true, table_token_ttl_min: 180, geofence_m: 120, geofence_required: true },
+      dine_in_widget: { enabled: true, table_token_ttl_min: 180, geofence_m: 120, geofence_required: true, showroom_tables: ["DEMO"] },
       demo_mode: false,
     },
     faqs: [
