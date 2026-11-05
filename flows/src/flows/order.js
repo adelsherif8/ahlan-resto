@@ -5,6 +5,7 @@ import { orderedCategories, categoryLabel } from "../services/categories.js";
 import { defineFlow } from "../engine/flow.js";
 import { chatJSON } from "../services/llm.js";
 import { MODEL_SMART, MODEL_FAST, MODEL_NANO, PUBLIC_BASE, publicLink, log } from "../config.js";
+import { tableSessionOf } from "../services/tabletoken.js";
 import { notifyDashboard, setSessionFlags } from "../services/chatlog.js";
 import { nearestBranches, matchBranchByText, freshLocation, extractMapLink, resolveMapLink } from "../services/branches.js";
 import { deliveryQuote, geocodeAddress, matchLandmark, pricingOf, resolvePlace, streetCore } from "../services/delivery.js";
@@ -1406,9 +1407,16 @@ defineFlow({
       // naming a table IS dining in — don't ask them how they're eating when they
       // already told us where they're sitting
       if (!orderType && e.table_number) orderType = "dine_in";
+      // A dine-in WIDGET guest scanned the table's QR: the session on their diner row names
+      // the branch and table, so the type and table questions never fire (tabletoken.js).
+      const tableSession = tableSessionOf(diner);
+      if (tableSession) {
+        if (!orderType) orderType = "dine_in";
+        if (!branch && tableSession.branch && branches.some((b) => b.key === tableSession.branch)) branch = tableSession.branch;
+      }
       // a bare "23" right after we asked for the table IS the answer, even though the
       // extractor won't call a lone number a table number
-      let givenTable = e.table_number;
+      let givenTable = e.table_number || (tableSession && orderType === "dine_in" ? tableSession.table_number : null);
       if (!givenTable && orderType === "dine_in" && !loaded.pending?.table_number && /^[a-z]{0,3}\s?\d{1,3}$/i.test(input.message.trim())) {
         givenTable = input.message.trim();
       }
@@ -1416,6 +1424,9 @@ defineFlow({
       if (givenTable) {
         const t = String(givenTable).toUpperCase().replace(/\s+/g, "").replace(/^TABLE/, "");
         tableNumber = loaded.tableNumbers.find((x) => x === t || x === `T${t}`) || null;
+        // the table named by a scanned QR is authoritative even when the tables list is
+        // out of date — the signed token IS the table, never ask the guest to re-prove it
+        if (!tableNumber && tableSession && t === tableSession.table_number.toUpperCase()) tableNumber = t;
         if (tableNumber) orderType = "dine_in";
         else if (orderType === "dine_in") return { kind: "bad_table", given: givenTable, items, tables: loaded.tableNumbers.slice(0, 12) };
       }
@@ -2497,6 +2508,17 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // later than the kitchen's: "in 20 minutes" answered with "about 45 min"
       // (or "in an hour" answered with "about 15 min") is a contradiction.
       const etaQuote = pkMin != null ? Math.max(etaMinutes, pkMin) : etaMinutes;
+      // Dine-in widget: the ORDER (not the chat) needs the phone inside the branch's
+      // geofence — the second of the two automatic table checks. Code refuses, verbatim.
+      // (read from the table session: the respond run happens after the request that carried
+      // the verdict, so it lives on the diner row — tabletoken.recordGeofence)
+      {
+        const ts = tableSessionOf(diner);
+        const required = config.ai?.dine_in_widget?.geofence_required !== false;
+        if (ts && required && ts.geofence !== "ok" && ts.geofence !== "unknown") {
+          return { kind: "outside_geofence", items, reason: ts.geofence, branch_name: ts.branch_name || null, notices: outcomeNotices };
+        }
+      }
       const row = {
         code, phone_number: ctx.sessionId, diner_name: name,
         order_type: orderType, table_number: tableNumber, branch,
@@ -2646,7 +2668,7 @@ RULES: only exact strings from the lists; null when the message doesn't clearly 
       // dialect, and regularly re-asked a question the code block below already asks
       // (ar09: «هتدفع إزاي؟» twice in one bubble). The fallback map says it right in
       // all three languages; the backstop was replacing the model half the time anyway.
-      if (["stuck_handoff", "which_item", "menu_request", "ask_choice", "confirm_order", "need_pin", "which_place", "closed_now",
+      if (["stuck_handoff", "outside_geofence", "which_item", "menu_request", "ask_choice", "confirm_order", "need_pin", "which_place", "closed_now",
         "ask_items", "ask_fulfillment", "ask_payment", "order_placed", "order_status", "too_late_to_cancel", "no_scheduling",
         "split_view", "split_done"].includes(outcome.kind)) return { value: { reply: null, quick_replies: null } };
       // "Got it — pickup ✅ what would you like?" is a fixed phrase too: the model kept
@@ -2745,6 +2767,9 @@ LANGUAGE (last line so everything above stays cacheable): the conversation's lan
       ask_choice: `For your ${outcome.item}:\n${(outcome.questions || []).map((q) => `${q.label}${q.of > 1 ? ` (${q.remaining} to pick)` : ""}:\n${q.options.map((o) => `• ${o}`).join("\n")}`).join("\n\n")}`,
       ask_payment: `${L2("How would you like to pay?", "تحب تدفع إزاي؟", "Te7eb tedfa3 ezay?")}\n${(outcome.methods || []).map((m) => `• ${LANGV === "ar" ? arPay(m) : m.replace(/^\w/, (c) => c.toUpperCase())}`).join("\n")}`,
       confirm_order: L2("All set — confirm and I'll send it to the kitchen ✅", "كله تمام — أكد وهيروح للمطبخ على طول ✅", "Kolo tamam — akked w hayro7 lel kitchen ✅"),
+      outside_geofence: outcome.reason === "missing"
+        ? L2("I can only send a table order from inside the café 📍 Allow location in your browser and tap confirm again — or order at the counter.", "أقدر أبعت طلب الترابيزة من جوه الكافيه بس 📍 اسمح للمتصفح يعرف مكانك واضغط تأكيد تاني — أو اطلب من الكاشير.", "A2dar ab3at talab el tarabeza men gowa el cafe bas 📍 Esma7 lel browser ye3raf makanak w edghat confirm tani — aw otlob men el cashier.")
+        : L2(`Looks like you're not at ${outcome.branch_name || "the café"} right now 📍 Table orders only go through from inside — come back to the table and tap confirm again.`, `شكلك مش في ${outcome.branch_name || "الكافيه"} دلوقتي 📍 طلبات الترابيزة بتتبعت من جوه بس — ارجع للترابيزة واضغط تأكيد تاني.`, `Shaklak mesh f ${outcome.branch_name || "el cafe"} delwa2ty 📍 Talabat el tarabeza betet3at men gowa bas — erga3 lel tarabeza w edghat confirm tani.`),
       ask_table: L2(`Which table are you at? The number's printed on it${(outcome.tables || []).length ? ` — they look like ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`, `انت على أنهي ترابيزة؟ الرقم مكتوب عليها${(outcome.tables || []).length ? ` — زي ${outcome.tables.slice(0, 3).join("، ")}` : ""} 😄`, `Enta 3ala anhy tarabeza? El ra2am maktoob${(outcome.tables || []).length ? ` — zay ${outcome.tables.slice(0, 3).join(", ")}` : ""} 😄`),
       bad_table: L2(`I can't find table ${outcome.given} — ours are ${(outcome.tables || []).slice(0, 8).join(", ")}. Which one are you at?`, `مش لاقي ترابيزة ${outcome.given} — عندنا ${(outcome.tables || []).slice(0, 8).join("، ")}. انت على أنهي واحدة؟`, `Mesh la2y tarabeza ${outcome.given} — 3andena ${(outcome.tables || []).slice(0, 8).join(", ")}.`),
       no_open_order: L2("No active order found — want to start one? 🍔", "مفيش طلب شغال دلوقتي — تحب تبدأ واحد؟ 🍔", "Mafeesh order sha3'al — te7eb tebda2 wa7ed? 🍔"),

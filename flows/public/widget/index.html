@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order from your table</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --brand: #3DAE2B; --ink: #15181a; --bg: #f6f6f3; --card: #ffffff; --muted: #6b7280; --me: #e8f6e5; --radius: 18px; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .app { display: flex; flex-direction: column; height: 100dvh; max-width: 560px; margin: 0 auto; background: var(--card); }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #ececec; background: var(--card); position: sticky; top: 0; }
+  header img { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; background: #eee; }
+  header .t { flex: 1; min-width: 0; }
+  header .name { font-weight: 700; }
+  header .sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #f1f1f1; color: var(--muted); }
+  .pill.ok { background: #e8f6e5; color: #1f7a16; }
+  .pill.warn { background: #fff3e0; color: #a35a00; }
+  #log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
+  .msg { max-width: 86%; padding: 10px 14px; border-radius: var(--radius); white-space: pre-wrap; word-wrap: break-word; line-height: 1.42; }
+  .msg.ai { align-self: flex-start; background: #f1f2f0; border-bottom-left-radius: 6px; }
+  .msg.me { align-self: flex-end; background: var(--me); border-bottom-right-radius: 6px; }
+  .msg.sys { align-self: center; background: transparent; color: var(--muted); font-size: 13px; text-align: center; }
+  .msg img { max-width: 100%; border-radius: 12px; display: block; margin-top: 6px; }
+  .msg a { color: inherit; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 8px; }
+  .chip { border: 1.5px solid var(--brand); color: var(--brand); background: #fff; border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .chip:active { background: var(--me); }
+  form { display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid #ececec; background: var(--card); }
+  input { flex: 1; font: inherit; padding: 12px 14px; border: 1.5px solid #e3e3e3; border-radius: 999px; outline: none; }
+  input:focus { border-color: var(--brand); }
+  button.send { font: inherit; font-weight: 700; color: #fff; background: var(--brand); border: 0; border-radius: 999px; padding: 0 18px; cursor: pointer; }
+  button.send:disabled { opacity: .5; }
+  .typing { align-self: flex-start; color: var(--muted); font-size: 13px; padding: 2px 14px; }
+  .gate { padding: 24px 20px; text-align: center; color: var(--muted); }
+  .gate h2 { color: var(--ink); margin: 8px 0; }
+  .gate button { margin-top: 14px; font: inherit; font-weight: 700; color: #fff; background: var(--brand); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; }
+  [dir="rtl"] .msg.ai { border-bottom-left-radius: var(--radius); border-bottom-right-radius: 6px; }
+  [dir="rtl"] .msg.me { border-bottom-right-radius: var(--radius); border-bottom-left-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <img id="logo" alt="" hidden>
+    <div class="t"><div class="name" id="rname">…</div><div class="sub" id="rsub">Connecting to your table</div></div>
+    <span class="pill" id="geo">📍 …</span>
+  </header>
+  <div id="log"></div>
+  <div class="chips" id="chips"></div>
+  <form id="f"><input id="in" placeholder="Type your order…" autocomplete="off" disabled><button class="send" id="send" disabled>Send</button></form>
+</div>
+<script>
+(() => {
+  const token = decodeURIComponent(location.pathname.split("/t/")[1] || "") || new URLSearchParams(location.search).get("t") || "";
+  const slug = new URLSearchParams(location.search).get("r") || (window.KK_SLUG || "koffee-kulture");
+  const api = (p) => `${location.origin}${p}`;
+  const $ = (id) => document.getElementById(id);
+  const log = $("log"), input = $("in"), send = $("send"), chips = $("chips"), geoPill = $("geo");
+  let session = null, lastAt = null, geo = null, polling = null, pendingTyping = null;
+  const seen = new Set();
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const render = (text) => esc(text)
+    .replace(/\*([^*\n]+)\*/g, "<b>$1</b>")
+    .replace(/_([^_\n]+)_/g, "<i>$1</i>")
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  function add(kind, text, media) {
+    const d = document.createElement("div");
+    d.className = `msg ${kind}`;
+    d.innerHTML = render(text || "") + (media ? `<img src="${esc(media)}" alt="">` : "");
+    if (/[؀-ۿ]/.test(text || "")) d.dir = "rtl";
+    log.appendChild(d); log.scrollTop = log.scrollHeight;
+  }
+  function showTyping(on) {
+    if (on && !pendingTyping) { pendingTyping = document.createElement("div"); pendingTyping.className = "typing"; pendingTyping.textContent = "…"; log.appendChild(pendingTyping); log.scrollTop = log.scrollHeight; }
+    if (!on && pendingTyping) { pendingTyping.remove(); pendingTyping = null; }
+  }
+  // "▸ Yes  ▸ No" lines from the bot become tappable chips
+  function chipsFrom(text) {
+    chips.innerHTML = "";
+    const m = (text || "").split("\n").find((l) => l.trim().startsWith("▸"));
+    if (!m) return;
+    m.split("▸").map((x) => x.trim()).filter(Boolean).slice(0, 4).forEach((label) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = label;
+      b.onclick = () => { input.value = label; sendMsg(); };
+      chips.appendChild(b);
+    });
+  }
+
+  function setGeoPill(status, dist) {
+    geoPill.className = "pill " + (status === "ok" ? "ok" : status === "unknown" ? "" : "warn");
+    geoPill.textContent = status === "ok" ? "📍 at the café" : status === "outside" ? `📍 ${dist ? dist + " m away" : "not at the café"}` : status === "missing" ? "📍 location off" : "📍";
+    geoPill.title = status === "missing" ? "Allow location so your order can reach the counter" : "";
+  }
+  function getGeo() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+        () => resolve(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+    });
+  }
+
+  async function start() {
+    if (!token) { gate("Scan the QR code on your table to order 📱"); return; }
+    try { const saved = JSON.parse(localStorage.getItem("kk:" + token) || "null"); if (saved && new Date(saved.expires_at) > new Date()) session = saved; } catch {}
+    geo = await getGeo();
+    if (!session) {
+      const r = await fetch(api("/api/widget/session"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, geo }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); gate(e.error === "bad table token" ? "This QR code isn't valid — ask for a fresh one at the counter." : (e.error || "Could not start a table session.")); return; }
+      session = await r.json();
+      try { localStorage.setItem("kk:" + token, JSON.stringify(session)); } catch {}
+    }
+    const R = session.restaurant || {};
+    document.documentElement.style.setProperty("--brand", R.primary || "#3DAE2B");
+    $("rname").textContent = R.name || "Order";
+    $("rsub").textContent = `Table ${session.table}${session.branch?.name ? " · " + session.branch.name : ""}`;
+    if (R.logo) { $("logo").src = R.logo; $("logo").hidden = false; }
+    document.title = `${R.name || "Order"} · Table ${session.table}`;
+    setGeoPill(session.geofence?.status || "unknown", session.geofence?.distance_m);
+    if (!session.greeted) { add("ai", `${R.greeting || "Welcome!"}\n\nYou're at *table ${session.table}* — tell me what you'd like, or ask for the menu 📄`); session.greeted = true; try { localStorage.setItem("kk:" + token, JSON.stringify(session)); } catch {} }
+    input.disabled = false; send.disabled = false; input.focus();
+    poll(); polling = setInterval(poll, 2500);
+    // keep the fix fresh for the confirm step (indoor GPS drifts)
+    setInterval(async () => { const g = await getGeo(); if (g) geo = g; }, 45000);
+  }
+  function gate(text) { log.innerHTML = `<div class="gate"><div style="font-size:40px">☕</div><h2>${esc(text)}</h2></div>`; }
+
+  async function poll() {
+    if (!session) return;
+    const u = new URL(api("/api/widget/poll")); u.searchParams.set("slug", slug); u.searchParams.set("token", token); u.searchParams.set("sessionId", session.sessionId); if (lastAt) u.searchParams.set("since", lastAt);
+    let r; try { r = await fetch(u); } catch { return; }
+    if (r.status === 410) { clearInterval(polling); gate("Your table session ended — scan the QR again to keep ordering."); return; }
+    if (!r.ok) return;
+    const { messages } = await r.json();
+    for (const m of messages || []) {
+      const key = `${m.at}|${m.sender}|${(m.message || "").slice(0, 40)}`;
+      if (seen.has(key)) continue; seen.add(key); lastAt = m.at;
+      if (m.sender === "ai" || m.sender === "staff") { showTyping(false); add("ai", m.message, m.media_type === "image" ? m.media_url : null); chipsFrom(m.message); }
+    }
+  }
+
+  async function sendMsg() {
+    const text = input.value.trim(); if (!text || !session) return;
+    input.value = ""; chips.innerHTML = ""; add("me", text); showTyping(true);
+    seen.add(`__me__${text}`);
+    if (!geo) geo = await getGeo();
+    const r = await fetch(api("/api/widget/send"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, message: text, geo }) });
+    if (r.status === 410) { clearInterval(polling); gate("Your table session ended — scan the QR again to keep ordering."); return; }
+    if (!r.ok) { showTyping(false); add("sys", "Couldn't send that — try again."); return; }
+    const j = await r.json().catch(() => ({}));
+    if (j.geofence) setGeoPill(j.geofence);
+  }
+  $("f").addEventListener("submit", (e) => { e.preventDefault(); sendMsg(); });
+  start();
+})();
+</script>
+</body>
+</html>

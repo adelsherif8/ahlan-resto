@@ -1,6 +1,17 @@
 # Koffee Kulture — dine-in chat widget (pilot design, 5 Nov 2026)
 
-Status: tenant row seeded (`koffee-kulture`, schema `r_koffee`), menu seed written, widget NOT built.
+Status (5 Nov, evening): tenant row seeded, menu seed written, **widget BUILT and verified locally**
+(flows `services/tabletoken.js`, `/api/widget/session|send|poll`, `/t/:token` page in
+`public/widget/index.html`, `tools/make-table-qr.mjs`, 4 unit tests; end-to-end on the Luci'z test
+tenant: order at the table lands as "Dine-in · table T3" with no type/table question; 10 km away →
+refused at confirm; location denied → refused with the allow-location line; forged QR → 401).
+Site page `site/src/pages/en/koffee-kulture.astro` built (live widget frame on a showroom token).
+Arkan QR sheet generated → branding/qr/koffee-kulture/sheet.html (A1–A12).
+**Blocked on the founder**: (1) `migrations/044_tenant_schema_koffee.sql` on the tenant project —
+the Supabase CLI here is logged into another account (UF Index), so either run it in the SQL
+editor or `supabase login` into the Ahlan account and I run `supabase db query`; then
+`node tools/seed-koffee.mjs menu`. (2) `railway up --service flows --detach` from flows/ (the
+classifier denies it for me). After both: deploy the site (wrangler, see munadim-site-deploy).
 Founder's constraints: dine-in only; no pay-first; no Wi-Fi check; **nothing for staff or waiters
 to do**. Verification = the table's QR + the phone's location. Nothing else.
 

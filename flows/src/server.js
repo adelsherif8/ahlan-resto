@@ -8,6 +8,9 @@ import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buf
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb, isTestSession } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope } from "./services/whatsapp.js";
 import { ensureAddressFlows, tenantWabaId } from "./services/addressflow.js";
+import { widgetConfig, verifyTableToken, geofenceVerdict, startTableSession, tableSessionOf, sessionMatchesToken, recordGeofence } from "./services/tabletoken.js";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { metrics, bump } from "./services/metrics.js";
 import { runRegression, regressionStatus, loadLastRegression } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
@@ -192,6 +195,87 @@ app.post("/api/wa/webhook", rateLimit("wa", 600, 60_000), async (req, res) => {
     }
   } catch (e) {
     log("WA webhook error:", e.message);
+  }
+});
+
+// ================= dine-in chat widget (table QR → chat → counter screen) =================
+// docs/KOFFEE-KULTURE-DINE-IN.md. Public, token-locked: every call carries the table token
+// from the QR; the geofence verdict rides on the flow ctx and only the ORDER PLACEMENT needs
+// it (order.js refuses with `outside_geofence`). Nothing here asks staff to do anything.
+const WIDGET_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public", "widget");
+app.use("/widget", express.static(WIDGET_DIR, { maxAge: "5m" }));
+app.get("/t/:token", (_req, res) => res.sendFile(path.join(WIDGET_DIR, "index.html")));
+
+async function widgetTenant(req, res) {
+  const slug = String(req.body?.slug || req.query?.slug || "");
+  const token = String(req.body?.token || req.query?.token || "");
+  if (!slug || !token) { res.status(400).json({ error: "slug and token required" }); return null; }
+  let tenant;
+  try { tenant = await resolveRestaurantBySlug(slug); } catch { res.status(404).json({ error: "unknown restaurant" }); return null; }
+  const cfg = widgetConfig(tenant.record);
+  if (!cfg.enabled) { res.status(403).json({ error: "widget not enabled for this restaurant" }); return null; }
+  const tok = verifyTableToken(tenant.record, token);
+  if (!tok) { res.status(401).json({ error: "bad table token" }); return null; }
+  return { tenant, tok, cfg };
+}
+const widgetKey = (req) => `${req.body?.slug || req.query?.slug}|${req.body?.sessionId || req.query?.sessionId || req.ip}`;
+
+// scan → session. Returns what the page needs to draw itself; the geofence is measured
+// here too so the page can say "we see you at Arkan" (or ask for location) up front.
+app.post("/api/widget/session", rateLimit("widget-session", 20, 60_000), async (req, res) => {
+  const w = await widgetTenant(req, res); if (!w) return;
+  try {
+    const { tenant, tok, cfg } = w;
+    const branch = (tenant.record.basic_info?.branches || []).find((b) => b?.key === tok.branch) || null;
+    const geo = geofenceVerdict(tenant.record, tok.branch, req.body?.geo || null);
+    const { sessionId, table_session } = await startTableSession(tenant, { branch: tok.branch, table: tok.table, geoVerdict: geo });
+    const bi = tenant.record.basic_info || {};
+    res.json({
+      sessionId, table: table_session.table_number, branch: branch ? { key: branch.key, name: branch.name, address: branch.address || null } : { key: tok.branch, name: tok.branch },
+      expires_at: table_session.expires_at,
+      restaurant: { name: tenant.record.name, logo: bi.brand?.logo_url || null, primary: bi.brand?.primary || "#222", language: bi.language || "en",
+        greeting: tenant.record.ai?.greeting || `Welcome to ${tenant.record.name}` },
+      geofence: { status: geo.geofence, required: cfg.geofenceRequired, distance_m: geo.check?.distance_m ?? null, allowed_m: geo.check?.allowed_m ?? null },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/widget/send", rateLimit("widget-send", 30, 60_000, widgetKey), async (req, res) => {
+  const w = await widgetTenant(req, res); if (!w) return;
+  try {
+    const { tenant, tok } = w;
+    const { sessionId, message } = req.body || {};
+    if (!sessionId || !message) return res.status(400).json({ error: "sessionId and message required" });
+    if (!sessionMatchesToken(sessionId, tenant.record, tok)) return res.status(401).json({ error: "session does not belong to this table" });
+    const { data: diner } = await tenant.db.from("diners").select("preferences").eq("phone_number", sessionId).maybeSingle();
+    if (!tableSessionOf(diner)) return res.status(410).json({ error: "table session expired — scan the table's QR again" });
+    const geo = geofenceVerdict(tenant.record, tok.branch, req.body?.geo || null);
+    const branchName = (tenant.record.basic_info?.branches || []).find((b) => b?.key === tok.branch)?.name || null;
+    await recordGeofence(tenant, sessionId, geo, branchName); // the order flow reads it from the session at placement
+    const ctx = { sessionId, tenant, channel: "web", trigger: "widget", widget: { table: tok.table, branch: tok.branch, branch_name: branchName, geofence: geo.geofence } };
+    const { exec } = await runFlow("ingest", ctx, { message: String(message).slice(0, 2000), messageId: req.body.messageId || null });
+    res.json({ accepted: true, executionId: exec.id, geofence: geo.geofence });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/api/widget/poll", rateLimit("widget-poll", 240, 60_000, widgetKey), async (req, res) => {
+  const w = await widgetTenant(req, res); if (!w) return;
+  try {
+    const { tenant, tok } = w;
+    const sessionId = String(req.query.sessionId || "");
+    if (!sessionMatchesToken(sessionId, tenant.record, tok)) return res.status(401).json({ error: "session does not belong to this table" });
+    const since = req.query.since ? String(req.query.since) : null;
+    let q = tenant.db.from("chat_messages").select("sender,message,media_url,media_type,created_at").eq("session_id", sessionId).order("created_at", { ascending: true }).limit(80);
+    if (since) q = q.gt("created_at", since);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    res.json({ messages: (data || []).map((m) => ({ sender: m.sender, message: m.message, at: m.created_at, media_url: m.media_url, media_type: m.media_type })), typing: false });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
