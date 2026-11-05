@@ -1,8 +1,7 @@
 ---
-// Koffee Kulture — the café's own site, as a guest would see it. Our one addition is the
-// chat bubble bottom-right: it opens the real dine-in widget (flows) on a showroom table.
-// Real tables use the printed QR codes (branding/qr/koffee-kulture); the showroom table
-// "DEMO" on the Arkan branch is exempt from the geofence (ai.dine_in_widget.showroom_tables).
+// Koffee Kulture — the café's own site. Our one addition is the chat bubble bottom-right,
+// which opens the real dine-in widget (flows) on the showroom table DEMO at Arkan.
+// Icons: Font Awesome 6 (no emoji anywhere on the page).
 import Base from '../../layouts/Base.astro';
 
 const FLOWS = 'https://flows.munadim.com';
@@ -10,25 +9,26 @@ const DEMO_TOKEN = 'v1.eyJ2IjoxLCJiIjoiYXJrYW4iLCJ0IjoiREVNTyIsInIiOiJkMGNkMmM4N
 const widgetUrl = `${FLOWS}/t/${DEMO_TOKEN}?r=koffee-kulture`;
 const LOGO = 'https://sxthftiqvaojbdyjizjr.supabase.co/storage/v1/object/public/brand/koffee-kulture/logo.jpg?v=1';
 
-// Menu highlights — same names and prices as the tenant's menu (tools/seed-koffee.mjs).
 const menu = [
-  { name: 'Hot Koffee', items: [['Espresso', 80], ['Flat White', 110], ['Kappuccino', 125], ['Spanish Latte', 135], ['Salted Karamel Latte', 135], ['Pistachio Latte', 175]] },
-  { name: 'Kold & Blended', note: 'M / L', items: [['Iced Spanish Latte', '125 / 145'], ['Iced Salted Karamel Latte', '125 / 145'], ['Iced Pistachio Latte', '165 / 185'], ['Blended Spanish Latte', '125 / 145'], ['Karamel Koffee Frappe', '125 / 145'], ['Iced Banana Bread Latte', '155 / 175']] },
-  { name: 'Matcha Kulture', note: 'hot · iced M / L', items: [['Hot Matcha Latte', 150], ['Hot Salted Karamel Matcha', 165], ['Hot Pistachio Matcha', 185], ['Iced Matcha Latte', '140 / 160'], ['Blended Strawberry Matcha', '165 / 185'], ['Blended Pistachio Matcha', '180 / 195']] },
-  { name: 'The Bakery Kulture', items: [['All Butter Kroissant', 80], ['Pistachio Kroissant', 120], ['Pistachio Konafa Kroissant', 180], ['Almond Kroissant', 110], ['Caprese Kroissant', 250], ['Labneh & Zaatar Kroissant', 270]] },
-  { name: 'The KK Breakfast', items: [['The LA Benedict', 320], ['Shroom Truffle Benedict', 225], ['The Klassic Omelette', 190], ['Mushroom Invasion Omelette', 290], ['Savory Breakfast Bagel', 275], ['Pistachio Pancakes', 370]] },
-  { name: 'Bagels & Sandwiches', items: [['Cream Cheese Bagel', 170], ['Lunch Bagel', 285], ['Philly Steak Bagel', 395], ['Kulture Bagel', 390], ['Sub Out', 290], ['Spicy Tunacado', 310]] },
-  { name: 'Refreshers', items: [['Raspberry Mojito', 140], ['Ocean Breeze', 150], ['Coco Berry Redbull', 190], ['Passion Lemonade', 140], ['Love Story Smoothie', 170], ['Peach Ice Tea', 130]] },
-  { name: 'Sweet Tooth Kulture', items: [['San Sebastian Cheesecake', 195], ['Tiramisu Jar', 190], ['Vanilla Berry Cake', 240], ['Brookies', 110], ['Kinder Cookie', 115], ['Brownies Salted Caramel Kan Kake', 245]] },
+  { key: 'hot', name: 'Hot Koffee', icon: 'fa-mug-hot', items: [['Espresso', 80, 'Double shot of the house blend'], ['Flat White', 110, 'Double espresso, steamed milk'], ['Kappuccino', 125, 'Espresso, steamed milk foam'], ['Spanish Latte', 135, 'Espresso, milk, condensed milk'], ['Salted Karamel Latte', 135, 'Double espresso, salted caramel'], ['Pistachio Latte', 175, 'Steamed milk, pistachio syrup']] },
+  { key: 'cold', name: 'Kold & Blended', icon: 'fa-glass-water', note: 'M / L', items: [['Iced Spanish Latte', '125 / 145', 'Milk, espresso, condensed milk'], ['Iced Salted Karamel', '125 / 145', 'Creamy, salted caramel syrup'], ['Iced Pistachio Latte', '165 / 185', 'Iced latte, pistachio'], ['Blended Spanish Latte', '125 / 145', 'Strong coffee, condensed milk, ice'], ['Karamel Koffee Frappe', '125 / 145', 'Coffee, caramel, milk, ice'], ['Iced Banana Bread Latte', '155 / 175', 'Banana, cinnamon, milk']] },
+  { key: 'matcha', name: 'Matcha Kulture', icon: 'fa-leaf', items: [['Hot Matcha Latte', 150, 'Best with skim or coconut milk'], ['Hot Salted Karamel Matcha', 165, 'Hot matcha, salted caramel'], ['Hot Pistachio Matcha', 185, 'Matcha, pistachio, hot milk'], ['Iced Matcha Latte', '140 / 160', 'Iced, whisked to order'], ['Blended Strawberry Matcha', '165 / 185', 'Matcha, strawberry sauce'], ['Blended Pistachio Matcha', '180 / 195', 'Matcha, pistachio sauce']] },
+  { key: 'bakery', name: 'Bakery', icon: 'fa-bread-slice', items: [['All Butter Kroissant', 80, 'Viennoise, butter-rich'], ['Pistachio Kroissant', 120, 'Pistachio from Italy'], ['Pistachio Konafa Kroissant', 180, 'Kunafa, pistachio, chocolate'], ['Almond Kroissant', 110, 'Almond cream, toasted almonds'], ['Caprese Kroissant', 250, 'Mozzarella, pesto, cherry tomato'], ['Labneh & Zaatar Kroissant', 270, 'Turkish labneh, fresh zaatar']] },
+  { key: 'breakfast', name: 'Breakfast', icon: 'fa-egg', items: [['The LA Benedict', 320, 'Smoked salmon, avocado, dill hollandaise'], ['Shroom Truffle Benedict', 225, 'Mushrooms, spinach, truffle hollandaise'], ['The Klassic Omelette', 190, 'Folded, parmesan'], ['Mushroom Invasion Omelette', 290, 'Thyme mushrooms, fried brie'], ['Savory Breakfast Bagel', 275, 'Scrambled egg, halloumi, spinach'], ['Pistachio Pancakes', 370, 'Pistachio sauce, fresh cream']] },
+  { key: 'bagels', name: 'Bagels & Sandwiches', icon: 'fa-burger', items: [['Cream Cheese Bagel', 170, 'Baked daily'], ['Lunch Bagel', 285, 'Grilled chicken, Caesar, parmesan'], ['Philly Steak Bagel', 395, 'Steak, mushrooms, cheddar'], ['Kulture Bagel', 390, 'Salmon, avocado, honey mustard'], ['Sub Out', 290, 'Avocado, chicken, sweet chili mayo'], ['Spicy Tunacado', 310, 'Tuna, pesto, jalapeño, guacamole']] },
+  { key: 'refresh', name: 'Refreshers', icon: 'fa-lemon', items: [['Raspberry Mojito', 140, 'Raspberry, mint, lemon'], ['Ocean Breeze', 150, 'Lemon soda, coconut, blue curaçao'], ['Coco Berry Redbull', 190, 'Red Bull, coconut, berries'], ['Passion Lemonade', 140, 'Passion fruit, lemon'], ['Love Story Smoothie', 170, 'Pineapple, passion fruit, peach'], ['Peach Ice Tea', 130, 'Peach iced tea']] },
+  { key: 'sweet', name: 'Sweet Tooth', icon: 'fa-cake-candles', items: [['San Sebastian Cheesecake', 195, 'Basque-style'], ['Tiramisu Jar', 190, 'Made with our koffee'], ['Vanilla Berry Cake', 240, 'Ganache, raspberry, berries'], ['Brookies', 110, 'Brownie meets cookie'], ['Kinder Cookie', 115, 'Kinder spread filling'], ['Salted Caramel Kan Kake', 245, 'Brownie, salted caramel']] },
 ];
 const branches = [
-  { name: 'Arkan Plaza', area: 'Sheikh Zayed' },
-  { name: 'Golf Central', area: 'Palm Hills' },
-  { name: 'U Venues', area: 'New Cairo' },
-  { name: 'District 5', area: 'New Cairo' },
-  { name: 'O1 Kitchen Mall', area: 'New Cairo' },
-  { name: 'Lake District', area: 'Mivida' },
+  { name: 'Arkan Plaza', area: 'Sheikh Zayed' }, { name: 'Golf Central', area: 'Palm Hills' },
+  { name: 'U Venues', area: 'New Cairo' }, { name: 'District 5', area: 'New Cairo' },
+  { name: 'O1 Kitchen Mall', area: 'New Cairo' }, { name: 'Lake District', area: 'Mivida' },
   { name: 'Ivory', area: 'Villette by Sodic' },
+];
+const steps = [
+  { icon: 'fa-qrcode', title: 'Scan', text: 'The code on your table opens the chat already knowing where you sit.' },
+  { icon: 'fa-comments', title: 'Say it', text: '"Large iced spanish latte, oat milk, and a pistachio kroissant." Done.' },
+  { icon: 'fa-bell-concierge', title: 'Served', text: 'The ticket reaches the counter with your table number. Pay there as usual.' },
 ];
 ---
 
@@ -38,83 +38,120 @@ const branches = [
   description="Different People, Different Kultures, Different KOFFEE KUPS. Specialty coffee, matcha, kroissants, bagels and all-day breakfast in Sheikh Zayed and New Cairo. Order from your table."
   path="koffee-kulture"
 >
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <div class="kk">
-    <header class="top">
-      <a class="brand" href="#top"><img src={LOGO} alt="Koffee Kulture" width="44" height="44" /><span>Koffee Kulture</span></a>
+    <header class="top" id="top-bar">
+      <a class="brand" href="#top"><img src={LOGO} alt="Koffee Kulture" width="40" height="40" /><span>Koffee Kulture</span></a>
       <nav>
         <a href="#menu">Menu</a>
+        <a href="#how">How to order</a>
         <a href="#branches">Branches</a>
-        <a href="#story">Our Kulture</a>
-        <button class="order-btn" data-open-chat>Order from your table</button>
+        <button class="btn sm" data-open-chat><i class="fa-solid fa-mug-saucer"></i><span>Order</span></button>
       </nav>
     </header>
 
     <section class="hero" id="top">
-      <p class="tag">Specialty Koffee &amp; Breakfast Kulture</p>
-      <h1>Different People.<br>Different Kultures.<br><em>Different Koffee Kups.</em></h1>
-      <p class="lede">Single-origin espresso, ceremonial matcha, kroissants baked through the day and a breakfast menu that runs till midnight. Seven homes across Sheikh Zayed and New Cairo.</p>
-      <div class="cta">
-        <button class="btn" data-open-chat>☕ Order from your table</button>
-        <a class="btn ghost" href="#menu">See the menu</a>
+      <div class="blob b1"></div><div class="blob b2"></div>
+      <div class="hero-in">
+        <p class="tag reveal"><i class="fa-solid fa-seedling"></i> Specialty Koffee &amp; Breakfast Kulture</p>
+        <h1 class="reveal">Different People.<br>Different Kultures.<br><em>Different Koffee Kups.</em></h1>
+        <p class="lede reveal">Espresso pulled to order, matcha whisked by hand, kroissants baked through the day and breakfast till midnight. Seven homes across Sheikh Zayed and New Cairo.</p>
+        <div class="cta reveal">
+          <button class="btn lg" data-open-chat><i class="fa-solid fa-comment-dots"></i> Order from your table</button>
+          <a class="btn lg ghost" href="#menu"><i class="fa-solid fa-book-open"></i> See the menu</a>
+        </div>
+        <p class="hours reveal"><span class="dot"></span><span id="open-state">Open daily 7:30 AM – 12:00 AM</span></p>
       </div>
-      <p class="hours">Open daily 7:30 AM – 12:00 AM</p>
+      <div class="cup reveal" aria-hidden="true">
+        <div class="steam"><span></span><span></span><span></span></div>
+        <i class="fa-solid fa-mug-hot"></i>
+      </div>
     </section>
 
     <section class="strip">
-      <div><b>7</b><span>branches</span></div>
-      <div><b>170+</b><span>things to order</span></div>
-      <div><b>22</b><span>matcha ways</span></div>
-      <div><b>7:30 → 00:00</b><span>every day</span></div>
+      <div class="stat reveal"><i class="fa-solid fa-location-dot"></i><b data-count="7">0</b><span>branches</span></div>
+      <div class="stat reveal"><i class="fa-solid fa-utensils"></i><b data-count="170" data-suffix="+">0</b><span>things to order</span></div>
+      <div class="stat reveal"><i class="fa-solid fa-leaf"></i><b data-count="22">0</b><span>matcha drinks</span></div>
+      <div class="stat reveal"><i class="fa-regular fa-clock"></i><b>7:30–00:00</b><span>every day</span></div>
     </section>
 
     <section class="menu" id="menu">
-      <h2>The Menu</h2>
-      <p class="sub">Prices in EGP, VAT inclusive · 12% service charge on dine-in · plant-based milks +40 · extra shot +35</p>
-      <div class="cats">
-        {menu.map((c) => (
-          <article class="cat">
-            <h3>{c.name}{c.note && <small> {c.note}</small>}</h3>
-            <ul>{c.items.map(([n, p]) => <li><span>{n}</span><i></i><b>{p}</b></li>)}</ul>
-          </article>
+      <div class="head reveal">
+        <h2>The Menu</h2>
+        <p class="sub">EGP, VAT inclusive · 12% service on dine-in · plant milk +40 · extra shot +35</p>
+      </div>
+      <div class="tabs reveal" role="tablist">
+        {menu.map((c, i) => (
+          <button class={`tab ${i === 0 ? 'on' : ''}`} role="tab" data-tab={c.key}><i class={`fa-solid ${c.icon}`}></i>{c.name}</button>
         ))}
       </div>
-      <p class="more">The full list, sizes and add-ons are in the chat — ask for the menu and order in one line: <button class="link" data-open-chat>open the chat</button>.</p>
+      <div class="search reveal"><i class="fa-solid fa-magnifying-glass"></i><input id="q" placeholder="Search the menu — matcha, pistachio, bagel…" autocomplete="off" /></div>
+      <div class="board">
+        {menu.map((c, i) => (
+          <div class={`panel-cat ${i === 0 ? 'on' : ''}`} data-cat={c.key}>
+            {c.items.map(([n, p, d]) => (
+              <article class="item" data-name={`${n} ${d}`.toLowerCase()}>
+                <div class="ic"><i class={`fa-solid ${c.icon}`}></i></div>
+                <div class="tx"><b>{n}</b><span>{d}</span></div>
+                <div class="pr">{p}<small>EGP</small></div>
+                <button class="add" data-ask={`I'd like ${n}`} aria-label={`Order ${n}`}><i class="fa-solid fa-plus"></i></button>
+              </article>
+            ))}
+          </div>
+        ))}
+        <p class="empty" id="empty" hidden><i class="fa-regular fa-face-frown"></i> Nothing matches — ask in the chat, it knows all 170 items.</p>
+      </div>
     </section>
 
-    <section class="story" id="story">
-      <div class="story-card">
-        <h2>Our Kulture</h2>
-        <p>This is what a Koffee Kulture is: different people, with different kultures, holding different koffee kups. We roast a Brazilian–Colombian arabica blend, whisk matcha to order, and bake every kroissant on site. Outdoor seats, table service, and a counter that never rushes you.</p>
-      </div>
-      <div class="story-card green">
+    <section class="how" id="how">
+      <div class="head reveal">
         <h2>Order without leaving your seat</h2>
-        <p>Scan the code on your table and tell us what you'd like, in English, Arabic or Franco. Sizes, oat milk, extra shot — all understood. The ticket reaches the counter with your table number; you pay there as always. No app, no waiting for a waiter.</p>
-        <button class="btn light" data-open-chat>Try it now</button>
+        <p class="sub">No app. No waving at a waiter. English, Arabic or Franco.</p>
       </div>
+      <div class="steps">
+        {steps.map((s, i) => (
+          <div class="step reveal" style={`--d:${i * 120}ms`}>
+            <div class="num">{i + 1}</div>
+            <i class={`fa-solid ${s.icon} big`}></i>
+            <h3>{s.title}</h3>
+            <p>{s.text}</p>
+          </div>
+        ))}
+      </div>
+      <div class="trust reveal">
+        <div><i class="fa-solid fa-shield-halved"></i><span>Each table's code is signed — it can't be edited to point at another table.</span></div>
+        <div><i class="fa-solid fa-location-crosshairs"></i><span>Orders only go through from inside the café. A photo of the code sent across town places nothing.</span></div>
+        <div><i class="fa-solid fa-user-check"></i><span>Nobody on staff has to confirm anything. Your table, for your visit.</span></div>
+      </div>
+      <button class="btn lg center reveal" data-open-chat><i class="fa-solid fa-comment-dots"></i> Try it now</button>
     </section>
 
     <section class="branches" id="branches">
-      <h2>Find your Kulture</h2>
+      <div class="head reveal"><h2>Find your Kulture</h2><p class="sub">Every branch, every day, 7:30 AM – 12 AM</p></div>
       <div class="grid">
-        {branches.map((b) => (
-          <div class="branch"><b>{b.name}</b><span>{b.area}</span><small>7:30 AM – 12 AM</small></div>
+        {branches.map((b, i) => (
+          <div class="branch reveal" style={`--d:${i * 60}ms`}>
+            <i class="fa-solid fa-location-dot"></i>
+            <div><b>{b.name}</b><span>{b.area}</span></div>
+          </div>
         ))}
       </div>
-      <p class="sub">Hotline 010 3499 9123 · amina@koffee-kulture.com</p>
+      <p class="contact reveal"><a href="tel:01034999123"><i class="fa-solid fa-phone"></i> 010 3499 9123</a><a href="mailto:amina@koffee-kulture.com"><i class="fa-regular fa-envelope"></i> amina@koffee-kulture.com</a></p>
     </section>
 
     <footer class="foot">
       <span>© Koffee Kulture</span>
-      <span class="powered">Ordering by <a href="/en">Munadim</a></span>
+      <span>Table ordering by <a href="/en">Munadim</a></span>
     </footer>
 
     <!-- our addition: the chat bubble -->
     <button class="bubble" id="kk-bubble" aria-label="Order from your table" data-open-chat>
-      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.5-4.5A8 8 0 1 1 21 12z"/></svg>
+      <span class="ring"></span>
+      <i class="fa-solid fa-comment-dots ico-open"></i>
+      <i class="fa-solid fa-xmark ico-close"></i>
       <span class="hint">Order from your table</span>
     </button>
-    <div class="panel" id="kk-panel" hidden>
-      <div class="panel-head"><span>Koffee Kulture · your table</span><button id="kk-close" aria-label="Close">✕</button></div>
+    <div class="chat" id="kk-panel" aria-hidden="true">
       <iframe id="kk-frame" title="Koffee Kulture — order from your table" allow="geolocation" data-src={widgetUrl}></iframe>
     </div>
   </div>
@@ -123,65 +160,192 @@ const branches = [
     const panel = document.getElementById('kk-panel');
     const frame = document.getElementById('kk-frame');
     const bubble = document.getElementById('kk-bubble');
-    const open = () => { if (!frame.src) frame.src = frame.dataset.src; panel.hidden = false; bubble.classList.add('open'); };
-    const close = () => { panel.hidden = true; bubble.classList.remove('open'); };
-    document.querySelectorAll('[data-open-chat]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); panel.hidden ? open() : close(); }));
-    document.getElementById('kk-close').addEventListener('click', close);
-    // a first-time visitor sees the hint for a few seconds, then just the bubble
-    setTimeout(() => bubble.classList.add('quiet'), 6000);
+    const isOpen = () => panel.classList.contains('open');
+    function openChat(prefill) {
+      if (!frame.src) frame.src = frame.dataset.src;
+      panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); bubble.classList.add('open');
+      if (prefill) {
+        const send = () => frame.contentWindow?.postMessage({ type: 'kk:prefill', text: prefill }, '*');
+        frame.dataset.loaded ? send() : frame.addEventListener('load', () => setTimeout(send, 1200), { once: true });
+      }
+    }
+    function closeChat() { panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); bubble.classList.remove('open'); }
+    frame.addEventListener('load', () => { frame.dataset.loaded = '1'; });
+    document.querySelectorAll('[data-open-chat]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); isOpen() && b === bubble ? closeChat() : openChat(); }));
+    document.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click', () => { b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 400); openChat(b.dataset.ask); }));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeChat(); });
+    setTimeout(() => bubble.classList.add('quiet'), 7000);
+
+    // menu tabs + search
+    const tabs = document.querySelectorAll('.tab');
+    const cats = document.querySelectorAll('.panel-cat');
+    const q = document.getElementById('q');
+    const empty = document.getElementById('empty');
+    tabs.forEach((t) => t.addEventListener('click', () => {
+      q.value = ''; filter();
+      tabs.forEach((x) => x.classList.toggle('on', x === t));
+      cats.forEach((c) => c.classList.toggle('on', c.dataset.cat === t.dataset.tab));
+    }));
+    function filter() {
+      const s = q.value.trim().toLowerCase();
+      document.querySelector('.board').classList.toggle('searching', !!s);
+      let hits = 0;
+      document.querySelectorAll('.item').forEach((it) => { const ok = !s || it.dataset.name.includes(s); it.classList.toggle('hide', !ok); if (ok && s) hits++; });
+      empty.hidden = !s || hits > 0;
+    }
+    q.addEventListener('input', filter);
+
+    // scroll reveal + count-up
+    const io = new IntersectionObserver((es) => es.forEach((e) => {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('in'); io.unobserve(e.target);
+      const n = e.target.querySelector('[data-count]');
+      if (n) { const to = +n.dataset.count, suf = n.dataset.suffix || ''; let t0; const tick = (t) => { t0 ??= t; const p = Math.min((t - t0) / 900, 1); n.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))) + suf; if (p < 1) requestAnimationFrame(tick); }; requestAnimationFrame(tick); }
+    }), { threshold: 0.15 });
+    document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+
+    // header shadow on scroll
+    const bar = document.getElementById('top-bar');
+    addEventListener('scroll', () => bar.classList.toggle('scrolled', scrollY > 10), { passive: true });
+
+    // open now / closed (Cairo time, 07:30–24:00)
+    const h = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Cairo' }));
+    const mins = h.getHours() * 60 + h.getMinutes();
+    const open = mins >= 450;
+    const st = document.getElementById('open-state');
+    st.textContent = open ? 'Open now · until midnight' : 'Closed now · opens 7:30 AM';
+    st.parentElement.classList.toggle('closed', !open);
   </script>
 </Base>
 
 <style>
-  .kk { --g: #3DAE2B; --g2: #2f8f22; --ink: #15181a; --paper: #fbfaf6; --muted: #6b7280; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--paper); }
-  .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: rgba(251,250,246,.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0,0,0,.06); }
-  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-weight: 800; letter-spacing: .02em; }
-  .brand img { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; }
-  .top nav { display: flex; align-items: center; gap: 18px; }
-  .top nav a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15px; }
-  .order-btn, .btn { font: inherit; font-weight: 700; color: #fff; background: var(--g); border: 0; border-radius: 999px; padding: 11px 18px; cursor: pointer; text-decoration: none; display: inline-block; }
-  .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid rgba(0,0,0,.2); }
-  .btn.light { background: #fff; color: var(--g2); }
-  .hero { max-width: 1120px; margin: 0 auto; padding: 72px 20px 36px; }
-  .tag { letter-spacing: .16em; text-transform: uppercase; font-size: 12px; color: var(--g2); font-weight: 700; margin: 0 0 14px; }
-  .hero h1 { font-size: clamp(38px, 7vw, 74px); line-height: .98; margin: 0 0 18px; letter-spacing: -.01em; }
-  .hero h1 em { font-style: normal; color: var(--g); }
-  .lede { font-size: 19px; line-height: 1.5; max-width: 56ch; color: #333; }
-  .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
-  .hours { margin-top: 16px; color: var(--muted); font-size: 14px; }
-  .strip { max-width: 1120px; margin: 24px auto 0; padding: 0 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-  .strip div { background: #fff; border: 1px solid rgba(0,0,0,.07); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; }
-  .strip b { font-size: 26px; color: var(--g2); } .strip span { color: var(--muted); font-size: 13px; }
-  .menu { max-width: 1120px; margin: 0 auto; padding: 72px 20px 20px; }
-  h2 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 8px; }
-  .sub { color: var(--muted); margin: 0 0 22px; font-size: 14px; }
-  .cats { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-  .cat { background: #fff; border: 1px solid rgba(0,0,0,.07); border-radius: 18px; padding: 18px 20px; }
-  .cat h3 { margin: 0 0 10px; font-size: 18px; color: var(--g2); } .cat h3 small { color: var(--muted); font-weight: 500; font-size: 12px; }
-  .cat ul { list-style: none; margin: 0; padding: 0; }
-  .cat li { display: flex; align-items: baseline; gap: 8px; padding: 7px 0; font-size: 15px; }
-  .cat li i { flex: 1; border-bottom: 1px dotted rgba(0,0,0,.25); transform: translateY(-4px); } .cat li b { white-space: nowrap; }
-  .more { margin-top: 18px; color: var(--muted); }
-  .link { font: inherit; color: var(--g2); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
-  .story { max-width: 1120px; margin: 56px auto 0; padding: 0 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-  .story-card { background: #fff; border: 1px solid rgba(0,0,0,.07); border-radius: 22px; padding: 28px; line-height: 1.55; }
-  .story-card.green { background: var(--g); color: #fff; } .story-card.green h2 { color: #fff; } .story-card .btn { margin-top: 14px; }
-  .branches { max-width: 1120px; margin: 0 auto; padding: 72px 20px 48px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-  .branch { background: #fff; border: 1px solid rgba(0,0,0,.07); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 2px; }
-  .branch b { font-size: 16px; } .branch span { color: var(--muted); font-size: 14px; } .branch small { color: var(--g2); font-size: 12px; margin-top: 6px; }
-  .foot { display: flex; justify-content: space-between; padding: 22px 20px 110px; color: var(--muted); font-size: 13px; border-top: 1px solid rgba(0,0,0,.06); }
-  .foot a { color: var(--g2); }
-  /* the chat bubble + panel */
-  .bubble { position: fixed; right: 18px; bottom: 18px; z-index: 50; display: flex; align-items: center; gap: 10px; background: var(--g); color: #fff; border: 0; border-radius: 999px; padding: 14px 18px 14px 14px; box-shadow: 0 14px 36px rgba(61,174,43,.45); cursor: pointer; font: inherit; font-weight: 700; transition: padding .25s; }
-  .bubble .hint { white-space: nowrap; max-width: 220px; overflow: hidden; transition: max-width .3s, opacity .3s; }
-  .bubble.quiet { padding-right: 14px; } .bubble.quiet .hint { max-width: 0; opacity: 0; }
-  .bubble.open { background: var(--ink); box-shadow: none; }
-  .panel { position: fixed; right: 18px; bottom: 86px; z-index: 49; width: min(400px, calc(100vw - 36px)); height: min(680px, calc(100dvh - 110px)); background: #fff; border-radius: 22px; overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,.28); display: flex; flex-direction: column; animation: up .22s ease-out; }
-  .panel[hidden] { display: none; }
-  .panel-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--g); color: #fff; font-weight: 700; font-size: 14px; }
-  .panel-head button { font: inherit; color: #fff; background: transparent; border: 0; font-size: 16px; cursor: pointer; }
-  .panel iframe { flex: 1; width: 100%; border: 0; }
-  @keyframes up { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
-  @media (max-width: 720px) { .top nav a { display: none; } .order-btn { padding: 9px 14px; font-size: 14px; } }
+  .kk { --g: #3DAE2B; --g2: #2a8a1f; --gs: #e9f6e6; --ink: #14171a; --paper: #fbfaf6; --card: #fff; --muted: #6b7280; --line: rgba(0,0,0,.07); --ease: cubic-bezier(.2,.8,.2,1);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--paper); overflow-x: clip; }
+  .kk i.fa-solid, .kk i.fa-regular { line-height: 1; }
+  /* header */
+  .top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: rgba(251,250,246,.82); backdrop-filter: blur(12px); transition: box-shadow .3s; }
+  .top.scrolled { box-shadow: 0 6px 24px rgba(0,0,0,.06); }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-weight: 800; }
+  .brand img { width: 40px; height: 40px; border-radius: 11px; object-fit: cover; transition: transform .4s var(--ease); }
+  .brand:hover img { transform: rotate(-8deg) scale(1.05); }
+  .top nav { display: flex; align-items: center; gap: 20px; }
+  .top nav a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15px; position: relative; }
+  .top nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; background: var(--g); transform: scaleX(0); transition: transform .3s var(--ease); }
+  .top nav a:hover::after { transform: scaleX(1); }
+  /* buttons */
+  .btn { font: inherit; font-weight: 700; color: #fff; background: var(--g); border: 0; border-radius: 999px; padding: 12px 20px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: transform .2s var(--ease), box-shadow .2s, background .2s; box-shadow: 0 8px 20px rgba(61,174,43,.28); }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(61,174,43,.36); background: var(--g2); }
+  .btn:active { transform: translateY(0) scale(.98); }
+  .btn.sm { padding: 9px 16px; font-size: 14px; }
+  .btn.lg { padding: 15px 24px; font-size: 16px; }
+  .btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.18); }
+  .btn.ghost:hover { background: #fff; box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .btn.center { display: flex; margin: 28px auto 0; width: fit-content; }
+  /* hero */
+  .hero { position: relative; max-width: 1180px; margin: 0 auto; padding: 80px 20px 40px; display: grid; grid-template-columns: 1.4fr 1fr; align-items: center; gap: 24px; }
+  .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: .45; z-index: 0; animation: float 14s ease-in-out infinite; }
+  .b1 { width: 380px; height: 380px; background: #c8eec0; top: -40px; right: 8%; }
+  .b2 { width: 260px; height: 260px; background: #f4e1c1; bottom: 0; left: 30%; animation-delay: -6s; }
+  @keyframes float { 50% { transform: translate(30px, -24px) scale(1.08); } }
+  .hero-in { position: relative; z-index: 1; }
+  .tag { display: inline-flex; align-items: center; gap: 8px; letter-spacing: .14em; text-transform: uppercase; font-size: 12px; color: var(--g2); font-weight: 800; background: var(--gs); padding: 7px 12px; border-radius: 999px; margin: 0 0 18px; }
+  .hero h1 { font-size: clamp(40px, 6.6vw, 76px); line-height: .98; margin: 0 0 20px; letter-spacing: -.02em; }
+  .hero h1 em { font-style: normal; background: linear-gradient(90deg, var(--g), #7fd36b, var(--g)); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 6s linear infinite; }
+  @keyframes shine { to { background-position: 200% center; } }
+  .lede { font-size: 19px; line-height: 1.55; max-width: 54ch; color: #3a3f44; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+  .hours { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; color: var(--muted); font-size: 14px; }
+  .hours .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g); box-shadow: 0 0 0 0 rgba(61,174,43,.6); animation: ping 2s infinite; }
+  .hours.closed .dot { background: #d97706; animation: none; }
+  @keyframes ping { 70% { box-shadow: 0 0 0 10px rgba(61,174,43,0); } 100% { box-shadow: 0 0 0 0 rgba(61,174,43,0); } }
+  .cup { position: relative; z-index: 1; justify-self: center; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #fff, var(--gs)); display: grid; place-items: center; box-shadow: 0 30px 60px rgba(61,174,43,.18); }
+  .cup > i { font-size: 110px; color: var(--g); }
+  .steam { position: absolute; top: 46px; left: 50%; transform: translateX(-60%); display: flex; gap: 12px; }
+  .steam span { width: 6px; height: 34px; border-radius: 6px; background: rgba(61,174,43,.35); animation: steam 2.6s ease-in-out infinite; }
+  .steam span:nth-child(2) { animation-delay: .4s; } .steam span:nth-child(3) { animation-delay: .8s; }
+  @keyframes steam { 0% { transform: translateY(10px) scaleY(.6); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-26px) scaleY(1.1); opacity: 0; } }
+  /* stats */
+  .strip { max-width: 1180px; margin: 10px auto 0; padding: 0 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; transition: transform .3s var(--ease), box-shadow .3s; }
+  .stat:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,.06); }
+  .stat i { grid-row: span 2; width: 44px; height: 44px; border-radius: 12px; background: var(--gs); color: var(--g2); display: grid; place-items: center; font-size: 18px; }
+  .stat b { font-size: 24px; color: var(--ink); } .stat span { color: var(--muted); font-size: 13px; }
+  /* sections */
+  .menu, .how, .branches { max-width: 1180px; margin: 0 auto; padding: 84px 20px 0; }
+  .head h2 { font-size: clamp(30px, 4vw, 44px); margin: 0 0 6px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 22px; font-size: 15px; }
+  /* menu */
+  .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 700; font-size: 14px; padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; transition: all .25s var(--ease); }
+  .tab i { color: var(--g2); transition: color .25s; }
+  .tab:hover { border-color: var(--g); transform: translateY(-1px); }
+  .tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tab.on i { color: #9be38b; }
+  .search { position: relative; margin: 6px 0 18px; max-width: 460px; }
+  .search i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .search input { width: 100%; font: inherit; padding: 13px 16px 13px 44px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); outline: none; transition: border-color .2s, box-shadow .2s; }
+  .search input:focus { border-color: var(--g); box-shadow: 0 0 0 4px var(--gs); }
+  .panel-cat { display: none; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .panel-cat.on, .board.searching .panel-cat { display: grid; }
+  .panel-cat.on .item { animation: rise .45s var(--ease) both; }
+  .panel-cat.on .item:nth-child(2) { animation-delay: .04s } .panel-cat.on .item:nth-child(3) { animation-delay: .08s } .panel-cat.on .item:nth-child(4) { animation-delay: .12s } .panel-cat.on .item:nth-child(5) { animation-delay: .16s } .panel-cat.on .item:nth-child(6) { animation-delay: .2s }
+  .board.searching .panel-cat { margin-bottom: 12px; }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  .item { display: grid; grid-template-columns: 44px 1fr auto 40px; align-items: center; gap: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; transition: transform .25s var(--ease), box-shadow .25s, border-color .25s; }
+  .item:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0,0,0,.07); border-color: rgba(61,174,43,.35); }
+  .item.hide { display: none; }
+  .item .ic { width: 44px; height: 44px; border-radius: 12px; background: var(--gs); color: var(--g2); display: grid; place-items: center; }
+  .item .tx { display: flex; flex-direction: column; min-width: 0; } .item .tx b { font-size: 15px; } .item .tx span { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .pr { font-weight: 800; white-space: nowrap; } .item .pr small { font-weight: 600; color: var(--muted); font-size: 11px; margin-left: 3px; }
+  .add { width: 40px; height: 40px; border-radius: 12px; border: 0; background: var(--ink); color: #fff; cursor: pointer; transition: transform .2s var(--ease), background .2s; }
+  .add:hover { background: var(--g); transform: rotate(90deg); }
+  .add.pop { animation: pop .4s var(--ease); }
+  @keyframes pop { 50% { transform: scale(1.25); background: var(--g); } }
+  .empty { color: var(--muted); display: flex; align-items: center; gap: 8px; padding: 18px 0; }
+  /* how */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .step { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 28px 24px; transition: transform .3s var(--ease), box-shadow .3s; }
+  .step:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(0,0,0,.07); }
+  .step .num { position: absolute; top: 18px; right: 20px; font-size: 54px; font-weight: 900; color: var(--gs); line-height: 1; }
+  .step .big { font-size: 30px; color: var(--g); width: 62px; height: 62px; border-radius: 18px; background: var(--gs); display: grid; place-items: center; transition: transform .4s var(--ease); }
+  .step:hover .big { transform: rotate(-8deg) scale(1.08); }
+  .step h3 { margin: 18px 0 6px; font-size: 20px; } .step p { margin: 0; color: #444; line-height: 1.5; }
+  .trust { margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: var(--ink); color: #e9ecef; border-radius: 22px; padding: 22px; }
+  .trust div { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.5; }
+  .trust i { color: #9be38b; font-size: 18px; margin-top: 2px; }
+  /* branches */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .branch { display: flex; gap: 14px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; transition: transform .25s var(--ease), border-color .25s; }
+  .branch:hover { transform: translateY(-3px); border-color: var(--g); }
+  .branch > i { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--gs); color: var(--g2); }
+  .branch b { display: block; } .branch span { color: var(--muted); font-size: 14px; }
+  .contact { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 20px; }
+  .contact a { color: var(--ink); text-decoration: none; font-weight: 600; display: inline-flex; gap: 8px; align-items: center; }
+  .contact a i { color: var(--g2); }
+  .foot { display: flex; justify-content: space-between; padding: 40px 20px 120px; margin-top: 70px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  .foot a { color: var(--g2); font-weight: 700; }
+  /* reveal */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s var(--ease), transform .7s var(--ease); transition-delay: var(--d, 0ms); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .blob, .steam span, .hero h1 em, .hours .dot, .bubble .ring { animation: none; } }
+  /* the chat bubble */
+  .bubble { position: fixed; right: 20px; bottom: 20px; z-index: 60; height: 60px; min-width: 60px; display: flex; align-items: center; gap: 10px; padding: 0 20px 0 18px; background: var(--g); color: #fff; border: 0; border-radius: 999px; box-shadow: 0 16px 38px rgba(61,174,43,.45); cursor: pointer; font: inherit; font-weight: 700; transition: background .25s, padding .3s var(--ease), transform .2s var(--ease); }
+  .bubble:hover { transform: scale(1.05); }
+  .bubble i { font-size: 22px; transition: transform .3s var(--ease), opacity .2s; }
+  .bubble .ico-close { position: absolute; left: 19px; opacity: 0; transform: rotate(-90deg); }
+  .bubble .ring { position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 0 rgba(61,174,43,.55); animation: ring 2.4s infinite; pointer-events: none; }
+  @keyframes ring { 70% { box-shadow: 0 0 0 16px rgba(61,174,43,0); } 100% { box-shadow: 0 0 0 0 rgba(61,174,43,0); } }
+  .bubble .hint { white-space: nowrap; max-width: 220px; overflow: hidden; transition: max-width .35s var(--ease), opacity .3s; }
+  .bubble.quiet .hint, .bubble.open .hint { max-width: 0; opacity: 0; }
+  .bubble.quiet, .bubble.open { padding: 0 19px; gap: 0; }
+  .bubble.open { background: var(--ink); box-shadow: 0 10px 26px rgba(0,0,0,.25); }
+  .bubble.open .ring { animation: none; }
+  .bubble.open .ico-open { opacity: 0; transform: rotate(90deg); }
+  .bubble.open .ico-close { opacity: 1; transform: none; }
+  .chat { position: fixed; right: 20px; bottom: 94px; z-index: 59; width: min(400px, calc(100vw - 32px)); height: min(660px, calc(100dvh - 120px)); border-radius: 24px; overflow: hidden; background: #fff; box-shadow: 0 30px 80px rgba(0,0,0,.28); transform-origin: bottom right; transform: translateY(16px) scale(.92); opacity: 0; pointer-events: none; transition: transform .35s var(--ease), opacity .25s; }
+  .chat.open { transform: none; opacity: 1; pointer-events: auto; }
+  .chat iframe { width: 100%; height: 100%; border: 0; display: block; }
+  @media (max-width: 860px) { .hero { grid-template-columns: 1fr; padding-top: 48px; } .cup { width: 180px; height: 180px; order: -1; justify-self: start; } .cup > i { font-size: 72px; } .steam { top: 26px; } .strip, .steps, .trust { grid-template-columns: 1fr 1fr; } .trust { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) { .top nav a { display: none; } .strip, .steps { grid-template-columns: 1fr; } .item { grid-template-columns: 40px 1fr auto 36px; gap: 10px; } .panel-cat { grid-template-columns: 1fr; } .chat { right: 0; bottom: 0; width: 100vw; height: 100dvh; border-radius: 0; } .bubble.open { bottom: auto; top: 14px; right: 14px; height: 44px; min-width: 44px; padding: 0 12px; z-index: 61; } .bubble.open .ico-close { left: 13px; } }
 </style>
