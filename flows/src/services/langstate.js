@@ -47,8 +47,16 @@ const EN_FUNCTION = /(?<![\p{L}\p{N}])(i|i'?m|my|me|we|you|your|can|could|would|
 // "yes" or "no": everyone types those, in every language.
 const EN_GREETING = /^(?:hello|hi|hey|hiya|heya|howdy)(?:\s+(?:there|again))?[\s!.,?]*$|^good\s+(?:morning|afternoon|evening|day)[\s!.,?]*$|^(?:thanks|thanx|thx|thank\s+(?:you|u))[\s!.,?]*$/i;
 
-/** Text the detector is allowed to look at: no links, no tags, no numbers, no dish names. */
-export function conversationalText(message, itemNames = []) {
+// A dish name is removed from the evidence, but it still OCCUPIES a place in the
+// sentence. "munadim chicken ranch combo with karkadeh" is an English sentence whose
+// nouns happen to be dishes: deleting them outright left "combo with" — one function
+// word in two tokens, read as "no evidence" — and on the first turn the Arabic
+// restaurant default answered an English guest in Arabic for the whole order. The
+// stripped dishes are therefore counted as slots: never evidence themselves, but part
+// of the sentence length the English check needs.
+const DISH = "\u0000";
+
+function stripForEvidence(message, itemNames = []) {
   let s = String(message || "")
     .replace(/https?:\/\/\S+/g, " ")
     .replace(/\[[^\]]{0,40}\]/g, " ")              // [voice], [shared location] …
@@ -63,14 +71,23 @@ export function conversationalText(message, itemNames = []) {
     const n = String(raw || "").trim();
     if (n.length < 3) continue;
     const esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    s = s.replace(new RegExp(esc, "gi"), " ");
+    s = s.replace(new RegExp(esc, "gi"), ` ${DISH} `);
     // also the individual words of multi-word names ("Chicken Burger" → chicken, burger)
     for (const w of n.split(/\s+/)) {
       if (w.length < 4) continue;
-      s = s.replace(new RegExp(`(?<![\\p{L}\\p{N}])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "giu"), " ");
+      s = s.replace(new RegExp(`(?<![\\p{L}\\p{N}])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "giu"), ` ${DISH} `);
     }
   }
-  return s.replace(/\s+/g, " ").trim();
+  // adjacent pieces of one dish ("chicken ranch" → two stripped words) are ONE slot
+  s = s.replace(new RegExp(`${DISH}(?:\\s*${DISH})+`, "g"), DISH);
+  const dishSlots = (s.match(new RegExp(DISH, "g")) || []).length;
+  const text = s.replace(new RegExp(DISH, "g"), " ").replace(/\s+/g, " ").trim();
+  return { text, dishSlots };
+}
+
+/** Text the detector is allowed to look at: no links, no tags, no numbers, no dish names. */
+export function conversationalText(message, itemNames = []) {
+  return stripForEvidence(message, itemNames).text;
 }
 
 /**
@@ -78,7 +95,7 @@ export function conversationalText(message, itemNames = []) {
  * a bare "Coke Zero", "fries", "yes" or "ok" is not a language decision.
  */
 export function messageEvidence(message, itemNames = []) {
-  const text = conversationalText(message, itemNames);
+  const { text, dishSlots } = stripForEvidence(message, itemNames);
   if (!text) return null;
   if (ARABIC_SCRIPT.test(text)) return { lang: AR, reason: "arabic script" };
   const fScore = francoScore(text);
@@ -95,8 +112,10 @@ export function messageEvidence(message, itemNames = []) {
   if (EN_GREETING.test(text.trim())) return { lang: EN, reason: "english greeting" };
   // English needs a real sentence, not one leftover word: two function words, or one
   // plus a few tokens. "fries" and "Coke Zero" deliberately fall through to sticky.
+  // Dish slots count as tokens (see stripForEvidence) but never as function words, so
+  // a bare dish still decides nothing while "<dish> combo with <dish>" is a sentence.
   const fn = (text.match(EN_FUNCTION) || []).length;
-  const tokens = text.split(/\s+/).filter(Boolean).length;
+  const tokens = text.split(/\s+/).filter(Boolean).length + dishSlots;
   if (fn >= 2 || (fn === 1 && tokens >= 3)) return { lang: EN, reason: `english sentence (${fn} function words)` };
   // English shapes Franco never has: contractions and -ing/-ed/-tion endings. This is
   // what lets a short English message switch ("cancelled?", "I'm waiting") without a

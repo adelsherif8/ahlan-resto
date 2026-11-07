@@ -146,3 +146,25 @@ test("English ordinals and units are not Franco markers (an address line must no
   assert.equal(looksFranco("3ayez wa7ed classic burger"), true);
   assert.equal(looksFranco("7elw, 2akked el order"), true);
 });
+
+test("16 — an English order made mostly of dish names is English on an Arabic-default tenant", () => {
+  // Live bug: "munadim chicken ranch combo with karkadeh" had its dishes stripped down to
+  // "combo with" — one function word in two tokens, read as no evidence — so the first
+  // turn fell to the Arabic restaurant default and the whole order ran in Arabic. The
+  // dishes are not evidence, but they still occupy places in the sentence.
+  const first = (message) => resolveLanguage({ message, sticky: null, itemNames: ITEMS, fallback: AR });
+  assert.equal(first("munadim chicken ranch combo with karkadeh").lang, EN);
+  assert.equal(first("Chicken Burger with French Fries").lang, EN);
+  assert.equal(first("2 classic burgers and a coke zero please").lang, EN);
+  // the stickiness then carries the rest of the order ("pickup", "cash, now", "confirm")
+  for (const m of ["pickup", "cash, now", "confirm"]) {
+    assert.equal(resolveLanguage({ message: m, sticky: EN, itemNames: ITEMS, fallback: AR }).lang, EN, m);
+  }
+  // still: a bare dish decides nothing, and Franco / Arabic with dishes stay themselves
+  assert.equal(first("Coke Zero").lang, AR);
+  assert.equal(first("Munadim Chicken Ranch").lang, AR);
+  assert.equal(first("ana 3ayez Munadim Chicken Ranch w Karkadeh").lang, FRANCO);
+  assert.equal(first("عايز Munadim Chicken Ranch مع كركديه").lang, AR);
+  assert.equal(messageEvidence("Munadim Chicken Ranch", ITEMS), null);
+  assert.equal(conversationalText("munadim chicken ranch combo with karkadeh", ITEMS), "combo with");
+});
