@@ -25,6 +25,18 @@ const branches = [
   { name: 'O1 Kitchen Mall', area: 'New Cairo' }, { name: 'Lake District', area: 'Mivida' },
   { name: 'Ivory', area: 'Villette by Sodic' },
 ];
+// what the AI handles across the whole visit (each one is live in the table chat)
+const does = [
+  { icon: 'fa-comments', title: 'Takes the order', text: 'Sizes, oat milk, extra shot, "same as last time" — in English, Arabic or Franco.' },
+  { icon: 'fa-wand-magic-sparkles', title: 'Suggests the add-on', text: 'A kroissant with the latte, at the moment it fits. Never pushy.' },
+  { icon: 'fa-chair', title: 'Knows the table', text: 'Every ticket carries its table number. Nobody at another table can order to yours.' },
+  { icon: 'fa-arrows-split-up-and-left', title: 'Routes it', text: 'Drinks to the bar screen, food to the kitchen screen, at the same second.' },
+  { icon: 'fa-list-check', title: 'Tracks it', text: 'Received, making, ready, served — the guest sees it live on their phone.' },
+  { icon: 'fa-bell-concierge', title: 'Calls staff', text: '"Need help", "the bill", "water" — one tap, the counter hears a chime.' },
+  { icon: 'fa-user-check', title: 'Remembers regulars', text: 'Next visit: "Welcome back, Sara — your usual?" Verified once on WhatsApp.' },
+  { icon: 'fa-star', title: 'Collects reviews', text: 'Happy guests go to Google. Unhappy ones reach the manager privately, the same day.' },
+  { icon: 'fa-chart-line', title: 'Reports to you', text: 'Orders, average check, add-on rate, kitchen time and peak hours, per branch.' },
+];
 const steps = [
   { icon: 'fa-qrcode', title: 'Scan', text: 'The code on your table opens the chat already knowing where you sit.' },
   { icon: 'fa-comments', title: 'Say it', text: '"Large iced spanish latte, oat milk, and a pistachio kroissant." Done.' },
@@ -105,8 +117,8 @@ const steps = [
 
     <section class="how" id="how">
       <div class="head reveal">
-        <h2>Order without leaving your seat</h2>
-        <p class="sub">No app. No waving at a waiter. English, Arabic or Franco.</p>
+        <h2>Your table runs itself</h2>
+        <p class="sub">An AI host on every table: it takes the order, sends it to the bar and kitchen, calls staff, and remembers your regulars. No app to download.</p>
       </div>
       <div class="steps">
         {steps.map((s, i) => (
@@ -115,6 +127,18 @@ const steps = [
             <i class={`fa-solid ${s.icon} big`}></i>
             <h3>{s.title}</h3>
             <p>{s.text}</p>
+          </div>
+        ))}
+      </div>
+      <div class="does-head reveal">
+        <p class="tag"><i class="fa-solid fa-microchip"></i> One AI, the whole visit</p>
+        <h3>It doesn't stop at taking the order</h3>
+      </div>
+      <div class="does">
+        {does.map((d, i) => (
+          <div class="do reveal" style={`--d:${i * 50}ms`}>
+            <i class={`fa-solid ${d.icon}`}></i>
+            <div><b>{d.title}</b><span>{d.text}</span></div>
           </div>
         ))}
       </div>
@@ -314,6 +338,16 @@ const steps = [
   .trust { margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: var(--ink); color: #e9ecef; border-radius: 22px; padding: 22px; }
   .trust div { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.5; }
   .trust i { color: #9be38b; font-size: 18px; margin-top: 2px; }
+  .does-head { margin-top: 40px; }
+  .does-head h3 { font-size: clamp(24px, 3vw, 32px); margin: 0 0 16px; letter-spacing: -.01em; }
+  .does { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .do { display: flex; gap: 14px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; transition: transform .25s var(--ease), border-color .25s, box-shadow .25s; }
+  .do:hover { transform: translateY(-4px); border-color: rgba(61,174,43,.45); box-shadow: 0 14px 30px rgba(0,0,0,.06); }
+  .do > i { flex: 0 0 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--gs); color: var(--g2); font-size: 18px; transition: transform .35s var(--ease); }
+  .do:hover > i { transform: rotate(-8deg) scale(1.08); }
+  .do b { display: block; font-size: 16px; margin-bottom: 3px; } .do span { color: #4a5056; font-size: 14px; line-height: 1.5; }
+  @media (max-width: 860px) { .does { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .does { grid-template-columns: 1fr; } }
   /* branches */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
   .branch { display: flex; gap: 14px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; transition: transform .25s var(--ease), border-color .25s; }
