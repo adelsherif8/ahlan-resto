@@ -1,1226 +1,1227 @@
 {
-  "_readme": "The 14-day Munadim launch. Source of truth is the approved artifact RM8tXkC45FxkzvhL8AnsTW. Times are Africa/Cairo. `asset` is a filename, resolved to a public URL by ig-upload.mjs. Slots with `pending: true` have no asset yet and are skipped by the publisher.",
-  "timezone": "Africa/Cairo",
-  "tagsInCaption": true,
-  "_tagsNote": "A/B, 25 Oct: the first post with hashtags as an API self-comment (R2, 24 Oct) got 0 reach. No evidence that the comment caused it, but it was the one new variable, so tags go back in the caption — where every 100+ reel had them — until film-short tonight shows whether distribution returns. Flip to false to restore the first comment.",
-  "slots": [
-    {
-      "day": 1,
-      "date": "2026-10-18",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-film.mp4",
-      "caption": "تسلا بتطيّر عربيات. إحنا بنطيّر الأوردر.\n\nالطابور طويل؟ إنت مش فيه.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n\nالطابور للعربيات. طلبك على واتساب.\n📲 01022034603",
-      "tags": "#منادم #مطاعم_مصر #تسلا",
-      "note": "THE hero · posted as a trial reel → PIN #1"
-    },
-    {
-      "day": 2,
-      "date": "2026-10-19",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-B",
-      "caption": "«600 أوردر في الشهر… التطبيق بياخد كام؟» — أوردرات واتساب للمطاعم\n\nالحساب سلايد سلايد، من حاسبة munadim.com نفسها.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #عمولة_التطبيقات",
-      "note": "the most saveable thing we own",
-      "slides": [
-        "carousel-B/01.png",
-        "carousel-B/02.png",
-        "carousel-B/03.png",
-        "carousel-B/04.png",
-        "carousel-B/05.png",
-        "carousel-B/06.png",
-        "carousel-B/07.png",
-        "carousel-B/08.png",
-        "carousel-B/09.png"
-      ]
-    },
-    {
-      "day": 3,
-      "date": "2026-10-20",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-2B.mp4",
-      "caption": "كتبها فرانكو… هيفهم؟ — أوردرات واتساب للمطاعم\n\nفهمها، وردّ عليه بالفرانكو من أول رسالة لحد الفاتورة والتأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #فرانكو #اوردر_واتساب",
-      "note": "real chat 1/2 this week"
-    },
-    {
-      "day": 4,
-      "date": "2026-10-21",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-A",
-      "caption": "«٨ حاجات مُنادم بيعملها… وواتساب العادي مش بيعملها» — أوردرات واتساب للمطاعم\n\nاسحب وشوفهم.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #اوردر_واتساب",
-      "note": "PIN #3",
-      "slides": [
-        "carousel-A/01.png",
-        "carousel-A/02.png",
-        "carousel-A/03.png",
-        "carousel-A/04.png",
-        "carousel-A/05.png",
-        "carousel-A/06.png",
-        "carousel-A/07.png",
-        "carousel-A/08.png",
-        "carousel-A/09.png",
-        "carousel-A/10.png",
-        "carousel-A/11.png"
-      ]
-    },
-    {
-      "day": 5,
-      "date": "2026-10-22",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R1.mp4",
-      "caption": "١١:٤٧ بالليل… حد هيرد؟ — أوردرات واتساب للمطاعم\n\nالزبون جعان ومستني رد، والمطعم في عز الشغل.\nشوف الأوردر كامل: الاختيارات، التيك أواي، الفاتورة، والتأكيد — كله باسم المطعم على طول.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #مطاعم_مصر #اوردرات_بالليل",
-      "note": "real chat 2/2 this week"
-    },
-    {
-      "day": 6,
-      "date": "2026-10-23",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R3.mp4",
-      "caption": "التطبيقات مش شركاءك — أوردرات واتساب للمطاعم\n\nبتأجّرلك زباينك. الاسم، الرقم، وبيحب ياكل إيه… كله عندهم.\nواتساب بيرجّع الزبون ليك إنت.\n\nابعتها لصاحب مطعم تعرفه 👇\n📲 01022034603",
-      "tags": "#منادم #صحاب_المطاعم #عمولة_التطبيقات",
-      "note": "the thesis · trial reel → PIN #2 · cross-post to LinkedIn"
-    },
-    {
-      "day": 7,
-      "date": "2026-10-24",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R2.mp4",
-      "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — أوردرات واتساب للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\n📲 01022034603",
-      "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر",
-      "note": "the maths — kinetic; replaces tonight's carousel C (carousels reached 2-3 people)"
-    },
-    {
-      "day": 8,
-      "date": "2026-10-25",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-film-short.mp4",
-      "caption": "الطابور طويل… وإنت مش فيه — أوردرات واتساب للمطاعم\n\nنسخة ١٢ ثانية من الفيلم.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n📲 01022034603",
-      "tags": "#منادم #مطاعم_مصر #تسلا",
-      "note": "the 12 s re-cut, exactly a week after the film"
-    },
-    {
-      "day": 9,
-      "date": "2026-10-27",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R6C.mp4",
-      "caption": "«نفس طلب امبارح»… هيفهم؟ — أوردرات واتساب للمطاعم\n\nالزبون كتبها زي ما بيتكلم، والمطعم فاكر طلبه بالظبط وكمّل على طول لحد التأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #بالمصري #اوردر_واتساب",
-      "note": "R6 behind a kitchen cold open — burger landing on the pass, grill audio (Seedance, 25 Oct)"
-    },
-    {
-      "day": 10,
-      "date": "2026-10-29",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-1BC.mp4",
-      "caption": "لازم تنزّل تطبيق عشان تطلب؟ — أوردرات واتساب للمطاعم\n\nلأ. نفس الواتساب اللي في إيدك.\nأوردر كامل من غير تطبيق تنزّله ولا حساب تعمله.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #من_غير_تطبيق #اوردر_واتساب",
-      "note": "1B behind a cafe cold open (burger and fries arrive, phone down) · end card now carries @munadim.eg"
-    },
-    {
-      "day": 11,
-      "date": "2026-11-01",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R7C.mp4",
-      "caption": "الزبون ده هيرجع تاني؟ — أوردرات واتساب للمطاعم\n\nرجع، والمطعم ناداه باسمه وفاكر طلبه.\nالرقم بيفضل معاك إنت — مش مع التطبيق.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #زباينك #صحاب_المطاعم",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 12,
-      "date": "2026-11-02",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R3C.mp4",
-      "caption": "التطبيقات مش شركاءك — أوردرات واتساب للمطاعم\n\nبتأجّرلك زباينك. الاسم، الرقم، وبيحب ياكل إيه… كله عندهم.\nواتساب بيرجّع الزبون ليك إنت.\n\nابعتها لصاحب مطعم تعرفه 👇\n📲 01022034603",
-      "tags": "#منادم #صحاب_المطاعم #عمولة_التطبيقات",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 13,
-      "date": "2026-11-03",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R4C.mp4",
-      "caption": "٤ حاجات في رسالة واحدة… هيلخبط؟ — أوردرات واتساب للمطاعم\n\n٢ ناشفيل حار، كلاسيك كومبو، وبطاطس — والفاتورة طلعت مظبوطة بالأسعار من أول مرة.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #اوردر_واتساب #مطاعم_مصر",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 14,
-      "date": "2026-11-04",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R2C.mp4",
-      "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — أوردرات واتساب للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\n📲 01022034603",
-      "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 15,
-      "date": "2026-11-05",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-5AC.mp4",
-      "caption": "الحساب جه… مين عليه كام؟ — أوردرات واتساب للمطاعم\n\nسفرة واحدة، والحساب بيتقسم على الواتساب — كل واحد يعرف عليه كام من غير آلة حاسبة ولا خناقة.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #تقسيم_الحساب #مطاعم_مصر",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 16,
-      "date": "2026-11-06",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-film.mp4",
-      "caption": "تسلا بتطيّر عربيات. إحنا بنطيّر الأوردر.\n\nالطابور طويل؟ إنت مش فيه.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n\nالطابور للعربيات. طلبك على واتساب.\n📲 01022034603",
-      "tags": "#منادم #مطاعم_مصر #تسلا",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 17,
-      "date": "2026-11-07",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R1C.mp4",
-      "caption": "١١:٤٧ بالليل… حد هيرد؟ — أوردرات واتساب للمطاعم\n\nالزبون جعان ومستني رد، والمطعم في عز الشغل.\nشوف الأوردر كامل: الاختيارات، التيك أواي، الفاتورة، والتأكيد — كله باسم المطعم على طول.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #مطاعم_مصر #اوردرات_بالليل",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 18,
-      "date": "2026-11-08",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-C",
-      "caption": "«موظفيني مش هيعرفوا يستخدموه» و٧ مخاوف تانية — أوردرات واتساب للمطاعم\n\nكل اعتراض وردّه الصريح.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #صحاب_المطاعم",
-      "note": "daily schedule restored 1 Nov",
-      "slides": [
-        "carousel-C/01.png",
-        "carousel-C/02.png",
-        "carousel-C/03.png",
-        "carousel-C/04.png",
-        "carousel-C/05.png",
-        "carousel-C/06.png",
-        "carousel-C/07.png",
-        "carousel-C/08.png",
-        "carousel-C/09.png",
-        "carousel-C/10.png"
-      ]
-    },
-    {
-      "day": 19,
-      "date": "2026-11-09",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-film-short.mp4",
-      "caption": "الطابور طويل… وإنت مش فيه — أوردرات واتساب للمطاعم\n\nنسخة ١٢ ثانية من الفيلم.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n📲 01022034603",
-      "tags": "#منادم #مطاعم_مصر #تسلا",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 20,
-      "date": "2026-11-10",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-2B.mp4",
-      "caption": "كتبها فرانكو… هيفهم؟ — أوردرات واتساب للمطاعم\n\nفهمها، وردّ عليه بالفرانكو من أول رسالة لحد الفاتورة والتأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #فرانكو #اوردر_واتساب",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 21,
-      "date": "2026-11-11",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R6C.mp4",
-      "caption": "«نفس طلب امبارح»… هيفهم؟ — أوردرات واتساب للمطاعم\n\nالزبون كتبها زي ما بيتكلم، والمطعم فاكر طلبه بالظبط وكمّل على طول لحد التأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #بالمصري #اوردر_واتساب",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 22,
-      "date": "2026-11-12",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-A",
-      "caption": "«٨ حاجات مُنادم بيعملها… وواتساب العادي مش بيعملها» — أوردرات واتساب للمطاعم\n\nاسحب وشوفهم.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #اوردر_واتساب",
-      "note": "daily schedule restored 1 Nov",
-      "slides": [
-        "carousel-A/01.png",
-        "carousel-A/02.png",
-        "carousel-A/03.png",
-        "carousel-A/04.png",
-        "carousel-A/05.png",
-        "carousel-A/06.png",
-        "carousel-A/07.png",
-        "carousel-A/08.png",
-        "carousel-A/09.png",
-        "carousel-A/10.png",
-        "carousel-A/11.png"
-      ]
-    },
-    {
-      "day": 23,
-      "date": "2026-11-13",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-1BC.mp4",
-      "caption": "لازم تنزّل تطبيق عشان تطلب؟ — أوردرات واتساب للمطاعم\n\nلأ. نفس الواتساب اللي في إيدك.\nأوردر كامل من غير تطبيق تنزّله ولا حساب تعمله.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #من_غير_تطبيق #اوردر_واتساب",
-      "note": "daily schedule restored 1 Nov"
-    },
-    {
-      "day": 24,
-      "date": "2026-11-14",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R7C.mp4",
-      "caption": "الزبون ده هيرجع تاني؟ — أوردرات واتساب للمطاعم\n\nرجع، والمطعم ناداه باسمه وفاكر طلبه.\nالرقم بيفضل معاك إنت — مش مع التطبيق.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #زباينك #صحاب_المطاعم",
-      "note": "daily schedule restored 1 Nov · repeat"
-    },
-    {
-      "day": 25,
-      "date": "2026-11-15",
-      "time": "21:30",
-      "type": "carousel",
-      "asset": "carousel-B",
-      "caption": "«600 أوردر في الشهر… التطبيق بياخد كام؟» — أوردرات واتساب للمطاعم\n\nالحساب سلايد سلايد، من حاسبة munadim.com نفسها.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
-      "tags": "#منادم #مطاعم_مصر #عمولة_التطبيقات",
-      "note": "daily schedule restored 1 Nov",
-      "slides": [
-        "carousel-B/01.png",
-        "carousel-B/02.png",
-        "carousel-B/03.png",
-        "carousel-B/04.png",
-        "carousel-B/05.png",
-        "carousel-B/06.png",
-        "carousel-B/07.png",
-        "carousel-B/08.png",
-        "carousel-B/09.png"
-      ]
-    },
-    {
-      "day": 26,
-      "date": "2026-11-16",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R3C.mp4",
-      "caption": "التطبيقات مش شركاءك — أوردرات واتساب للمطاعم\n\nبتأجّرلك زباينك. الاسم، الرقم، وبيحب ياكل إيه… كله عندهم.\nواتساب بيرجّع الزبون ليك إنت.\n\nابعتها لصاحب مطعم تعرفه 👇\n📲 01022034603",
-      "tags": "#منادم #صحاب_المطاعم #عمولة_التطبيقات",
-      "note": "daily schedule restored 1 Nov · repeat"
-    },
-    {
-      "day": 27,
-      "date": "2026-11-17",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R4C.mp4",
-      "caption": "٤ حاجات في رسالة واحدة… هيلخبط؟ — أوردرات واتساب للمطاعم\n\n٢ ناشفيل حار، كلاسيك كومبو، وبطاطس — والفاتورة طلعت مظبوطة بالأسعار من أول مرة.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #اوردر_واتساب #مطاعم_مصر",
-      "note": "daily schedule restored 1 Nov · repeat"
-    },
-    {
-      "day": 28,
-      "date": "2026-11-18",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-R2C.mp4",
-      "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — أوردرات واتساب للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\n📲 01022034603",
-      "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر",
-      "note": "daily schedule restored 1 Nov · repeat"
-    },
-    {
-      "day": 29,
-      "date": "2026-11-19",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-5AC.mp4",
-      "caption": "الحساب جه… مين عليه كام؟ — أوردرات واتساب للمطاعم\n\nسفرة واحدة، والحساب بيتقسم على الواتساب — كل واحد يعرف عليه كام من غير آلة حاسبة ولا خناقة.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
-      "tags": "#منادم #تقسيم_الحساب #مطاعم_مصر",
-      "note": "daily schedule restored 1 Nov · repeat"
-    },
-    {
-      "day": 30,
-      "date": "2026-11-20",
-      "time": "21:30",
-      "type": "reel",
-      "asset": "munadim-film.mp4",
-      "caption": "تسلا بتطيّر عربيات. إحنا بنطيّر الأوردر.\n\nالطابور طويل؟ إنت مش فيه.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n\nالطابور للعربيات. طلبك على واتساب.\n📲 01022034603",
-      "tags": "#منادم #مطاعم_مصر #تسلا",
-      "note": "daily schedule restored 1 Nov · repeat"
-    }
-  ],
-  "stories": [
-    {
-      "day": 1,
-      "date": "2026-10-18",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-07.mp4",
-      "sticker": "Quiz",
-      "question": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟",
-      "options": [
-        "١٥",
-        "حوالي ٣٠ ✅",
-        "٥"
-      ],
-      "text": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟\n   ١٥  /  حوالي ٣٠ ✅  /  ٥",
-      "visual": "Post story-07.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-07-poster.jpg"
-    },
-    {
-      "day": 2,
-      "date": "2026-10-19",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-10.mp4",
-      "sticker": "This / That",
-      "question": "رقم الزبون بيفضل مع مين؟",
-      "options": [
-        "التطبيق",
-        "مطعمك"
-      ],
-      "text": "رقم الزبون بيفضل مع مين؟\n   التطبيق  /  مطعمك",
-      "visual": "Post story-10.mp4 (7s, muted). Drop the This / That sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-10-poster.jpg"
-    },
-    {
-      "day": 3,
-      "date": "2026-10-20",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-04.mp4",
-      "sticker": "Quiz",
-      "question": "الأوردر الكامل بياخد قد إيه على مُنادم؟",
-      "options": [
-        "دقيقتين ✅",
-        "١٠ دقايق",
-        "ربع ساعة"
-      ],
-      "text": "الأوردر الكامل بياخد قد إيه على مُنادم؟\n   دقيقتين ✅  /  ١٠ دقايق  /  ربع ساعة",
-      "visual": "Post story-04.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-04-poster.jpg"
-    },
-    {
-      "day": 4,
-      "date": "2026-10-21",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-05.mp4",
-      "sticker": "Poll",
-      "question": "أكتر حاجة بتضيع في الزحمة؟",
-      "options": [
-        "ملاحظات الأوردر",
-        "الأصناف",
-        "العنوان"
-      ],
-      "text": "أكتر حاجة بتضيع في الزحمة؟\n   ملاحظات الأوردر  /  الأصناف  /  العنوان",
-      "visual": "Post story-05.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-05-poster.jpg"
-    },
-    {
-      "day": 5,
-      "date": "2026-10-22",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-14.mp4",
-      "sticker": "Quiz",
-      "question": "مُنادم بيفهم أنهي حاجات؟",
-      "options": [
-        "فرانكو",
-        "ڤويس نوت",
-        "الاتنين ✅"
-      ],
-      "text": "مُنادم بيفهم أنهي حاجات؟\n   فرانكو  /  ڤويس نوت  /  الاتنين ✅",
-      "visual": "Post story-14.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-14-poster.jpg"
-    },
-    {
-      "day": 6,
-      "date": "2026-10-23",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-01.mp4",
-      "sticker": "Poll",
-      "question": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟",
-      "options": [
-        "آه كلهم",
-        "لأ ولا واحد"
-      ],
-      "text": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟\n   آه كلهم  /  لأ ولا واحد",
-      "visual": "Post story-01.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-01-poster.jpg"
-    },
-    {
-      "day": 7,
-      "date": "2026-10-24",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-06.mp4",
-      "sticker": "Poll",
-      "question": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟",
-      "options": [
-        "آه",
-        "صعب عليهم"
-      ],
-      "text": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟\n   آه  /  صعب عليهم",
-      "visual": "Post story-06.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-06-poster.jpg"
-    },
-    {
-      "day": 8,
-      "date": "2026-10-25",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-07.mp4",
-      "sticker": "Quiz",
-      "question": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟",
-      "options": [
-        "١٥",
-        "حوالي ٣٠ ✅",
-        "٥"
-      ],
-      "text": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟\n   ١٥  /  حوالي ٣٠ ✅  /  ٥",
-      "visual": "Post story-07.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-07-poster.jpg"
-    },
-    {
-      "day": 9,
-      "date": "2026-10-26",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-10.mp4",
-      "sticker": "This / That",
-      "question": "رقم الزبون بيفضل مع مين؟",
-      "options": [
-        "التطبيق",
-        "مطعمك"
-      ],
-      "text": "رقم الزبون بيفضل مع مين؟\n   التطبيق  /  مطعمك",
-      "visual": "Post story-10.mp4 (7s, muted). Drop the This / That sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-10-poster.jpg"
-    },
-    {
-      "day": 10,
-      "date": "2026-10-27",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-04.mp4",
-      "sticker": "Quiz",
-      "question": "الأوردر الكامل بياخد قد إيه على مُنادم؟",
-      "options": [
-        "دقيقتين ✅",
-        "١٠ دقايق",
-        "ربع ساعة"
-      ],
-      "text": "الأوردر الكامل بياخد قد إيه على مُنادم؟\n   دقيقتين ✅  /  ١٠ دقايق  /  ربع ساعة",
-      "visual": "Post story-04.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-04-poster.jpg"
-    },
-    {
-      "day": 11,
-      "date": "2026-10-28",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-05.mp4",
-      "sticker": "Poll",
-      "question": "أكتر حاجة بتضيع في الزحمة؟",
-      "options": [
-        "ملاحظات الأوردر",
-        "الأصناف",
-        "العنوان"
-      ],
-      "text": "أكتر حاجة بتضيع في الزحمة؟\n   ملاحظات الأوردر  /  الأصناف  /  العنوان",
-      "visual": "Post story-05.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-05-poster.jpg"
-    },
-    {
-      "day": 12,
-      "date": "2026-10-29",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-14.mp4",
-      "sticker": "Quiz",
-      "question": "مُنادم بيفهم أنهي حاجات؟",
-      "options": [
-        "فرانكو",
-        "ڤويس نوت",
-        "الاتنين ✅"
-      ],
-      "text": "مُنادم بيفهم أنهي حاجات؟\n   فرانكو  /  ڤويس نوت  /  الاتنين ✅",
-      "visual": "Post story-14.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-14-poster.jpg"
-    },
-    {
-      "day": 13,
-      "date": "2026-10-30",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-01.mp4",
-      "sticker": "Poll",
-      "question": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟",
-      "options": [
-        "آه كلهم",
-        "لأ ولا واحد"
-      ],
-      "text": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟\n   آه كلهم  /  لأ ولا واحد",
-      "visual": "Post story-01.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-01-poster.jpg"
-    },
-    {
-      "day": 14,
-      "date": "2026-10-31",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-06.mp4",
-      "sticker": "Poll",
-      "question": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟",
-      "options": [
-        "آه",
-        "صعب عليهم"
-      ],
-      "text": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟\n   آه  /  صعب عليهم",
-      "visual": "Post story-06.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-06-poster.jpg"
-    },
-    {
-      "day": 15,
-      "date": "2026-11-01",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-02.mp4",
-      "sticker": "Poll",
-      "question": "زباينك بيكتبولك إزاي أكتر؟",
-      "options": [
-        "عربي",
-        "فرانكو",
-        "إنجليزي"
-      ],
-      "text": "زباينك بيكتبولك إزاي أكتر؟\n   عربي  /  فرانكو  /  إنجليزي",
-      "visual": "Post story-02.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-02-poster.jpg"
-    },
-    {
-      "day": 16,
-      "date": "2026-11-02",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-03.mp4",
-      "sticker": "Poll",
-      "question": "كام أوردر واتساب ضاع عليك الأسبوع ده من غير رد؟",
-      "options": [
-        "ولا واحد",
-        "١–٥",
-        "أكتر"
-      ],
-      "text": "كام أوردر واتساب ضاع عليك الأسبوع ده من غير رد؟\n   ولا واحد  /  ١–٥  /  أكتر",
-      "visual": "Post story-03.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-03-poster.jpg"
-    },
-    {
-      "day": 17,
-      "date": "2026-11-03",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-08.mp4",
-      "sticker": "Poll",
-      "question": "بتعرف أرقام زباين الصالة اللي بيقعدوا عندك؟",
-      "options": [
-        "آه",
-        "ولا واحد"
-      ],
-      "text": "بتعرف أرقام زباين الصالة اللي بيقعدوا عندك؟\n   آه  /  ولا واحد",
-      "visual": "Post story-08.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-08-poster.jpg"
-    },
-    {
-      "day": 18,
-      "date": "2026-11-04",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-09.mp4",
-      "sticker": "Poll",
-      "question": "سفرة ١٠ أفراد… الحساب بيتقسم إزاي عندكم؟",
-      "options": [
-        "آلة حاسبة",
-        "واحد بيدفع",
-        "خناقة 😅"
-      ],
-      "text": "سفرة ١٠ أفراد… الحساب بيتقسم إزاي عندكم؟\n   آلة حاسبة  /  واحد بيدفع  /  خناقة 😅",
-      "visual": "Post story-09.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-09-poster.jpg"
-    },
-    {
-      "day": 19,
-      "date": "2026-11-05",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-11.mp4",
-      "sticker": "Poll",
-      "question": "الزبون بيستلم إيصال بعد كل أوردر عندك؟",
-      "options": [
-        "آه",
-        "لأ، شفوي"
-      ],
-      "text": "الزبون بيستلم إيصال بعد كل أوردر عندك؟\n   آه  /  لأ، شفوي",
-      "visual": "Post story-11.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-11-poster.jpg"
-    },
-    {
-      "day": 20,
-      "date": "2026-11-06",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-12.mp4",
-      "sticker": "Poll",
-      "question": "بتحسب سعر الدليفري إزاي؟",
-      "options": [
-        "ثابت",
-        "بالمنطقة",
-        "بالتخمين"
-      ],
-      "text": "بتحسب سعر الدليفري إزاي؟\n   ثابت  /  بالمنطقة  /  بالتخمين",
-      "visual": "Post story-12.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-12-poster.jpg"
-    },
-    {
-      "day": 21,
-      "date": "2026-11-07",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-13.mp4",
-      "sticker": "Slider",
-      "question": "قد إيه محتاج تتابع المطعم وإنت بره؟",
-      "options": [
-        "📱"
-      ],
-      "text": "قد إيه محتاج تتابع المطعم وإنت بره؟\n   📱",
-      "visual": "Post story-13.mp4 (7s, muted). Drop the Slider sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-13-poster.jpg"
-    },
-    {
-      "day": 22,
-      "date": "2026-11-08",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-07.mp4",
-      "sticker": "Quiz",
-      "question": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟",
-      "options": [
-        "١٥",
-        "حوالي ٣٠ ✅",
-        "٥"
-      ],
-      "text": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟\n   ١٥  /  حوالي ٣٠ ✅  /  ٥",
-      "visual": "Post story-07.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-07-poster.jpg"
-    },
-    {
-      "day": 23,
-      "date": "2026-11-09",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-10.mp4",
-      "sticker": "This / That",
-      "question": "رقم الزبون بيفضل مع مين؟",
-      "options": [
-        "التطبيق",
-        "مطعمك"
-      ],
-      "text": "رقم الزبون بيفضل مع مين؟\n   التطبيق  /  مطعمك",
-      "visual": "Post story-10.mp4 (7s, muted). Drop the This / That sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-10-poster.jpg"
-    },
-    {
-      "day": 24,
-      "date": "2026-11-10",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-04.mp4",
-      "sticker": "Quiz",
-      "question": "الأوردر الكامل بياخد قد إيه على مُنادم؟",
-      "options": [
-        "دقيقتين ✅",
-        "١٠ دقايق",
-        "ربع ساعة"
-      ],
-      "text": "الأوردر الكامل بياخد قد إيه على مُنادم؟\n   دقيقتين ✅  /  ١٠ دقايق  /  ربع ساعة",
-      "visual": "Post story-04.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-04-poster.jpg"
-    },
-    {
-      "day": 25,
-      "date": "2026-11-11",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-05.mp4",
-      "sticker": "Poll",
-      "question": "أكتر حاجة بتضيع في الزحمة؟",
-      "options": [
-        "ملاحظات الأوردر",
-        "الأصناف",
-        "العنوان"
-      ],
-      "text": "أكتر حاجة بتضيع في الزحمة؟\n   ملاحظات الأوردر  /  الأصناف  /  العنوان",
-      "visual": "Post story-05.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-05-poster.jpg"
-    },
-    {
-      "day": 26,
-      "date": "2026-11-12",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-14.mp4",
-      "sticker": "Quiz",
-      "question": "مُنادم بيفهم أنهي حاجات؟",
-      "options": [
-        "فرانكو",
-        "ڤويس نوت",
-        "الاتنين ✅"
-      ],
-      "text": "مُنادم بيفهم أنهي حاجات؟\n   فرانكو  /  ڤويس نوت  /  الاتنين ✅",
-      "visual": "Post story-14.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-14-poster.jpg"
-    },
-    {
-      "day": 27,
-      "date": "2026-11-13",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-01.mp4",
-      "sticker": "Poll",
-      "question": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟",
-      "options": [
-        "آه كلهم",
-        "لأ ولا واحد"
-      ],
-      "text": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟\n   آه كلهم  /  لأ ولا واحد",
-      "visual": "Post story-01.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-01-poster.jpg"
-    },
-    {
-      "day": 28,
-      "date": "2026-11-14",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-06.mp4",
-      "sticker": "Poll",
-      "question": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟",
-      "options": [
-        "آه",
-        "صعب عليهم"
-      ],
-      "text": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟\n   آه  /  صعب عليهم",
-      "visual": "Post story-06.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-06-poster.jpg"
-    },
-    {
-      "day": 29,
-      "date": "2026-11-15",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-07.mp4",
-      "sticker": "Quiz",
-      "question": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟",
-      "options": [
-        "١٥",
-        "حوالي ٣٠ ✅",
-        "٥"
-      ],
-      "text": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟\n   ١٥  /  حوالي ٣٠ ✅  /  ٥",
-      "visual": "Post story-07.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-07-poster.jpg"
-    },
-    {
-      "day": 30,
-      "date": "2026-11-16",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-10.mp4",
-      "sticker": "This / That",
-      "question": "رقم الزبون بيفضل مع مين؟",
-      "options": [
-        "التطبيق",
-        "مطعمك"
-      ],
-      "text": "رقم الزبون بيفضل مع مين؟\n   التطبيق  /  مطعمك",
-      "visual": "Post story-10.mp4 (7s, muted). Drop the This / That sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-10-poster.jpg"
-    },
-    {
-      "day": 31,
-      "date": "2026-11-17",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-04.mp4",
-      "sticker": "Quiz",
-      "question": "الأوردر الكامل بياخد قد إيه على مُنادم؟",
-      "options": [
-        "دقيقتين ✅",
-        "١٠ دقايق",
-        "ربع ساعة"
-      ],
-      "text": "الأوردر الكامل بياخد قد إيه على مُنادم؟\n   دقيقتين ✅  /  ١٠ دقايق  /  ربع ساعة",
-      "visual": "Post story-04.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-04-poster.jpg"
-    },
-    {
-      "day": 32,
-      "date": "2026-11-18",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-05.mp4",
-      "sticker": "Poll",
-      "question": "أكتر حاجة بتضيع في الزحمة؟",
-      "options": [
-        "ملاحظات الأوردر",
-        "الأصناف",
-        "العنوان"
-      ],
-      "text": "أكتر حاجة بتضيع في الزحمة؟\n   ملاحظات الأوردر  /  الأصناف  /  العنوان",
-      "visual": "Post story-05.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-05-poster.jpg"
-    },
-    {
-      "day": 33,
-      "date": "2026-11-19",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-14.mp4",
-      "sticker": "Quiz",
-      "question": "مُنادم بيفهم أنهي حاجات؟",
-      "options": [
-        "فرانكو",
-        "ڤويس نوت",
-        "الاتنين ✅"
-      ],
-      "text": "مُنادم بيفهم أنهي حاجات؟\n   فرانكو  /  ڤويس نوت  /  الاتنين ✅",
-      "visual": "Post story-14.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-14-poster.jpg"
-    },
-    {
-      "day": 34,
-      "date": "2026-11-20",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-01.mp4",
-      "sticker": "Poll",
-      "question": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟",
-      "options": [
-        "آه كلهم",
-        "لأ ولا واحد"
-      ],
-      "text": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟\n   آه كلهم  /  لأ ولا واحد",
-      "visual": "Post story-01.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-01-poster.jpg"
-    },
-    {
-      "day": 35,
-      "date": "2026-11-21",
-      "time": "21:45",
-      "kind": "Story set",
-      "asset": "story-06.mp4",
-      "sticker": "Poll",
-      "question": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟",
-      "options": [
-        "آه",
-        "صعب عليهم"
-      ],
-      "text": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟\n   آه  /  صعب عليهم",
-      "visual": "Post story-06.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
-      "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
-      "link": "https://wa.me/201022034603",
-      "poster": "story-06-poster.jpg"
-    }
-  ],
-  "_storiesNote": "From IG-READY-MANIFEST. Run 7,10,4,5,14,1,6 (week 1), the same seven again (week 2), then the remaining 2,3,8,9,11,12,13 (week 3), then the opening seven again (week 4). Daily set = one question story + a reshare of the day's post + an «اسألنا» box. REMINDER-ONLY: the API cannot publish stickers, which is why the lower half of every clip is left empty for one. Each story also carries a `poster` — a still lifted from the clip with the question visible — because the ntfy reminder attaches that rather than a multi-megabyte video you cannot read at a glance.",
-  "_source": "REBUILT 24 Oct 2026 from measured insights, reels only. 30-day reach was 522 non-followers vs 7 followers: reels are the only distribution that exists, and carousels/images reached 2-8 people each — the six followers and nobody else. Carousels leave the feed and become pinned profile furniture (A, B). No reel repeats within 21 days: R1's second cut, six days after the first, fell from 55 reach to 6. ~every other night, so an eleven-reel inventory never has to fill a slot with a fresh duplicate; a night with nothing eligible is simply skipped. Real-chat reels stay capped at two a week and never consecutive, R6/R7 never within a week. Ordering follows measured total watch time: the film (906 s) is 4x anything else. | 1 NOV: founder asked for DAILY uploads; every night 1-20 Nov filled. Replaces the 21-day spacing and the two-chat-reels-a-week cap.",
-  "linkedin": [
-    {
-      "day": 1,
-      "date": "2026-10-21",
-      "time": "10:00",
-      "kind": "image",
-      "label": "the problem — ownership",
-      "text": "الزبون اللي طلب منك ٨ مرات — عندك رقمه؟\n\nكل أوردر بيجيلك من التطبيقات بياخد منك حوالي خُمس قيمته. أول مرة تمام — جابولك حد جديد. لكن الزبون اللي طلب ٨ مرات؟ بتدفع نفس العمولة كل مرة، ولسه مش قادر تكلمه.\n\nمنادم بيخلّي كل أوردر — دليفري، تيك أواي، أو صالة — زبون تعرفه: رقم، وتاريخ طلبات، وخط توصله تاني. على نفس الواتساب اللي بيكلموك منه.\n\nكل طلب يبقى زبون.\n\n#مطاعم_مصر #واتساب",
-      "also": "Post from the company page, reshare from your profile with a line. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "_from": "was day 1 in the 10-day plan",
-      "image": "Munadim dashboard on a Cairo restaurant counter.png",
-      "_imageNote": "approved single, 4:5 corrected — text-only posts reach ~0.42x the median, single images ~1.21x"
-    },
-    {
-      "day": 2,
-      "date": "2026-10-22",
-      "time": "10:00",
-      "kind": "image",
-      "label": "from the trade",
-      "text": "قعدت الصبح بتفرّج على الأوردرات بتدخل في محل برجر صغير في القاهرة.\n\nكلها على الواتساب. فرانكو، ڤويس نوت، «زي كل مرة». ومفيش ولا رقم واحد منهم محفوظ في مكان صاحب المحل يقدر يستخدمه.\n\nدي المشكلة كلها. الطلب أصلاً موجود في موبايله — بس مش قادر يعمل بيه حاجة.",
-      "also": "Message the founders who accepted your connection — one ownership question, no pitch. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "_from": "was day 3 in the 10-day plan",
-      "image": "Munadim WhatsApp Order at Egyptian Counter.png",
-      "_imageNote": "approved single, 4:5 corrected — text-only posts reach ~0.42x the median, single images ~1.21x"
-    },
-    {
-      "day": 3,
-      "date": "2026-10-25",
-      "time": "10:00",
-      "kind": "video",
-      "label": "the demo",
-      "text": "اكتب غلط… وهيفهمك.\n\nأوردر حقيقي من الأول للآخر — باللغة اللي الزبون بيكتب بيها فعلاً. عربي، فرانكو، أو ڤويس نوت. من غير تطبيق تنزّله، ومن غير جهاز جديد.\n\nدي الحاجة اللي البوتات الأجنبية مش بتعملها: كلها نصوص وبس، وضعيفة في العامية. المصري بيبعت ڤويس نوت وبيكتب فرانكو — فده اللي منادم بياخده.\n\n#مطاعم_مصر",
-      "also": "Reply fast to comments on the demo — video posts live or die on the first hour. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "_from": "was day 4 in the 10-day plan",
-      "video": "munadim-2B-li.mp4"
-    },
-    {
-      "day": 4,
-      "date": "2026-10-27",
-      "time": "10:00",
-      "kind": "text",
-      "label": "founding 10",
-      "text": "بنبني مع ١٠ مطاعم بس في البداية.\n\nبناخد ١٠ مطاعم مؤسِّسين نبني منادم معاهم. بيتركبلهم من غير رسوم تجهيز، والسعر متثبّت سنتين، والمؤسس نفسه بيبنيه معاهم — في المقابل رأيهم الصريح وإننا نعرض الأوردرات الحقيقية.\n\nلو عندك مطعم في القاهرة وزهقت إنك بتأجّر زباينك من التطبيقات، تعالى نتكلم. عرض ١٥ دقيقة على الواتساب — هبعت أوردر حقيقي قدامك.\n\n01022034603\n\n#مطاعم_مصر",
-      "also": "This is a soft call — expect DMs; answer them as a person, not a brand. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "_from": "was day 6 in the 10-day plan"
-    },
-    {
-      "day": 5,
-      "date": "2026-10-28",
-      "time": "10:00",
-      "kind": "video",
-      "label": "dine-in",
-      "text": "اللي قاعد في مطعمك دلوقتي هو أكتر زبون متعرفوش.\n\nزبون الدليفري على الأقل بيسيب عنوان. اللي قاعد في الصالة مجهول تمامًا. كود على الترابيزة بيحوّله لرقم تعرفه — بيطلب من مكانه، على الواتساب.\n\nمفيش منافس يقدر يعمل ده: التطبيقات مش هيعملوه، والـ POS بيسجّل البيعة مش الشخص.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "_from": "was day 9 in the 10-day plan",
-      "video": "munadim-5A-li.mp4"
-    },
-    {
-      "day": 6,
-      "date": "2026-10-29",
-      "time": "10:00",
-      "kind": "text",
-      "label": "a question to founders",
-      "text": "سؤال لأصحاب المطاعم:\n\nإيه أكتر حاجة نفسك تعرفها عن زباينك الدايمين — ومش عارفها؟\n\nبسأل بجد. ده شغلي كل يوم والإجابات دايمًا بتفاجئني.",
-      "also": "Reply to every answer on this post — questions win when the author stays in the thread. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "_from": "was day 8 in the 10-day plan"
-    },
-    {
-      "day": 7,
-      "date": "2026-11-01",
-      "time": "10:00",
-      "kind": "text",
-      "label": "the arithmetic",
-      "text": "فكرة بتفضل في دماغي.\n\nمطعم بيعمل ٣٠٠ أوردر في الشهر على التطبيقات، متوسط الأوردر ١٥٠ جنيه — بيدفع حوالي ٩٬٠٠٠ جنيه عمولة في الشهر. علشان يوصل لناس أصلاً عارفينه وطلبوا منه قبل كده.\n\nده مرتب موظف. مقابل خط لزباين المطعم لسه مش قادر يكلمهم.",
-      "also": "Close the fortnight by booking at least one demo. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "_from": "was day 10 in the 10-day plan"
-    },
-    {
-      "day": 8,
-      "date": "2026-11-03",
-      "time": "10:00",
-      "kind": "poll",
-      "label": "poll",
-      "text": "أصحاب المطاعم — زباينكم الدايمين بيطلبوا منكم إزاي أكتر؟\n\n(فضولي أعرف النسبة. صوّت 👇)",
-      "also": "Use LinkedIn's NATIVE Poll, not a text list — far more reach. Then follow up any founder who showed interest → offer a 15-min WhatsApp demo. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
-      "_from": "was day 5 in the 10-day plan",
-      "options": [
-        "واتساب",
-        "تليفون",
-        "تطبيق توصيل",
-        "بيجوا المحل"
-      ]
-    },
-    {
-      "day": 9,
-      "date": "2026-11-04",
-      "time": "10:00",
-      "kind": "image",
-      "label": "no app, no signup",
-      "image": "No app. No signup. Just Munadim.png",
-      "text": "عايز تعرف أكبر سبب بيخلّي الزبون يسيب الأوردر في النص؟ إنه لازم ينزّل تطبيق الأول.\n\nالزبون عنده واتساب خلاص. مفيش تطبيق ينزّله، ولا حساب يعمله، ولا باسورد ينساه.\nبيكتب، وبيطلب، وخلاص.\n\nكل خطوة بتشيلها من قدام الزبون بترجعلك أوردر.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    },
-    {
-      "day": 10,
-      "date": "2026-11-05",
-      "time": "10:00",
-      "kind": "image",
-      "label": "franco and voice notes",
-      "image": "No perfect spelling needed.png",
-      "text": "«momken tshil el me5alel w 5aleehom etnen»\n\nده شكل الرسايل اللي بتوصل مطعمك فعلاً. فرانكو، عربي، ڤويس نوت، وكلام مكتوب على السريع.\nمُنادم بيفهمها زي ما هي ويطلّعها أوردر مظبوط — من غير ما حد يصحّح للزبون إملا.\n\nالبوتات اللي اتعملت برّه بتكسر هنا: نصوص بس، وضعيفة في العامية.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    },
-    {
-      "day": 11,
-      "date": "2026-11-08",
-      "time": "10:00",
-      "kind": "image",
-      "label": "the regular",
-      "image": "Munadim’s one-word repeat order.png",
-      "text": "الزبون الدايم مش محتاج يعيد طلبه كل مرة.\n\nبيكتب «نفس الطلب»، فيرجعله نفس الأصناف بنفس الأسعار وزرار تأكيد واحد.\nده مش رفاهية — ده الفرق بين زبون بيطلب مرة في الشهر وزبون بيطلب كل أسبوع.\n\nكل طلب يبقى زبون.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    },
-    {
-      "day": 12,
-      "date": "2026-11-10",
-      "time": "10:00",
-      "kind": "image",
-      "label": "the rush",
-      "image": "Sharp Order Updates in the Rush.png",
-      "text": "أصعب ساعة في اليوم مش في المطبخ — في التليفون.\n\n8:30 بالليل، المطبخ مولّع، والرسايل بتتكدّس. اللي بيحصل عادةً إن حد يترد عليه بعد نص ساعة، أو ما يتردش خالص.\nمُنادم بيرد على كل واحد في نفس اللحظة، وبيبعت التحديث لوحده: اتأكد، بيتحضّر، جاهز للاستلام.\n\nالأوردر اللي ضاع من غير رد مش بيظهر في أي تقرير.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    },
-    {
-      "day": 13,
-      "date": "2026-11-11",
-      "time": "10:00",
-      "kind": "image",
-      "label": "delivery pricing",
-      "image": "Real-distance delivery pricing on WhatsApp.png",
-      "text": "سعر التوصيل بالتخمين بيخسّرك في الاتجاهين.\n\nلو حسبته زيادة، الزبون بيزهق. لو حسبته قليل، إنت اللي بتدفع الفرق من جيبك.\nمُنادم بياخد اللوكيشن من الواتساب، بيحسب المسافة الحقيقية، وبيقول السعر قبل التأكيد.\n\nرقم واحد، قبل ما الأوردر يتأكد. مفيش مفاوضات على الباب.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    },
-    {
-      "day": 14,
-      "date": "2026-11-12",
-      "time": "10:00",
-      "kind": "image",
-      "label": "the handoff",
-      "image": "Human handoff across two screens.png",
-      "text": "أهم حاجة في أي نظام أوردرات أوتوماتيك إنه يعرف يقول «مش أنا».\n\nلما الطلب يبقى محتاج قرار — إلغاء، شكوى، حاجة برّه المنيو — مُنادم ما بيحاولش يتصرّف. بيقول للزبون إن حد من الفريق جاي، وبيحوّل المحادثة بكل سياقها للوحة قدام موظفك.\nالزبون ما بيعيدش كلامه من الأول.\n\nالبوت اللي بيكابر هو اللي بيوحّش سمعة المطعم.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    },
-    {
-      "day": 15,
-      "date": "2026-11-15",
-      "time": "10:00",
-      "kind": "image",
-      "label": "the honest reply",
-      "image": "Honest Munadim reply on WhatsApp.png",
-      "text": "«ممكن ألغي الطلب اللي أكّدته؟»\n\nالرد السهل إنه يقول «تمام» ويسيب المشكلة للمطبخ. الرد الصح إنه يقول الحقيقة: الطلب خلاص راح للمطبخ، وحد من الفريق هيساعدك.\nالردود دي مكتوبة بإيدينا، وما بنخليش النظام يوعد بحاجة مش قادر عليها.\n\nالثقة بتتبني من الرد الصعب، مش من الرد اللطيف.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    },
-    {
-      "day": 16,
-      "date": "2026-11-17",
-      "time": "10:00",
-      "kind": "image",
-      "label": "where is my order",
-      "image": "A delivery tracked without a call.png",
-      "text": "كل مكالمة «الأوردر وصل فين؟» هي موظف واقف مش بيشتغل.\n\nالزبون بيتصل مش علشان مستعجل — علشان مش عارف. أول ما يبقى عارف، المكالمة بتبطل.\nمُنادم بيبعت الحالة لوحده على نفس المحادثة: استلمنا الطلب، المطبخ بيحضّر، جاهز للاستلام.\n\nوفّر المكالمات دي، هتلاقي فريقك فاضي للشغل الحقيقي.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    },
-    {
-      "day": 17,
-      "date": "2026-11-18",
-      "time": "10:00",
-      "kind": "image",
-      "label": "two minutes, one chat",
-      "image": "Munadim WhatsApp Order Ready in 15 Minutes.png",
-      "text": "من «عايز كلاسيك برجر ساندوتش تيك أواي» لحد كود الأوردر: دقيقتين، في محادثة واحدة.\n\nمن غير قايمة تنزّلها، ولا صفحة دفع، ولا «ابعتلنا رقمك».\nالزبون بيكتب اللي هو عايزه، بيشوف السعر، بيقول تأكيد، وبياخد كود.\n\nالاحتكاك هو اللي بيقتل الأوردر — مش السعر.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    },
-    {
-      "day": 18,
-      "date": "2026-11-19",
-      "time": "10:00",
-      "kind": "image",
-      "label": "saying no",
-      "image": "Munadim delivery map in a parked car.png",
-      "text": "أوردر بترفضه النهارده أحسن من زبون بتخسره للأبد.\n\nلو العنوان برّه نطاق التوصيل، مُنادم ما بيقبلش الأوردر وبعدين يعتذر. بيقول من الأول إن المنطقة دي لسه مش مخدومة، وبيعرض التيك أواي بدالها.\nالزبون بيقدّر الصراحة، وبيرجع لما تفتح المنطقة.\n\nالوعد اللي ما يتنفذش بيتحوّل لريفيو.\n\n#مطاعم_مصر",
-      "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
-      "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
-    }
-  ],
-  "_linkedinNote": "REBUILT 20 Oct 2026 on the posting research. FOUR posts a week, never more: vendor guidance for company pages clusters at 2-4/week, caps at one a day, and several sources say more than once a day gets distribution throttled — so the '3 a day' idea would cost reach, not buy it. Days are Sun/Tue/Wed/Thu at 10:00 Cairo: Egypt's working week is SUNDAY-THURSDAY, so the global 'Tuesday-Thursday' finding maps onto Sun-Thu here, and Fri/Sat are skipped (weekday posts beat weekend by ~50%). No LinkedIn dataset for Egypt or MENA exists that I could find, so 10:00 is the defensible mid-morning choice, not a measured optimum - revisit against the page's own analytics. FORMAT drives more than timing: text-only reaches ~0.42x the median, single images ~1.21x, polls ~1.19x, document/PDF carousels ~1.40x. Two text days were therefore converted to image posts with the same approved copy. Day 8 is a native poll and cannot be published by any API - reminder only. Document carousels, the strongest format, need a LinkedIn document module the Make blueprint does not have."
+ "_readme": "The 14-day Munadim launch. Source of truth is the approved artifact RM8tXkC45FxkzvhL8AnsTW. Times are Africa/Cairo. `asset` is a filename, resolved to a public URL by ig-upload.mjs. Slots with `pending: true` have no asset yet and are skipped by the publisher.",
+ "timezone": "Africa/Cairo",
+ "tagsInCaption": true,
+ "_tagsNote": "A/B, 25 Oct: the first post with hashtags as an API self-comment (R2, 24 Oct) got 0 reach. No evidence that the comment caused it, but it was the one new variable, so tags go back in the caption — where every 100+ reel had them — until film-short tonight shows whether distribution returns. Flip to false to restore the first comment.",
+ "slots": [
+  {
+   "day": 1,
+   "date": "2026-10-18",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-film.mp4",
+   "caption": "تسلا بتطيّر عربيات. إحنا بنطيّر الأوردر.\n\nالطابور طويل؟ إنت مش فيه.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n\nالطابور للعربيات. طلبك على واتساب.\n📲 01022034603",
+   "tags": "#منادم #مطاعم_مصر #تسلا",
+   "note": "THE hero · posted as a trial reel → PIN #1"
+  },
+  {
+   "day": 2,
+   "date": "2026-10-19",
+   "time": "21:30",
+   "type": "carousel",
+   "asset": "carousel-B",
+   "caption": "«600 أوردر في الشهر… التطبيق بياخد كام؟» — أوردرات واتساب للمطاعم\n\nالحساب سلايد سلايد، من حاسبة munadim.com نفسها.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
+   "tags": "#منادم #مطاعم_مصر #عمولة_التطبيقات",
+   "note": "the most saveable thing we own",
+   "slides": [
+    "carousel-B/01.png",
+    "carousel-B/02.png",
+    "carousel-B/03.png",
+    "carousel-B/04.png",
+    "carousel-B/05.png",
+    "carousel-B/06.png",
+    "carousel-B/07.png",
+    "carousel-B/08.png",
+    "carousel-B/09.png"
+   ]
+  },
+  {
+   "day": 3,
+   "date": "2026-10-20",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-2B.mp4",
+   "caption": "كتبها فرانكو… هيفهم؟ — أوردرات واتساب للمطاعم\n\nفهمها، وردّ عليه بالفرانكو من أول رسالة لحد الفاتورة والتأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+   "tags": "#منادم #فرانكو #اوردر_واتساب",
+   "note": "real chat 1/2 this week"
+  },
+  {
+   "day": 4,
+   "date": "2026-10-21",
+   "time": "21:30",
+   "type": "carousel",
+   "asset": "carousel-A",
+   "caption": "«٨ حاجات مُنادم بيعملها… وواتساب العادي مش بيعملها» — أوردرات واتساب للمطاعم\n\nاسحب وشوفهم.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.",
+   "tags": "#منادم #مطاعم_مصر #اوردر_واتساب",
+   "note": "PIN #3",
+   "slides": [
+    "carousel-A/01.png",
+    "carousel-A/02.png",
+    "carousel-A/03.png",
+    "carousel-A/04.png",
+    "carousel-A/05.png",
+    "carousel-A/06.png",
+    "carousel-A/07.png",
+    "carousel-A/08.png",
+    "carousel-A/09.png",
+    "carousel-A/10.png",
+    "carousel-A/11.png"
+   ]
+  },
+  {
+   "day": 5,
+   "date": "2026-10-22",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R1.mp4",
+   "caption": "١١:٤٧ بالليل… حد هيرد؟ — أوردرات واتساب للمطاعم\n\nالزبون جعان ومستني رد، والمطعم في عز الشغل.\nشوف الأوردر كامل: الاختيارات، التيك أواي، الفاتورة، والتأكيد — كله باسم المطعم على طول.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+   "tags": "#منادم #مطاعم_مصر #اوردرات_بالليل",
+   "note": "real chat 2/2 this week"
+  },
+  {
+   "day": 6,
+   "date": "2026-10-23",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R3.mp4",
+   "caption": "التطبيقات مش شركاءك — أوردرات واتساب للمطاعم\n\nبتأجّرلك زباينك. الاسم، الرقم، وبيحب ياكل إيه… كله عندهم.\nواتساب بيرجّع الزبون ليك إنت.\n\nابعتها لصاحب مطعم تعرفه 👇\n📲 01022034603",
+   "tags": "#منادم #صحاب_المطاعم #عمولة_التطبيقات",
+   "note": "the thesis · trial reel → PIN #2 · cross-post to LinkedIn"
+  },
+  {
+   "day": 7,
+   "date": "2026-10-24",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R2.mp4",
+   "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — أوردرات واتساب للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\n📲 01022034603",
+   "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر",
+   "note": "the maths — kinetic; replaces tonight's carousel C (carousels reached 2-3 people)"
+  },
+  {
+   "day": 8,
+   "date": "2026-10-25",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-film-short.mp4",
+   "caption": "الطابور طويل… وإنت مش فيه — أوردرات واتساب للمطاعم\n\nنسخة ١٢ ثانية من الفيلم.\nاطلب على واتساب، وطلبك يوصلك قبل ما العربية اللي قدامك تتحرك.\n📲 01022034603",
+   "tags": "#منادم #مطاعم_مصر #تسلا",
+   "note": "the 12 s re-cut, exactly a week after the film"
+  },
+  {
+   "day": 9,
+   "date": "2026-10-27",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R6C.mp4",
+   "caption": "«نفس طلب امبارح»… هيفهم؟ — أوردرات واتساب للمطاعم\n\nالزبون كتبها زي ما بيتكلم، والمطعم فاكر طلبه بالظبط وكمّل على طول لحد التأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+   "tags": "#منادم #بالمصري #اوردر_واتساب",
+   "note": "R6 behind a kitchen cold open — burger landing on the pass, grill audio (Seedance, 25 Oct)"
+  },
+  {
+   "day": 10,
+   "date": "2026-10-29",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-1BC.mp4",
+   "caption": "لازم تنزّل تطبيق عشان تطلب؟ — أوردرات واتساب للمطاعم\n\nلأ. نفس الواتساب اللي في إيدك.\nأوردر كامل من غير تطبيق تنزّله ولا حساب تعمله.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+   "tags": "#منادم #من_غير_تطبيق #اوردر_واتساب",
+   "note": "1B behind a cafe cold open (burger and fries arrive, phone down) · end card now carries @munadim.eg"
+  },
+  {
+   "day": 11,
+   "date": "2026-11-01",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R7C.mp4",
+   "caption": "الزبون ده هيرجع تاني؟ — أوردرات واتساب للمطاعم\n\nرجع، والمطعم ناداه باسمه وفاكر طلبه.\nالرقم بيفضل معاك إنت — مش مع التطبيق.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+   "tags": "#منادم #زباينك #صحاب_المطاعم",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 12,
+   "date": "2026-11-02",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R3C.mp4",
+   "caption": "التطبيقات مش شركاءك — أوردرات واتساب للمطاعم\n\nبتأجّرلك زباينك. الاسم، الرقم، وبيحب ياكل إيه… كله عندهم.\nواتساب بيرجّع الزبون ليك إنت.\n\nابعتها لصاحب مطعم تعرفه 👇\n📲 01022034603",
+   "tags": "#منادم #صحاب_المطاعم #عمولة_التطبيقات",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 13,
+   "date": "2026-11-03",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R4C.mp4",
+   "caption": "٤ حاجات في رسالة واحدة… هيلخبط؟ — أوردرات واتساب للمطاعم\n\n٢ ناشفيل حار، كلاسيك كومبو، وبطاطس — والفاتورة طلعت مظبوطة بالأسعار من أول مرة.\n\n(عرض توضيحي — محادثة حقيقية مع البوت)\n📲 01022034603",
+   "tags": "#منادم #اوردر_واتساب #مطاعم_مصر",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 14,
+   "date": "2026-11-04",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R2C.mp4",
+   "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — أوردرات واتساب للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\n📲 01022034603",
+   "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 15,
+   "date": "2026-11-05",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-5AC.mp4",
+   "caption": "الحساب جه… مين عليه كام؟ — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nسفرة واحدة، والنظام قسّم الحساب في الشات — كل واحد عرف نصيبه من غير آلة حاسبة ولا خناقة.\n\n(عرض توضيحي — محادثة حقيقية مع النظام)\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #تقسيم_الحساب #مطاعم_مصر #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 16,
+   "date": "2026-11-06",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-film.mp4",
+   "caption": "تسلا بتطيّر عربيات. إحنا بنطيّر الأوردر.\n\nالطابور طويل؟ زبونك مش فيه.\nبيطلب من موقعك أو تطبيقك أو واتساب، والذكاء الاصطناعي بياخد الأوردر كامل ويبعته المطبخ — قبل ما العربية اللي قدامه تتحرك.\n\nالطابور للعربيات. والأوردر على مُنادم.\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #مطاعم_مصر #تسلا #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 17,
+   "date": "2026-11-07",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R1C.mp4",
+   "caption": "١١:٤٧ بالليل… حد هيرد؟ — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nالزبون جعان ومستني رد، والمطعم في عز الشغل.\nالنظام ردّ على طول: الاختيارات، التيك أواي، الفاتورة، والتأكيد — كله باسم المطعم.\n\n(عرض توضيحي — محادثة حقيقية مع النظام)\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #مطاعم_مصر #اوردرات_بالليل #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 18,
+   "date": "2026-11-08",
+   "time": "21:30",
+   "type": "carousel",
+   "asset": "carousel-C",
+   "caption": "«موظفيني مش هيعرفوا يستخدموه» و٧ مخاوف تانية — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nكل اعتراض وردّه الصريح.\nومنهم «هيلخبط المطبخ؟» — لأ: النظام بيبعت المشروبات للبار والأكل للمطبخ، وبينادي الويتر بضغطة.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #مطاعم_مصر #صحاب_المطاعم #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov",
+   "slides": [
+    "carousel-C/01.png",
+    "carousel-C/02.png",
+    "carousel-C/03.png",
+    "carousel-C/04.png",
+    "carousel-C/05.png",
+    "carousel-C/06.png",
+    "carousel-C/07.png",
+    "carousel-C/08.png",
+    "carousel-C/09.png",
+    "carousel-C/10.png"
+   ]
+  },
+  {
+   "day": 19,
+   "date": "2026-11-09",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-film-short.mp4",
+   "caption": "الطابور طويل… وزبونك مش فيه — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nنسخة ١٢ ثانية من الفيلم.\nموقعك، تطبيقك، أو واتساب — والأوردر يوصل المطبخ قبل ما العربية اللي قدامه تتحرك.\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #مطاعم_مصر #تسلا #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 20,
+   "date": "2026-11-10",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-2B.mp4",
+   "caption": "كتبها فرانكو… هيفهم؟ — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nفهمها، وردّ عليه بالفرانكو من أول رسالة لحد الفاتورة والتأكيد.\nده الذكاء الاصطناعي اللي بيشتغل باسم مطعمك.\n\n(عرض توضيحي — محادثة حقيقية مع النظام)\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #فرانكو #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 21,
+   "date": "2026-11-11",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R6C.mp4",
+   "caption": "«نفس طلب امبارح»… هيفهم؟ — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nالزبون كتبها زي ما بيتكلم، والنظام فاكر طلبه بالظبط وكمّل لحد التأكيد.\n\n(عرض توضيحي — محادثة حقيقية مع النظام)\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #بالمصري #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 22,
+   "date": "2026-11-12",
+   "time": "21:30",
+   "type": "carousel",
+   "asset": "carousel-A",
+   "caption": "«٨ حاجات نظام مُنادم بيعملها في كل أوردر» — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nاسحب وشوفهم.\nومش بس الأوردر: النظام بيبعته المطبخ، بيتابعه مع الزبون، بيدير الترابيزات، وبيجيبلك تقييمات على جوجل.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #مطاعم_مصر #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov",
+   "slides": [
+    "carousel-A/01.png",
+    "carousel-A/02.png",
+    "carousel-A/03.png",
+    "carousel-A/04.png",
+    "carousel-A/05.png",
+    "carousel-A/06.png",
+    "carousel-A/07.png",
+    "carousel-A/08.png",
+    "carousel-A/09.png",
+    "carousel-A/10.png",
+    "carousel-A/11.png"
+   ]
+  },
+  {
+   "day": 23,
+   "date": "2026-11-13",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-1BC.mp4",
+   "caption": "لازم تنزّل تطبيق عشان تطلب؟ — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nلأ. الزبون بيطلب من المكان اللي هو فيه أصلاً — موقعك، تطبيقك، أو واتساب — من غير حساب جديد.\n\n(عرض توضيحي — محادثة حقيقية مع النظام)\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #من_غير_تطبيق #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov"
+  },
+  {
+   "day": 24,
+   "date": "2026-11-14",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R7C.mp4",
+   "caption": "الزبون ده هيرجع تاني؟ — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nرجع، والنظام ناداه باسمه وفاكر طلبه.\nالرقم بيفضل معاك إنت — مش مع التطبيق.\nوبعد الأكل النظام بيسأله رأيه: المبسوط بيروح لصفحتك على جوجل، والزعلان بيوصلك أنت بس.\n\n(عرض توضيحي — محادثة حقيقية مع النظام)\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #زباينك #صحاب_المطاعم #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov · repeat"
+  },
+  {
+   "day": 25,
+   "date": "2026-11-15",
+   "time": "21:30",
+   "type": "carousel",
+   "asset": "carousel-B",
+   "caption": "«600 أوردر في الشهر… التطبيق بياخد كام؟» — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nالحساب سلايد سلايد، من حاسبة munadim.com نفسها.\n\nاحفظها، وابعتها لصاحب مطعم تعرفه.\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #مطاعم_مصر #عمولة_التطبيقات #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov",
+   "slides": [
+    "carousel-B/01.png",
+    "carousel-B/02.png",
+    "carousel-B/03.png",
+    "carousel-B/04.png",
+    "carousel-B/05.png",
+    "carousel-B/06.png",
+    "carousel-B/07.png",
+    "carousel-B/08.png",
+    "carousel-B/09.png"
+   ]
+  },
+  {
+   "day": 26,
+   "date": "2026-11-16",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R3C.mp4",
+   "caption": "التطبيقات مش شركاءك — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nبتأجّرلك زباينك. الاسم، الرقم، وبيحب ياكل إيه… كله عندهم.\nنظامك إنت بيرجّع الزبون ليك.\n\nابعتها لصاحب مطعم تعرفه 👇\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #صحاب_المطاعم #عمولة_التطبيقات #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov · repeat"
+  },
+  {
+   "day": 27,
+   "date": "2026-11-17",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R4C.mp4",
+   "caption": "٤ حاجات في رسالة واحدة… هيلخبط؟ — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\n٢ ناشفيل حار، كلاسيك كومبو، وبطاطس — والفاتورة طلعت مظبوطة بالأسعار من أول مرة.\n\n(عرض توضيحي — محادثة حقيقية مع النظام)\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #ذكاء_اصطناعي #مطاعم_مصر",
+   "note": "daily schedule restored 1 Nov · repeat"
+  },
+  {
+   "day": 28,
+   "date": "2026-11-18",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-R2C.mp4",
+   "caption": "600 أوردر في الشهر… التطبيق بياخد كام؟ — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nبمتوسط 150 جنيه: التطبيق بياخد حوالي 18,000 جنيه في الشهر.\nعلى مُنادِم (باقة Start) 6,200 جنيه — والفرق 11,800 في جيبك.\nمفيش عمولة على الأوردر: اشتراك شهري، وسعر ثابت للأوردر بعد الحد المشمول.\n\n(على افتراض إن التطبيق بياخد حوالي خُمس قيمة الأوردر — زي حاسبة munadim.com)\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #عمولة_التطبيقات #مطاعم_مصر #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov · repeat"
+  },
+  {
+   "day": 29,
+   "date": "2026-11-19",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-5AC.mp4",
+   "caption": "الحساب جه… مين عليه كام؟ — نظام أوردرات بالذكاء الاصطناعي للمطاعم\n\nسفرة واحدة، والنظام قسّم الحساب في الشات — كل واحد عرف نصيبه من غير آلة حاسبة ولا خناقة.\n\n(عرض توضيحي — محادثة حقيقية مع النظام)\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #تقسيم_الحساب #مطاعم_مصر #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov · repeat"
+  },
+  {
+   "day": 30,
+   "date": "2026-11-20",
+   "time": "21:30",
+   "type": "reel",
+   "asset": "munadim-film.mp4",
+   "caption": "تسلا بتطيّر عربيات. إحنا بنطيّر الأوردر.\n\nالطابور طويل؟ زبونك مش فيه.\nبيطلب من موقعك أو تطبيقك أو واتساب، والذكاء الاصطناعي بياخد الأوردر كامل ويبعته المطبخ — قبل ما العربية اللي قدامه تتحرك.\n\nالطابور للعربيات. والأوردر على مُنادم.\nمُنادم: نظام ذكاء اصطناعي بيدير أوردرات مطعمك من الأول للآخر — بياخد الأوردر، يبعته المطبخ، يتابعه، يفتكر زبونك ويجيبلك تقييمه. على موقعك، تطبيقك، ترابيزاتك، أو واتساب.\n📲 01022034603 · munadim.com",
+   "tags": "#منادم #مطاعم_مصر #تسلا #ذكاء_اصطناعي",
+   "note": "daily schedule restored 1 Nov · repeat"
+  }
+ ],
+ "stories": [
+  {
+   "day": 1,
+   "date": "2026-10-18",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-07.mp4",
+   "sticker": "Quiz",
+   "question": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟",
+   "options": [
+    "١٥",
+    "حوالي ٣٠ ✅",
+    "٥"
+   ],
+   "text": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟\n   ١٥  /  حوالي ٣٠ ✅  /  ٥",
+   "visual": "Post story-07.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-07-poster.jpg"
+  },
+  {
+   "day": 2,
+   "date": "2026-10-19",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-10.mp4",
+   "sticker": "This / That",
+   "question": "رقم الزبون بيفضل مع مين؟",
+   "options": [
+    "التطبيق",
+    "مطعمك"
+   ],
+   "text": "رقم الزبون بيفضل مع مين؟\n   التطبيق  /  مطعمك",
+   "visual": "Post story-10.mp4 (7s, muted). Drop the This / That sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-10-poster.jpg"
+  },
+  {
+   "day": 3,
+   "date": "2026-10-20",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-04.mp4",
+   "sticker": "Quiz",
+   "question": "الأوردر الكامل بياخد قد إيه على مُنادم؟",
+   "options": [
+    "دقيقتين ✅",
+    "١٠ دقايق",
+    "ربع ساعة"
+   ],
+   "text": "الأوردر الكامل بياخد قد إيه على مُنادم؟\n   دقيقتين ✅  /  ١٠ دقايق  /  ربع ساعة",
+   "visual": "Post story-04.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-04-poster.jpg"
+  },
+  {
+   "day": 4,
+   "date": "2026-10-21",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-05.mp4",
+   "sticker": "Poll",
+   "question": "أكتر حاجة بتضيع في الزحمة؟",
+   "options": [
+    "ملاحظات الأوردر",
+    "الأصناف",
+    "العنوان"
+   ],
+   "text": "أكتر حاجة بتضيع في الزحمة؟\n   ملاحظات الأوردر  /  الأصناف  /  العنوان",
+   "visual": "Post story-05.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-05-poster.jpg"
+  },
+  {
+   "day": 5,
+   "date": "2026-10-22",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-14.mp4",
+   "sticker": "Quiz",
+   "question": "مُنادم بيفهم أنهي حاجات؟",
+   "options": [
+    "فرانكو",
+    "ڤويس نوت",
+    "الاتنين ✅"
+   ],
+   "text": "مُنادم بيفهم أنهي حاجات؟\n   فرانكو  /  ڤويس نوت  /  الاتنين ✅",
+   "visual": "Post story-14.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-14-poster.jpg"
+  },
+  {
+   "day": 6,
+   "date": "2026-10-23",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-01.mp4",
+   "sticker": "Poll",
+   "question": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟",
+   "options": [
+    "آه كلهم",
+    "لأ ولا واحد"
+   ],
+   "text": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟\n   آه كلهم  /  لأ ولا واحد",
+   "visual": "Post story-01.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-01-poster.jpg"
+  },
+  {
+   "day": 7,
+   "date": "2026-10-24",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-06.mp4",
+   "sticker": "Poll",
+   "question": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟",
+   "options": [
+    "آه",
+    "صعب عليهم"
+   ],
+   "text": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟\n   آه  /  صعب عليهم",
+   "visual": "Post story-06.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-06-poster.jpg"
+  },
+  {
+   "day": 8,
+   "date": "2026-10-25",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-07.mp4",
+   "sticker": "Quiz",
+   "question": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟",
+   "options": [
+    "١٥",
+    "حوالي ٣٠ ✅",
+    "٥"
+   ],
+   "text": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟\n   ١٥  /  حوالي ٣٠ ✅  /  ٥",
+   "visual": "Post story-07.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-07-poster.jpg"
+  },
+  {
+   "day": 9,
+   "date": "2026-10-26",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-10.mp4",
+   "sticker": "This / That",
+   "question": "رقم الزبون بيفضل مع مين؟",
+   "options": [
+    "التطبيق",
+    "مطعمك"
+   ],
+   "text": "رقم الزبون بيفضل مع مين؟\n   التطبيق  /  مطعمك",
+   "visual": "Post story-10.mp4 (7s, muted). Drop the This / That sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-10-poster.jpg"
+  },
+  {
+   "day": 10,
+   "date": "2026-10-27",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-04.mp4",
+   "sticker": "Quiz",
+   "question": "الأوردر الكامل بياخد قد إيه على مُنادم؟",
+   "options": [
+    "دقيقتين ✅",
+    "١٠ دقايق",
+    "ربع ساعة"
+   ],
+   "text": "الأوردر الكامل بياخد قد إيه على مُنادم؟\n   دقيقتين ✅  /  ١٠ دقايق  /  ربع ساعة",
+   "visual": "Post story-04.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-04-poster.jpg"
+  },
+  {
+   "day": 11,
+   "date": "2026-10-28",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-05.mp4",
+   "sticker": "Poll",
+   "question": "أكتر حاجة بتضيع في الزحمة؟",
+   "options": [
+    "ملاحظات الأوردر",
+    "الأصناف",
+    "العنوان"
+   ],
+   "text": "أكتر حاجة بتضيع في الزحمة؟\n   ملاحظات الأوردر  /  الأصناف  /  العنوان",
+   "visual": "Post story-05.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-05-poster.jpg"
+  },
+  {
+   "day": 12,
+   "date": "2026-10-29",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-14.mp4",
+   "sticker": "Quiz",
+   "question": "مُنادم بيفهم أنهي حاجات؟",
+   "options": [
+    "فرانكو",
+    "ڤويس نوت",
+    "الاتنين ✅"
+   ],
+   "text": "مُنادم بيفهم أنهي حاجات؟\n   فرانكو  /  ڤويس نوت  /  الاتنين ✅",
+   "visual": "Post story-14.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-14-poster.jpg"
+  },
+  {
+   "day": 13,
+   "date": "2026-10-30",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-01.mp4",
+   "sticker": "Poll",
+   "question": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟",
+   "options": [
+    "آه كلهم",
+    "لأ ولا واحد"
+   ],
+   "text": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟\n   آه كلهم  /  لأ ولا واحد",
+   "visual": "Post story-01.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-01-poster.jpg"
+  },
+  {
+   "day": 14,
+   "date": "2026-10-31",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-06.mp4",
+   "sticker": "Poll",
+   "question": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟",
+   "options": [
+    "آه",
+    "صعب عليهم"
+   ],
+   "text": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟\n   آه  /  صعب عليهم",
+   "visual": "Post story-06.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-06-poster.jpg"
+  },
+  {
+   "day": 15,
+   "date": "2026-11-01",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-02.mp4",
+   "sticker": "Poll",
+   "question": "زباينك بيكتبولك إزاي أكتر؟",
+   "options": [
+    "عربي",
+    "فرانكو",
+    "إنجليزي"
+   ],
+   "text": "زباينك بيكتبولك إزاي أكتر؟\n   عربي  /  فرانكو  /  إنجليزي",
+   "visual": "Post story-02.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-02-poster.jpg"
+  },
+  {
+   "day": 16,
+   "date": "2026-11-02",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-03.mp4",
+   "sticker": "Poll",
+   "question": "كام أوردر واتساب ضاع عليك الأسبوع ده من غير رد؟",
+   "options": [
+    "ولا واحد",
+    "١–٥",
+    "أكتر"
+   ],
+   "text": "كام أوردر واتساب ضاع عليك الأسبوع ده من غير رد؟\n   ولا واحد  /  ١–٥  /  أكتر",
+   "visual": "Post story-03.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-03-poster.jpg"
+  },
+  {
+   "day": 17,
+   "date": "2026-11-03",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-08.mp4",
+   "sticker": "Poll",
+   "question": "بتعرف أرقام زباين الصالة اللي بيقعدوا عندك؟",
+   "options": [
+    "آه",
+    "ولا واحد"
+   ],
+   "text": "بتعرف أرقام زباين الصالة اللي بيقعدوا عندك؟\n   آه  /  ولا واحد",
+   "visual": "Post story-08.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-08-poster.jpg"
+  },
+  {
+   "day": 18,
+   "date": "2026-11-04",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-09.mp4",
+   "sticker": "Poll",
+   "question": "سفرة ١٠ أفراد… الحساب بيتقسم إزاي عندكم؟",
+   "options": [
+    "آلة حاسبة",
+    "واحد بيدفع",
+    "خناقة 😅"
+   ],
+   "text": "سفرة ١٠ أفراد… الحساب بيتقسم إزاي عندكم؟\n   آلة حاسبة  /  واحد بيدفع  /  خناقة 😅",
+   "visual": "Post story-09.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://wa.me/201022034603",
+   "poster": "story-09-poster.jpg"
+  },
+  {
+   "day": 19,
+   "date": "2026-11-05",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-11.mp4",
+   "sticker": "Poll",
+   "question": "الزبون بيستلم إيصال بعد كل أوردر عندك؟",
+   "options": [
+    "آه",
+    "لأ، شفوي"
+   ],
+   "text": "الزبون بيستلم إيصال بعد كل أوردر عندك؟\n   آه  /  لأ، شفوي",
+   "visual": "Post story-11.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-11-poster.jpg"
+  },
+  {
+   "day": 20,
+   "date": "2026-11-06",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-12.mp4",
+   "sticker": "Poll",
+   "question": "بتحسب سعر الدليفري إزاي؟",
+   "options": [
+    "ثابت",
+    "بالمنطقة",
+    "بالتخمين"
+   ],
+   "text": "بتحسب سعر الدليفري إزاي؟\n   ثابت  /  بالمنطقة  /  بالتخمين",
+   "visual": "Post story-12.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-12-poster.jpg"
+  },
+  {
+   "day": 21,
+   "date": "2026-11-07",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-13.mp4",
+   "sticker": "Slider",
+   "question": "قد إيه محتاج تتابع المطعم وإنت بره؟",
+   "options": [
+    "📱"
+   ],
+   "text": "قد إيه محتاج تتابع المطعم وإنت بره؟\n   📱",
+   "visual": "Post story-13.mp4 (7s, muted). Drop the Slider sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-13-poster.jpg"
+  },
+  {
+   "day": 22,
+   "date": "2026-11-08",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-07.mp4",
+   "sticker": "Quiz",
+   "question": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟",
+   "options": [
+    "١٥",
+    "حوالي ٣٠ ✅",
+    "٥"
+   ],
+   "text": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟\n   ١٥  /  حوالي ٣٠ ✅  /  ٥",
+   "visual": "Post story-07.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-07-poster.jpg"
+  },
+  {
+   "day": 23,
+   "date": "2026-11-09",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-10.mp4",
+   "sticker": "This / That",
+   "question": "رقم الزبون بيفضل مع مين؟",
+   "options": [
+    "التطبيق",
+    "مطعمك"
+   ],
+   "text": "رقم الزبون بيفضل مع مين؟\n   التطبيق  /  مطعمك",
+   "visual": "Post story-10.mp4 (7s, muted). Drop the This / That sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-10-poster.jpg"
+  },
+  {
+   "day": 24,
+   "date": "2026-11-10",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-04.mp4",
+   "sticker": "Quiz",
+   "question": "الأوردر الكامل بياخد قد إيه على مُنادم؟",
+   "options": [
+    "دقيقتين ✅",
+    "١٠ دقايق",
+    "ربع ساعة"
+   ],
+   "text": "الأوردر الكامل بياخد قد إيه على مُنادم؟\n   دقيقتين ✅  /  ١٠ دقايق  /  ربع ساعة",
+   "visual": "Post story-04.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-04-poster.jpg"
+  },
+  {
+   "day": 25,
+   "date": "2026-11-11",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-05.mp4",
+   "sticker": "Poll",
+   "question": "أكتر حاجة بتضيع في الزحمة؟",
+   "options": [
+    "ملاحظات الأوردر",
+    "الأصناف",
+    "العنوان"
+   ],
+   "text": "أكتر حاجة بتضيع في الزحمة؟\n   ملاحظات الأوردر  /  الأصناف  /  العنوان",
+   "visual": "Post story-05.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-05-poster.jpg"
+  },
+  {
+   "day": 26,
+   "date": "2026-11-12",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-14.mp4",
+   "sticker": "Quiz",
+   "question": "مُنادم بيفهم أنهي حاجات؟",
+   "options": [
+    "فرانكو",
+    "ڤويس نوت",
+    "الاتنين ✅"
+   ],
+   "text": "مُنادم بيفهم أنهي حاجات؟\n   فرانكو  /  ڤويس نوت  /  الاتنين ✅",
+   "visual": "Post story-14.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-14-poster.jpg"
+  },
+  {
+   "day": 27,
+   "date": "2026-11-13",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-01.mp4",
+   "sticker": "Poll",
+   "question": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟",
+   "options": [
+    "آه كلهم",
+    "لأ ولا واحد"
+   ],
+   "text": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟\n   آه كلهم  /  لأ ولا واحد",
+   "visual": "Post story-01.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-01-poster.jpg"
+  },
+  {
+   "day": 28,
+   "date": "2026-11-14",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-06.mp4",
+   "sticker": "Poll",
+   "question": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟",
+   "options": [
+    "آه",
+    "صعب عليهم"
+   ],
+   "text": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟\n   آه  /  صعب عليهم",
+   "visual": "Post story-06.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-06-poster.jpg"
+  },
+  {
+   "day": 29,
+   "date": "2026-11-15",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-07.mp4",
+   "sticker": "Quiz",
+   "question": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟",
+   "options": [
+    "١٥",
+    "حوالي ٣٠ ✅",
+    "٥"
+   ],
+   "text": "التطبيق بياخد كام من أوردر بـ ١٥٠ جنيه؟\n   ١٥  /  حوالي ٣٠ ✅  /  ٥",
+   "visual": "Post story-07.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-07-poster.jpg"
+  },
+  {
+   "day": 30,
+   "date": "2026-11-16",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-10.mp4",
+   "sticker": "This / That",
+   "question": "رقم الزبون بيفضل مع مين؟",
+   "options": [
+    "التطبيق",
+    "مطعمك"
+   ],
+   "text": "رقم الزبون بيفضل مع مين؟\n   التطبيق  /  مطعمك",
+   "visual": "Post story-10.mp4 (7s, muted). Drop the This / That sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-10-poster.jpg"
+  },
+  {
+   "day": 31,
+   "date": "2026-11-17",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-04.mp4",
+   "sticker": "Quiz",
+   "question": "الأوردر الكامل بياخد قد إيه على مُنادم؟",
+   "options": [
+    "دقيقتين ✅",
+    "١٠ دقايق",
+    "ربع ساعة"
+   ],
+   "text": "الأوردر الكامل بياخد قد إيه على مُنادم؟\n   دقيقتين ✅  /  ١٠ دقايق  /  ربع ساعة",
+   "visual": "Post story-04.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-04-poster.jpg"
+  },
+  {
+   "day": 32,
+   "date": "2026-11-18",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-05.mp4",
+   "sticker": "Poll",
+   "question": "أكتر حاجة بتضيع في الزحمة؟",
+   "options": [
+    "ملاحظات الأوردر",
+    "الأصناف",
+    "العنوان"
+   ],
+   "text": "أكتر حاجة بتضيع في الزحمة؟\n   ملاحظات الأوردر  /  الأصناف  /  العنوان",
+   "visual": "Post story-05.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-05-poster.jpg"
+  },
+  {
+   "day": 33,
+   "date": "2026-11-19",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-14.mp4",
+   "sticker": "Quiz",
+   "question": "مُنادم بيفهم أنهي حاجات؟",
+   "options": [
+    "فرانكو",
+    "ڤويس نوت",
+    "الاتنين ✅"
+   ],
+   "text": "مُنادم بيفهم أنهي حاجات؟\n   فرانكو  /  ڤويس نوت  /  الاتنين ✅",
+   "visual": "Post story-14.mp4 (7s, muted). Drop the Quiz sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-14-poster.jpg"
+  },
+  {
+   "day": 34,
+   "date": "2026-11-20",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-01.mp4",
+   "sticker": "Poll",
+   "question": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟",
+   "options": [
+    "آه كلهم",
+    "لأ ولا واحد"
+   ],
+   "text": "زباينك اللي بيطلبوا كل أسبوع — عندك أرقامهم؟\n   آه كلهم  /  لأ ولا واحد",
+   "visual": "Post story-01.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-01-poster.jpg"
+  },
+  {
+   "day": 35,
+   "date": "2026-11-21",
+   "time": "21:45",
+   "kind": "Story set",
+   "asset": "story-06.mp4",
+   "sticker": "Poll",
+   "question": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟",
+   "options": [
+    "آه",
+    "صعب عليهم"
+   ],
+   "text": "موظفينك بيتعلّموا أنظمة جديدة بسهولة؟\n   آه  /  صعب عليهم",
+   "visual": "Post story-06.mp4 (7s, muted). Drop the Poll sticker on the dashed brass box, y≈1290–1480 of 1920.",
+   "also": "Then: reshare today's post to your Story + a question box «اسألنا». Reply to every answer by DM.",
+   "link": "https://munadim.com",
+   "poster": "story-06-poster.jpg"
+  }
+ ],
+ "_storiesNote": "From IG-READY-MANIFEST. Run 7,10,4,5,14,1,6 (week 1), the same seven again (week 2), then the remaining 2,3,8,9,11,12,13 (week 3), then the opening seven again (week 4). Daily set = one question story + a reshare of the day's post + an «اسألنا» box. REMINDER-ONLY: the API cannot publish stickers, which is why the lower half of every clip is left empty for one. Each story also carries a `poster` — a still lifted from the clip with the question visible — because the ntfy reminder attaches that rather than a multi-megabyte video you cannot read at a glance.",
+ "_source": "REBUILT 24 Oct 2026 from measured insights, reels only. 30-day reach was 522 non-followers vs 7 followers: reels are the only distribution that exists, and carousels/images reached 2-8 people each — the six followers and nobody else. Carousels leave the feed and become pinned profile furniture (A, B). No reel repeats within 21 days: R1's second cut, six days after the first, fell from 55 reach to 6. ~every other night, so an eleven-reel inventory never has to fill a slot with a fresh duplicate; a night with nothing eligible is simply skipped. Real-chat reels stay capped at two a week and never consecutive, R6/R7 never within a week. Ordering follows measured total watch time: the film (906 s) is 4x anything else. | 1 NOV: founder asked for DAILY uploads; every night 1-20 Nov filled. Replaces the 21-day spacing and the two-chat-reels-a-week cap.",
+ "linkedin": [
+  {
+   "day": 1,
+   "date": "2026-10-21",
+   "time": "10:00",
+   "kind": "image",
+   "label": "the problem — ownership",
+   "text": "الزبون اللي طلب منك ٨ مرات — عندك رقمه؟\n\nكل أوردر بيجيلك من التطبيقات بياخد منك حوالي خُمس قيمته. أول مرة تمام — جابولك حد جديد. لكن الزبون اللي طلب ٨ مرات؟ بتدفع نفس العمولة كل مرة، ولسه مش قادر تكلمه.\n\nمنادم بيخلّي كل أوردر — دليفري، تيك أواي، أو صالة — زبون تعرفه: رقم، وتاريخ طلبات، وخط توصله تاني. على نفس الواتساب اللي بيكلموك منه.\n\nكل طلب يبقى زبون.\n\n#مطاعم_مصر #واتساب",
+   "also": "Post from the company page, reshare from your profile with a line. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+   "_from": "was day 1 in the 10-day plan",
+   "image": "Munadim dashboard on a Cairo restaurant counter.png",
+   "_imageNote": "approved single, 4:5 corrected — text-only posts reach ~0.42x the median, single images ~1.21x"
+  },
+  {
+   "day": 2,
+   "date": "2026-10-22",
+   "time": "10:00",
+   "kind": "image",
+   "label": "from the trade",
+   "text": "قعدت الصبح بتفرّج على الأوردرات بتدخل في محل برجر صغير في القاهرة.\n\nكلها على الواتساب. فرانكو، ڤويس نوت، «زي كل مرة». ومفيش ولا رقم واحد منهم محفوظ في مكان صاحب المحل يقدر يستخدمه.\n\nدي المشكلة كلها. الطلب أصلاً موجود في موبايله — بس مش قادر يعمل بيه حاجة.",
+   "also": "Message the founders who accepted your connection — one ownership question, no pitch. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+   "_from": "was day 3 in the 10-day plan",
+   "image": "Munadim WhatsApp Order at Egyptian Counter.png",
+   "_imageNote": "approved single, 4:5 corrected — text-only posts reach ~0.42x the median, single images ~1.21x"
+  },
+  {
+   "day": 3,
+   "date": "2026-10-25",
+   "time": "10:00",
+   "kind": "video",
+   "label": "the demo",
+   "text": "اكتب غلط… وهيفهمك.\n\nأوردر حقيقي من الأول للآخر — باللغة اللي الزبون بيكتب بيها فعلاً. عربي، فرانكو، أو ڤويس نوت. من غير تطبيق تنزّله، ومن غير جهاز جديد.\n\nدي الحاجة اللي البوتات الأجنبية مش بتعملها: كلها نصوص وبس، وضعيفة في العامية. المصري بيبعت ڤويس نوت وبيكتب فرانكو — فده اللي منادم بياخده.\n\n#مطاعم_مصر",
+   "also": "Reply fast to comments on the demo — video posts live or die on the first hour. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+   "_from": "was day 4 in the 10-day plan",
+   "video": "munadim-2B-li.mp4"
+  },
+  {
+   "day": 4,
+   "date": "2026-10-27",
+   "time": "10:00",
+   "kind": "text",
+   "label": "founding 10",
+   "text": "بنبني مع ١٠ مطاعم بس في البداية.\n\nبناخد ١٠ مطاعم مؤسِّسين نبني منادم معاهم. بيتركبلهم من غير رسوم تجهيز، والسعر متثبّت سنتين، والمؤسس نفسه بيبنيه معاهم — في المقابل رأيهم الصريح وإننا نعرض الأوردرات الحقيقية.\n\nلو عندك مطعم في القاهرة وزهقت إنك بتأجّر زباينك من التطبيقات، تعالى نتكلم. عرض ١٥ دقيقة على الواتساب — هبعت أوردر حقيقي قدامك.\n\n01022034603\n\n#مطاعم_مصر",
+   "also": "This is a soft call — expect DMs; answer them as a person, not a brand. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+   "_from": "was day 6 in the 10-day plan"
+  },
+  {
+   "day": 5,
+   "date": "2026-10-28",
+   "time": "10:00",
+   "kind": "video",
+   "label": "dine-in",
+   "text": "اللي قاعد في مطعمك دلوقتي هو أكتر زبون متعرفوش.\n\nزبون الدليفري على الأقل بيسيب عنوان. اللي قاعد في الصالة مجهول تمامًا. كود على الترابيزة بيحوّله لرقم تعرفه — بيطلب من مكانه، على الواتساب.\n\nمفيش منافس يقدر يعمل ده: التطبيقات مش هيعملوه، والـ POS بيسجّل البيعة مش الشخص.\n\n#مطاعم_مصر",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+   "_from": "was day 9 in the 10-day plan",
+   "video": "munadim-5A-li.mp4"
+  },
+  {
+   "day": 6,
+   "date": "2026-10-29",
+   "time": "10:00",
+   "kind": "text",
+   "label": "a question to founders",
+   "text": "سؤال لأصحاب المطاعم:\n\nإيه أكتر حاجة نفسك تعرفها عن زباينك الدايمين — ومش عارفها؟\n\nبسأل بجد. ده شغلي كل يوم والإجابات دايمًا بتفاجئني.",
+   "also": "Reply to every answer on this post — questions win when the author stays in the thread. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+   "_from": "was day 8 in the 10-day plan"
+  },
+  {
+   "day": 7,
+   "date": "2026-11-01",
+   "time": "10:00",
+   "kind": "text",
+   "label": "the arithmetic",
+   "text": "فكرة بتفضل في دماغي.\n\nمطعم بيعمل ٣٠٠ أوردر في الشهر على التطبيقات، متوسط الأوردر ١٥٠ جنيه — بيدفع حوالي ٩٬٠٠٠ جنيه عمولة في الشهر. علشان يوصل لناس أصلاً عارفينه وطلبوا منه قبل كده.\n\nده مرتب موظف. مقابل خط لزباين المطعم لسه مش قادر يكلمهم.",
+   "also": "Close the fortnight by booking at least one demo. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+   "_from": "was day 10 in the 10-day plan"
+  },
+  {
+   "day": 8,
+   "date": "2026-11-03",
+   "time": "10:00",
+   "kind": "poll",
+   "label": "poll",
+   "text": "أصحاب المطاعم — زباينكم الدايمين بيطلبوا منكم إزاي أكتر؟\n\n(فضولي أعرف النسبة. صوّت 👇)",
+   "also": "Use LinkedIn's NATIVE Poll, not a text list — far more reach. Then follow up any founder who showed interest → offer a 15-min WhatsApp demo. Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3–5 founders' posts · reply to every comment on your own posts.",
+   "_from": "was day 5 in the 10-day plan",
+   "options": [
+    "واتساب",
+    "تليفون",
+    "تطبيق توصيل",
+    "بيجوا المحل"
+   ]
+  },
+  {
+   "day": 9,
+   "date": "2026-11-04",
+   "time": "10:00",
+   "kind": "image",
+   "label": "no app, no signup",
+   "image": "No app. No signup. Just Munadim.png",
+   "text": "عايز تعرف أكبر سبب بيخلّي الزبون يسيب الأوردر في النص؟ إنه لازم ينزّل تطبيق الأول.\n\nالزبون عنده واتساب خلاص. مفيش تطبيق ينزّله، ولا حساب يعمله، ولا باسورد ينساه.\nبيكتب، وبيطلب، وخلاص.\n\nكل خطوة بتشيلها من قدام الزبون بترجعلك أوردر.\n\n#مطاعم_مصر",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  },
+  {
+   "day": 10,
+   "date": "2026-11-05",
+   "time": "10:00",
+   "kind": "image",
+   "label": "franco and voice notes",
+   "image": "No perfect spelling needed.png",
+   "text": "«momken tshil el me5alel w 5aleehom etnen»\n\nده شكل الرسايل اللي بتوصل مطعمك فعلاً. فرانكو، عربي، ڤويس نوت، وكلام مكتوب على السريع.\nمُنادم بيفهمها زي ما هي ويطلّعها أوردر مظبوط — من غير ما حد يصحّح للزبون إملا.\n\nالبوتات اللي اتعملت برّه بتكسر هنا: نصوص بس، وضعيفة في العامية.\n\n#مطاعم_مصر",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  },
+  {
+   "day": 11,
+   "date": "2026-11-08",
+   "time": "10:00",
+   "kind": "image",
+   "label": "the regular",
+   "image": "Munadim’s one-word repeat order.png",
+   "text": "الزبون الدايم مش محتاج يعيد طلبه كل مرة.\n\nبيكتب «نفس الطلب»، فيرجعله نفس الأصناف بنفس الأسعار وزرار تأكيد واحد.\nده مش رفاهية — ده الفرق بين زبون بيطلب مرة في الشهر وزبون بيطلب كل أسبوع.\n\nكل طلب يبقى زبون.\n\nمُنادم — نظام أوردرات بالذكاء الاصطناعي للمطاعم: بياخد الأوردر باسمك على موقعك، تطبيقك، أو واتساب.\nmunadim.com\n\n#مطاعم_مصر #ذكاء_اصطناعي #RestaurantTech",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  },
+  {
+   "day": 12,
+   "date": "2026-11-10",
+   "time": "10:00",
+   "kind": "image",
+   "label": "the rush",
+   "image": "Sharp Order Updates in the Rush.png",
+   "text": "أصعب ساعة في اليوم مش في المطبخ — في التليفون.\n\n8:30 بالليل، المطبخ مولّع، والرسايل بتتكدّس. اللي بيحصل عادةً إن حد يترد عليه بعد نص ساعة، أو ما يتردش خالص.\nمُنادم بيرد على كل واحد في نفس اللحظة، وبيبعت التحديث لوحده: اتأكد، بيتحضّر، جاهز للاستلام.\n\nالأوردر اللي ضاع من غير رد مش بيظهر في أي تقرير.\n\nمُنادم — نظام أوردرات بالذكاء الاصطناعي للمطاعم: بياخد الأوردر باسمك على موقعك، تطبيقك، أو واتساب.\nmunadim.com\n\n#مطاعم_مصر #ذكاء_اصطناعي #RestaurantTech",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  },
+  {
+   "day": 13,
+   "date": "2026-11-11",
+   "time": "10:00",
+   "kind": "image",
+   "label": "delivery pricing",
+   "image": "Real-distance delivery pricing on WhatsApp.png",
+   "text": "سعر التوصيل بالتخمين بيخسّرك في الاتجاهين.\n\nلو حسبته زيادة، الزبون بيزهق. لو حسبته قليل، إنت اللي بتدفع الفرق من جيبك.\nمُنادم بياخد لوكيشن الزبون، بيحسب المسافة الحقيقية، وبيقول السعر قبل التأكيد.\n\nرقم واحد، قبل ما الأوردر يتأكد. مفيش مفاوضات على الباب.\n\nمُنادم — نظام أوردرات بالذكاء الاصطناعي للمطاعم: بياخد الأوردر باسمك على موقعك، تطبيقك، أو واتساب.\nmunadim.com\n\n#مطاعم_مصر #ذكاء_اصطناعي #RestaurantTech",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  },
+  {
+   "day": 14,
+   "date": "2026-11-12",
+   "time": "10:00",
+   "kind": "image",
+   "label": "the handoff",
+   "image": "Human handoff across two screens.png",
+   "text": "أهم حاجة في أي نظام ذكاء اصطناعي بياخد أوردرات إنه يعرف يقول «مش أنا».\n\nلما الطلب يبقى محتاج قرار — إلغاء، شكوى، حاجة برّه المنيو — مُنادم ما بيحاولش يتصرّف. بيقول للزبون إن حد من الفريق جاي، وبيحوّل المحادثة بكل سياقها للوحة قدام موظفك.\nالزبون ما بيعيدش كلامه من الأول.\n\nالذكاء الاصطناعي اللي بيكابر هو اللي بيوحّش سمعة المطعم.\n\nمُنادم — نظام أوردرات بالذكاء الاصطناعي للمطاعم: بياخد الأوردر باسمك على موقعك، تطبيقك، أو واتساب.\nmunadim.com\n\n#مطاعم_مصر #ذكاء_اصطناعي #RestaurantTech",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  },
+  {
+   "day": 15,
+   "date": "2026-11-15",
+   "time": "10:00",
+   "kind": "image",
+   "label": "the honest reply",
+   "image": "Honest Munadim reply on WhatsApp.png",
+   "text": "«ممكن ألغي الطلب اللي أكّدته؟»\n\nالرد السهل إنه يقول «تمام» ويسيب المشكلة للمطبخ. الرد الصح إنه يقول الحقيقة: الطلب خلاص راح للمطبخ، وحد من الفريق هيساعدك.\nالردود دي مكتوبة بإيدينا، وما بنخليش النظام يوعد بحاجة مش قادر عليها.\n\nالثقة بتتبني من الرد الصعب، مش من الرد اللطيف.\n\nمُنادم — نظام أوردرات بالذكاء الاصطناعي للمطاعم: بياخد الأوردر باسمك على موقعك، تطبيقك، أو واتساب.\nmunadim.com\n\n#مطاعم_مصر #ذكاء_اصطناعي #RestaurantTech",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  },
+  {
+   "day": 16,
+   "date": "2026-11-17",
+   "time": "10:00",
+   "kind": "image",
+   "label": "where is my order",
+   "image": "A delivery tracked without a call.png",
+   "text": "كل مكالمة «الأوردر وصل فين؟» هي موظف واقف مش بيشتغل.\n\nالزبون بيتصل مش علشان مستعجل — علشان مش عارف. أول ما يبقى عارف، المكالمة بتبطل.\nمُنادم بيبعت الحالة لوحده على نفس المحادثة: استلمنا الطلب، المطبخ بيحضّر، جاهز للاستلام.\n\nوفّر المكالمات دي، هتلاقي فريقك فاضي للشغل الحقيقي.\n\nمُنادم — نظام أوردرات بالذكاء الاصطناعي للمطاعم: بياخد الأوردر باسمك على موقعك، تطبيقك، أو واتساب.\nmunadim.com\n\n#مطاعم_مصر #ذكاء_اصطناعي #RestaurantTech",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  },
+  {
+   "day": 17,
+   "date": "2026-11-18",
+   "time": "10:00",
+   "kind": "image",
+   "label": "two minutes, one chat",
+   "image": "Munadim WhatsApp Order Ready in 15 Minutes.png",
+   "text": "من «عايز كلاسيك برجر ساندوتش تيك أواي» لحد كود الأوردر: دقيقتين، في محادثة واحدة.\n\nمن غير قايمة تنزّلها، ولا صفحة دفع، ولا «ابعتلنا رقمك».\nالزبون بيكتب اللي هو عايزه، بيشوف السعر، بيقول تأكيد، وبياخد كود.\n\nالاحتكاك هو اللي بيقتل الأوردر — مش السعر.\n\nمُنادم — نظام أوردرات بالذكاء الاصطناعي للمطاعم: بياخد الأوردر باسمك على موقعك، تطبيقك، أو واتساب.\nmunadim.com\n\n#مطاعم_مصر #ذكاء_اصطناعي #RestaurantTech",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  },
+  {
+   "day": 18,
+   "date": "2026-11-19",
+   "time": "10:00",
+   "kind": "image",
+   "label": "saying no",
+   "image": "Munadim delivery map in a parked car.png",
+   "text": "أوردر بترفضه النهارده أحسن من زبون بتخسره للأبد.\n\nلو العنوان برّه نطاق التوصيل، مُنادم ما بيقبلش الأوردر وبعدين يعتذر. بيقول من الأول إن المنطقة دي لسه مش مخدومة، وبيعرض التيك أواي بدالها.\nالزبون بيقدّر الصراحة، وبيرجع لما تفتح المنطقة.\n\nالوعد اللي ما يتنفذش بيتحوّل لريفيو.\n\nمُنادم — نظام أوردرات بالذكاء الاصطناعي للمطاعم: بياخد الأوردر باسمك على موقعك، تطبيقك، أو واتساب.\nmunadim.com\n\n#مطاعم_مصر #ذكاء_اصطناعي #RestaurantTech",
+   "also": "Standing routine: connect with 5 founders (personal profile, with a note) · comment usefully on 3-5 founders' posts · reply to every comment on your own posts.",
+   "_copyNote": "written 20 Oct 2026 against this exact image — its headline and on-screen chat"
+  }
+ ],
+ "_linkedinNote": "REBUILT 20 Oct 2026 on the posting research. FOUR posts a week, never more: vendor guidance for company pages clusters at 2-4/week, caps at one a day, and several sources say more than once a day gets distribution throttled — so the '3 a day' idea would cost reach, not buy it. Days are Sun/Tue/Wed/Thu at 10:00 Cairo: Egypt's working week is SUNDAY-THURSDAY, so the global 'Tuesday-Thursday' finding maps onto Sun-Thu here, and Fri/Sat are skipped (weekday posts beat weekend by ~50%). No LinkedIn dataset for Egypt or MENA exists that I could find, so 10:00 is the defensible mid-morning choice, not a measured optimum - revisit against the page's own analytics. FORMAT drives more than timing: text-only reaches ~0.42x the median, single images ~1.21x, polls ~1.19x, document/PDF carousels ~1.40x. Two text days were therefore converted to image posts with the same approved copy. Day 8 is a native poll and cannot be published by any API - reminder only. Document carousels, the strongest format, need a LinkedIn document module the Make blueprint does not have. | 5 Nov 2026: every queued post closes on the AI-system line (website / app / WhatsApp), founder repositioning.",
+ "_positioning": "5 Nov 2026 (founder): Munadim is an AI ordering SYSTEM (نظام) that runs on the restaurant's website, app, or WhatsApp — never \"WhatsApp orders\". Every caption ends on the system line."
 }

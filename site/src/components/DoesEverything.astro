@@ -1,0 +1,52 @@
+---
+/** One AI system, the whole order — everything Munadim runs after the chat.
+    Every item is live in the product (Nov 2026); icons are inline line-art. */
+import type { SiteContent } from '../content/types';
+interface Props { t: SiteContent }
+const { t } = Astro.props;
+
+const ICONS: Record<string, string> = {
+  chat: '<path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.5-4.5A8 8 0 1 1 21 12z"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>',
+  route: '<circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/>',
+  track: '<path d="M3 12h4l3 8 4-16 3 8h4"/>',
+  table: '<path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4"/>',
+  pin: '<path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+};
+---
+
+<section id="system" class="border-y border-ink/[0.07]">
+  <div class="container-page section">
+    <div class="container-text text-center" data-reveal>
+      <p class="eyebrow eyebrow-center"><span class="num">03</span> {t.does.eyebrow}</p>
+      <h2>{t.does.h2}</h2>
+      <p class="lede mx-auto mt-5">{t.does.lede}</p>
+    </div>
+    <ul class="does-grid mx-auto mt-10 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {t.does.items.map((d, i) => (
+        <li class="does-card" data-reveal style={`transition-delay:${(i % 3) * 70}ms`}>
+          <span class="does-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" set:html={ICONS[d.icon] || ICONS.chat}></svg>
+          </span>
+          <div>
+            <p class="does-head">{d.head}</p>
+            <p class="does-body">{d.body}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .does-card { display: flex; gap: 14px; align-items: flex-start; padding: 20px; border-radius: 18px; border: 1px solid rgb(20 17 16 / 0.08); background: rgb(255 255 255 / 0.6); transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s, border-color .3s; }
+  .does-card:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgb(20 17 16 / 0.08); border-color: rgb(140 29 47 / 0.3); }
+  .does-ic { flex: 0 0 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: rgb(140 29 47 / 0.08); color: #8C1D2F; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+  .does-card:hover .does-ic { transform: rotate(-8deg) scale(1.08); }
+  .does-head { font-weight: 600; font-size: 1.02rem; }
+  .does-body { margin-top: 4px; font-size: .93rem; line-height: 1.55; opacity: .72; }
+  @media (prefers-reduced-motion: reduce) { .does-card, .does-ic { transition: none; } }
+</style>

@@ -10,9 +10,9 @@ import { WA_NUMBER_DISPLAY, DEMO_RESTAURANT_AR, DEMO_LABEL_EN } from '../lib/con
  */
 export const en: SiteContent = {
   meta: {
-    title: "Munadim — WhatsApp ordering system for restaurants in Egypt, no commission",
+    title: "Munadim — AI ordering system for restaurants in Egypt, no commission",
     description:
-      "Guests order on WhatsApp in Arabic, Franco or English — delivery, pickup and dine-in. Every order leaves you the customer's number and their order history.",
+      "An AI system that runs your restaurant's orders end to end — it takes them in your name on your website, your app, your tables or WhatsApp, sends them to the kitchen, tracks them, remembers your customers and brings back their reviews. Arabic, Franco or English; delivery, pickup and dine-in. Every order leaves you the customer's number and history.",
   },
 
   nav: {
@@ -28,10 +28,10 @@ export const en: SiteContent = {
 
   hero: {
     h1: 'The customers who order from you every week — do you have their numbers?',
-    sub: 'The apps rent you customers. Your WhatsApp keeps them.',
+    sub: 'The apps rent you customers. Your own system keeps them.',
     ctaPrimary: 'Show me a real order',
     ctaSecondary: 'Pricing is below ↓',
-    what: "Munadim takes your restaurant's orders on WhatsApp — delivery, pickup, and dine-in. Every order leaves you the customer's number and order history.",
+    what: "Munadim is an AI system that runs your restaurant's orders end to end — on your website, your app, your tables, or WhatsApp. It takes the order, sends it to the kitchen, tracks it, and remembers the customer. Delivery, pickup, and dine-in. Every order leaves you the customer's number and order history.",
     demoLabel: DEMO_LABEL_EN,
     restaurant: DEMO_RESTAURANT_AR,
     chatStatus: 'متصل',
@@ -49,11 +49,11 @@ export const en: SiteContent = {
   whatIs: {
     h2: "Your restaurant's direct ordering channel",
     claim: 'One order. Three things happen.',
-    p1: 'The customer gets a receipt on WhatsApp. The kitchen gets the ticket. And you get the customer — number and history, in a dashboard that belongs to you.',
+    p1: 'The customer gets a receipt. The kitchen gets the ticket. And you get the customer — number and history, in a dashboard that belongs to you.',
     channels: ['Delivery', 'Pickup', 'Dine-in'],
-    p2: 'On the same number your customers already message you on. No new number, no app.',
+    p2: 'On your website, inside your app, from a code on every table, or on the WhatsApp number your customers already use. Customers order from wherever they already are.',
     panels: {
-      p1: 'The receipt on WhatsApp',
+      p1: 'The customer gets a receipt',
       p2: 'The ticket prints in the kitchen',
       p3: 'And the customer is recorded for you',
       receipt: {
@@ -118,7 +118,7 @@ export const en: SiteContent = {
       ],
     },
     flow: {
-      step1: 'An order on WhatsApp',
+      step1: 'An order from your site, a table or WhatsApp',
       step2: 'It reaches the kitchen',
       step3: 'The customer stays yours',
       captured: 'Recorded — you can reach him again',
@@ -137,7 +137,7 @@ export const en: SiteContent = {
   dineIn: {
     h2: 'The people sitting in your restaurant right now are the customers you know least about',
     p1: 'Delivery at least leaves an address. Dine-in leaves nothing.',
-    p2: 'A code on the table. The customer scans it, says his table number, and orders from his seat. The order goes to the kitchen, and his number is recorded like any other order.',
+    p2: 'A code on every table. The customer scans it and orders from his seat — the code already knows the table, and nobody at another table can order to it. Drinks go to the bar, food to the kitchen, staff are called with one tap, and his number is recorded like any other order.',
     qr: { scan: 'امسح واطلب من على ترابيزتك' },
     scene: {
       step1: 'A code on the table',
@@ -163,8 +163,8 @@ export const en: SiteContent = {
       orderTotal: 'EGP 210',
       chat: [
         { from: 'in', text: 'عايز أطلب من الترابيزة' },
-        { from: 'out', text: 'أهلاً 👋 إنت على ترابيزة كام؟' },
-        { from: 'in', text: '4' },
+        { from: 'out', text: 'أهلاً بيك على ترابيزة ٤ 👋 تحب تطلب إيه؟' },
+        { from: 'in', text: 'برجر ترافل من غير بصل' },
         { from: 'out', text: 'تمام ✅ الأوردر راح للمطبخ.' },
       ],
     },
@@ -176,8 +176,8 @@ export const en: SiteContent = {
     week: "You're taking orders the same week.",
     items: [
       { title: 'Send us photos of your menu', body: 'Phone photos are fine. We build the menu.' },
-      { title: 'We set up the rest', body: 'Delivery zones, branches, delivery pricing, and the WhatsApp number.' },
-      { title: 'Your customers order', body: 'From the same number. No app to download, no new device.' },
+      { title: 'We set up the rest', body: 'Delivery zones, branches, delivery pricing — and we install it on your website, your app, your tables, or your WhatsApp number.' },
+      { title: 'Your customers order', body: 'From wherever they already order. No app to download, no new device.' },
     ],
     journey: {
       replay: 'Replay',
@@ -188,7 +188,7 @@ export const en: SiteContent = {
         { name: 'Smash Double', price: '290' },
         { name: 'Cheddar Fries', price: '75' },
       ],
-      setupChips: ['Delivery zones', 'Branches', 'WhatsApp number ✓'],
+      setupChips: ['Delivery zones', 'Branches', 'Website · Tables · WhatsApp ✓'],
       orderTitle: 'New order — O-A101',
       orderItem: 'Classic combo ×1',
       orderFrom: 'From your own number',
@@ -295,9 +295,26 @@ export const en: SiteContent = {
     },
     facts: [
       { head: '1,500+ conversations', body: 'Every release is tested against them before it reaches you.' },
-      { head: 'Official WhatsApp Business', body: "On your restaurant's number, in your restaurant's name." },
+      { head: "In your restaurant's name, everywhere", body: "On your website, your app and your tables, and on the official WhatsApp Business API with your number." },
       { head: 'Your data is yours', body: "The customer database belongs to the restaurant." },
       { head: 'If it gets stuck, someone from your team steps in', body: 'Same chat, from the dashboard — the customer notices nothing.' },
+    ],
+  },
+
+  does: {
+    eyebrow: 'What it runs',
+    h2: 'One AI system, the whole order — not just the chat',
+    lede: 'Most tools take the order and stop. Munadim runs everything after it, in your restaurant\'s name.',
+    items: [
+      { icon: 'chat', head: 'Takes the order', body: 'Arabic, Franco, English or a voice note. Sizes, extras, changes of mind, "same as last time".' },
+      { icon: 'spark', head: 'Suggests the add-on', body: 'Fries with the burger, a pastry with the latte — at the moment it fits, from rules you set.' },
+      { icon: 'route', head: 'Sends it to the right station', body: 'Drinks to the bar screen, food to the kitchen, the right branch for delivery. A printed ticket if you want one.' },
+      { icon: 'track', head: 'Keeps the customer posted', body: 'Received, preparing, ready, on the way — and an honest answer to "where is my order?".' },
+      { icon: 'table', head: 'Runs your tables', body: 'A code on every table that knows where the guest sits. "Call the waiter" and "the bill" in one tap.' },
+      { icon: 'pin', head: 'Prices delivery', body: 'Zones, distance and landmarks like "next to El Ezaby" — the fee is computed, never guessed.' },
+      { icon: 'user', head: 'Remembers every customer', body: 'Name, number, usual order, allergies. Next time it greets them by name.' },
+      { icon: 'star', head: 'Brings back reviews', body: 'Happy customers go to your Google page. Unhappy ones reach you privately, the same day.' },
+      { icon: 'chart', head: 'Reports to you', body: 'Orders, average ticket, add-on rate, kitchen time and peak hours — per branch, in your dashboard.' },
     ],
   },
 
@@ -308,7 +325,7 @@ export const en: SiteContent = {
         q: '"My staff won\'t be able to use it"',
         a: "There's nothing new for them to learn. The order arrives ready; the cashier sees it like any other order.",
       },
-      { q: '"Is this an app?"', a: 'No. Nothing to download, for you or your customers. It all runs on WhatsApp.' },
+      { q: '"Is this an app?"', a: 'No. Nothing to download, for you or your customers. Munadim runs where your customers already are: your website, your app, a code on the table, or WhatsApp.' },
       {
         q: '"How will it talk to my customers?"',
         a: "In your restaurant's name, in Egyptian Arabic. Our name never appears — that conversation belongs to your restaurant.",
@@ -329,11 +346,11 @@ export const en: SiteContent = {
 
   closing: {
     h2: 'Want to see it working?',
-    p: "15 minutes, on WhatsApp or at your restaurant. We'll send an order by voice note in front of you, and you'll watch it reach the kitchen and land in your records.",
+    p: "15 minutes, at your restaurant or online. Try it on your own menu: send an order, watch it reach the kitchen screen, and see the customer land in your records.",
     cta: 'Book a demo',
     ctaValue: 'Show me a real order',
     waLabel: `WhatsApp: ${WA_NUMBER_DISPLAY}`,
-    micro: '15 minutes on WhatsApp. No commitment.',
+    micro: '15 minutes. No commitment.',
     prefill: 'عايز أشوف عرض توضيحي',
     askMore: 'Still have a question? Ask us on WhatsApp.',
   },

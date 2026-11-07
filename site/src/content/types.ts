@@ -151,6 +151,8 @@ export interface SiteContent {
     /** Compact fact bar — every item verified in feature-truth §6. */
     facts: { head: string; body: string }[];
   };
+  /** One AI across the whole service — every item is live in the product (Nov 2026). */
+  does: { eyebrow: string; h2: string; lede: string; items: { icon: string; head: string; body: string }[] };
   objections: { h2: string; items: { q: string; a: string }[] };
   closing: {
     h2: string; p: string; cta: string; ctaValue: string; waLabel: string;
