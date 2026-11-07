@@ -23,6 +23,9 @@ export const widgetConfig = (record) => ({
   geofenceRequired: record?.ai?.dine_in_widget?.geofence_required !== false,
   // showroom tables (the munadim.com demo frame) sit on a real branch but skip the fence
   showroomTables: (record?.ai?.dine_in_widget?.showroom_tables || ["DEMO"]).map((t) => String(t).toUpperCase()),
+  // test tables: real in every way (claims, join code, limits) except the location fence — for
+  // scanning a printed/on-screen code away from the café during testing
+  testTables: (record?.ai?.dine_in_widget?.test_tables || []).map((t) => String(t).toUpperCase()),
 });
 
 // per-tenant secret derived from the service secret — nothing extra to store or rotate
@@ -76,6 +79,7 @@ export function geofenceVerdict(record, branchKey, geo, table = null) {
   const chk = geofenceCheck(record, branchKey, geo);
   if (!cfg.geofenceRequired) return { geofence: "ok", check: chk };
   if (table && cfg.showroomTables.includes(String(table).toUpperCase())) return { geofence: "ok", check: { ...chk, status: "showroom" } };
+  if (table && cfg.testTables.includes(String(table).toUpperCase())) return { geofence: "ok", check: { ...chk, status: "test" } };
   if (chk.status === "unknown") return { geofence: "ok", check: chk }; // nothing to measure against — never block on our own missing data
   return { geofence: chk.status, check: chk };
 }
@@ -329,8 +333,13 @@ export async function effectiveSession(db, widgetSessionId) {
 
 export async function guestProfile(db, phone) {
   const { data: d } = await db.from("diners").select("name,visit_count").eq("phone_number", phone).maybeSingle();
-  const { data: o } = await db.from("orders").select("id").eq("phone_number", phone).limit(1);
-  return { name: d?.name || null, has_history: !!o?.length };
+  const { data: o } = await db.from("orders").select("items,status").eq("phone_number", phone).order("created_at", { ascending: false }).limit(5);
+  // "your usual" = the last order that wasn't cancelled, as the guest would say it — computed, never guessed
+  const last = (o || []).find((x) => x.status !== "cancelled" && Array.isArray(x.items) && x.items.length);
+  const usual = last ? last.items.slice(0, 6).map((i) => ({ name: i.name, qty: Number(i.qty) || 1,
+    options: Object.values(i.options || {}).flat().map((v) => (typeof v === "string" ? v : v?.name)).filter((v) => v && !/^(regular|classic|as is|no dip)$/i.test(v)),
+    note: i.notes || null })) : null;
+  return { name: d?.name || null, has_history: !!o?.length, usual };
 }
 
 // ======================= menu time windows =======================

@@ -238,7 +238,7 @@ async function widgetSessionPayload(tenant, tok, sessionId, extra = {}) {
     expires_at: ts?.expires_at || null,
     restaurant: { name: tenant.record.name, logo: bi.brand?.logo_url || null, primary: bi.brand?.primary || "#222", language: bi.language || "en", greeting: tenant.record.ai?.greeting || `Welcome to ${tenant.record.name}` },
     geofence: { status: ts?.geofence || "unknown", distance_m: ts?.distance_m ?? null },
-    guest: guest ? { name: guest.name, has_history: guest.has_history, verified: true } : null,
+    guest: guest ? { name: guest.name, has_history: guest.has_history, usual: guest.usual || null, verified: true } : null,
     ...extra,
   };
 }
@@ -342,7 +342,10 @@ app.get("/api/widget/menu", rateLimit("widget-menu", 60, 60_000), async (req, re
       const soldOut = !!(m.sold_out_until && String(m.sold_out_until).slice(0, 10) >= today);
       return { name: m.name, name_ar: m.name_ar, category: m.category, price: Number(m.price), price_l: size ? Number(size.choices?.[1]?.price) || null : null,
         description: String(m.description || "").replace(/\s*\(price from the 2025 print[^)]*\)/, ""), photo: m.photo_url || null, bestseller: !!m.bestseller,
-        tags: m.dietary_tags || null, unavailable: soldOut ? "sold_out" : !inServiceWindow(m) ? "not_now" : null };
+        tags: m.dietary_tags || null, unavailable: soldOut ? "sold_out" : !inServiceWindow(m) ? "not_now" : null,
+        // option groups for the in-chat item sheet (size / milk / extras / side…): absolute price or additive delta
+        options: (m.options || []).filter((g) => g?.choices?.length).map((g) => ({ key: g.key, label: g.label || g.key, required: !!g.required && !g.optional,
+          multi: /^(extras|addons|add_ons|toppings)$/i.test(g.key), choices: g.choices.map((c) => ({ name: c.name, price: c.price != null ? Number(c.price) : null, delta: c.delta != null ? Number(c.delta) : null })) })) };
     });
     const order = (c) => { const i = cats.indexOf(c); return i < 0 ? 999 : i; };
     const byCat = [...new Set(items.map((i) => i.category))].sort((a, b) => order(a) - order(b)).map((c) => ({ name: c, items: items.filter((i) => i.category === c) }));

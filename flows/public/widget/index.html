@@ -136,6 +136,31 @@
   .cacts .more { background: #fff; border: 1.5px solid #e3e5e8; color: var(--ink); } .cacts .go { background: var(--brand); color: #fff; border: 0; flex: 1.4; }
   .docframe { flex: 1 1 auto !important; min-height: 60dvh; border: 0; margin: 0 12px 12px; border-radius: 12px; background: #f1f2f4; }
   .fly { position: fixed; z-index: 60; width: 34px; height: 34px; border-radius: 50%; background: var(--brand) center/cover; pointer-events: none; transition: transform .6s cubic-bezier(.5,-.3,.7,1), opacity .6s; }
+  .mi .ph.photo, .cl .ph.photo { background-size: cover; }
+  .mi .ph.char, .cl .ph.char { background-color: var(--tint); background-size: 88%; background-position: center 70%; }
+  .mi .ph { cursor: pointer; }
+  .mi .add { position: relative; } .mi .add em { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--ink); color: #fff; font: 700 11px/18px inherit; font-style: normal; }
+  .cl small.lp { color: var(--ink); font-weight: 700; }
+  .ix { position: absolute; right: 14px; top: 12px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.92); box-shadow: 0 2px 8px rgba(0,0,0,.12); font-size: 16px; cursor: pointer; }
+  .ibody { overflow-y: auto; flex: 1 1 auto !important; min-height: 0; padding: 0 18px 8px; }
+  .ihero { height: 190px; border-radius: 18px; margin: 4px 0 12px; background: var(--brand-soft) center/cover no-repeat; }
+  .ihero.char { background-color: var(--tint); background-size: contain; background-position: center bottom; }
+  .ihead h4 { margin: 0; font-size: 20px; } .ihead p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  .ogrp { margin-top: 16px; } .olab { font-weight: 800; font-size: 14.5px; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .olab span { font-weight: 600; font-size: 11.5px; color: var(--muted); background: #f1f2f4; border-radius: 999px; padding: 2px 8px; } .olab .req { color: #a35a00; background: #fff3e0; }
+  .ochips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .oc { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; font-weight: 600; padding: 9px 13px; border-radius: 12px; border: 1.5px solid #e3e5e8; background: #fff; cursor: pointer; transition: border-color .15s, background .15s; }
+  .oc small { color: var(--muted); font-weight: 600; } .oc.on { border-color: var(--brand); background: var(--brand-soft); color: #1f7a16; } .oc.on i { color: var(--brand); }
+  .ogrp textarea { width: 100%; font: inherit; font-size: 14px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid #e3e5e8; resize: none; outline: none; } .ogrp textarea:focus { border-color: var(--brand); }
+  .ifoot { display: flex; gap: 10px; align-items: center; padding: 12px 18px 18px; border-top: 1px solid #f0f1f3; }
+  .qty.big button { width: 36px; height: 36px; } .qty.big span { min-width: 26px; font-size: 16px; }
+  .iadd { flex: 1; font: inherit; font-weight: 800; font-size: 15.5px; color: #fff; background: var(--brand); border: 0; border-radius: 14px; padding: 14px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; justify-content: center; }
+  .iadd:disabled { background: #c9ccd1; cursor: default; }
+  .moods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .moods button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px; border-radius: 14px; border: 1.5px solid #eceef0; background: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: border-color .15s, transform .15s; }
+  .moods button i { font-size: 20px; color: var(--brand); } .moods button:hover:not(:disabled) { border-color: var(--brand); transform: translateY(-2px); }
+  .moods button.on { border-color: var(--brand); background: var(--brand-soft); } .moods button:disabled:not(.on) { opacity: .45; }
+  .card.usual p b { color: var(--ink); } .card.usual .wa { background: var(--brand); border: 0; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
   [dir="rtl"] { text-align: right; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
@@ -168,6 +193,9 @@
     <div class="clist" id="clist"></div><div class="ctot"><span>Total</span><span id="ctot"></span></div>
     <div class="cnote"><i class="fa-solid fa-wand-magic-sparkles"></i>The AI checks any choices with you (size, milk), then confirms.</div>
     <div class="cacts"><button class="more" id="cmore"><i class="fa-solid fa-plus"></i>Add more</button><button class="go" id="cgo"><i class="fa-solid fa-paper-plane"></i>Send to order</button></div></div>
+  <div class="sheet" id="itemSheet"><div class="grab"></div><button class="x ix" data-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    <div class="ibody" id="ibody"></div>
+    <div class="ifoot"><span class="qty big"><button id="iminus" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span id="iqty">1</span><button id="iplus" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span><button class="iadd" id="iadd">Add</button></div></div>
   <div class="sheet" id="docSheet"><div class="grab"></div><h3><i class="fa-solid fa-receipt"></i><span id="doct">Receipt</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3><iframe class="docframe" id="docf" title="Document"></iframe></div>
   <form id="f"><input id="in" placeholder="Type your order…" autocomplete="off" disabled><button class="send" id="send" disabled aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
 </div>
@@ -292,12 +320,15 @@
     const name = j.guest?.name ? j.guest.name.split(" ")[0] : null;
     if (j.disputed) sys("fa-flag", "Table reclaimed — the counter has been told someone else was ordering here.");
     if (j.status === "member") add("ai", `You've joined *table ${j.table}*. Order anything — it all goes on the same table.`);
-    else add("ai", name ? `Welcome back, *${name}*! You're at *table ${j.table}*. Same as last time, or something new?` : `${greet}\n\nYou're at *table ${j.table}*. Tell me what you'd like, or tap the menu below.`);
+    else if (name && j.guest?.usual?.length) add("ai", `Welcome back, *${name}*! You're at *table ${j.table}*.`);
+    else add("ai", name ? `Welcome back, *${name}*! You're at *table ${j.table}*. What are we having today?` : `${greet}\n\nYou're at *table ${j.table}*. Tell me what you'd like, or tap the menu below.`);
     if (j.guest) askedRemember = true;
-    if (j.guest?.has_history && !quick.querySelector('[data-q="Same as last time"]')) {
-      const b = document.createElement("button"); b.dataset.q = "Same as last time"; b.innerHTML = '<i class="fa-solid fa-rotate-left"></i>My usual';
-      b.addEventListener("click", () => { input.value = b.dataset.q; sendMsg(); }); quick.prepend(b);
+    if (j.status !== "member") { if (j.guest?.usual?.length) usualCard(j.guest.usual); else moodCard(!!name); }
+    if (j.guest?.usual?.length && !quick.querySelector("[data-usual]")) {
+      const b = document.createElement("button"); b.dataset.usual = "1"; b.innerHTML = '<i class="fa-solid fa-rotate-left"></i>My usual';
+      b.addEventListener("click", () => repeatUsual(j.guest.usual)); quick.prepend(b);
     }
+    if (!quick.querySelector("[data-mood]")) { const b = document.createElement("button"); b.dataset.mood = "1"; b.innerHTML = '<i class="fa-solid fa-face-smile"></i>Pick for my mood'; b.addEventListener("click", () => moodCard(true, true)); quick.insertBefore(b, quick.children[1] || null); }
     input.disabled = false; send.disabled = false; quick.hidden = false; $("callBtn").hidden = false;
     clearInterval(polling); poll(); polling = setInterval(poll, 2000);
     loadCart().then(() => toParent({ type: "kk:ready" }));
@@ -448,28 +479,125 @@
     const q = $("mq").value.trim().toLowerCase();
     const list = MENU.categories.filter((c) => q || c.name === mcat).flatMap((c) => c.items).filter((i) => !q || `${i.name} ${i.description}`.toLowerCase().includes(q));
     $("mlist").innerHTML = list.map((i, k) => `<div class="mi ${i.unavailable ? "off" : ""}" style="animation-delay:${Math.min(k, 10) * 30}ms">
-      <div class="ph" ${i.photo ? `style="background-image:url('${esc(i.photo)}')"` : ""}>${i.photo ? "" : '<i class="fa-solid fa-mug-hot"></i>'}</div>
+      ${phHTML(i)}
       <div><b>${esc(i.name)}</b>${i.bestseller ? '<span class="badge best"><i class="fa-solid fa-star"></i>Popular</span>' : ""}${i.unavailable ? `<span class="badge">${i.unavailable === "sold_out" ? "Sold out" : "Not now"}</span>` : ""}<small>${esc(i.description || "")}</small></div>
-      <div class="pr">${i.price}${i.price_l ? ` / ${i.price_l}` : ""}<span>${esc(MENU.currency)}${i.price_l ? " · M / L" : ""}</span></div>${cartQty(i.name) ? `<span class="qty"><button data-dec="${esc(i.name)}" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span>${cartQty(i.name)}</span><button data-inc="${esc(i.name)}" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span>` : `<button class="add" data-inc="${esc(i.name)}" aria-label="Add ${esc(i.name)}"><i class="fa-solid fa-plus"></i></button>`}</div>`).join("") || '<div class="sys">Nothing matches.</div>';
+      <div class="pr">${i.price}${i.price_l ? ` / ${i.price_l}` : ""}<span>${esc(MENU.currency)}${i.price_l ? " · M / L" : ""}</span></div>${i.options?.length ? `<button class="add" data-pick="${esc(i.name)}" aria-label="Choose ${esc(i.name)}"><i class="fa-solid fa-plus"></i>${cartQty(i.name) ? `<em>${cartQty(i.name)}</em>` : ""}</button>` : cartQty(i.name) ? `<span class="qty"><button data-dec="${esc(i.name)}" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span>${cartQty(i.name)}</span><button data-inc="${esc(i.name)}" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span>` : `<button class="add" data-inc="${esc(i.name)}" aria-label="Add ${esc(i.name)}"><i class="fa-solid fa-plus"></i></button>`}</div>`).join("") || '<div class="sys">Nothing matches.</div>';
     wireQty($("mlist"));
+    $("mlist").querySelectorAll("[data-pick]").forEach((b) => b.onclick = () => openItem(b.dataset.pick));
+    $("mlist").querySelectorAll(".mi").forEach((row) => { const b = row.querySelector("[data-pick],[data-inc]"); row.querySelector(".ph").onclick = () => b && openItem(b.dataset.pick || b.dataset.inc); });
   }
   $("mq").addEventListener("input", drawMenu);
+
+  // ---------- art: the café's own photos, else its characters (Koffee Kulture), else an icon ----------
+  const ART = slug === "koffee-kulture" ? ["char-chair", "char-sip", "char-dance", "char-hug", "char-walk", "char-guitar", "char-kroissant", "char-travel"].map((n) => `https://munadim.com/koffee/${n}.png`) : null;
+  const TINT = ["#FFE1EF", "#DDF3D8", "#FFF0C2", "#FFE6D6", "#E6EEFF", "#F1E6FF"];
+  const hash = (t) => [...t].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const artOf = (i) => i?.photo ? { src: i.photo, photo: true } : ART ? { src: ART[hash(i?.category || i?.name || "") % ART.length], photo: false } : null;
+  const tintOf = (i) => TINT[hash(i?.name || "") % TINT.length];
+  function phHTML(i, cls = "ph") {
+    const a = artOf(i);
+    if (!a) return `<div class="${cls}"><i class="fa-solid fa-mug-hot"></i></div>`;
+    return `<div class="${cls} ${a.photo ? "photo" : "char"}" style="background-image:url('${esc(a.src)}');--tint:${tintOf(i)}"></div>`;
+  }
+
+  // ---------- item sheet: size / milk / extras / side + comments, live price ----------
+  let picking = null;
+  function linePrice(it, picks) {
+    let p = Number(it.price) || 0;
+    for (const g of it.options || []) for (const c of g.choices) if ((picks[g.key] || []).includes(c.name)) { if (c.price != null) p = c.price; else if (c.delta) p += c.delta; }
+    return p;
+  }
+  function openItem(name, fromSite) {
+    const it = findItem(name); if (!it) return;
+    if (it.unavailable) return sys("fa-clock", `${it.name} isn't available right now.`);
+    picking = { it, picks: {}, qty: 1 };
+    for (const g of it.options || []) if (g.required && g.key === "size") picking.picks[g.key] = [g.choices[0].name];
+    drawItem(); openSheet($("itemSheet"));
+    if (fromSite) toParent({ type: "kk:open" });
+  }
+  function drawItem() {
+    const { it, picks, qty } = picking;
+    const missing = (it.options || []).filter((g) => g.required && !(picks[g.key] || []).length);
+    $("ibody").innerHTML = `${phHTML(it, "ihero")}<div class="ihead"><h4>${esc(it.name)}</h4>${it.description ? `<p>${esc(it.description)}</p>` : ""}</div>
+      ${(it.options || []).map((g) => `<div class="ogrp"><div class="olab">${esc(g.label)}${g.required ? '<span class="req">Required</span>' : g.multi ? '<span>Pick any</span>' : '<span>Optional</span>'}</div><div class="ochips">${g.choices.map((c) => {
+        const on = (picks[g.key] || []).includes(c.name);
+        const extra = c.price != null ? `${c.price}` : c.delta ? `+${c.delta}` : "";
+        return `<button class="oc ${on ? "on" : ""}" data-g="${esc(g.key)}" data-c="${esc(c.name)}">${on ? '<i class="fa-solid fa-check"></i>' : ""}${esc(c.name)}${extra ? `<small>${extra}</small>` : ""}</button>`; }).join("")}</div></div>`).join("")}
+      <div class="ogrp"><div class="olab">Comments<span>Optional</span></div><textarea id="inote" rows="2" maxlength="120" placeholder="Less ice, extra hot, no sugar…">${esc(picking.note || "")}</textarea></div>`;
+    $("ibody").querySelectorAll(".oc").forEach((b) => b.onclick = () => {
+      const g = it.options.find((x) => x.key === b.dataset.g); const cur = picks[g.key] || [];
+      picks[g.key] = g.multi ? (cur.includes(b.dataset.c) ? cur.filter((x) => x !== b.dataset.c) : [...cur, b.dataset.c]) : (cur[0] === b.dataset.c && !g.required ? [] : [b.dataset.c]);
+      picking.note = $("inote").value; drawItem();
+    });
+    $("iqty").textContent = qty;
+    $("iadd").disabled = missing.length > 0;
+    $("iadd").innerHTML = missing.length ? `Choose ${esc(missing[0].label.toLowerCase())}` : `<i class="fa-solid fa-basket-shopping"></i>Add · ${linePrice(it, picks) * qty} ${esc(MENU.currency)}`;
+  }
+  $("iminus").onclick = () => { picking.note = $("inote").value; picking.qty = Math.max(1, picking.qty - 1); drawItem(); };
+  $("iplus").onclick = () => { picking.note = $("inote").value; picking.qty = Math.min(9, picking.qty + 1); drawItem(); };
+  $("iadd").onclick = () => {
+    const { it, picks, qty } = picking; const note = $("inote").value.trim().slice(0, 120) || null;
+    addLine(it, picks, qty, note, $("iadd")); closeSheets();
+    if ($("menuSheet").dataset.back) { delete $("menuSheet").dataset.back; openMenu(); }
+  };
+
+  // ---------- mood + usual: get the guest talking to the AI ----------
+  const MOODS = [["fa-bed", "Sleepy", "I'm sleepy — wake me up! What do you recommend?"], ["fa-cookie-bite", "Sweet tooth", "I'm craving something sweet — what should I get?"],
+    ["fa-snowflake", "Hot day", "It's hot — I want something cold and refreshing. What do you suggest?"], ["fa-utensils", "Hungry", "I'm hungry — what's good to eat here?"],
+    ["fa-leaf", "Matcha mood", "I'm in a matcha mood — which one should I try?"], ["fa-wand-magic-sparkles", "Surprise me", "Surprise me! Pick something you think I'll love."]];
+  function moodCard(known, again) {
+    if (!again && document.querySelector(".mood")) return;
+    const row = document.createElement("div"); row.className = "card mood";
+    row.innerHTML = `<h4><i class="fa-solid fa-face-smile"></i>${known ? "What are you in the mood for?" : "First time here? Tell me your mood"}</h4><p>Pick one and I'll choose something for you from the menu.</p><div class="moods">${MOODS.map(([ic, l], k) => `<button data-m="${k}"><i class="fa-solid ${ic}"></i>${l}</button>`).join("")}</div>`;
+    log.appendChild(row); log.scrollTop = log.scrollHeight;
+    row.querySelectorAll("[data-m]").forEach((b) => b.onclick = () => { row.querySelectorAll("button").forEach((x) => x.disabled = true); b.classList.add("on"); input.value = MOODS[+b.dataset.m][2]; sendMsg(); });
+  }
+  const usualText = (u) => u.map((l) => `${l.qty > 1 ? l.qty + "× " : ""}${l.name}${l.options?.length ? ` (${l.options.join(", ")})` : ""}`).join(" + ");
+  function usualCard(u) {
+    const row = document.createElement("div"); row.className = "card usual";
+    row.innerHTML = `<h4><i class="fa-solid fa-rotate-left"></i>Your usual?</h4><p><b>${esc(usualText(u))}</b></p>
+      <div class="acts"><button class="wa" data-yes><i class="fa-solid fa-check"></i>Same again</button><button class="skip" data-new>Something new</button></div>`;
+    log.appendChild(row); log.scrollTop = log.scrollHeight;
+    row.querySelector("[data-yes]").onclick = () => { repeatUsual(u); row.querySelector(".acts").innerHTML = '<p class="fine"><i class="fa-solid fa-basket-shopping"></i> In your cart — change anything, then Order.</p>'; };
+    row.querySelector("[data-new]").onclick = () => { row.remove(); moodCard(true); };
+  }
+  async function repeatUsual(u) {
+    await ensureMenu();
+    for (const l of u) {
+      const it = findItem(l.name); if (!it || it.unavailable) continue;
+      const picks = {}; for (const g of it.options || []) { const hit = g.choices.filter((c) => (l.options || []).includes(c.name)).map((c) => c.name); if (hit.length) picks[g.key] = hit; }
+      addLine(it, picks, l.qty, l.note);
+    }
+    if (cart.length) { drawCartSheet(); openSheet($("cartSheet")); }
+  }
 
   // ---------- cart ----------
   let cart = [];
   const cartKey = () => `kk:cart:${session?.sessionId || token}`;
   const findItem = (n) => MENU?.categories.flatMap((c) => c.items).find((i) => i.name === n);
-  const cartQty = (n) => cart.find((l) => l.name === n)?.qty || 0;
+  const cartQty = (n) => cart.filter((l) => l.name === n).reduce((a, l) => a + l.qty, 0);
   const cartCount = () => cart.reduce((a, l) => a + l.qty, 0);
   const cartTotal = () => cart.reduce((a, l) => a + l.qty * (Number(l.price) || 0), 0);
   function saveCart() { LS.set(cartKey(), cart); }
-  function changeQty(name, d, from) {
-    const it = findItem(name); let l = cart.find((x) => x.name === name);
-    if (!l && d > 0) { l = { name, qty: 0, price: it?.price || 0, photo: it?.photo || null, sized: !!it?.price_l }; cart.push(l); }
+  const lineKey = (name, opts, note) => `${name}|${(opts || []).join(",")}|${note || ""}`;
+  function addLine(it, picks, qty, note, from) {
+    const opts = (it.options || []).flatMap((g) => (picks[g.key] || []).map((c) => (g.key === "milk" && !/milk/i.test(c) ? `${c} milk` : c)));
+    const size = (it.options || []).find((g) => g.key === "size") ? (picks.size || [])[0] || null : null;
+    const key = lineKey(it.name, opts, note); let l = cart.find((x) => x.key === key);
+    if (!l) { l = { key, name: it.name, qty: 0, price: linePrice(it, picks), opts, size, note: note || null, photo: it.photo || null }; cart.push(l); }
+    l.qty += qty; saveCart(); drawCart(true);
+    if (from) flyFrom(from, it.photo);
+    if ($("menuSheet").classList.contains("open")) drawMenu();
+    if ($("cartSheet").classList.contains("open")) drawCartSheet();
+  }
+  // plain items (no options) keep the quick − / + stepper; lines with options step by their key
+  function changeQty(ref, d, from) {
+    let l = cart.find((x) => x.key === ref) || [...cart].reverse().find((x) => x.name === ref && !x.opts?.length && !x.note);
+    if (!l && d > 0) { const it = findItem(ref); if (!it) return; if (it.options?.length) return openItem(ref); return addLine(it, {}, 1, null, from); }
     if (!l) return;
     l.qty += d; if (l.qty <= 0) cart = cart.filter((x) => x !== l);
     saveCart(); drawCart(d > 0);
-    if (d > 0 && from) flyFrom(from, it?.photo);
+    if (d > 0 && from) flyFrom(from, l.photo);
     if ($("menuSheet").classList.contains("open")) drawMenu();
     if ($("cartSheet").classList.contains("open")) drawCartSheet();
   }
@@ -502,22 +630,24 @@
   }
   function drawCartSheet() {
     if (!cart.length) { closeSheets(); return; }
-    $("clist").innerHTML = cart.map((l) => `<div class="cl"><div class="ph" ${l.photo ? `style="background-image:url('${esc(l.photo)}')"` : ""}>${l.photo ? "" : '<i class="fa-solid fa-mug-hot"></i>'}</div>
-      <div><b>${esc(l.name)}</b><small>${l.price} ${esc(MENU?.currency || "EGP")}${l.sized ? " · size next" : ""}</small></div>
-      <span class="qty"><button data-dec="${esc(l.name)}" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span>${l.qty}</span><button data-inc="${esc(l.name)}" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span></div>`).join("");
+    $("clist").innerHTML = cart.map((l) => `<div class="cl">${phHTML(findItem(l.name) || { name: l.name, photo: l.photo })}
+      <div><b>${esc(l.name)}</b><small>${[...(l.opts || []), l.note ? `“${l.note}”` : ""].filter(Boolean).map(esc).join(" · ") || "As it comes"}</small><small class="lp">${l.price} ${esc(MENU?.currency || "EGP")}</small></div>
+      <span class="qty"><button data-dec="${esc(l.key || l.name)}" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span>${l.qty}</span><button data-inc="${esc(l.key || l.name)}" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span></div>`).join("");
     $("ctot").textContent = `${cartTotal()} ${MENU?.currency || "EGP"}`;
     wireQty($("clist"));
   }
   // the cart becomes one message — the order agent takes it from there (options, add-ons, confirm)
   function sendCart() {
     if (!cart.length || !session) return;
-    const words = cart.map((l) => `${l.qty} ${l.name}`);
+    // said the way a guest would: "1 Large Iced Spanish Latte with Oat milk, Extra shot (less ice)"
+    const words = cart.map((l) => { const rest = (l.opts || []).filter((o) => o !== l.size);
+      return `${l.qty} ${l.size ? l.size + " " : ""}${l.name}${rest.length ? ` with ${rest.join(", ")}` : ""}${l.note ? ` (${l.note})` : ""}`; });
     input.value = `I'd like ${words.length > 1 ? words.slice(0, -1).join(", ") + " and " + words.at(-1) : words[0]}`;
     cart = []; saveCart(); drawCart(); closeSheets(); sendMsg();
   }
   $("cmore").onclick = openMenu; $("cgo").onclick = sendCart;
   async function loadCart() {
-    cart = LS.get(cartKey()) || [];
+    cart = (LS.get(cartKey()) || []).map((l) => ({ ...l, key: l.key || lineKey(l.name, l.opts, l.note) }));
     if (cart.length && !MENU) await ensureMenu();
     drawCart();
   }
@@ -525,7 +655,9 @@
     if (e.data?.type === "kk:prefill" && e.data.text) { input.value = e.data.text; input.focus(); }
     if (e.data?.type === "kk:add" && e.data.name && session) {
       await ensureMenu();
-      if (findItem(e.data.name)) changeQty(e.data.name, 1);
+      const it = findItem(e.data.name);
+      if (it?.options?.length) openItem(e.data.name, true);
+      else if (it) changeQty(e.data.name, 1);
       else { input.value = `I'd like a ${e.data.name}`; input.focus(); }
     }
     if (e.data?.type === "kk:cart-open" && session && cart.length) { drawCartSheet(); openSheet($("cartSheet")); }

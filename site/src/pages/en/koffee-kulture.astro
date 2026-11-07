@@ -139,7 +139,7 @@ const maps = (b: string, a: string) => `https://www.google.com/maps/search/${enc
     <!-- FULL MENU (live) -->
     <section class="menu" id="menu">
       <div class="wrap">
-        <div class="head reveal"><p class="tag"><i class="fa-solid fa-book-open"></i> The menu</p><h2>Pick something. <span class="pkt">Or ask the chat.</span></h2><p class="sub">Prices in EGP, VAT inclusive · Medium / Large where you see two prices · Tap <b>+</b> and it goes straight into your table order.</p></div>
+        <div class="head reveal"><p class="tag"><i class="fa-solid fa-book-open"></i> The menu</p><h2>Pick something. <span class="pkt">Or ask the chat.</span></h2><p class="sub">Prices in EGP, VAT inclusive · Medium / Large where you see two prices · Tap <b>+</b> to pick size, milk and extras — it goes straight into your table order.</p></div>
         <div class="mbar">
           <div class="tabs" role="tablist">{cats.map((c, i) => <button class={`tab${i ? '' : ' on'}`} data-tab={slugOf(c.name)} role="tab">{short(c.name)}</button>)}</div>
           <label class="search"><i class="fa-solid fa-magnifying-glass"></i><input id="q" placeholder="Search 200+ items — matcha, pistachio, bagel…" autocomplete="off" /></label>
@@ -156,7 +156,8 @@ const maps = (b: string, a: string) => `https://www.google.com/maps/search/${enc
                   const ph = PHOTO[it.name];
                   return (
                     <article class="item" data-name={`${it.name} ${it.description || ''}`.toLowerCase()}>
-                      {ph && <div class={`thumb${ph[1] ? '' : ' cover'}`} style={`--bg:${TINTS[(ci + j) % TINTS.length]}`}><img class={ph[1] ? 'mult' : ''} src={`${I}/${ph[0]}`} alt={it.name} loading="lazy" /></div>}
+                      {ph ? <div class={`thumb${ph[1] ? '' : ' cover'}`} style={`--bg:${TINTS[(ci + j) % TINTS.length]}`}><img class={ph[1] ? 'mult' : ''} src={`${I}/${ph[0]}`} alt={it.name} loading="lazy" /></div>
+                        : <div class="thumb chr" style={`--bg:${TINTS[(ci + j) % TINTS.length]}`}><img src={`${I}/${CHARS[(ci * 5 + j * 3) % CHARS.length]}.png`} alt="" loading="lazy" /></div>}
                       <div class="txt"><h4>{it.name}{it.bestseller && <span class="pop"><i class="fa-solid fa-star"></i> Popular</span>}</h4>{it.description && <p>{it.description}</p>}</div>
                       <span class="price">{priceOf(it)}<small>EGP</small></span>
                       <button class="add" data-add={it.name} aria-label={`Add ${it.name}`}><i class="fa-solid fa-plus"></i></button>
@@ -401,6 +402,7 @@ const maps = (b: string, a: string) => `https://www.google.com/maps/search/${enc
   .item.hide { display:none; }
   .thumb { flex:0 0 76px; height:76px; border-radius:14px; border:2px solid var(--ink); background:var(--bg); overflow:hidden; isolation:isolate; }
   .thumb img { width:100%; height:100%; object-fit:contain; padding:4px; transform:scale(1.15); } .thumb.cover img { object-fit:cover; padding:0; transform:none; }
+  .thumb.chr img { object-fit:contain; object-position:center bottom; padding:4px 2px 0; transform:none; }
   .item .txt { flex:1; min-width:0; } .item h4 { font-size:19px; line-height:1.05; } .item .txt p { margin:4px 0 0; font-size:13.5px; color:var(--muted); line-height:1.35; }
   .item .pop { display:inline-flex; gap:4px; align-items:center; vertical-align:3px; margin-left:8px; background:var(--butter); border:1.5px solid var(--ink); border-radius:999px; font:700 11px "Rubik",sans-serif; padding:2px 7px; white-space:nowrap; }
   .item .price { text-align:right; white-space:nowrap; font-size:15.5px; } .item .price small { display:block; font-size:11px; }
@@ -512,13 +514,14 @@ const maps = (b: string, a: string) => `https://www.google.com/maps/search/${enc
     let ready = false; const queue: any[] = []; let cartCount = 0;
     const post = (m: any) => { if (ready) frame.contentWindow?.postMessage(m, '*'); else queue.push(m); };
     function loadChat() { if (!frame.src) frame.src = frame.dataset.src!; }
-    function openChat() {
+    function openChat(keepSheet = false) {
       loadChat(); panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); bubble.classList.add('open');
-      if (cartCount) post({ type: 'kk:cart-open' });
+      if (cartCount && !keepSheet) post({ type: 'kk:cart-open' });
     }
     function closeChat() { panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); bubble.classList.remove('open'); }
     addEventListener('message', (e) => {
       if (e.source !== frame.contentWindow) return;
+      if (e.data?.type === 'kk:open') { openChat(true); toast.classList.remove('show'); }
       if (e.data?.type === 'kk:ready') { ready = true; while (queue.length) frame.contentWindow?.postMessage(queue.shift(), '*'); }
       if (e.data?.type === 'kk:cart') {
         const n = Number(e.data.count) || 0, grew = n > cartCount; cartCount = n;
@@ -537,7 +540,7 @@ const maps = (b: string, a: string) => `https://www.google.com/maps/search/${enc
       setTimeout(() => { b.classList.remove('ok'); b.innerHTML = '<i class="fa-solid fa-plus"></i>'; }, 1300);
       toast.innerHTML = `<span>Added <b></b></span><button type="button">Review order</button>`;
       toast.querySelector('b')!.textContent = b.dataset.add!;
-      toast.querySelector('button')!.addEventListener('click', openChat);
+      toast.querySelector('button')!.addEventListener('click', () => openChat());
       toast.classList.add('show'); clearTimeout(tt); tt = window.setTimeout(() => toast.classList.remove('show'), 3200);
     }));
 
