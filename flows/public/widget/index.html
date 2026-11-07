@@ -109,6 +109,31 @@
   .card textarea { width: 100%; font: inherit; padding: 10px 12px; border-radius: 12px; border: 1.5px solid #e3e5e8; resize: none; outline: none; margin-bottom: 8px; }
   .card .send2 { font: inherit; font-weight: 700; color: #fff; background: var(--brand); border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
   .fine { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+  .msg .doc { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+  /* cart: browse the menu, fill a cart, hand it to the AI — it asks size/milk/extras next */
+  .cartbar { display: flex; align-items: center; gap: 10px; margin: 0 14px 8px; padding: 10px 12px 10px 14px; border-radius: 16px; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; animation: in .3s var(--ease) both; }
+  .cartbar .ic { position: relative; font-size: 17px; } .cartbar .ic b { position: absolute; top: -8px; right: -10px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--brand); font-size: 11px; display: grid; place-items: center; }
+  .cartbar .ic.bump { animation: bump .45s var(--ease); }
+  @keyframes bump { 30% { transform: scale(1.35) rotate(-8deg); } 60% { transform: scale(.9); } }
+  .cartbar .sum { flex: 1; min-width: 0; } .cartbar .sum small { display: block; font-weight: 500; opacity: .7; font-size: 12px; }
+  .cartbar button { font: inherit; font-weight: 800; border: 0; border-radius: 12px; padding: 9px 12px; cursor: pointer; display: inline-flex; gap: 7px; align-items: center; }
+  .cartbar .view { background: rgba(255,255,255,.12); color: #fff; } .cartbar .go { background: var(--brand); color: #fff; }
+  .sheet .cartbar { margin: 8px 18px 16px; }
+  .mi .qty, .cl .qty { display: inline-flex; align-items: center; gap: 2px; background: var(--brand-soft); border-radius: 10px; padding: 2px; }
+  .qty button { width: 28px; height: 28px; border: 0; border-radius: 8px; background: #fff; color: var(--brand); font-size: 12px; cursor: pointer; }
+  .qty span { min-width: 20px; text-align: center; font-weight: 800; font-size: 14px; }
+  .mi:has(.qty) { grid-template-columns: 54px 1fr auto auto; }
+  .clist { overflow-y: auto; padding: 0 18px; display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto !important; min-height: 0; }
+  .cl { display: grid; grid-template-columns: 46px 1fr auto; gap: 12px; align-items: center; padding: 8px; border-radius: 14px; border: 1px solid #eef0f2; animation: in .25s both; }
+  .cl .ph { width: 46px; height: 46px; border-radius: 12px; background: var(--brand-soft) center/cover no-repeat; display: grid; place-items: center; color: var(--brand); }
+  .cl b { font-size: 14px; } .cl small { display: block; color: var(--muted); font-size: 12.5px; }
+  .ctot { display: flex; justify-content: space-between; padding: 12px 18px 0; font-weight: 800; } .ctot span:last-child { color: var(--brand); }
+  .cnote { padding: 6px 18px 0; color: var(--muted); font-size: 12.5px; display: flex; gap: 6px; align-items: center; } .cnote i { color: var(--brand); }
+  .cacts { display: flex; gap: 8px; padding: 12px 18px 18px; }
+  .cacts button { flex: 1; font: inherit; font-weight: 800; border-radius: 14px; padding: 13px; cursor: pointer; display: inline-flex; justify-content: center; gap: 8px; align-items: center; }
+  .cacts .more { background: #fff; border: 1.5px solid #e3e5e8; color: var(--ink); } .cacts .go { background: var(--brand); color: #fff; border: 0; flex: 1.4; }
+  .docframe { flex: 1 1 auto !important; min-height: 60dvh; border: 0; margin: 0 12px 12px; border-radius: 12px; background: #f1f2f4; }
+  .fly { position: fixed; z-index: 60; width: 34px; height: 34px; border-radius: 50%; background: var(--brand) center/cover; pointer-events: none; transition: transform .6s cubic-bezier(.5,-.3,.7,1), opacity .6s; }
   [dir="rtl"] { text-align: right; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
@@ -135,7 +160,13 @@
   <div class="sheet" id="callSheet"><div class="grab"></div><h3><i class="fa-solid fa-bell-concierge"></i>Call staff to your table<button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
     <div class="calls"><button data-call="help"><i class="fa-solid fa-hand"></i>Need help</button><button data-call="bill"><i class="fa-solid fa-receipt"></i>The bill</button><button data-call="water"><i class="fa-solid fa-glass-water"></i>Water</button></div></div>
   <div class="sheet" id="menuSheet"><div class="grab"></div><h3><i class="fa-solid fa-book-open"></i>Menu<button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
-    <div class="mtabs" id="mtabs"></div><div class="msearch"><i class="fa-solid fa-magnifying-glass"></i><input id="mq" placeholder="Search — matcha, pistachio…" autocomplete="off"></div><div class="mlist" id="mlist"></div></div>
+    <div class="mtabs" id="mtabs"></div><div class="msearch"><i class="fa-solid fa-magnifying-glass"></i><input id="mq" placeholder="Search — matcha, pistachio…" autocomplete="off"></div><div class="mlist" id="mlist"></div><div id="mcart"></div></div>
+  <div id="cartHost"></div>
+  <div class="sheet" id="cartSheet"><div class="grab"></div><h3><i class="fa-solid fa-basket-shopping"></i>Your cart<button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
+    <div class="clist" id="clist"></div><div class="ctot"><span>Total</span><span id="ctot"></span></div>
+    <div class="cnote"><i class="fa-solid fa-wand-magic-sparkles"></i>The AI checks any choices with you (size, milk), then confirms.</div>
+    <div class="cacts"><button class="more" id="cmore"><i class="fa-solid fa-plus"></i>Add more</button><button class="go" id="cgo"><i class="fa-solid fa-paper-plane"></i>Send to order</button></div></div>
+  <div class="sheet" id="docSheet"><div class="grab"></div><h3><i class="fa-solid fa-receipt"></i><span id="doct">Receipt</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3><iframe class="docframe" id="docf" title="Document"></iframe></div>
   <form id="f"><input id="in" placeholder="Type your order…" autocomplete="off" disabled><button class="send" id="send" disabled aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
 </div>
 <script>
@@ -145,7 +176,7 @@
   const api = (p) => `${location.origin}${p}`;
   const $ = (id) => document.getElementById(id);
   const log = $("log"), input = $("in"), send = $("send"), chips = $("chips"), geoPill = $("geo"), quick = $("quick"), banner = $("banner");
-  let session = null, lastAt = null, geo = null, polling = null, typingRow = null, askedRemember = false, identifyTimer = null;
+  let booted = false, session = null, lastAt = null, geo = null, polling = null, typingRow = null, askedRemember = false, identifyTimer = null;
   const seen = new Set();
   const LS = { get: (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
   const device = LS.get("kk:device") || (() => { const d = Math.random().toString(36).slice(2) + Date.now().toString(36); LS.set("kk:device", d); return d; })();
@@ -159,7 +190,9 @@
       .replace(/^[―—\-]{6,}$/gm, '<span class="rule"></span>')
       .replace(/\*([^*\n]+)\*/g, "<b>$1</b>")
       .replace(/(^|\s)_([^_\n]+)_/g, "$1<i>$2</i>")
-      .replace(/(https?:\/\/[^\s<]+\.pdf)/g, '<a class="doc" href="$1" target="_blank" rel="noopener"><i class="fa-solid fa-file-pdf"></i>Receipt</a>')
+      .replace(/(?:📄\s*)?(https?:\/\/[^\s<]+\.pdf)/g, (_, u) => /\/receipts?\//i.test(u)
+        ? `<button class="doc" data-doc="${u}"><i class="fa-solid fa-receipt"></i>View receipt</button>`
+        : `<button class="doc" data-openmenu><i class="fa-solid fa-book-open"></i>Open the menu</button>`)
       .replace(/(^|[^"])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
     h = h.replace(EMOJI, (e) => { const k = Object.keys(ICON).find((x) => e.startsWith(x)); return k ? `<i class="fa-solid ${ICON[k]}" style="color:var(--brand)"></i>` : ""; });
     // English runs inside an Arabic line (dish names, "Oat", "EGP 305") are isolated so the
@@ -173,6 +206,8 @@
     const body = `<div class="msg">${render(text)}${media ? `<img src="${esc(media)}" alt="">` : ""}</div>`;
     row.innerHTML = kind === "ai" ? `<div class="av"><i class="fa-solid fa-mug-hot"></i></div>${body}` : body;
     if (/[؀-ۿ]/.test(text || "")) row.querySelector(".msg").dir = "rtl";
+    row.querySelectorAll("[data-openmenu]").forEach((b) => b.onclick = openMenu);
+    row.querySelectorAll("[data-doc]").forEach((b) => b.onclick = () => { $("docf").src = b.dataset.doc; openSheet($("docSheet")); });
     log.appendChild(row); log.scrollTop = log.scrollHeight;
   }
   function sys(icon, text) { const d = document.createElement("div"); d.className = "sys"; d.innerHTML = `<i class="fa-solid ${icon}"></i>${esc(text)}`; log.appendChild(d); log.scrollTop = log.scrollHeight; }
@@ -188,7 +223,7 @@
     line.split("▸").map((x) => x.replace(EMOJI, "").trim()).filter(Boolean).slice(0, 4).forEach((label, i) => {
       const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.style.animationDelay = `${i * 60}ms`;
       b.innerHTML = `<i class="fa-solid ${CHIP_ICON(label)}"></i>${esc(label)}`;
-      b.onclick = () => { input.value = label; sendMsg(); };
+      b.onclick = /^(browse |see |show |the |full )*(menu|المنيو|منيو|el menu)$/i.test(label) ? () => { chips.innerHTML = ""; openMenu(); } : () => { input.value = label; sendMsg(); };
       chips.appendChild(b);
     });
   }
@@ -263,6 +298,7 @@
     }
     input.disabled = false; send.disabled = false; quick.hidden = false; $("callBtn").hidden = false;
     clearInterval(polling); poll(); polling = setInterval(poll, 2000);
+    loadCart();
   }
 
   function claimedGate(table, err = "") {
@@ -315,6 +351,7 @@
     if (r.status === 410) { clearInterval(polling); return renew(); }
     if (!r.ok) return;
     const j = await r.json();
+    setTimeout(() => { booted = true; }, 0);
     setBanner(j.join_code, j.members);
     for (const o of j.orders || []) drawTracker(o);
     for (const m of j.messages || []) {
@@ -322,6 +359,7 @@
       if (seen.has(key)) continue; seen.add(key); lastAt = m.at;
       if (m.sender === "ai" || m.sender === "staff") {
         showTyping(false); add("ai", stripChipLine(m.message), m.media_type === "image" ? m.media_url : null); chipsFrom(m.message);
+        if (booted && /\.pdf\b/.test(m.message || "") && !/\/receipts?\//i.test(m.message || "")) setTimeout(openMenu, 500);
         if (/O-[A-Z0-9]{4}/.test(m.message || "")) setTimeout(rememberCard, 900);
       }
     }
@@ -394,6 +432,10 @@
   let MENU = null, mcat = null;
   async function openMenu() {
     openSheet($("menuSheet"));
+    if (!MENU) await ensureMenu();
+    if (MENU) drawMenu();
+  }
+  async function ensureMenu() {
     if (!MENU) {
       $("mlist").innerHTML = '<div class="sys"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading the menu</div>';
       const u = new URL(api("/api/widget/menu")); u.searchParams.set("slug", slug); u.searchParams.set("token", token);
@@ -403,7 +445,6 @@
       $("mtabs").querySelectorAll("button").forEach((b) => b.onclick = () => { $("mq").value = ""; mcat = b.dataset.c; $("mtabs").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); drawMenu(); });
       mcat = MENU.categories[0]?.name;
     }
-    drawMenu();
   }
   function drawMenu() {
     const q = $("mq").value.trim().toLowerCase();
@@ -411,10 +452,74 @@
     $("mlist").innerHTML = list.map((i, k) => `<div class="mi ${i.unavailable ? "off" : ""}" style="animation-delay:${Math.min(k, 10) * 30}ms">
       <div class="ph" ${i.photo ? `style="background-image:url('${esc(i.photo)}')"` : ""}>${i.photo ? "" : '<i class="fa-solid fa-mug-hot"></i>'}</div>
       <div><b>${esc(i.name)}</b>${i.bestseller ? '<span class="badge best"><i class="fa-solid fa-star"></i>Popular</span>' : ""}${i.unavailable ? `<span class="badge">${i.unavailable === "sold_out" ? "Sold out" : "Not now"}</span>` : ""}<small>${esc(i.description || "")}</small></div>
-      <div class="pr">${i.price}${i.price_l ? ` / ${i.price_l}` : ""}<span>${esc(MENU.currency)}${i.price_l ? " · M / L" : ""}</span></div><button class="add" data-n="${esc(i.name)}" aria-label="Add ${esc(i.name)}"><i class="fa-solid fa-plus"></i></button></div>`).join("") || '<div class="sys">Nothing matches.</div>';
-    $("mlist").querySelectorAll(".add").forEach((b) => b.onclick = () => { closeSheets(); input.value = `I'd like a ${b.dataset.n}`; sendMsg(); });
+      <div class="pr">${i.price}${i.price_l ? ` / ${i.price_l}` : ""}<span>${esc(MENU.currency)}${i.price_l ? " · M / L" : ""}</span></div>${cartQty(i.name) ? `<span class="qty"><button data-dec="${esc(i.name)}" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span>${cartQty(i.name)}</span><button data-inc="${esc(i.name)}" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span>` : `<button class="add" data-inc="${esc(i.name)}" aria-label="Add ${esc(i.name)}"><i class="fa-solid fa-plus"></i></button>`}</div>`).join("") || '<div class="sys">Nothing matches.</div>';
+    wireQty($("mlist"));
   }
   $("mq").addEventListener("input", drawMenu);
+
+  // ---------- cart ----------
+  let cart = [];
+  const cartKey = () => `kk:cart:${session?.sessionId || token}`;
+  const findItem = (n) => MENU?.categories.flatMap((c) => c.items).find((i) => i.name === n);
+  const cartQty = (n) => cart.find((l) => l.name === n)?.qty || 0;
+  const cartCount = () => cart.reduce((a, l) => a + l.qty, 0);
+  const cartTotal = () => cart.reduce((a, l) => a + l.qty * (Number(l.price) || 0), 0);
+  function saveCart() { LS.set(cartKey(), cart); }
+  function changeQty(name, d, from) {
+    const it = findItem(name); let l = cart.find((x) => x.name === name);
+    if (!l && d > 0) { l = { name, qty: 0, price: it?.price || 0, photo: it?.photo || null, sized: !!it?.price_l }; cart.push(l); }
+    if (!l) return;
+    l.qty += d; if (l.qty <= 0) cart = cart.filter((x) => x !== l);
+    saveCart(); drawCart(d > 0);
+    if (d > 0 && from) flyFrom(from, it?.photo);
+    if ($("menuSheet").classList.contains("open")) drawMenu();
+    if ($("cartSheet").classList.contains("open")) drawCartSheet();
+  }
+  function wireQty(root) {
+    root.querySelectorAll("[data-inc]").forEach((b) => b.onclick = () => changeQty(b.dataset.inc, 1, b));
+    root.querySelectorAll("[data-dec]").forEach((b) => b.onclick = () => changeQty(b.dataset.dec, -1));
+  }
+  function flyFrom(el, photo) {
+    const a = el.getBoundingClientRect(); const target = document.querySelector("#mcart .ic, #cartHost .ic"); if (!target) return;
+    const b = target.getBoundingClientRect(); const f = document.createElement("div"); f.className = "fly";
+    if (photo) f.style.backgroundImage = `url('${photo}')`;
+    f.style.left = a.left + "px"; f.style.top = a.top + "px"; document.body.appendChild(f);
+    requestAnimationFrame(() => { f.style.transform = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(.4)`; f.style.opacity = ".2"; });
+    setTimeout(() => f.remove(), 650);
+  }
+  const barHTML = (inSheet) => `<div class="cartbar"><span class="ic"><i class="fa-solid fa-basket-shopping"></i><b>${cartCount()}</b></span>
+    <span class="sum">${cartTotal()} ${esc(MENU?.currency || "EGP")}<small>${cartCount()} item${cartCount() > 1 ? "s" : ""} in your cart</small></span>
+    <button class="view" data-view><i class="fa-solid fa-list"></i>${inSheet ? "Cart" : "Review"}</button><button class="go" data-go><i class="fa-solid fa-paper-plane"></i>Order</button></div>`;
+  function drawCart(bump) {
+    for (const [id, inSheet] of [["cartHost", false], ["mcart", true]]) {
+      const host = $(id); host.innerHTML = cart.length ? barHTML(inSheet) : "";
+      if (!cart.length) continue;
+      host.querySelector("[data-view]").onclick = () => { drawCartSheet(); openSheet($("cartSheet")); };
+      host.querySelector("[data-go]").onclick = sendCart;
+      if (bump) host.querySelector(".ic").classList.add("bump");
+    }
+  }
+  function drawCartSheet() {
+    if (!cart.length) { closeSheets(); return; }
+    $("clist").innerHTML = cart.map((l) => `<div class="cl"><div class="ph" ${l.photo ? `style="background-image:url('${esc(l.photo)}')"` : ""}>${l.photo ? "" : '<i class="fa-solid fa-mug-hot"></i>'}</div>
+      <div><b>${esc(l.name)}</b><small>${l.price} ${esc(MENU?.currency || "EGP")}${l.sized ? " · size next" : ""}</small></div>
+      <span class="qty"><button data-dec="${esc(l.name)}" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span>${l.qty}</span><button data-inc="${esc(l.name)}" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span></div>`).join("");
+    $("ctot").textContent = `${cartTotal()} ${MENU?.currency || "EGP"}`;
+    wireQty($("clist"));
+  }
+  // the cart becomes one message — the order agent takes it from there (options, add-ons, confirm)
+  function sendCart() {
+    if (!cart.length || !session) return;
+    const words = cart.map((l) => `${l.qty} ${l.name}`);
+    input.value = `I'd like ${words.length > 1 ? words.slice(0, -1).join(", ") + " and " + words.at(-1) : words[0]}`;
+    cart = []; saveCart(); drawCart(); closeSheets(); sendMsg();
+  }
+  $("cmore").onclick = openMenu; $("cgo").onclick = sendCart;
+  async function loadCart() {
+    cart = LS.get(cartKey()) || [];
+    if (cart.length && !MENU) await ensureMenu();
+    drawCart();
+  }
   addEventListener("message", (e) => { if (e.data?.type === "kk:prefill" && e.data.text) { input.value = e.data.text; input.focus(); } });
   setInterval(async () => { const g = await getGeo(); if (g) geo = g; }, 45000);
   start();

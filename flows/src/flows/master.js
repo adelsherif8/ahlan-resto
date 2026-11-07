@@ -175,6 +175,8 @@ defineFlow({
     const diner = await f.node("diner_upsert", async () => {
       const phone = ctx.sessionId;
       const { data: existing } = await db.from("diners").select("*").eq("phone_number", phone).maybeSingle();
+      // table-chat rows created before the fix carry name "Table 5" — never a guest's name
+      if (existing && /^web:tbl:/.test(phone) && /^Table\s/i.test(existing.name || "")) existing.name = null;
       if (existing) return existing;
       const { data: created } = await db
         .from("diners")

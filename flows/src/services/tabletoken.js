@@ -114,7 +114,8 @@ export async function startTableSession(tenant, { branch, table, geoVerdict }) {
     branch_name: geoVerdict?.check?.branch || null,
   };
   const { error } = await tenant.db.from("diners").insert({
-    phone_number: sessionId, name: `Table ${table_session.table_number}`, status: "customer",
+    // no name: "Table 5" read as a person's name ("Welcome back, Table!"); the table lives in table_session
+    phone_number: sessionId, name: null, status: "customer",
     preferences: { language: record.basic_info?.language || "en", table_session, channel: "widget" },
   });
   if (error) throw new Error(`table session: ${error.message}`);
