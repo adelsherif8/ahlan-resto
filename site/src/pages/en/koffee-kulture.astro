@@ -468,7 +468,9 @@ const maps = (b: string, a: string) => `https://www.google.com/maps/search/${enc
   .toast button { font:700 14px "Rubik",sans-serif; background:var(--g); color:#fff; border:2px solid #fff; border-radius:999px; padding:8px 14px; cursor:pointer; white-space:nowrap; }
   .bubble { position:fixed; right:24px; bottom:24px; z-index:51; width:66px; height:66px; border-radius:50%; border:2px solid var(--ink); background:var(--g); color:#fff; font-size:26px; cursor:pointer; box-shadow:4px 4px 0 var(--ink); transition:transform .25s var(--pop); }
   .bubble:hover { transform:scale(1.08) rotate(-6deg); }
-  .bubble .fa-xmark { display:none; } .bubble.open .fa-xmark { display:inline; } .bubble.open .fa-comment-dots { display:none; }
+  .bubble { display:grid; place-items:center; padding:0; line-height:1; }
+  .bubble > i { grid-area:1/1; transition:transform .25s var(--pop), opacity .2s; }
+  .bubble .fa-xmark { opacity:0; transform:rotate(-90deg) scale(.6); } .bubble.open .fa-xmark { opacity:1; transform:none; } .bubble.open .fa-comment-dots { opacity:0; transform:rotate(90deg) scale(.6); }
   .bubble .count { position:absolute; top:-6px; right:-6px; }
   .chat { position:fixed; right:24px; bottom:104px; z-index:50; width:400px; height:min(680px, calc(100dvh - 140px)); border:2px solid var(--ink); border-radius:28px; overflow:hidden; background:#fff; box-shadow:8px 8px 0 var(--ink); transform:translateY(20px) scale(.96); opacity:0; pointer-events:none; transform-origin:bottom right; transition:transform .3s var(--pop), opacity .2s; }
   .chat.open { transform:none; opacity:1; pointer-events:auto; } .chat iframe { width:100%; height:100%; border:0; display:block; }
