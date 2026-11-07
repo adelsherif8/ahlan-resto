@@ -24,7 +24,8 @@
   .row { display: flex; gap: 8px; align-items: flex-end; animation: in .32s var(--ease) both; }
   .row.me { justify-content: flex-end; }
   .av { flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; font-size: 13px; }
-  .msg { max-width: 84%; padding: 10px 14px; border-radius: 18px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg { max-width: 84%; padding: 10px 14px; border-radius: 18px; white-space: pre-wrap; word-wrap: break-word; unicode-bidi: plaintext; text-align: start; }
+  /* each line takes its own direction from its first letter, so an Arabic bill with English dish names reads in order */
   .ai .msg { background: #fff; border: 1px solid rgba(0,0,0,.07); border-bottom-left-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.03); }
   .me .msg { background: var(--brand); color: #fff; border-bottom-right-radius: 6px; }
   .sys { align-self: center; color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; animation: in .3s both; }
@@ -161,6 +162,9 @@
       .replace(/(https?:\/\/[^\s<]+\.pdf)/g, '<a class="doc" href="$1" target="_blank" rel="noopener"><i class="fa-solid fa-file-pdf"></i>Receipt</a>')
       .replace(/(^|[^"])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
     h = h.replace(EMOJI, (e) => { const k = Object.keys(ICON).find((x) => e.startsWith(x)); return k ? `<i class="fa-solid ${ICON[k]}" style="color:var(--brand)"></i>` : ""; });
+    // English runs inside an Arabic line (dish names, "Oat", "EGP 305") are isolated so the
+    // brackets and dots around them stay where they were typed instead of jumping sides
+    h = h.split("\n").map((line) => /[\u0600-\u06FF]/.test(line) ? line.replace(/(?<![<\w="\/-])([A-Za-z][A-Za-z0-9.&'%-]*(?:[ ][A-Za-z0-9][A-Za-z0-9.&'%-]*)*)(?![^<]*>)/g, "<bdi>$1</bdi>") : line).join("\n");
     return h.replace(/ {2,}/g, " ").replace(/^ +| +$/gm, "");
   }
   function add(kind, text, media) {

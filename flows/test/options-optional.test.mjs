@@ -29,3 +29,10 @@ test("a plain order leaves optional groups unset — the barista's default", () 
   assert.equal(r.items[0].options.milk, undefined);
   assert.equal(itemPrice(r.items[0]), 125);
 });
+
+import { tidyNotes } from "../src/services/orderoptions.js";
+test("a leftover group word is not kept as a note ('oat milk' → Oat, no stray 'milk')", () => {
+  const it = { name: "Iced Spanish Latte", notes: "milk · no ice", option_defs: [SIZE, MILK, EXTRAS] };
+  tidyNotes([it]);
+  assert.equal(it.notes, "no ice");
+});

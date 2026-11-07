@@ -66,7 +66,11 @@ export function tidyNotes(items) {
     if (!it?.notes) continue;
     const parts = String(it.notes).split(/\s*·\s*|\s*,\s*(?=no |without |من غير|بدون)/).map((x) => x.trim()).filter(Boolean);
     const seen = new Set(); const kept = [];
+    // a leftover option-group word ("milk" after "oat milk" became the Oat choice, "size")
+    // is not an instruction — it printed as "Oat · milk" on the bill
+    const groupWords = new Set((it.option_defs || []).flatMap((g) => [g.key, g.label]).filter(Boolean).map((w) => normName(String(w))));
     for (const part0 of parts) {
+      if (groupWords.has(normName(part0))) continue;
       // A note is about the FOOD. Money talk the extractor swept in ("price 0 EGP", "for
       // free", «ببلاش») is never a kitchen instruction — and on a ticket it reads as if the
       // guest set the price (abuse fixture A02, 2 Nov). Code prices; the note drops it.
