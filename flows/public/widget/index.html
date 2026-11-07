@@ -6,6 +6,7 @@
 <title>Order from your table</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root { --brand: #3DAE2B; --brand-soft: #e9f6e6; --ink: #14171a; --bg: #f6f7f4; --card: #fff; --muted: #6b7280; --ease: cubic-bezier(.2,.8,.2,1); }
   * { box-sizing: border-box; }
@@ -161,6 +162,107 @@
   .moods button i { font-size: 20px; color: var(--brand); } .moods button:hover:not(:disabled) { border-color: var(--brand); transform: translateY(-2px); }
   .moods button.on { border-color: var(--brand); background: var(--brand-soft); } .moods button:disabled:not(.on) { opacity: .45; }
   .card.usual p b { color: var(--ink); } .card.usual .wa { background: var(--brand); border: 0; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  /* ---- header extras, busy strip ---- */
+  .hbtn.sm { width: 34px; height: 34px; font: 800 12px/1 inherit; }
+  #busy:empty { display: none; }
+  .busy { display: flex; align-items: center; gap: 8px; margin: 8px 14px 0; padding: 7px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; background: #f3f8f2; color: #2b5e25; }
+  .busy.steady { background: #fff8e6; color: #8a5a00; } .busy.busy { background: #fff0ec; color: #a1361c; }
+  .busy i { font-size: 12px; }
+  /* ---- menu: filters, avoid, hearts, popular ---- */
+  .mfilters, .avoid { display: flex; gap: 6px; overflow-x: auto; padding: 0 18px 10px; scrollbar-width: none; } .mfilters::-webkit-scrollbar, .avoid::-webkit-scrollbar { display: none; }
+  .mfilters button, .avoid button { flex: 0 0 auto; font: inherit; font-size: 12.5px; font-weight: 700; padding: 6px 11px; border-radius: 999px; border: 1.5px dashed #d6d9dd; background: #fff; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .mfilters button.on { border-style: solid; border-color: var(--brand); background: var(--brand-soft); color: #1f7a16; }
+  .avoid { background: #fffaf0; padding-top: 8px; margin: 0 0 8px; } .avoid span { font-size: 12.5px; font-weight: 700; align-self: center; flex: 0 0 auto; }
+  .avoid button.on { border-style: solid; border-color: #c77700; background: #fff3e0; color: #8a4f00; }
+  .mi .warn, .warnline { color: #8a4f00; background: #fff3e0; border-radius: 999px; font-size: 11px; font-weight: 700; padding: 2px 7px; display: inline-flex; gap: 4px; align-items: center; margin: 3px 4px 0 0; }
+  .warnline { display: flex; border-radius: 12px; padding: 8px 10px; margin-top: 10px; font-size: 12.5px; }
+  .mi .hot { color: #a1361c; background: #fff0ec; border-radius: 999px; font-size: 11px; font-weight: 700; padding: 2px 7px; display: inline-flex; gap: 4px; align-items: center; margin: 3px 4px 0 0; }
+  .heart { border: 0; background: none; color: #c4c8cd; font-size: 17px; cursor: pointer; padding: 4px; transition: transform .2s; } .heart.on { color: #e5487f; } .heart:active { transform: scale(1.3); }
+  .mi { grid-template-columns: 54px 1fr auto 34px; } .mi .nm { display: flex; align-items: center; gap: 2px; }
+  .ihead { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; } .ihead .heart { font-size: 22px; }
+  .ihero.photo { cursor: zoom-in; }
+  .pairs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pair { display: flex; gap: 8px; align-items: center; border: 1.5px solid #eceef0; border-radius: 14px; padding: 6px; background: #fff; cursor: pointer; font: inherit; text-align: left; }
+  .pair .ph { width: 44px; height: 44px; border-radius: 10px; flex: 0 0 44px; background: var(--brand-soft) center/cover; }
+  .pair .ph.char { background-color: var(--tint); background-size: 90%; background-position: center bottom; background-repeat: no-repeat; }
+  .pair b { display: block; font-size: 13px; line-height: 1.15; } .pair small { color: var(--brand); font-weight: 800; font-size: 12.5px; }
+  .pairs.cartpair { padding: 10px 18px 0; grid-template-columns: 1fr; } .cartpair .olab { margin: 0; }
+  .zoom { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.88); display: grid; place-items: center; animation: in .2s both; }
+  .zoom img { max-width: 94vw; max-height: 86dvh; border-radius: 16px; background: #fff; } .zoom .x { position: absolute; top: 16px; right: 16px; width: 42px; height: 42px; border-radius: 50%; border: 0; font-size: 18px; cursor: pointer; }
+  /* ---- composer mic ---- */
+  form .mic { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; border: 0; background: var(--brand-soft); color: var(--brand); font-size: 17px; cursor: pointer; transition: transform .15s, background .2s; }
+  form .mic.rec { background: #e5484d; color: #fff; animation: recpulse 1.2s infinite; }
+  @keyframes recpulse { 50% { box-shadow: 0 0 0 10px rgba(229,72,77,.15); } }
+  /* ---- tracker extras ---- */
+  .steps { position: relative; } .tracker .bar { height: 4px; border-radius: 4px; background: #eef0f2; margin-top: 10px; overflow: hidden; } .tracker .bar i { display: block; height: 100%; background: var(--brand); border-radius: 4px; transition: width .9s var(--ease); }
+  .tracker .again { margin-top: 10px; width: 100%; font: inherit; font-weight: 800; font-size: 14px; color: #fff; background: var(--brand); border: 0; border-radius: 12px; padding: 10px; cursor: pointer; display: inline-flex; gap: 8px; justify-content: center; align-items: center; }
+  .thumbs { display: grid; gap: 6px; margin-top: 8px; } .thumbs div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 600; }
+  .thumbs button { width: 38px; height: 34px; border-radius: 10px; border: 1.5px solid #eceef0; background: #fff; cursor: pointer; font-size: 15px; } .thumbs button.on { border-color: var(--brand); background: var(--brand-soft); }
+  /* ---- tab + tip ---- */
+  .tbody { overflow-y: auto; padding: 0 18px 18px; flex: 1 1 auto !important; min-height: 0; }
+  .trow { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px dashed #e6e8eb; font-size: 14px; } .trow small { display: block; color: var(--muted); font-size: 12.5px; }
+  .trow.me b::after { content: "you"; margin-left: 6px; font-size: 10.5px; font-weight: 800; color: #1f7a16; background: var(--brand-soft); border-radius: 999px; padding: 1px 6px; vertical-align: 2px; }
+  .tsum { display: grid; gap: 6px; margin: 14px 0; padding: 12px; border-radius: 14px; background: #f6f7f4; } .tsum div { display: flex; justify-content: space-between; font-weight: 700; } .tsum .big { font-size: 17px; color: var(--brand); }
+  .tacts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .tacts button { font: inherit; font-weight: 800; border-radius: 14px; padding: 12px; cursor: pointer; border: 1.5px solid #e3e5e8; background: #fff; display: inline-flex; gap: 8px; justify-content: center; align-items: center; } .tacts .go { background: var(--brand); color: #fff; border: 0; }
+  .staff { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .staff button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: 16px; border: 1.5px solid #eceef0; background: #fff; cursor: pointer; font: inherit; transition: transform .2s var(--ease), border-color .2s; }
+  .staff button:hover { transform: translateY(-2px); border-color: var(--brand); }
+  .staff .av2 { width: 76px; height: 76px; border-radius: 50%; background: var(--tint, var(--brand-soft)) center/cover no-repeat; border: 2px solid #fff; box-shadow: 0 0 0 2px var(--brand-soft); }
+  .staff .av2.char { background-size: 92%; background-position: center bottom; }
+  .staff b { font-size: 14px; } .staff small { color: var(--muted); font-size: 12px; }
+  .tipper { text-align: center; animation: in .3s var(--ease) both; } .tipper .av2 { width: 120px; height: 120px; margin: 4px auto 8px; border-radius: 50%; background: var(--tint, var(--brand-soft)) center/cover no-repeat; box-shadow: 0 0 0 4px var(--brand-soft); }
+  .tipper .av2.char { background-size: 92%; background-position: center bottom; }
+  .tipper h4 { margin: 0; font-size: 19px; } .tipper p { margin: 2px 0 12px; color: var(--muted); font-size: 13.5px; }
+  .amts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; } .amts button { font: inherit; font-weight: 800; padding: 12px 4px; border-radius: 12px; border: 1.5px solid #e3e5e8; background: #fff; cursor: pointer; } .amts button.on { border-color: var(--brand); background: var(--brand-soft); color: #1f7a16; }
+  .tipper input { width: 100%; font: inherit; padding: 11px 12px; border-radius: 12px; border: 1.5px solid #e3e5e8; outline: none; margin-bottom: 10px; }
+  .tipper .back { background: none; border: 0; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; margin-top: 8px; }
+  .quiz .ochips { margin-top: 8px; } .quiz .q2 { margin-top: 12px; }
+  /* ---- character reactions + ready flash ---- */
+  .charpop { position: fixed; left: 8px; bottom: 76px; z-index: 65; display: flex; align-items: flex-end; gap: 4px; pointer-events: none; transform: translateY(140%); transition: transform .5s cubic-bezier(.34,1.56,.64,1); }
+  .charpop { visibility: hidden; transition: transform .5s cubic-bezier(.34,1.56,.64,1), visibility 0s .5s; } .charpop.show { transform: none; visibility: visible; transition: transform .5s cubic-bezier(.34,1.56,.64,1), visibility 0s; } .charpop img { width: 108px; height: auto; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.12)); }
+  .charpop .bub { order: 2; margin-bottom: 70px; background: var(--ink); color: #fff; font-weight: 800; font-size: 14px; padding: 8px 12px; border-radius: 14px 14px 14px 4px; white-space: nowrap; }
+  .flash { position: fixed; inset: 0; z-index: 64; pointer-events: none; box-shadow: inset 0 0 0 0 rgba(61,174,43,0); }
+  .flash.on { animation: flash 1s ease-in-out 3; }
+  @keyframes flash { 50% { box-shadow: inset 0 0 0 10px rgba(61,174,43,.75); background: rgba(61,174,43,.08); } }
+  /* ---- sheets bounce a little ---- */
+  .sheet { transition: transform .42s cubic-bezier(.34,1.3,.64,1); }
+  /* ---- Koffee Kulture skin: their font, cream, ink outlines, hard shadows ---- */
+  body.kk { --brand: #22A447; --brand-soft: #E2F4E2; --ink: #1B1B1B; --bg: #FFF4E4; --card: #FFF9F0; font-family: "Rubik", system-ui, sans-serif; }
+  body.kk .app { background: var(--bg); }
+  body.kk header { background: var(--brand); border-bottom: 2px solid var(--ink); }
+  body.kk header .name, body.kk .card h4, body.kk .sheet h3, body.kk .ihead h4, body.kk .tipper h4 { font-family: "Bagel Fat One", "Rubik", sans-serif; font-weight: 400; letter-spacing: .01em; }
+  body.kk #log { background: var(--bg); }
+  body.kk .ai .msg { background: #fff; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+  body.kk .me .msg { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+  body.kk .card, body.kk .tracker { border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); background: #fff; }
+  body.kk .chip, body.kk .quick button { border: 2px solid var(--ink); }
+  body.kk .quick button { background: #fff; } body.kk .chip { background: #fff; color: var(--ink); } body.kk .chip i { color: var(--brand); }
+  body.kk .mi, body.kk .cl, body.kk .pair, body.kk .staff button { border: 2px solid var(--ink); }
+  body.kk .add, body.kk .iadd, body.kk .cacts .go, body.kk .tacts .go, body.kk .again { border: 2px solid var(--ink) !important; box-shadow: 2px 2px 0 var(--ink); }
+  body.kk .cartbar { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--brand); }
+  body.kk form input { border: 2px solid var(--ink); background: #fff; } body.kk form .send { border: 2px solid var(--ink); }
+  body.kk .sheet { background: var(--bg); border: 2px solid var(--ink); border-bottom: 0; }
+  body.kk .busy { border: 2px solid var(--ink); }
+  /* ---- dark mode (evenings, or by choice) ---- */
+  body.dark { --bg: #14130f; --card: #1d1c18; --ink: #f3efe6; --muted: #a8a397; --brand-soft: rgba(61,174,43,.18); color-scheme: dark; color: var(--ink); }
+  body.dark .app, body.dark #log { background: var(--bg); }
+  body.dark .ai .msg, body.dark .card, body.dark .tracker, body.dark .sheet, body.dark .mi, body.dark .cl, body.dark .pair, body.dark .staff button, body.dark .oc, body.dark .moods button,
+  body.dark .mtabs button, body.dark .mfilters button, body.dark .avoid button, body.dark .quick button, body.dark .chip, body.dark .thumbs button, body.dark .amts button, body.dark .tacts button, body.dark .cacts .more { background: #22211c; color: var(--ink); border-color: #3a3830; }
+  body.dark input, body.dark textarea, body.dark form input { background: #22211c !important; color: var(--ink); border-color: #3a3830 !important; }
+  body.dark .ai .msg, body.dark .card, body.dark .tracker { box-shadow: none; } body.dark.kk .ai .msg, body.dark.kk .card, body.dark.kk .tracker { box-shadow: 3px 3px 0 #000; }
+  body.dark .mtabs button.on { background: var(--brand); color: #fff; } body.dark .tsum { background: #22211c; } body.dark .avoid { background: #221d12; }
+  body.dark .busy { background: #1f2a1c; color: #9fe08f; } body.dark .busy.steady { background: #2b2414; color: #f2c46b; } body.dark .busy.busy { background: #2d1a15; color: #ff9b80; }
+  body.dark header { border-bottom-color: #000; }
+  body.dark .cartbar { background: #2c2a23; color: #f3efe6; } body.dark .cartbar .view { background: rgba(255,255,255,.1); }
+  body.dark .banner { background: #1f2a1c; color: #cfe9c8; } body.dark .banner b { color: #fff; }
+  body.dark form { background: var(--bg); border-top-color: #2a2923; }
+  body.dark .msg .doc { background: #24361f; color: #b6ef9f; }
+  body.dark .sys { color: #a8a397; } body.dark .cl small.lp { color: var(--ink); }
+  body.dark .sheet-bg.open { background: rgba(0,0,0,.6); }
+  .charpop .bub { background: #1B1B1B !important; color: #fff !important; }
+  /* ---- Arabic ---- */
+  .app[dir="rtl"] .charpop { left: auto; right: 8px; } .app[dir="rtl"] .pair { text-align: right; }
+  @media (max-width: 400px) { #geo { font-size: 0; padding: 7px; gap: 0; } #geo i { font-size: 13px; } }
   [dir="rtl"] { text-align: right; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
@@ -171,13 +273,18 @@
     <img id="logo" alt="" hidden>
     <div class="t"><div class="name" id="rname">Connecting</div><div class="sub" id="rsub"><i class="fa-solid fa-circle-notch fa-spin"></i> Finding your table</div></div>
     <span class="pill" id="geo"><i class="fa-solid fa-location-crosshairs"></i></span>
+    <button class="hbtn sm" id="langBtn" aria-label="Language" title="Language">EN</button>
+    <button class="hbtn sm" id="themeBtn" aria-label="Dark mode" title="Dark mode"><i class="fa-solid fa-moon"></i></button>
     <button class="hbtn" id="callBtn" aria-label="Call staff" title="Call staff" hidden><i class="fa-solid fa-bell-concierge"></i></button>
   </header>
+  <div id="busy"></div>
   <div id="banner"></div>
   <div id="log"></div>
   <div class="chips" id="chips"></div>
   <div class="quick" id="quick" hidden>
-    <button data-menu><i class="fa-solid fa-book-open"></i>Menu</button>
+    <button data-menu><i class="fa-solid fa-book-open"></i><span data-t="menu">Menu</span></button>
+    <button data-tab><i class="fa-solid fa-file-invoice"></i><span data-t="tab">My tab</span></button>
+    <button data-tip><i class="fa-solid fa-hand-holding-heart"></i><span data-t="tip">Tip the team</span></button>
     <button data-q="What do you recommend?"><i class="fa-solid fa-star"></i>Recommend</button>
     <button data-q="Something with matcha"><i class="fa-solid fa-leaf"></i>Matcha</button>
     <button data-q="What pastries do you have?"><i class="fa-solid fa-bread-slice"></i>Pastries</button>
@@ -187,7 +294,7 @@
   <div class="sheet" id="callSheet"><div class="grab"></div><h3><i class="fa-solid fa-bell-concierge"></i>Call staff to your table<button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
     <div class="calls"><button data-call="help"><i class="fa-solid fa-hand"></i>Need help</button><button data-call="bill"><i class="fa-solid fa-receipt"></i>The bill</button><button data-call="water"><i class="fa-solid fa-glass-water"></i>Water</button></div></div>
   <div class="sheet" id="menuSheet"><div class="grab"></div><h3><i class="fa-solid fa-book-open"></i>Menu<button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
-    <div class="mtabs" id="mtabs"></div><div class="msearch"><i class="fa-solid fa-magnifying-glass"></i><input id="mq" placeholder="Search — matcha, pistachio…" autocomplete="off"></div><div class="mlist" id="mlist"></div><div id="mcart"></div></div>
+    <div class="mtabs" id="mtabs"></div><div class="mfilters" id="mfilters"></div><div class="avoid" id="avoid" hidden></div><div class="msearch"><i class="fa-solid fa-magnifying-glass"></i><input id="mq" placeholder="Search — matcha, pistachio…" autocomplete="off"></div><div class="mlist" id="mlist"></div><div id="mcart"></div></div>
   <div id="cartHost"></div>
   <div class="sheet" id="cartSheet"><div class="grab"></div><h3><i class="fa-solid fa-basket-shopping"></i>Your cart<button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
     <div class="clist" id="clist"></div><div class="ctot"><span>Total</span><span id="ctot"></span></div>
@@ -197,7 +304,12 @@
     <div class="ibody" id="ibody"></div>
     <div class="ifoot"><span class="qty big"><button id="iminus" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span id="iqty">1</span><button id="iplus" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span><button class="iadd" id="iadd">Add</button></div></div>
   <div class="sheet" id="docSheet"><div class="grab"></div><h3><i class="fa-solid fa-receipt"></i><span id="doct">Receipt</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3><iframe class="docframe" id="docf" title="Document"></iframe></div>
-  <form id="f"><input id="in" placeholder="Type your order…" autocomplete="off" disabled><button class="send" id="send" disabled aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
+  <div class="sheet" id="tabSheet"><div class="grab"></div><h3><i class="fa-solid fa-file-invoice"></i><span data-t="tabTitle">Your table's tab</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3><div class="tbody" id="tbody"></div></div>
+  <div class="sheet" id="tipSheet"><div class="grab"></div><h3><i class="fa-solid fa-hand-holding-heart"></i><span data-t="tipTitle">Tip the team</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3><div class="tbody" id="tipbody"></div></div>
+  <div class="zoom" id="zoom" hidden><img id="zoomimg" alt=""><button class="x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="charpop" id="charpop" aria-hidden="true"><div class="bub" id="charbub"></div><img id="charimg" alt=""></div>
+  <div class="flash" id="flash"></div>
+  <form id="f"><button type="button" class="mic" id="mic" aria-label="Speak your order" disabled><i class="fa-solid fa-microphone"></i></button><input id="in" placeholder="Type your order…" autocomplete="off" disabled><button class="send" id="send" disabled aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>
 </div>
 <script>
 (() => {
@@ -249,7 +361,7 @@
   function chipsFrom(text) {
     chips.innerHTML = "";
     const line = (text || "").split("\n").find((l) => l.trim().startsWith("▸"));
-    if (!line) return;
+    if (!line) return codeChips(text);
     line.split("▸").map((x) => x.replace(EMOJI, "").trim()).filter(Boolean).slice(0, 4).forEach((label, i) => {
       const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.style.animationDelay = `${i * 60}ms`;
       b.innerHTML = `<i class="fa-solid ${CHIP_ICON(label)}"></i>${esc(label)}`;
@@ -316,7 +428,7 @@
     setGeoPill(j.showroom ? "ok" : (j.geofence?.status || "unknown"), j.geofence?.distance_m);
     setBanner(j.join_code, 1);
     log.innerHTML = ""; seen.clear(); lastAt = null;
-    const greet = (R.greeting || "Welcome!").replace(EMOJI, "").replace(/ {2,}/g, " ").trim();
+    const greet = `${dayHello()} ${T("welcomeTo")} ${R.name || ""}.${cairoHour() < 12 ? " " + T("coffeeFirst") : ""}`.trim();
     const name = j.guest?.name ? j.guest.name.split(" ")[0] : null;
     if (j.disputed) sys("fa-flag", "Table reclaimed — the counter has been told someone else was ordering here.");
     if (j.status === "member") add("ai", `You've joined *table ${j.table}*. Order anything — it all goes on the same table.`);
@@ -332,6 +444,7 @@
     input.disabled = false; send.disabled = false; quick.hidden = false; $("callBtn").hidden = false;
     clearInterval(polling); poll(); polling = setInterval(poll, 2000);
     loadCart().then(() => toParent({ type: "kk:ready" }));
+    afterSession(j);
   }
 
   function claimedGate(table, err = "") {
@@ -382,6 +495,7 @@
     const j = await r.json();
     setTimeout(() => { booted = true; }, 0);
     setBanner(j.join_code, j.members);
+    onPoll(j);
     for (const o of j.orders || []) drawTracker(o);
     for (const m of j.messages || []) {
       const key = `${m.at}|${m.sender}|${(m.message || "").slice(0, 40)}`;
@@ -402,10 +516,13 @@
     let el = trackers[o.code];
     if (!el) { el = document.createElement("div"); el.className = "tracker"; trackers[o.code] = el; log.appendChild(el); log.scrollTop = log.scrollHeight; }
     if (el.dataset.stage === String(stage)) return;
+    const prevStage = el.dataset.stage == null ? null : Number(el.dataset.stage);
     el.dataset.stage = String(stage);
     const labels = [["fa-receipt", "Received"], ["fa-mug-hot", "Making"], ["fa-bell", "Ready"], ["fa-circle-check", "Served"]];
     el.innerHTML = stage < 0 ? `<div class="top"><span><i class="fa-solid fa-ban"></i> Order <b>${esc(o.code)}</b> was cancelled</span></div>`
-      : `<div class="top"><span>Order <b>${esc(o.code)}</b></span><span>${esc((o.items || []).join(" · ")).slice(0, 60)}</span></div><div class="steps">${labels.map(([ic, l], i) => `<div class="${i < stage ? "done" : i === stage ? "now" : ""}"><i class="fa-solid ${ic}"></i>${l}</div>`).join("")}</div>`;
+      : `<div class="top"><span>Order <b>${esc(o.code)}</b></span><span>${esc((o.items || []).join(" · ")).slice(0, 60)}</span></div><div class="steps">${labels.map(([ic, l], i) => `<div class="${i < stage ? "done" : i === stage ? "now" : ""}"><i class="fa-solid ${ic}"></i>${T(["received", "making", "ready", "served"][i])}</div>`).join("")}</div><div class="bar"><i style="width:${[8, 40, 72, 100][stage]}%"></i></div>${stage === 3 ? `<button class="again" data-again><i class="fa-solid fa-rotate-right"></i>${T("again")}</button>` : ""}`;
+    const ag = el.querySelector("[data-again]"); if (ag) ag.onclick = () => anotherRound(o);
+    onStage(o, stage, prevStage);
     if (stage === 3 && !rated) setTimeout(rateCard, 1500);
     else if (stage >= 0 && !rated && Date.now() - new Date(o.at).getTime() > 25 * 60_000) setTimeout(rateCard, 1500);
   }
@@ -462,7 +579,7 @@
   async function openMenu() {
     openSheet($("menuSheet"));
     if (!MENU) await ensureMenu();
-    if (MENU) drawMenu();
+    if (MENU) { buildTabs(); drawMenu(); }
   }
   async function ensureMenu() {
     if (!MENU) {
@@ -472,19 +589,29 @@
       if (!MENU?.categories) { MENU = null; $("mlist").innerHTML = '<div class="sys">Menu unavailable — ask in the chat.</div>'; return; }
       $("mtabs").innerHTML = MENU.categories.map((c, i) => `<button data-c="${esc(c.name)}" class="${i ? "" : "on"}">${esc(c.name)}</button>`).join("");
       $("mtabs").querySelectorAll("button").forEach((b) => b.onclick = () => { $("mq").value = ""; mcat = b.dataset.c; $("mtabs").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); drawMenu(); });
-      mcat = MENU.categories[0]?.name;
+      mcat = orderedCats()[0]?.name;
     }
   }
   function drawMenu() {
     const q = $("mq").value.trim().toLowerCase();
-    const list = MENU.categories.filter((c) => q || c.name === mcat).flatMap((c) => c.items).filter((i) => !q || `${i.name} ${i.description}`.toLowerCase().includes(q));
-    $("mlist").innerHTML = list.map((i, k) => `<div class="mi ${i.unavailable ? "off" : ""}" style="animation-delay:${Math.min(k, 10) * 30}ms">
+    const all = MENU.categories.flatMap((c) => c.items);
+    let list;
+    if (q) list = all.filter((i) => `${i.name} ${i.description}`.toLowerCase().includes(q));
+    else if (mfilter) list = all.filter(FILTERS[mfilter].test);
+    else if (mcat === "__fav") list = all.filter((i) => favs.includes(i.name));
+    else if (mcat === "__pop") list = popular.map((p) => all.find((i) => i.name === p.name)).filter(Boolean);
+    else list = (MENU.categories.find((c) => c.name === mcat) || MENU.categories[0]).items;
+    $("mlist").innerHTML = list.map((i, k) => {
+      const w = warnFor(i), pc = popCount(i.name);
+      return `<div class="mi ${i.unavailable ? "off" : ""}" style="animation-delay:${Math.min(k, 10) * 30}ms">
       ${phHTML(i)}
-      <div><b>${esc(i.name)}</b>${i.bestseller ? '<span class="badge best"><i class="fa-solid fa-star"></i>Popular</span>' : ""}${i.unavailable ? `<span class="badge">${i.unavailable === "sold_out" ? "Sold out" : "Not now"}</span>` : ""}<small>${esc(i.description || "")}</small></div>
-      <div class="pr">${i.price}${i.price_l ? ` / ${i.price_l}` : ""}<span>${esc(MENU.currency)}${i.price_l ? " · M / L" : ""}</span></div>${i.options?.length ? `<button class="add" data-pick="${esc(i.name)}" aria-label="Choose ${esc(i.name)}"><i class="fa-solid fa-plus"></i>${cartQty(i.name) ? `<em>${cartQty(i.name)}</em>` : ""}</button>` : cartQty(i.name) ? `<span class="qty"><button data-dec="${esc(i.name)}" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span>${cartQty(i.name)}</span><button data-inc="${esc(i.name)}" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span>` : `<button class="add" data-inc="${esc(i.name)}" aria-label="Add ${esc(i.name)}"><i class="fa-solid fa-plus"></i></button>`}</div>`).join("") || '<div class="sys">Nothing matches.</div>';
+      <div><div class="nm"><b>${esc(i.name)}</b>${heartBtn(i.name)}</div>${i.bestseller ? `<span class="badge best"><i class="fa-solid fa-star"></i>${T("popular")}</span>` : ""}${i.unavailable ? `<span class="badge">${i.unavailable === "sold_out" ? T("soldOut") : T("notNow")}</span>` : ""}<small>${esc(i.description || "")}</small>${pc ? `<span class="hot"><i class="fa-solid fa-fire"></i>${T("nToday").replace("{n}", pc)}</span>` : ""}${w.map((x) => `<span class="warn"><i class="fa-solid fa-triangle-exclamation"></i>${esc(T(x))}</span>`).join("")}</div>
+      <div class="pr">${i.price}${i.price_l ? ` / ${i.price_l}` : ""}<span>${esc(MENU.currency)}${i.price_l ? " · M / L" : ""}</span></div>${i.options?.length ? `<button class="add" data-pick="${esc(i.name)}" aria-label="${esc(i.name)}"><i class="fa-solid fa-plus"></i>${cartQty(i.name) ? `<em>${cartQty(i.name)}</em>` : ""}</button>` : cartQty(i.name) ? `<span class="qty"><button data-dec="${esc(i.name)}" aria-label="-"><i class="fa-solid fa-minus"></i></button><span>${cartQty(i.name)}</span><button data-inc="${esc(i.name)}" aria-label="+"><i class="fa-solid fa-plus"></i></button></span>` : `<button class="add" data-inc="${esc(i.name)}" aria-label="${esc(i.name)}"><i class="fa-solid fa-plus"></i></button>`}</div>`;
+    }).join("") || `<div class="sys">${T("nothing")}</div>`;
     wireQty($("mlist"));
     $("mlist").querySelectorAll("[data-pick]").forEach((b) => b.onclick = () => openItem(b.dataset.pick));
     $("mlist").querySelectorAll(".mi").forEach((row) => { const b = row.querySelector("[data-pick],[data-inc]"); row.querySelector(".ph").onclick = () => b && openItem(b.dataset.pick || b.dataset.inc); });
+    wireHearts($("mlist"));
   }
   $("mq").addEventListener("input", drawMenu);
 
@@ -512,18 +639,21 @@
     if (it.unavailable) return sys("fa-clock", `${it.name} isn't available right now.`);
     picking = { it, picks: {}, qty: 1 };
     for (const g of it.options || []) if (g.required && g.key === "size") picking.picks[g.key] = [g.choices[0].name];
+    const dm = profile?.default_milk; const mg = (it.options || []).find((g) => g.key === "milk");
+    if (dm && mg) { const c = mg.choices.find((c) => c.name.toLowerCase().startsWith(dm.toLowerCase().replace(/ milk$/, ""))); if (c) picking.picks.milk = [c.name]; }
     drawItem(); openSheet($("itemSheet"));
     if (fromSite) toParent({ type: "kk:open" });
   }
   function drawItem() {
     const { it, picks, qty } = picking;
     const missing = (it.options || []).filter((g) => g.required && !(picks[g.key] || []).length);
-    $("ibody").innerHTML = `${phHTML(it, "ihero")}<div class="ihead"><h4>${esc(it.name)}</h4>${it.description ? `<p>${esc(it.description)}</p>` : ""}</div>
+    $("ibody").innerHTML = `${phHTML(it, "ihero")}<div class="ihead"><div><h4>${esc(it.name)}</h4>${it.description ? `<p>${esc(it.description)}</p>` : ""}${popCount(it.name) ? `<p style="color:#a1361c;font-weight:700"><i class="fa-solid fa-fire"></i> ${T("orderedToday").replace("{n}", popCount(it.name))}</p>` : ""}</div>${heartBtn(it.name)}</div>${warnFor(it).map((w) => `<div class="warnline"><i class="fa-solid fa-triangle-exclamation"></i>${esc(T("mentions"))} ${esc(T(w))} — ${esc(T("confirmStaff"))}</div>`).join("")}
       ${(it.options || []).map((g) => `<div class="ogrp"><div class="olab">${esc(g.label)}${g.required ? '<span class="req">Required</span>' : g.multi ? '<span>Pick any</span>' : '<span>Optional</span>'}</div><div class="ochips">${g.choices.map((c) => {
         const on = (picks[g.key] || []).includes(c.name);
         const extra = c.price != null ? `${c.price}` : c.delta ? `+${c.delta}` : "";
         return `<button class="oc ${on ? "on" : ""}" data-g="${esc(g.key)}" data-c="${esc(c.name)}">${on ? '<i class="fa-solid fa-check"></i>' : ""}${esc(c.name)}${extra ? `<small>${extra}</small>` : ""}</button>`; }).join("")}</div></div>`).join("")}
-      <div class="ogrp"><div class="olab">Comments<span>Optional</span></div><textarea id="inote" rows="2" maxlength="120" placeholder="Less ice, extra hot, no sugar…">${esc(picking.note || "")}</textarea></div>`;
+      <div class="ogrp"><div class="olab">${T("comments")}<span>${T("optional")}</span></div><textarea id="inote" rows="2" maxlength="120" placeholder="${esc(T("notePh"))}">${esc(picking.note || "")}</textarea></div>${pairsHTML(it)}`;
+    wireItemExtras(it);
     $("ibody").querySelectorAll(".oc").forEach((b) => b.onclick = () => {
       const g = it.options.find((x) => x.key === b.dataset.g); const cur = picks[g.key] || [];
       picks[g.key] = g.multi ? (cur.includes(b.dataset.c) ? cur.filter((x) => x !== b.dataset.c) : [...cur, b.dataset.c]) : (cur[0] === b.dataset.c && !g.required ? [] : [b.dataset.c]);
@@ -578,14 +708,14 @@
   const cartQty = (n) => cart.filter((l) => l.name === n).reduce((a, l) => a + l.qty, 0);
   const cartCount = () => cart.reduce((a, l) => a + l.qty, 0);
   const cartTotal = () => cart.reduce((a, l) => a + l.qty * (Number(l.price) || 0), 0);
-  function saveCart() { LS.set(cartKey(), cart); }
+  function saveCart() { LS.set(cartKey(), cart); if (!adopting) pushCart(); }
   const lineKey = (name, opts, note) => `${name}|${(opts || []).join(",")}|${note || ""}`;
   function addLine(it, picks, qty, note, from) {
     const opts = (it.options || []).flatMap((g) => (picks[g.key] || []).map((c) => (g.key === "milk" && !/milk/i.test(c) ? `${c} milk` : c)));
     const size = (it.options || []).find((g) => g.key === "size") ? (picks.size || [])[0] || null : null;
     const key = lineKey(it.name, opts, note); let l = cart.find((x) => x.key === key);
-    if (!l) { l = { key, name: it.name, qty: 0, price: linePrice(it, picks), opts, size, note: note || null, photo: it.photo || null }; cart.push(l); }
-    l.qty += qty; saveCart(); drawCart(true);
+    if (!l) { l = { key, name: it.name, qty: 0, price: linePrice(it, picks), opts, size, note: note || null, photo: it.photo || null, by: me }; cart.push(l); }
+    l.qty += qty; saveCart(); drawCart(true); buzz(10);
     if (from) flyFrom(from, it.photo);
     if ($("menuSheet").classList.contains("open")) drawMenu();
     if ($("cartSheet").classList.contains("open")) drawCartSheet();
@@ -631,10 +761,11 @@
   function drawCartSheet() {
     if (!cart.length) { closeSheets(); return; }
     $("clist").innerHTML = cart.map((l) => `<div class="cl">${phHTML(findItem(l.name) || { name: l.name, photo: l.photo })}
-      <div><b>${esc(l.name)}</b><small>${[...(l.opts || []), l.note ? `“${l.note}”` : ""].filter(Boolean).map(esc).join(" · ") || "As it comes"}</small><small class="lp">${l.price} ${esc(MENU?.currency || "EGP")}</small></div>
+      <div><b>${esc(l.name)}</b><small>${[...(l.opts || []), l.note ? `“${l.note}”` : ""].filter(Boolean).map(esc).join(" · ") || "As it comes"}</small><small class="lp">${l.price} ${esc(MENU?.currency || "EGP")}${l.by && l.by !== me ? ` · <span style="color:var(--muted);font-weight:600">${esc(l.by)}</span>` : ""}</small></div>
       <span class="qty"><button data-dec="${esc(l.key || l.name)}" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span>${l.qty}</span><button data-inc="${esc(l.key || l.name)}" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span></div>`).join("");
     $("ctot").textContent = `${cartTotal()} ${MENU?.currency || "EGP"}`;
     wireQty($("clist"));
+    cartPairing();
   }
   // the cart becomes one message — the order agent takes it from there (options, add-ons, confirm)
   function sendCart() {
@@ -662,6 +793,377 @@
     }
     if (e.data?.type === "kk:cart-open" && session && cart.length) { drawCartSheet(); openSheet($("cartSheet")); }
   });
+
+  // =====================================================================================
+  // Table-chat extras: language, theme, time of day, busy level, filters, allergies,
+  // favourites, popular-today, pairings, zoom, quick replies, voice, taste quiz, habits,
+  // ready alert, another round, shared table cart, tab + split, tips, drink thumbs and
+  // the characters reacting. Everything shown is counted from real rows or the menu.
+  // =====================================================================================
+  const KK = slug === "koffee-kulture";
+  if (KK) document.body.classList.add("kk");
+  const CH = (n) => `https://munadim.com/koffee/char-${n}.png`;
+
+  // ---------- language: English · العربية · Franco (Franco = English screens, the AI answers in Franco) ----------
+  const STR = {
+    en: { menu: "Menu", tab: "My tab", tip: "Tip the team", tabTitle: "Your table's tab", tipTitle: "Tip the team", welcomeTo: "Welcome to", received: "Received", making: "Making", ready: "Ready", served: "Served",
+      again: "Another round?", orderedToday: "Ordered {n}× here today", mentions: "Mentions", confirmStaff: "always confirm with staff", comments: "Comments", optional: "Optional", notePh: "Less ice, extra hot, no sugar…",
+      popular: "Popular", soldOut: "Sold out", notNow: "Not now", nToday: "{n} today", nothing: "Nothing matches.", nuts: "nuts", dairy: "dairy", gluten: "gluten", caffeine: "caffeine",
+      fAll: "All", fUnder: "Under 120", fNoCoffee: "No coffee", fCold: "Cold", fSweet: "Sweet", fLight: "Light bite", fAvoid: "I avoid…", avoidLbl: "Warn me about:", favs: "Favourites", popToday: "Popular today",
+      goesWith: "Goes well with", goesOrder: "Goes well with your order", ph: "Type your order…", morning: "Good morning!", afternoon: "Good afternoon!", evening: "Good evening!", coffeeFirst: "Coffee first?",
+      quick: "Kitchen's quick right now", steady: "Steady right now", busyNow: "Busy right now", about: "about {m} min", recording: "Listening… tap again to send", heard: "Didn't catch that — try again or type it.",
+      quizT: "Quick question!", q1: "Coffee or matcha person?", coffee: "Coffee", matcha: "Matcha", both: "Both!", q2: "Pick a vibe", cozy: "Cozy", energetic: "Energetic", treat: "Treat myself", quizDone: "Noted — I'll remember that.",
+      habitT: "You always get {m}", habitP: "{n} of your last {of} drinks. Make it your default?", yesDefault: "Yes, default", noThanks: "No thanks", habitDone: "Done — {m} by default from now on.",
+      tasteBack: "{taste} person, right? Try the {item} — one of our favourites.", rateDrinks: "How's everything?", tabEmpty: "Nothing ordered yet — your orders and tips add up here.",
+      tableTotal: "Table total", yourShare: "Your share", splitEven: "Split evenly ({n} phones)", requestBill: "Request the bill", addTip: "Add a tip", payNote: "Pay at the counter — cash or card.", tipLine: "Tip",
+      tipWho: "Who would you like to thank?", wholeCafe: "The whole café", barTeam: "The bar team", kitchenTeam: "The kitchen team", floorTeam: "The floor team", other: "Other", tipNote: "A note for them (optional)",
+      sendTip: "Add {a} EGP tip", back: "Back", tipThanks: "Thank you! {a} EGP added to your table's bill for {t}.", billCalled: "Staff are bringing your bill.", addedBy: "{who} added {item}", langSet: "Language: English",
+      orderIn: "Order's in!", itsReady: "It's ready!", enjoy: "Enjoy!", loveIt: "You're the best!", addIt: "Add the {item}", somethingElse: "Something else", whatsPopular: "What's popular?", makeLarge: "Make it large",
+      whatPopularMsg: "What's popular today?", elseMsg: "Something else please", largeMsg: "Make it large" },
+    ar: { menu: "المنيو", tab: "حسابي", tip: "بقشيش للفريق", tabTitle: "حساب الترابيزة", tipTitle: "بقشيش للفريق", welcomeTo: "أهلاً بيك في", received: "اتستلم", making: "بيتعمل", ready: "جاهز", served: "اتقدم",
+      again: "جولة كمان؟", orderedToday: "اتطلب {n} مرات هنا النهارده", mentions: "فيه", confirmStaff: "اتأكد دايماً من الفريق", comments: "ملاحظات", optional: "اختياري", notePh: "ثلج أقل، سخن زيادة، من غير سكر…",
+      popular: "الأكثر طلباً", soldOut: "خلص", notNow: "مش دلوقتي", nToday: "{n} النهارده", nothing: "مفيش نتايج.", nuts: "مكسرات", dairy: "ألبان", gluten: "جلوتين", caffeine: "كافيين",
+      fAll: "الكل", fUnder: "أقل من ١٢٠", fNoCoffee: "من غير قهوة", fCold: "ساقع", fSweet: "حلو", fLight: "حاجة خفيفة", fAvoid: "مش باكل…", avoidLbl: "نبهني لو فيه:", favs: "المفضلة", popToday: "الأكثر طلباً النهارده",
+      goesWith: "بيتاكل حلو مع", goesOrder: "يكمّل طلبك", ph: "اكتب طلبك…", morning: "صباح الخير!", afternoon: "مساء الخير!", evening: "مساء النور!", coffeeFirst: "نبدأ بقهوة؟",
+      quick: "المطبخ سريع دلوقتي", steady: "الشغل ماشي", busyNow: "زحمة دلوقتي", about: "حوالي {m} دقيقة", recording: "سامعك… دوس تاني عشان تبعت", heard: "مسمعتش كويس — جرب تاني أو اكتب.",
+      quizT: "سؤال سريع!", q1: "بتحب القهوة ولا الماتشا؟", coffee: "قهوة", matcha: "ماتشا", both: "الاتنين!", q2: "مودك إيه؟", cozy: "رايق", energetic: "نشيط", treat: "عايز أدلع نفسي", quizDone: "تمام — هفتكر ده.",
+      habitT: "انت دايماً بتطلب {m}", habitP: "{n} من آخر {of} مشروبات. نخليه الافتراضي؟", yesDefault: "أيوه", noThanks: "لا شكراً", habitDone: "تمام — {m} افتراضي من دلوقتي.",
+      tasteBack: "انت بتاع {taste}، صح؟ جرب {item} — من أحلى حاجاتنا.", rateDrinks: "إيه رأيك؟", tabEmpty: "لسه مفيش طلبات — طلباتك والبقشيش بيتجمعوا هنا.",
+      tableTotal: "إجمالي الترابيزة", yourShare: "نصيبك", splitEven: "بالتساوي ({n} موبايلات)", requestBill: "اطلب الحساب", addTip: "ضيف بقشيش", payNote: "الدفع عند الكاشير — كاش أو كارت.", tipLine: "بقشيش",
+      tipWho: "تحب تشكر مين؟", wholeCafe: "الكافيه كله", barTeam: "فريق البار", kitchenTeam: "فريق المطبخ", floorTeam: "فريق الصالة", other: "مبلغ تاني", tipNote: "كلمة ليهم (اختياري)",
+      sendTip: "ضيف بقشيش {a} جنيه", back: "رجوع", tipThanks: "شكراً! {a} جنيه اتضافوا على حساب الترابيزة لـ {t}.", billCalled: "الحساب جاي لك.", addedBy: "{who} ضاف {item}", langSet: "اللغة: عربي",
+      orderIn: "الطلب وصل!", itsReady: "جاهز!", enjoy: "بالهنا!", loveIt: "انت جامد!", addIt: "ضيف {item}", somethingElse: "حاجة تانية", whatsPopular: "إيه الأكثر طلباً؟", makeLarge: "خليه لارج",
+      whatPopularMsg: "إيه الأكثر طلباً النهارده؟", elseMsg: "حاجة تانية لو سمحت", largeMsg: "خليه لارج" },
+  };
+  let lang = (LS.get("kk:lang") || "en");
+  const T = (k) => (STR[lang === "ar" ? "ar" : "en"][k] ?? STR.en[k] ?? k);
+  function applyLang() {
+    const app = document.querySelector(".app"); app.dir = lang === "ar" ? "rtl" : "ltr";
+    document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = T(el.dataset.t); });
+    $("langBtn").textContent = lang === "ar" ? "ع" : lang === "franco" ? "Fr" : "EN";
+    input.placeholder = T("ph");
+    if (MENU && $("menuSheet").classList.contains("open")) { buildTabs(); drawMenu(); }
+  }
+  $("langBtn").onclick = async () => {
+    lang = lang === "en" ? "ar" : lang === "ar" ? "franco" : "en"; LS.set("kk:lang", lang); applyLang(); buzz(8);
+    sys("fa-language", lang === "ar" ? STR.ar.langSet : lang === "franco" ? "Language: Franco (3arabizi)" : STR.en.langSet);
+    if (session) fetch(api("/api/widget/profile"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, language: lang }) }).catch(() => {});
+  };
+
+  // ---------- theme: dark in the evening (or by choice) ----------
+  const cairoHour = () => Number(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo", hour: "numeric", hour12: false })) % 24;
+  function applyTheme() {
+    const pref = LS.get("kk:theme");
+    const dark = pref ? pref === "dark" : (matchMedia("(prefers-color-scheme: dark)").matches || cairoHour() >= 19 || cairoHour() < 6);
+    document.body.classList.toggle("dark", dark);
+    $("themeBtn").innerHTML = `<i class="fa-solid ${dark ? "fa-sun" : "fa-moon"}"></i>`;
+  }
+  $("themeBtn").onclick = () => { LS.set("kk:theme", document.body.classList.contains("dark") ? "light" : "dark"); applyTheme(); buzz(8); };
+  applyTheme(); applyLang();
+
+  // ---------- time of day ----------
+  const dayHello = () => { const h = cairoHour(); return h < 12 ? T("morning") : h < 17 ? T("afternoon") : T("evening"); };
+  function orderedCats() {
+    const h = cairoHour();
+    const boost = h < 12 ? /bakery|egg|pancake|hot koffee|sourdough|loaf/i : h >= 17 ? /matcha|refresh|smoothie|sweet|mojito/i : null;
+    const cats = [...(MENU?.categories || [])];
+    return boost ? [...cats.filter((c) => boost.test(c.name)), ...cats.filter((c) => !boost.test(c.name))] : cats;
+  }
+
+  // ---------- menu filters, allergies, favourites, popular ----------
+  let mfilter = null, popular = [], favs = LS.get("kk:favs") || [], avoid = LS.get("kk:avoid") || [], profile = null, me = "You";
+  const txt = (i) => `${i.category || ""} ${i.name} ${i.description || ""}`;
+  const COFFEE = /koffee|espresso|latte|mokka|mocha|frappe|amerikano|kortado|makkhiato|kappuccino|flat white|coffee/i;
+  const FILTERS = {
+    under: { k: "fUnder", test: (i) => i.price <= 120 },
+    nocoffee: { k: "fNoCoffee", test: (i) => !COFFEE.test(txt(i)) || /beans/i.test(i.name) && false },
+    cold: { k: "fCold", test: (i) => /kold|iced|blended|refresh|smoothie|mojito|lemonade|ice tea|frappe|water|red ?bull|matcha.*(iced|blended)/i.test(txt(i)) },
+    sweet: { k: "fSweet", test: (i) => /sweet|pancake|kake|cake|cookie|brownie|brookie|cheesecake|tiramisu|klassic|frappe|millefeuille|tres leches|nutella|biscoff|bueno|choko kroissant|pistachio kroissant|konafa/i.test(txt(i)) },
+    light: { k: "fLight", test: (i) => i.price <= 150 && /bakery|kroissant|cookie|side|fries|hash|mini|pain|brookie/i.test(txt(i)) },
+  };
+  // a warning only when the menu's own words say so — never a claim that something is SAFE
+  const AVOID = {
+    nuts: /pistachio|almond|hazelnut|nut|pecan|nutella|bueno|praline|konafa|walnut|cashew|peanut/i,
+    dairy: /milk|cheese|cream|butter|latte|yogurt|labneh|halloumi|brie|cheesecake|mokka|frappe|klassic|kappuccino|kortado|flat white|condensed|parmesan|cheddar|mozzarella|tres leches/i,
+    gluten: /bread|bagel|kroissant|croissant|toast|cake|kake|cookie|pancake|brownie|brookie|pretzel|sando|tortilla|sourdough|biscoff|pastry|pain|millefeuille|wich|sub out|klub|loaf/i,
+    caffeine: /koffee|espresso|latte|mokka|frappe|amerikano|kortado|makkhiato|kappuccino|flat white|matcha|red ?bull|coffee|tiramisu/i,
+  };
+  const warnFor = (i) => avoid.filter((a) => AVOID[a]?.test(txt(i)) && !(a === "dairy" && /oat|vegan/i.test(i.name)));
+  const popCount = (n) => popular.find((p) => p.name === n)?.count || 0;
+  const heartBtn = (n) => `<button class="heart ${favs.includes(n) ? "on" : ""}" data-heart="${esc(n)}" aria-label="Favourite"><i class="fa-${favs.includes(n) ? "solid" : "regular"} fa-heart"></i></button>`;
+  function wireHearts(root) {
+    root.querySelectorAll("[data-heart]").forEach((b) => b.onclick = (e) => {
+      e.stopPropagation(); const n = b.dataset.heart;
+      favs = favs.includes(n) ? favs.filter((x) => x !== n) : [n, ...favs]; LS.set("kk:favs", favs); buzz(12);
+      b.classList.toggle("on", favs.includes(n)); b.innerHTML = `<i class="fa-${favs.includes(n) ? "solid" : "regular"} fa-heart"></i>`;
+      if (MENU && $("menuSheet").classList.contains("open")) buildTabs();
+    });
+  }
+  function buildTabs() {
+    const cats = orderedCats();
+    const pseudo = [...(favs.length ? [["__fav", `♥ ${T("favs")}`]] : []), ...(popular.length ? [["__pop", `🔥 ${T("popToday")}`]] : [])];
+    if (!mcat || (mcat.startsWith("__") && !pseudo.some(([k]) => k === mcat))) mcat = pseudo[0]?.[0] || cats[0]?.name;
+    $("mtabs").innerHTML = [...pseudo.map(([k, l]) => `<button data-c="${k}">${esc(l)}</button>`), ...cats.map((c) => `<button data-c="${esc(c.name)}">${esc(c.name)}</button>`)].join("");
+    $("mtabs").querySelectorAll("button").forEach((b) => { b.classList.toggle("on", b.dataset.c === mcat && !mfilter); b.onclick = () => { $("mq").value = ""; mfilter = null; mcat = b.dataset.c; buildTabs(); drawMenu(); }; });
+    $("mfilters").innerHTML = Object.entries(FILTERS).map(([k, f]) => `<button data-f="${k}" class="${mfilter === k ? "on" : ""}">${esc(T(f.k))}</button>`).join("") + `<button data-avoid class="${avoid.length ? "on" : ""}"><i class="fa-solid fa-triangle-exclamation"></i>${esc(T("fAvoid"))}${avoid.length ? ` (${avoid.length})` : ""}</button>`;
+    $("mfilters").querySelectorAll("[data-f]").forEach((b) => b.onclick = () => { mfilter = mfilter === b.dataset.f ? null : b.dataset.f; $("mq").value = ""; buildTabs(); drawMenu(); buzz(6); });
+    $("mfilters").querySelector("[data-avoid]").onclick = () => { $("avoid").hidden = !$("avoid").hidden; drawAvoid(); };
+    drawAvoid();
+  }
+  function drawAvoid() {
+    $("avoid").innerHTML = `<span>${esc(T("avoidLbl"))}</span>` + Object.keys(AVOID).map((a) => `<button data-a="${a}" class="${avoid.includes(a) ? "on" : ""}">${esc(T(a))}</button>`).join("");
+    $("avoid").querySelectorAll("[data-a]").forEach((b) => b.onclick = () => { const a = b.dataset.a; avoid = avoid.includes(a) ? avoid.filter((x) => x !== a) : [...avoid, a]; LS.set("kk:avoid", avoid); buildTabs(); $("avoid").hidden = false; drawMenu(); });
+  }
+
+  // ---------- "goes well with": real menu items — bestsellers / today's popular of the other kind ----------
+  const DRINK = /koffee|matcha|refresh|smoothie|klassic|mojito|lemonade|tea|water|red ?bull|non koffee/i;
+  const isDrink = (i) => DRINK.test(i?.category || "");
+  function pairsFor(items, n = 2) {
+    const all = MENU.categories.flatMap((c) => c.items).filter((i) => !i.unavailable);
+    const have = new Set(items.map((i) => i.name));
+    const wantDrink = !items.some(isDrink), wantFood = !items.some((i) => !isDrink(i));
+    const pool = all.filter((i) => !have.has(i.name) && (wantDrink ? isDrink(i) : wantFood ? !isDrink(i) : !isDrink(i)) && !/water|beans/i.test(i.name));
+    const score = (i) => popCount(i.name) * 3 + (i.bestseller ? 2 : 0) + (i.photo ? 1 : 0) + (/sweet|bakery/i.test(i.category) && !wantDrink ? 1 : 0);
+    return pool.filter((i) => score(i) > 0).sort((a, b) => score(b) - score(a)).slice(0, n);
+  }
+  const pairCard = (p) => { const a = artOf(p); return `<button class="pair" data-pair="${esc(p.name)}">${a ? `<span class="ph ${a.photo ? "" : "char"}" style="background-image:url('${esc(a.src)}');--tint:${tintOf(p)}"></span>` : ""}<span><b>${esc(p.name)}</b><small>+${p.price} ${esc(MENU.currency)}</small></span></button>`; };
+  function pairsHTML(it) { const ps = pairsFor([it]); return ps.length ? `<div class="ogrp"><div class="olab">${T("goesWith")}</div><div class="pairs">${ps.map(pairCard).join("")}</div></div>` : ""; }
+  function addPair(name) { const p = findItem(name); if (!p) return; if (p.options?.length) { closeSheets(); setTimeout(() => openItem(name), 250); } else { addLine(p, {}, 1, null); popChar("sip", "+ " + p.name); } }
+  function wireItemExtras(it) {
+    $("ibody").querySelectorAll("[data-pair]").forEach((b) => b.onclick = () => { const cur = picking; addPair(b.dataset.pair); picking = cur; b.style.opacity = .45; b.disabled = true; });
+    wireHearts($("ibody"));
+    const hero = $("ibody").querySelector(".ihero.photo"); if (hero) hero.onclick = () => { $("zoomimg").src = it.photo; $("zoom").hidden = false; };
+  }
+  $("zoom").onclick = () => { $("zoom").hidden = true; };
+  function cartPairing() {
+    $("cartSheet").querySelector(".cartpair")?.remove();
+    const items = cart.map((l) => findItem(l.name)).filter(Boolean); if (!items.length) return;
+    const ps = pairsFor(items, 1); if (!ps.length) return;
+    const d = document.createElement("div"); d.className = "pairs cartpair"; d.innerHTML = `<div class="olab">${T("goesOrder")}</div>${pairCard(ps[0])}`;
+    $("clist").after(d); d.querySelector("[data-pair]").onclick = () => addPair(ps[0].name);
+  }
+
+  // ---------- code-picked quick replies under an AI message that came with none ----------
+  function codeChips(text) {
+    if (!MENU || !text) return;
+    const all = MENU.categories.flatMap((c) => c.items);
+    const low = text.toLowerCase();
+    const hit = all.filter((i) => low.includes(i.name.toLowerCase())).sort((a, b) => b.name.length - a.name.length)[0];
+    if (/O-[A-Z0-9]{4}|YOUR ORDER|pay\?|ادفع/i.test(text)) return;
+    const chipsList = hit ? [[T("addIt").replace("{item}", hit.name), () => { if (hit.options?.length) openItem(hit.name); else addLine(hit, {}, 1, null); }],
+      ...(hit.price_l ? [[T("makeLarge"), () => openItem(hit.name)]] : []), [T("somethingElse"), T("elseMsg")]]
+      : [[T("whatsPopular"), T("whatPopularMsg")], [T("menu"), () => openMenu()]];
+    chips.innerHTML = "";
+    chipsList.slice(0, 3).forEach(([label, act], i) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.style.animationDelay = `${i * 60}ms`;
+      b.innerHTML = `<i class="fa-solid ${typeof act === "function" ? "fa-plus" : "fa-angle-right"}"></i>${esc(label)}`;
+      b.onclick = () => { chips.innerHTML = ""; if (typeof act === "function") act(); else { input.value = act; sendMsg(); } };
+      chips.appendChild(b);
+    });
+  }
+
+  // ---------- feel: haptics, chime, character reactions, ready flash ----------
+  const buzz = (ms) => { try { navigator.vibrate?.(ms); } catch {} };
+  let actx = null;
+  addEventListener("pointerdown", () => { try { actx ||= new (window.AudioContext || window.webkitAudioContext)(); actx.resume?.(); } catch {} }, { once: false, passive: true });
+  function chime() {
+    try { if (!actx) return; const t = actx.currentTime;
+      [[880, 0], [1320, .16], [1760, .32]].forEach(([f, d]) => { const o = actx.createOscillator(), g = actx.createGain(); o.type = "sine"; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.25, t + d + .02); g.gain.exponentialRampToValueAtTime(0.0001, t + d + .5); o.connect(g).connect(actx.destination); o.start(t + d); o.stop(t + d + .55); });
+    } catch {}
+  }
+  let popT;
+  function popChar(n, text) {
+    if (!KK) { if (text) sys("fa-face-smile", text); return; }
+    $("charimg").src = CH(n); $("charbub").textContent = text || ""; $("charbub").hidden = !text;
+    $("charpop").classList.add("show"); clearTimeout(popT); popT = setTimeout(() => $("charpop").classList.remove("show"), 2800);
+  }
+  let titleT;
+  function readyAlert(o) {
+    chime(); buzz([200, 100, 200, 100, 300]);
+    $("flash").classList.remove("on"); void $("flash").offsetWidth; $("flash").classList.add("on");
+    popChar("sip", T("itsReady"));
+    const base = document.title; let k = 0; clearInterval(titleT);
+    titleT = setInterval(() => { document.title = k++ % 2 ? base : `● ${T("ready")}! — ${o.code}`; if (k > 12) { clearInterval(titleT); document.title = base; } }, 900);
+  }
+
+  // ---------- order stages: placed → ready → served ----------
+  const thumbed = new Set();
+  function onStage(o, stage, prev) {
+    if (prev === null) { if (stage === 0 && booted) popChar("dance", T("orderIn")); return; }
+    if (stage === 2 && prev < 2) readyAlert(o);
+    if (stage === 3 && prev < 3) { popChar("walk", T("enjoy")); if (!(prev < 2)) {} drinkThumbs(o); }
+  }
+  function drinkThumbs(o) {
+    if (thumbed.has(o.code)) return; thumbed.add(o.code);
+    const names = (o.items || []).map((s) => s.replace(/^\d+×\s*/, "")).slice(0, 5);
+    if (!names.length) return;
+    const row = document.createElement("div"); row.className = "card";
+    row.innerHTML = `<h4><i class="fa-solid fa-thumbs-up"></i>${T("rateDrinks")}</h4><div class="thumbs">${names.map((n) => `<div><span>${esc(n)}</span><span><button data-up="1" data-n="${esc(n)}">👍</button> <button data-up="0" data-n="${esc(n)}">👎</button></span></div>`).join("")}</div>`;
+    log.appendChild(row); log.scrollTop = log.scrollHeight;
+    row.querySelectorAll("[data-n]").forEach((b) => b.onclick = () => {
+      b.parentElement.querySelectorAll("button").forEach((x) => { x.classList.remove("on"); x.disabled = true; }); b.classList.add("on"); buzz(8);
+      fetch(api("/api/widget/rate-item"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, item: b.dataset.n, up: b.dataset.up === "1", order_code: o.code }) }).catch(() => {});
+    });
+  }
+  async function anotherRound(o) {
+    await ensureMenu();
+    const lines = (o.items || []).map((s) => { const m = /^(\d+)×\s*(.+)$/.exec(s); return m ? { qty: +m[1], name: m[2] } : null; }).filter(Boolean);
+    const drinks = lines.filter((l) => isDrink(findItem(l.name)));
+    for (const l of (drinks.length ? drinks : lines)) { const it = findItem(l.name); if (it && !it.unavailable) addLine(it, {}, l.qty, null); }
+    if (cart.length) { drawCartSheet(); openSheet($("cartSheet")); }
+  }
+
+  // ---------- every poll: busy strip, popular today, the shared cart, the tab ----------
+  let lastTable = null, cartRev = 0, adopting = false, lastLocalEdit = 0, pushT;
+  function onPoll(j) {
+    if (j.busy) {
+      const b = j.busy, lbl = b.level === "quick" ? T("quick") : b.level === "steady" ? T("steady") : T("busyNow");
+      $("busy").innerHTML = `<div class="busy ${b.level === "quick" ? "" : b.level}"><i class="fa-solid ${b.level === "quick" ? "fa-bolt" : b.level === "steady" ? "fa-clock" : "fa-fire"}"></i>${esc(lbl)} · ${esc(T("about").replace("{m}", b.minutes))}</div>`;
+    }
+    popular = j.popular || [];
+    if (j.table) { lastTable = j.table; me = j.table.me || me; adoptCart(j.table.cart); if ($("tabSheet").classList.contains("open")) drawTab(); }
+  }
+  function pushCart() {
+    lastLocalEdit = Date.now(); clearTimeout(pushT);
+    pushT = setTimeout(async () => {
+      if (!session) return;
+      const r = await fetch(api("/api/widget/cart"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, lines: cart }) }).then((x) => x.json()).catch(() => null);
+      if (r?.cart?.rev) cartRev = r.cart.rev;
+    }, 250);
+  }
+  function adoptCart(tc) {
+    if (!tc || !(tc.rev > cartRev) || Date.now() - lastLocalEdit < 1500) return;
+    const mine = new Map(cart.map((l) => [l.key, l.qty]));
+    if (cartRev) for (const l of tc.lines || []) if (l.by && l.by !== me && !(mine.get(l.key) >= l.qty)) sys("fa-user-plus", T("addedBy").replace("{who}", l.by).replace("{item}", l.name));
+    cartRev = tc.rev; adopting = true; cart = (tc.lines || []).map((l) => ({ ...l })); saveCart(); adopting = false; drawCart();
+    if ($("menuSheet").classList.contains("open")) drawMenu();
+    if ($("cartSheet").classList.contains("open")) drawCartSheet();
+  }
+
+  // ---------- the tab: every order at the table, tips, your share, split ----------
+  quick.querySelector("[data-tab]").addEventListener("click", () => { drawTab(); openSheet($("tabSheet")); });
+  function drawTab() {
+    const t = lastTable?.tab; const cur = MENU?.currency || "EGP";
+    if (!t || (!t.orders.length && !t.tips.length)) { $("tbody").innerHTML = `<p class="sys" style="padding:20px 0">${esc(T("tabEmpty"))}</p><div class="tacts"><button data-tipgo><i class="fa-solid fa-hand-holding-heart"></i>${esc(T("addTip"))}</button><button class="go" data-bill><i class="fa-solid fa-receipt"></i>${esc(T("requestBill"))}</button></div>`; wireTab(); return; }
+    $("tbody").innerHTML = t.orders.map((o) => `<div class="trow ${o.mine ? "me" : ""}"><span><b>${esc(o.by)}</b> · ${esc(o.code)}<small>${esc(o.items.join(" · "))}</small></span><b>${o.total} ${esc(cur)}</b></div>`).join("")
+      + t.tips.map((x) => `<div class="trow ${x.mine ? "me" : ""}"><span><b>${esc(x.by)}</b> · ${esc(T("tipLine"))}<small>${esc(x.target)}</small></span><b>${x.amount} ${esc(cur)}</b></div>`).join("")
+      + `<div class="tsum"><div class="big"><span>${esc(T("tableTotal"))}</span><span>${t.total} ${esc(cur)}</span></div><div><span>${esc(T("yourShare"))}</span><span>${t.mine} ${esc(cur)}</span></div>${t.phones > 1 ? `<div><span>${esc(T("splitEven").replace("{n}", t.phones))}</span><span>${Math.ceil(t.total / t.phones)} ${esc(cur)}</span></div>` : ""}</div>`
+      + `<div class="tacts"><button data-tipgo><i class="fa-solid fa-hand-holding-heart"></i>${esc(T("addTip"))}</button><button class="go" data-bill><i class="fa-solid fa-receipt"></i>${esc(T("requestBill"))}</button></div><p class="fine" style="text-align:center"><i class="fa-solid fa-circle-info"></i> ${esc(T("payNote"))}</p>`;
+    wireTab();
+  }
+  function wireTab() {
+    $("tbody").querySelector("[data-tipgo]").onclick = () => { drawTip(); openSheet($("tipSheet")); };
+    $("tbody").querySelector("[data-bill]").onclick = async () => {
+      closeSheets();
+      const r = await fetch(api("/api/widget/call-staff"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, reason: "bill" }) }).then((x) => x.json()).catch(() => null);
+      sys("fa-receipt", r?.ok ? T("billCalled") : "Couldn't reach the counter — try again.");
+    };
+  }
+
+  // ---------- tips: a named person (photo + name), a team, or the whole café ----------
+  quick.querySelector("[data-tip]").addEventListener("click", () => { drawTip(); openSheet($("tipSheet")); });
+  const teams = () => session?.staff?.length ? session.staff.map((s, k) => ({ name: s.name, role: s.role, photo: s.photo, char: null, tint: TINT[k % TINT.length] }))
+    : [{ name: T("barTeam"), char: "sip", tint: "#DDF3D8" }, { name: T("kitchenTeam"), char: "kroissant", tint: "#FFF0C2" }, { name: T("floorTeam"), char: "walk", tint: "#E6EEFF" }];
+  const avStyle = (p) => p.photo ? `background-image:url('${esc(p.photo)}')` : p.char && KK ? `background-image:url('${CH(p.char)}');--tint:${p.tint}` : `--tint:${p.tint}`;
+  function drawTip() {
+    const people = [...teams(), { name: T("wholeCafe"), char: "hug", tint: "#FFE1EF" }];
+    $("tipbody").innerHTML = `<p style="margin:0 0 12px;color:var(--muted);font-weight:600">${esc(T("tipWho"))}</p><div class="staff">${people.map((p, k) => `<button data-p="${k}"><span class="av2 ${p.photo ? "" : "char"}" style="${avStyle(p)}"></span><b>${esc(p.name)}</b>${p.role ? `<small>${esc(p.role)}</small>` : ""}</button>`).join("")}</div>`;
+    $("tipbody").querySelectorAll("[data-p]").forEach((b) => b.onclick = () => tipFor(people[+b.dataset.p]));
+  }
+  function tipFor(p) {
+    let amt = 50;
+    const draw = () => {
+      $("tipbody").innerHTML = `<div class="tipper"><div class="av2 ${p.photo ? "" : "char"}" style="${avStyle(p)}"></div><h4>${esc(p.name)}</h4>${p.role ? `<p>${esc(p.role)}</p>` : "<p></p>"}
+        <div class="amts">${[20, 50, 100].map((a) => `<button data-a="${a}" class="${amt === a ? "on" : ""}">${a}</button>`).join("")}<button data-a="o" class="${[20, 50, 100].includes(amt) ? "" : "on"}">${esc(T("other"))}</button></div>
+        <input id="tipamt" type="number" inputmode="numeric" min="5" max="2000" value="${amt}" ${[20, 50, 100].includes(amt) ? "hidden" : ""}>
+        <input id="tipnote" maxlength="140" placeholder="${esc(T("tipNote"))}">
+        <button class="iadd" id="tipgo"><i class="fa-solid fa-heart"></i>${esc(T("sendTip").replace("{a}", amt))}</button><br><button class="back" id="tipback">${esc(T("back"))}</button></div>`;
+      $("tipbody").querySelectorAll("[data-a]").forEach((b) => b.onclick = () => { amt = b.dataset.a === "o" ? (amt > 100 ? amt : 150) : +b.dataset.a; draw(); if (b.dataset.a === "o") $("tipamt").focus(); });
+      $("tipamt").oninput = () => { amt = Math.max(0, Math.round(+$("tipamt").value || 0)); $("tipgo").innerHTML = `<i class="fa-solid fa-heart"></i>${esc(T("sendTip").replace("{a}", amt))}`; };
+      $("tipback").onclick = drawTip;
+      $("tipgo").onclick = async () => {
+        if (amt < 5) return $("tipamt").focus();
+        $("tipgo").disabled = true;
+        const r = await fetch(api("/api/widget/tip"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, target: p.name, amount: amt, note: $("tipnote").value }) }).then((x) => x.json()).catch(() => null);
+        if (!r?.ok) { $("tipgo").disabled = false; return sys("fa-rotate-right", "Couldn't add the tip — try again."); }
+        closeSheets(); popChar("hug", T("loveIt")); buzz([30, 40, 30]);
+        sys("fa-hand-holding-heart", T("tipThanks").replace("{a}", amt).replace("{t}", p.name));
+      };
+    };
+    draw();
+  }
+
+  // ---------- voice ordering (same transcription as WhatsApp voice notes) ----------
+  let rec = null, chunks = [], recT;
+  $("mic").onclick = async () => {
+    if (rec?.state === "recording") return rec.stop();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported?.("audio/webm") ? "audio/webm" : MediaRecorder.isTypeSupported?.("audio/mp4") ? "audio/mp4" : "";
+      rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined); chunks = [];
+      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      rec.onstop = async () => {
+        clearTimeout(recT); stream.getTracks().forEach((t) => t.stop()); $("mic").classList.remove("rec"); input.placeholder = T("ph");
+        const blob = new Blob(chunks, { type: rec.mimeType || mime || "audio/webm" }); if (blob.size < 1500) return;
+        showTyping(true);
+        const b64 = await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1]); fr.readAsDataURL(blob); });
+        const r = await fetch(api("/api/widget/voice"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, audio: b64, mime: blob.type }) }).then((x) => x.json()).catch(() => null);
+        showTyping(false);
+        if (!r?.text) return sys("fa-microphone-slash", T("heard"));
+        input.value = r.text; sendMsg();
+      };
+      rec.start(); $("mic").classList.add("rec"); input.placeholder = T("recording"); buzz(15);
+      recT = setTimeout(() => rec?.state === "recording" && rec.stop(), 30000);
+    } catch { sys("fa-microphone-slash", "Microphone blocked — allow it in your browser, or type your order."); }
+  };
+
+  // ---------- after the session opens: taste greeting, habit offer, quiz later ----------
+  let quizShown = false;
+  async function afterSession(j) {
+    profile = j.profile || null; me = j.guest?.name ? j.guest.name.split(" ")[0] : me;
+    $("mic").disabled = !navigator.mediaDevices?.getUserMedia;
+    if (profile?.language && profile.language !== lang && !LS.get("kk:lang")) { lang = profile.language; applyLang(); }
+    applyLang();
+    await ensureMenu();
+    // "Matcha person, right?" — a real favourite from that side of the menu
+    if (j.guest?.name && profile?.taste && profile.taste !== "both" && j.status !== "member") {
+      const re = profile.taste === "matcha" ? /matcha/i : /hot koffee|kold koffee|blended koffee/i;
+      const pick = MENU.categories.filter((c) => re.test(c.name)).flatMap((c) => c.items).filter((i) => !i.unavailable).sort((a, b) => (b.bestseller - a.bestseller) || (popCount(b.name) - popCount(a.name)))[0];
+      if (pick) add("ai", T("tasteBack").replace("{taste}", profile.taste === "matcha" ? T("matcha") : T("coffee")).replace("{item}", `*${pick.name}*`));
+    }
+    if (profile?.habit && !profile.default_milk) habitCard(profile.habit);
+  }
+  function habitCard(h) {
+    const row = document.createElement("div"); row.className = "card";
+    row.innerHTML = `<h4><i class="fa-solid fa-wand-magic-sparkles"></i>${esc(T("habitT").replace("{m}", h.milk + (/milk/i.test(h.milk) ? "" : " milk")))}</h4><p>${esc(T("habitP").replace("{n}", h.times).replace("{of}", h.of))}</p><div class="acts"><button class="wa" data-y style="background:var(--brand);border:0;font:inherit;font-weight:700;cursor:pointer">${esc(T("yesDefault"))}</button><button class="skip" data-n>${esc(T("noThanks"))}</button></div>`;
+    log.appendChild(row); log.scrollTop = log.scrollHeight;
+    row.querySelector("[data-n]").onclick = () => row.remove();
+    row.querySelector("[data-y]").onclick = async () => {
+      const r = await fetch(api("/api/widget/profile"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, default_milk: h.milk }) }).then((x) => x.json()).catch(() => null);
+      if (r?.profile) profile = r.profile;
+      row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>${esc(T("habitDone").replace("{m}", h.milk))}</h4>`;
+    };
+  }
+  function quizCard() {
+    if (quizShown || profile?.taste) return; quizShown = true;
+    const row = document.createElement("div"); row.className = "card quiz"; const ans = {};
+    row.innerHTML = `<h4><i class="fa-solid fa-face-grin-stars"></i>${esc(T("quizT"))}</h4><p>${esc(T("q1"))}</p><div class="ochips">${[["coffee", "fa-mug-hot"], ["matcha", "fa-leaf"], ["both", "fa-heart"]].map(([k, ic]) => `<button class="oc" data-t1="${k}"><i class="fa-solid ${ic}"></i>${esc(T(k))}</button>`).join("")}</div>
+      <p class="q2">${esc(T("q2"))}</p><div class="ochips">${[["cozy", "fa-mug-saucer"], ["energetic", "fa-bolt"], ["treat", "fa-cake-candles"]].map(([k, ic]) => `<button class="oc" data-t2="${k}"><i class="fa-solid ${ic}"></i>${esc(T(k))}</button>`).join("")}</div>`;
+    log.appendChild(row); log.scrollTop = log.scrollHeight;
+    const save = async () => {
+      if (!ans.taste || !ans.vibe) return;
+      const r = await fetch(api("/api/widget/profile"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, taste: ans.taste, vibe: ans.vibe }) }).then((x) => x.json()).catch(() => null);
+      if (r?.profile) profile = r.profile;
+      setTimeout(() => { row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>${esc(T("quizDone"))}</h4>`; }, 500);
+    };
+    row.querySelectorAll("[data-t1]").forEach((b) => b.onclick = () => { ans.taste = b.dataset.t1; row.querySelectorAll("[data-t1]").forEach((x) => x.classList.toggle("on", x === b)); buzz(6); save(); });
+    row.querySelectorAll("[data-t2]").forEach((b) => b.onclick = () => { ans.vibe = b.dataset.t2; row.querySelectorAll("[data-t2]").forEach((x) => x.classList.toggle("on", x === b)); buzz(6); save(); });
+  }
+  // the quiz comes after the guest's first real exchange with the AI — never as a wall at the start
+  const _sendMsg = sendMsg;
+  let sentCount = 0;
+  sendMsg = async function () { const r = await _sendMsg(); if (++sentCount === 1) setTimeout(quizCard, 9000); return r; };
+
   setInterval(async () => { const g = await getGeo(); if (g) geo = g; }, 45000);
   start();
 })();

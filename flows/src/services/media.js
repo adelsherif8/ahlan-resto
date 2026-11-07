@@ -5,10 +5,12 @@ import { downloadMedia, WA_TOKEN } from "./whatsapp.js";
 
 const BUCKET = "chat-media";
 
-export async function transcribeAudio(buffer, mime) {
+export async function transcribeAudio(buffer, mime, filename = null) {
   if (!OPENAI_API_KEY) return "[voice note — transcription unavailable]";
   const form = new FormData();
-  form.append("file", new Blob([buffer], { type: mime }), "audio.ogg");
+  // the API reads the container from the file name — a browser's webm/mp4 must not be called .ogg
+  const ext = /webm/.test(mime) ? "webm" : /mp4|m4a|aac/.test(mime) ? "m4a" : /mpeg|mp3/.test(mime) ? "mp3" : /wav/.test(mime) ? "wav" : "ogg";
+  form.append("file", new Blob([buffer], { type: mime }), filename || `audio.${ext}`);
   // gpt-4o-mini-transcribe: better WER than whisper-1 (Arabic included) at half
   // the price ($0.003/min) — founder-approved 2026-08-05
   form.append("model", "gpt-4o-mini-transcribe");

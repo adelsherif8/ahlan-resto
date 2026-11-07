@@ -8,12 +8,13 @@ import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buf
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb, isTestSession } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope, sendText as waSendText } from "./services/whatsapp.js";
 import { ensureAddressFlows, tenantWabaId } from "./services/addressflow.js";
-import { widgetConfig, verifyTableToken, geofenceVerdict, tableSessionOf, sessionMatchesToken, recordGeofence, claimForScan, sessionStillHolds, liveClaim, isShowroom, startVerify, takeVerify, VERIFY_RE, guestToken, verifyGuestToken, linkPhone, effectiveSession, guestProfile, rememberDevice, touchClaim, inServiceWindow } from "./services/tabletoken.js";
+import { widgetConfig, verifyTableToken, geofenceVerdict, tableSessionOf, sessionMatchesToken, recordGeofence, claimForScan, sessionStillHolds, liveClaim, isShowroom, startVerify, takeVerify, VERIFY_RE, guestToken, verifyGuestToken, linkPhone, effectiveSession, guestProfile, rememberDevice, touchClaim, inServiceWindow, reclaimIfFree } from "./services/tabletoken.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { metrics, bump } from "./services/metrics.js";
 import { runRegression, regressionStatus, loadLastRegression } from "./services/regression.js";
 import { handleFlushFailure, deliverStaffReply } from "./flows/buffering.js";
+import { registerWidgetExtras, busyLevel, popularToday, tableState, profileOf } from "./services/widgetextras.js";
 import { TRACE_MAX_AGE_D as TRACE_RETENTION_D, TRACE_ERROR_MAX_AGE_D as TRACE_ERROR_RETENTION_D } from "./flows/janitor.js";
 import { getSession, logMessage, notifyDashboard } from "./services/chatlog.js";
 import { startIgPoster } from "./services/igpost.js";
@@ -239,6 +240,9 @@ async function widgetSessionPayload(tenant, tok, sessionId, extra = {}) {
     restaurant: { name: tenant.record.name, logo: bi.brand?.logo_url || null, primary: bi.brand?.primary || "#222", language: bi.language || "en", greeting: tenant.record.ai?.greeting || `Welcome to ${tenant.record.name}` },
     geofence: { status: ts?.geofence || "unknown", distance_m: ts?.distance_m ?? null },
     guest: guest ? { name: guest.name, has_history: guest.has_history, usual: guest.usual || null, verified: true } : null,
+    profile: await profileOf(tenant.db, phone || sessionId).catch(() => null),
+    // tipping: real staff once the café adds them (name, role, photo); until then, the teams
+    staff: (tenant.record.ai?.dine_in_widget?.staff || []).filter((x) => x?.name).map((x) => ({ name: x.name, role: x.role || null, photo: x.photo || null })),
     ...extra,
   };
 }
@@ -274,6 +278,8 @@ async function widgetGuard(req, res, w) {
   return sessionId;
 }
 
+registerWidgetExtras(app, { widgetTenant, widgetGuard, rateLimit, widgetKey });
+
 app.post("/api/widget/send", rateLimit("widget-send", 30, 60_000, widgetKey), async (req, res) => {
   const w = await widgetTenant(req, res); if (!w) return;
   try {
@@ -287,7 +293,7 @@ app.post("/api/widget/send", rateLimit("widget-send", 30, 60_000, widgetKey), as
     const geo = geofenceVerdict(tenant.record, tok.branch, req.body?.geo || null, tok.table);
     const branchName = (tenant.record.basic_info?.branches || []).find((b) => b?.key === tok.branch)?.name || null;
     await recordGeofence(tenant, runAs, geo, branchName);
-    if (!isShowroom(tenant.record, tok.table)) await touchClaim(tenant.db, tok.table).catch(() => {});
+    if (!isShowroom(tenant.record, tok.table)) { await reclaimIfFree(tenant, tok.table, tok.branch, sessionId).catch(() => {}); await touchClaim(tenant.db, tok.table).catch(() => {}); }
     const ctx = { sessionId: runAs, tenant, channel: "web", trigger: "widget", widget: { table: tok.table, branch: tok.branch, branch_name: branchName, geofence: geo.geofence } };
     const { exec } = await runFlow("ingest", ctx, { message: String(message).slice(0, 2000), messageId: req.body.messageId || null });
     res.json({ accepted: true, executionId: exec.id, geofence: geo.geofence });
@@ -323,6 +329,9 @@ app.get("/api/widget/poll", rateLimit("widget-poll", 240, 60_000, widgetKey), as
       })(),
       join_code: claim && claim.owner_session === sessionId ? claim.join_code : null,
       members: claim ? (claim.members || []).length + 1 : 1,
+      busy: await busyLevel(tenant).catch(() => null),
+      popular: await popularToday(tenant).catch(() => []),
+      table: await tableState(tenant, w.tok, sessionId).catch(() => null),
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

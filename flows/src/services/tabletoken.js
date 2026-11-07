@@ -145,14 +145,15 @@ export const isShowroom = (record, table) => widgetConfig(record).showroomTables
 const code4 = () => String(crypto.randomInt(0, 10000)).padStart(4, "0");
 const minsFromNow = (m) => new Date(Date.now() + m * 60_000).toISOString();
 
-// is the claim still the live visit? (released, idle past expiry, or every order paid/closed → no)
+// is the claim still the live visit? (released, idle past expiry, or every order paid/closed → no).
+// SERVED is not the end of a visit: guests stay for dessert, another round, a tip, the bill.
 async function claimIsLive(db, claim) {
   if (!claim || claim.released_at) return false;
   if (new Date(claim.expires_at).getTime() < Date.now()) return false;
   const { data: orders } = await db.from("orders").select("status,payment_status,created_at")
     .eq("table_number", claim.table_number).gte("created_at", claim.claimed_at).limit(50);
   const mine = orders || [];
-  if (mine.length && mine.every((o) => o.payment_status === "paid" || ["completed", "delivered", "served", "cancelled", "closed"].includes(String(o.status)))) return false;
+  if (mine.length && mine.every((o) => o.payment_status === "paid" || ["completed", "cancelled", "closed"].includes(String(o.status)))) return false;
   return true;
 }
 
@@ -249,7 +250,20 @@ async function allowDispute(db, deviceId) {
 export async function sessionStillHolds(tenant, table, sessionId) {
   if (isShowroom(tenant.record, table)) return true;
   const c = await liveClaim(tenant.db, table);
-  return claimHas(c, sessionId);
+  if (c) return claimHas(c, sessionId);
+  // no live claim: the visit ended on its own (paid / idle) — the people who were in it may keep
+  // chatting; only a DIFFERENT live claim means someone else has the table now
+  const raw = await loadClaim(tenant.db, table);
+  return !raw || claimHas(raw, sessionId);
+}
+
+// a guest from an ended visit orders again → the table is theirs again (same table-mates)
+export async function reclaimIfFree(tenant, table, branch, sessionId) {
+  if (isShowroom(tenant.record, table)) return;
+  if (await liveClaim(tenant.db, table)) return;
+  const raw = await loadClaim(tenant.db, table);
+  const row = await writeClaim(tenant.db, table, branch, raw && claimHas(raw, sessionId) ? raw.owner_session : sessionId);
+  if (raw && claimHas(raw, sessionId) && raw.members?.length) await tenant.db.from("widget_claims").update({ members: raw.members, join_code: raw.join_code }).eq("table_number", row.table_number);
 }
 
 // ======================= guest identity (remember them like WhatsApp does) =======================

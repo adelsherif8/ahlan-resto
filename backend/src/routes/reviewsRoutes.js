@@ -13,8 +13,10 @@ const isTest = (v) => /^web:(regress|convo|test)-/i.test(String(v || ""));
 
 router.get("/", async (req, res, next) => {
   try {
+    // per-item 👍/👎 from the table chat live in the same table but aren't reviews — the Table
+    // ordering report asks for them with ?all=1; the Reviews page never sees them
     const rows = (await req.repo.list("feedback", { order: "created_at", desc: true }))
-      .filter((f) => !isTest(f.phone_number));
+      .filter((f) => !isTest(f.phone_number) && (req.query.all || f.source !== "item_rating"));
     const filter = String(req.query.filter || "all");
     const view = rows.filter((f) => {
       const status = f.status || "new";

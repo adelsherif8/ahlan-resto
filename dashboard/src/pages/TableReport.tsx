@@ -2,7 +2,7 @@
 // orders and revenue from tables, average check, add-on rate, time to ready, peak hours,
 // top items, per-branch split and the table-chat rating. Computed from /api/orders.
 import { useMemo, useState } from "react";
-import { QrCode, Receipt, TrendingUp, Layers, Timer, Star, Clock, Store } from "lucide-react";
+import { QrCode, Receipt, TrendingUp, Layers, Timer, Star, Clock, Store, ThumbsUp } from "lucide-react";
 import { api } from "../config/api";
 import { Card, PageHeader, Empty } from "../components/ui";
 import { usePoll } from "../lib/usePoll";
@@ -18,7 +18,7 @@ export default function TableReport() {
 
   usePoll(() => {
     api.get("/api/orders", { params: { branch: "all", since_days: days } }).then((r) => setOrders(Array.isArray(r.data) ? r.data : r.data?.orders || [])).catch(() => setOrders([]));
-    api.get("/api/reviews").then((r) => setReviews(r.data?.reviews || [])).catch(() => {});
+    api.get("/api/reviews", { params: { all: 1 } }).then((r) => setReviews(r.data?.reviews || [])).catch(() => {});
     api.get("/api/settings").then((r) => {
       const bs = (r.data?.basic_info || r.data?.config?.basic_info || {}).branches || [];
       setBranchNames(Object.fromEntries(bs.filter((b: any) => b?.key).map((b: any) => [b.key, b.name || b.key])));
@@ -40,10 +40,18 @@ export default function TableReport() {
     const byBranch: Record<string, { n: number; rev: number }> = {};
     for (const o of rows) { const b = o.branch || "—"; byBranch[b] ??= { n: 0, rev: 0 }; byBranch[b].n++; byBranch[b].rev += Number(o.total || 0); }
     const tableRatings = reviews.filter((r) => r.source === "table_chat" && r.rating != null);
+    // 👍 / 👎 per item from the table chat ("👍 Iced Spanish Latte · arkan")
+    const thumbs: Record<string, { up: number; down: number }> = {};
+    for (const r of reviews) {
+      const mt = /^(👍|👎)\s+(.+?)(?:\s+·\s+(\S+))?$/u.exec(String(r.comments || ""));
+      if (!mt || (r.source && r.source !== "item_rating")) continue;
+      thumbs[mt[2]] ??= { up: 0, down: 0 }; mt[1] === "👍" ? thumbs[mt[2]].up++ : thumbs[mt[2]].down++;
+    }
+    const drinkVotes = Object.entries(thumbs).sort((a, b) => (b[1].up + b[1].down) - (a[1].up + a[1].down)).slice(0, 10);
     return {
       n, revenue, aov: n ? revenue / n : 0, perOrder: n ? lines.reduce((a, b) => a + b, 0) / n : 0, addOnRate: n ? (addOn / n) * 100 : 0,
       ready: ready.length ? ready.reduce((a, b) => a + b, 0) / ready.length : null, served: rows.filter((o) => DONE.includes(o.status)).length,
-      hours, peak: Math.max(1, ...hours), top, byBranch,
+      hours, peak: Math.max(1, ...hours), top, byBranch, drinkVotes,
       rating: tableRatings.length ? tableRatings.reduce((s, r) => s + r.rating, 0) / tableRatings.length : null, ratingN: tableRatings.length,
     };
   }, [rows, reviews]);
@@ -95,6 +103,20 @@ export default function TableReport() {
                   </div>
                 ))}
               </div>
+            </Card>
+            <Card className="p-5 lg:col-span-2">
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium"><ThumbsUp size={16} className="text-emerald-400" />What guests think of each item</div>
+              {m.drinkVotes.length === 0 ? <div className="text-sm text-zinc-500">Guests rate each item 👍 / 👎 after it's served — the first votes will show here.</div> : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {m.drinkVotes.map(([name, v]) => (
+                    <div key={name} className="flex items-center gap-3 rounded-xl border border-zinc-800 px-3 py-2 text-sm">
+                      <div className="min-w-0 flex-1 truncate">{name}</div>
+                      <div className="flex h-2 w-24 overflow-hidden rounded-full bg-zinc-800"><div className="h-full bg-emerald-500" style={{ width: `${(v.up / (v.up + v.down)) * 100}%` }} /><div className="h-full bg-rose-500" style={{ width: `${(v.down / (v.up + v.down)) * 100}%` }} /></div>
+                      <div className="w-16 text-right text-zinc-400">👍 {v.up} · 👎 {v.down}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
             <Card className="p-5 lg:col-span-2">
               <div className="mb-3 flex items-center gap-2 text-sm font-medium"><Store size={16} className="text-emerald-400" />By branch</div>
