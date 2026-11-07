@@ -279,7 +279,29 @@ export function verifyGuestToken(record, tok) {
   const exp = crypto.createHmac("sha256", tenantSecret(record)).update(`guest|${m[1]}`).digest();
   const got = unb64u(m[2]);
   if (got.length !== exp.length || !crypto.timingSafeEqual(got, exp)) return null;
-  try { const v = JSON.parse(unb64u(m[1]).toString("utf8")); return v.r === record.id && /^\+\d{8,15}$/.test(v.p) ? v.p : null; } catch { return null; }
+  try { const v = JSON.parse(unb64u(m[1]).toString("utf8")); return v.r === record.id && (/^\+\d{8,15}$/.test(v.p) || GUEST_KEY_RE.test(v.p)) ? v.p : null; } catch { return null; }
+}
+
+// "remember me on this phone" — no number, no WhatsApp hop: the guest gives a first name, we mint a
+// device guest key (gst:…) and the signed token in the browser IS the identity. Same diner-row
+// machinery as a verified phone, so name, history and "my usual" all work on the next visit.
+export const GUEST_KEY_RE = /^gst:[a-f0-9]{20}$/;
+export const cleanGuestName = (n) => String(n || "").replace(/[^\p{L}\p{M}' -]/gu, "").replace(/\s+/g, " ").trim().slice(0, 30);
+export async function rememberDevice(tenant, widgetSessionId, rawName) {
+  const name = cleanGuestName(rawName);
+  if (!name) return null;
+  const db = tenant.db;
+  const current = await effectiveSession(db, widgetSessionId);
+  if (current !== widgetSessionId) { // already linked — just keep the name current
+    await db.from("diners").update({ name }).eq("phone_number", current);
+    return current;
+  }
+  const key = `gst:${crypto.randomBytes(10).toString("hex")}`;
+  await linkPhone(tenant, widgetSessionId, key, name);
+  // this visit's orders and rating move with them, so "my usual" works next time
+  await db.from("orders").update({ phone_number: key }).eq("phone_number", widgetSessionId).then(() => {}, () => {});
+  await db.from("feedback").update({ phone_number: key }).eq("phone_number", widgetSessionId).then(() => {}, () => {});
+  return key;
 }
 
 // link a widget session to a verified phone: the phone's diner row gets the table session,

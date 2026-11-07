@@ -7,7 +7,8 @@ router.use(requireAuth, restaurantContext);
 
 // A review is "bad" if it's 1–2 stars OR flagged negative — those are the ones that
 // need a human. Kept in one place so the list, the counts and the KPIs agree.
-const isBad = (f) => (f.rating != null && f.rating <= 2) || f.sentiment === "negative" || f.escalated === true;
+const isBad = (f) => (f.rating != null && f.rating <= (f.source === "table_chat" ? 3 : 2)) || f.sentiment === "negative" || f.escalated === true;
+// the table chat sends 1–3 stars privately to the manager instead of Google, so 3 counts there
 const isTest = (v) => /^web:(regress|convo|test)-/i.test(String(v || ""));
 
 router.get("/", async (req, res, next) => {

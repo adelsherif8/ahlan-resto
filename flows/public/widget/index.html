@@ -108,6 +108,8 @@
   .stars button.on { color: #f5b301; } .stars button:hover { transform: scale(1.15); }
   .card textarea { width: 100%; font: inherit; padding: 10px 12px; border-radius: 12px; border: 1.5px solid #e3e5e8; resize: none; outline: none; margin-bottom: 8px; }
   .card .send2 { font: inherit; font-weight: 700; color: #fff; background: var(--brand); border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
+  .card .code.rem { display: flex; gap: 8px; margin: 10px 0 4px; } .card .code.rem input { flex: 1; min-width: 0; font: inherit; padding: 11px 13px; border-radius: 12px; border: 1.5px solid #e3e5e8; outline: none; } .card .code.rem input:focus { border-color: var(--brand); }
+  .card .code.rem .go { width: 46px; border: 0; border-radius: 12px; background: var(--brand); color: #fff; cursor: pointer; }
   .fine { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
   .msg .doc { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
   /* cart: browse the menu, fill a cart, hand it to the AI — it asks size/milk/extras next */
@@ -321,26 +323,22 @@
     if (askedRemember) return;
     askedRemember = true;
     const row = document.createElement("div"); row.className = "card";
-    row.innerHTML = `<h4><i class="fa-solid fa-heart"></i>Want us to remember you?</h4><p>Verify your number once on WhatsApp — next visit we'll greet you by name and have your usual ready.</p>
-      <div class="acts"><a class="wa" id="wa" href="#" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i>Verify on WhatsApp</a><button class="skip" id="skip">Not now</button></div>
-      <div class="fine"><i class="fa-solid fa-lock"></i> We keep only your number, name and orders here, to remember you at this café. Ask staff any time to delete it.</div>`;
+    row.innerHTML = `<h4><i class="fa-solid fa-heart"></i>Want us to remember you?</h4><p>Next visit we'll greet you by name and have your usual one tap away.</p>
+      <div class="code rem"><input id="rname2" maxlength="30" placeholder="Your first name" autocomplete="given-name"><button class="go" id="rgo" aria-label="Remember me"><i class="fa-solid fa-check"></i></button></div>
+      <div class="acts"><button class="skip" id="skip">Not now</button></div>
+      <div class="fine"><i class="fa-solid fa-lock"></i> Saved on this phone only — no number needed. We keep your name and orders at this café; ask staff any time to delete them.</div>`;
     log.appendChild(row); log.scrollTop = log.scrollHeight;
     $("skip").onclick = () => row.remove();
-    $("wa").onclick = async (e) => {
-      e.preventDefault();
-      const r = await fetch(api("/api/widget/identify"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId }) }).catch(() => null);
+    const save = async () => {
+      const name = $("rname2").value.trim(); if (!name) return $("rname2").focus();
+      $("rgo").disabled = true;
+      const r = await fetch(api("/api/widget/remember"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, name }) }).catch(() => null);
       const j = r && r.ok ? await r.json() : null;
-      if (!j) return sys("fa-rotate-right", "Couldn't start verification — try again.");
-      window.open(j.wa_link, "_blank");
-      row.querySelector("p").innerHTML = `Send the message WhatsApp opened (code <b>${esc(j.code)}</b>), then come back here.`;
-      clearInterval(identifyTimer);
-      identifyTimer = setInterval(async () => {
-        const u = new URL(api("/api/widget/identify")); u.searchParams.set("slug", slug); u.searchParams.set("token", token); u.searchParams.set("sessionId", session.sessionId);
-        const s = await fetch(u).then((x) => x.json()).catch(() => null);
-        if (s?.linked) { clearInterval(identifyTimer); LS.set(guestKey, { token: s.guest_token }); row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>Got it${s.name ? `, ${esc(s.name.split(" ")[0])}` : ""}!</h4><p>We'll remember you next time.</p>`; }
-      }, 2500);
-      setTimeout(() => clearInterval(identifyTimer), 10 * 60_000);
+      if (!j?.guest_token) { $("rgo").disabled = false; return sys("fa-rotate-right", "Couldn't save that — try again."); }
+      LS.set(guestKey, { token: j.guest_token });
+      row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>Nice to meet you, ${esc(j.name.split(" ")[0])}!</h4><p>We'll remember you next time you sit down.</p>`;
     };
+    $("rgo").onclick = save; $("rname2").addEventListener("keydown", (e) => { if (e.key === "Enter") save(); });
   }
 
   async function poll() {

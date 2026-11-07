@@ -8,7 +8,7 @@ import { startFlushWorker, setTyping, bootSweep, drainAll } from "./services/buf
 import { runFlow, listFlows, listExecutions, getExecution, listExecutionsDb, getExecutionDb, isTestSession } from "./engine/flow.js";
 import { verifyHandshake, verifySignature, parseEnvelope, sendText as waSendText } from "./services/whatsapp.js";
 import { ensureAddressFlows, tenantWabaId } from "./services/addressflow.js";
-import { widgetConfig, verifyTableToken, geofenceVerdict, tableSessionOf, sessionMatchesToken, recordGeofence, claimForScan, sessionStillHolds, liveClaim, isShowroom, startVerify, takeVerify, VERIFY_RE, guestToken, verifyGuestToken, linkPhone, effectiveSession, guestProfile, touchClaim, inServiceWindow } from "./services/tabletoken.js";
+import { widgetConfig, verifyTableToken, geofenceVerdict, tableSessionOf, sessionMatchesToken, recordGeofence, claimForScan, sessionStillHolds, liveClaim, isShowroom, startVerify, takeVerify, VERIFY_RE, guestToken, verifyGuestToken, linkPhone, effectiveSession, guestProfile, rememberDevice, touchClaim, inServiceWindow } from "./services/tabletoken.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { metrics, bump } from "./services/metrics.js";
@@ -396,7 +396,21 @@ app.post("/api/widget/feedback", rateLimit("widget-feedback", 6, 60_000, widgetK
   }
 });
 
-// "remember me": the guest sends a one-time code FROM WhatsApp to our number — proves the phone
+// "remember me on this phone": a first name, nothing else — the guest never leaves the page
+app.post("/api/widget/remember", rateLimit("widget-remember", 6, 60_000, widgetKey), async (req, res) => {
+  const w = await widgetTenant(req, res); if (!w) return;
+  try {
+    const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+    const key = await rememberDevice(w.tenant, sessionId, req.body?.name);
+    if (!key) return res.status(400).json({ error: "name needed" });
+    const g = await guestProfile(w.tenant.db, key);
+    res.json({ ok: true, name: g.name, has_history: g.has_history, guest_token: guestToken(w.tenant.record, key) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// (legacy, unused by the widget since 2026-11-07) "remember me": the guest sends a one-time code FROM WhatsApp to our number — proves the phone
 // with no template, and opens the 24h window. The webhook below completes the link.
 app.post("/api/widget/identify", rateLimit("widget-identify", 6, 60_000, widgetKey), async (req, res) => {
   const w = await widgetTenant(req, res); if (!w) return;
