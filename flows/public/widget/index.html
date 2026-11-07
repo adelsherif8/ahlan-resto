@@ -300,7 +300,7 @@
     }
     input.disabled = false; send.disabled = false; quick.hidden = false; $("callBtn").hidden = false;
     clearInterval(polling); poll(); polling = setInterval(poll, 2000);
-    loadCart();
+    loadCart().then(() => toParent({ type: "kk:ready" }));
   }
 
   function claimedGate(table, err = "") {
@@ -488,7 +488,10 @@
   const barHTML = (inSheet) => `<div class="cartbar"><span class="ic"><i class="fa-solid fa-basket-shopping"></i><b>${cartCount()}</b></span>
     <span class="sum">${cartTotal()} ${esc(MENU?.currency || "EGP")}<small>${cartCount()} item${cartCount() > 1 ? "s" : ""} in your cart</small></span>
     <button class="view" data-view><i class="fa-solid fa-list"></i>${inSheet ? "Cart" : "Review"}</button><button class="go" data-go><i class="fa-solid fa-paper-plane"></i>Order</button></div>`;
+  // embedded on the café's own site: the page's "+" buttons fill this cart, and the page shows the count
+  function toParent(msg) { try { if (parent !== window) parent.postMessage(msg, "*"); } catch {} }
   function drawCart(bump) {
+    toParent({ type: "kk:cart", count: cartCount(), total: cartTotal(), currency: MENU?.currency || "EGP" });
     for (const [id, inSheet] of [["cartHost", false], ["mcart", true]]) {
       const host = $(id); host.innerHTML = cart.length ? barHTML(inSheet) : "";
       if (!cart.length) continue;
@@ -518,7 +521,15 @@
     if (cart.length && !MENU) await ensureMenu();
     drawCart();
   }
-  addEventListener("message", (e) => { if (e.data?.type === "kk:prefill" && e.data.text) { input.value = e.data.text; input.focus(); } });
+  addEventListener("message", async (e) => {
+    if (e.data?.type === "kk:prefill" && e.data.text) { input.value = e.data.text; input.focus(); }
+    if (e.data?.type === "kk:add" && e.data.name && session) {
+      await ensureMenu();
+      if (findItem(e.data.name)) changeQty(e.data.name, 1);
+      else { input.value = `I'd like a ${e.data.name}`; input.focus(); }
+    }
+    if (e.data?.type === "kk:cart-open" && session && cart.length) { drawCartSheet(); openSheet($("cartSheet")); }
+  });
   setInterval(async () => { const g = await getGeo(); if (g) geo = g; }, 45000);
   start();
 })();
