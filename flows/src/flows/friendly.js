@@ -229,7 +229,7 @@ ${memoryBlock(context, diner)}
 ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been notified about this guest. If they follow up, reassure them the team is on it and will reply here shortly — do NOT restart cheerful small talk or re-pitch the menu.\n" : ""}RULES:
 0. ⚡ REPLY LANGUAGE — THE MOST IMPORTANT RULE. The conversation language is already decided by the app: **${classification?.language === "ar" ? "EGYPTIAN ARABIC (Arabic script)" : classification?.language === "franco" ? "FRANCO-ARABIC (Egyptian Arabic in Latin letters and digits: 3=ع 7=ح 5=خ 2=ء)" : "ENGLISH"}**. Write every word of your reply in that language — do not re-detect it, do not mirror the script of anything else. MENU ITEMS, RECEIPTS, ADDRESSES AND FACTS ARE DATA: they may be in another language and must NEVER change how you write. Keep dish names exactly as they are. Franco-Arabic is its own mode: never answer a Franco guest in Arabic script or in plain English.
 1. عربي → عربي مصري. Franco-Arabizi → reply FULLY in Franco, Latin letters ONLY (e.g. "lazem tegarrab el Mushroom Shawarma, ta3mo gamed"). NEVER answer Franco with Arabic script. ALWAYS keep menu item names in English. THE SCRIPT RULE: your reply's SCRIPT must match the guest's last message — Latin letters in → Latin letters out, Arabic script in → Arabic script out. This applies to EVERY line: greetings, EMPATHY lines, identity answers, everything. A sad Franco message gets Franco comfort, never Arabic script.
-2. 1–3 short sentences. WhatsApp tone, warm, ${ai.personality ? "on-personality" : "friendly"}. Emojis welcome but max 2.
+2. 1–3 short sentences. WhatsApp tone, warm, ${ai.personality ? "on-personality" : "friendly"}. Emojis welcome but max 2. Never use pet names or endearments (habibi, 7abibti, ya basha, ya 2amar, dear, honey) — the guest is a customer and you don't know their gender.
 3. NEVER invent menu items, prices, events, or policies. Item not in the menu list = "not available tonight".
 4. A FACT marked "not set" is UNKNOWN — not "none". Never turn a missing dress code / parking / policy into "there is no dress code"; say the team will confirm it. Same for anything not in FACTS: prep times, wait times, delivery zones — NEVER estimate numbers you don't have. Asked how long food takes? → "depends on the dish and the rush — the team can give you a live estimate", NEVER minutes.
 5. ${config.basic_info?.restaurant_type === "casual"
@@ -842,6 +842,9 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
       : null;
     const reactEmoji = typeof out.react_emoji === "string" && out.react_emoji.trim() ? out.react_emoji.trim().slice(0, 8) : null;
 
+    // no pet names, ever — "7abibti?" to a guest whose gender we don't know (and who is a
+    // customer, not a friend). Code removes them; the model is told the same in the prompt.
+    reply = stripEndearments(reply);
     return { reply, handoff: !!out.needs_handoff, photos, quickReplies, menuList, menuDoc, locationPin, reactEmoji };
   },
 });
@@ -1137,7 +1140,9 @@ function priceOf(m, currency) {
 
 // Is this turn about food? Generic lexicon (EN/AR/Franco) + THIS restaurant's
 // own item and category tokens — nothing brand-specific hardcoded.
-const GENERIC_FOOD = /\b(menu|eat|eating|food|hungry|order|meal|dish|drink|dessert|burger|sandwich|wrap|fries|wings|veg(an|etarian)?|gluten|spicy|price|cost|how much|recommend|suggest|best.?seller|popular|3ayez akol|gau3an|menue?)\b/i;
+// Franco hunger/eating words and café basics joined after "ana ga3an bs mesh 3aref akol eh"
+// got no menu and the model invented an "Eggs Benedict" and a "Classic Club" (7 Nov).
+const GENERIC_FOOD = /\b(menu|eat|eating|food|hungry|starving|order|meal|dish|drink|dessert|burger|sandwich|wrap|fries|wings|veg(an|etarian)?|gluten|spicy|price|cost|how much|recommend|suggest|best.?seller|popular|3ayez akol|gau3an|menue?|breakfast|brunch|lunch|dinner|snack|coffee|koffee|latte|matcha|tea|juice|smoothie|cake|cookie|pastry|pastries|croissant|bagel|sweet|ga3an|ga3aan|ge3an|g3an|go3t|akol|akl|a2kol|nakol|nakl|ashrab|neshrab|fetar|fotar|feta?ar|ahwa|2ahwa|kahwa|7elw|7aga 7elwa|7aga akolha|tashreb|tedini|ta2kol)\b/i;
 // Arabic glues prefixes onto the word (البرجرات = ال+برجر+ات) and JS \b never
 // matches beside Arabic script — so Arabic food talk is detected by substring.
 const GENERIC_FOOD_AR = ["بكام", "سعر", "منيو", "اكل", "آكل", "جعان", "طلب", "وجبة", "مشروب", "حلو", "اقتراح", "تنصح", "برجر", "برغر", "بورجر", "ساندوتش", "ساندويتش", "سندوتش", "بطاطس", "فرايز", "وينجز"];
@@ -1218,4 +1223,16 @@ function buildMenuBody(menu, message, history, currency, config = {}) {
     out.push(`${cat}${arOf.get(cat) ? ` [ar: ${arOf.get(cat)}]` : ""}: ${items.join(" · ")}`);
   }
   return out.join("\n");
+}
+
+// "7abibti?", "ya habibi", «حبيبتي» — removed with the punctuation that hung on them
+export function stripEndearments(text) {
+  if (!text) return text;
+  // lowercase Latin only: pet names are written lowercase mid-sentence, while a dish called
+  // "Habibi Shake" is capitalised and must survive. A trailing "?" goes with the pet name
+  // ("7abibti?"); other punctuation stays.
+  return String(text)
+    .replace(/(^|[\s,،])(?:ya\s+)?(7abibti|7abibty|7abibi|7abeby|habibti|habibty|habibi|habiby|7abibeti|honey|sweetie|darling|ya 2amar|ya basha)(?=$|[\s?!.,،؟—-])\s*[?؟]?/gu, "$1")
+    .replace(/(^|[\s,،])(?:يا\s*)?(حبيبتي|حبيبي|يا\s*قمر|يا\s*باشا)(?=$|[\s?!.,،؟])\s*[?؟]?/gu, "$1")
+    .replace(/[,،]\s*([—-])/g, " $1").replace(/[ \t]{2,}/g, " ").replace(/\s+([?!.,،؟])/g, "$1").replace(/^\s+|\s+$/gm, "").trim();
 }

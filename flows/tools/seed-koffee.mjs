@@ -326,7 +326,7 @@ async function stageRow() {
       suggest_enabled: true, suggest_dishes: ["Pistachio Konafa Kroissant", "Hot Salted Karamel Matcha"],
       closed_orders: "accept", // testing mode (founder, 6 Nov): orders at any hour — set "refuse" before go-live
       // table-identity rules for the widget (docs/KOFFEE-KULTURE-DINE-IN.md)
-      dine_in_widget: { enabled: true, table_token_ttl_min: 180, geofence_m: 120, geofence_required: true, showroom_tables: ["DEMO"], test_tables: ["T1", "T2", "T3", "T4", "T5"] },
+      dine_in_widget: { enabled: true, table_token_ttl_min: 180, geofence_m: 120, geofence_required: true, showroom_tables: ["DEMO"], test_tables: ["T1", "T2", "T3", "T4", "T5", "Z1", "Z2", "Z3", "Z4", "Z5"] },
       demo_mode: false,
     },
     faqs: [

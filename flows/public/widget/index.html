@@ -216,7 +216,14 @@
   .amts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; } .amts button { font: inherit; font-weight: 800; padding: 12px 4px; border-radius: 12px; border: 1.5px solid #e3e5e8; background: #fff; cursor: pointer; } .amts button.on { border-color: var(--brand); background: var(--brand-soft); color: #1f7a16; }
   .tipper input { width: 100%; font: inherit; padding: 11px 12px; border-radius: 12px; border: 1.5px solid #e3e5e8; outline: none; margin-bottom: 10px; }
   .tipper .back { background: none; border: 0; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; margin-top: 8px; }
-  .quiz .ochips { margin-top: 8px; } .quiz .q2 { margin-top: 12px; }
+  .me-sec { padding: 12px 0; border-bottom: 1px dashed #e6e8eb; } .me-sec:last-child { border: 0; }
+  .me-sec label { display: block; font-weight: 800; font-size: 14px; margin-bottom: 6px; } .me-sec .hint { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
+  .me-row { display: flex; gap: 8px; } .me-row input { flex: 1; min-width: 0; font: inherit; padding: 11px 12px; border-radius: 12px; border: 1.5px solid #e3e5e8; outline: none; } .me-row input:focus { border-color: var(--brand); }
+  .me-row button { font: inherit; font-weight: 800; border: 0; border-radius: 12px; padding: 0 14px; background: var(--brand); color: #fff; cursor: pointer; white-space: nowrap; } .me-row button:disabled { opacity: .5; }
+  .badge2 { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; font-weight: 800; border-radius: 999px; padding: 3px 9px; margin-left: 6px; } .badge2.ok { background: var(--brand-soft); color: #1f7a16; } .badge2.wait { background: #fff3e0; color: #8a4f00; }
+  .me-av { width: 64px; height: 64px; border-radius: 50%; background: var(--brand); color: #fff; display: grid; place-items: center; font: 400 28px "Bagel Fat One", "Rubik", sans-serif; margin: 4px auto 6px; }
+  .me-know { display: grid; gap: 6px; font-size: 13.5px; } .me-know div { display: flex; gap: 8px; align-items: center; } .me-know i { color: var(--brand); width: 16px; }
+  .forget { width: 100%; font: inherit; font-weight: 700; color: #b3261e; background: none; border: 1.5px solid #f1c7c4; border-radius: 12px; padding: 11px; cursor: pointer; }
   /* ---- character reactions + ready flash ---- */
   .charpop { position: fixed; left: 8px; bottom: 76px; z-index: 65; display: flex; align-items: flex-end; gap: 4px; pointer-events: none; transform: translateY(140%); transition: transform .5s cubic-bezier(.34,1.56,.64,1); }
   .charpop { visibility: hidden; transition: transform .5s cubic-bezier(.34,1.56,.64,1), visibility 0s .5s; } .charpop.show { transform: none; visibility: visible; transition: transform .5s cubic-bezier(.34,1.56,.64,1), visibility 0s; } .charpop img { width: 108px; height: auto; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.12)); }
@@ -274,7 +281,7 @@
     <div class="t"><div class="name" id="rname">Connecting</div><div class="sub" id="rsub"><i class="fa-solid fa-circle-notch fa-spin"></i> Finding your table</div></div>
     <span class="pill" id="geo"><i class="fa-solid fa-location-crosshairs"></i></span>
     <button class="hbtn sm" id="langBtn" aria-label="Language" title="Language">EN</button>
-    <button class="hbtn sm" id="themeBtn" aria-label="Dark mode" title="Dark mode"><i class="fa-solid fa-moon"></i></button>
+    <button class="hbtn sm" id="meBtn" aria-label="Me" title="Me"><i class="fa-solid fa-user"></i></button>
     <button class="hbtn" id="callBtn" aria-label="Call staff" title="Call staff" hidden><i class="fa-solid fa-bell-concierge"></i></button>
   </header>
   <div id="busy"></div>
@@ -291,20 +298,21 @@
     <button data-q="Where is my order?"><i class="fa-solid fa-receipt"></i>My order</button>
   </div>
   <div class="sheet-bg" id="sbg"></div>
-  <div class="sheet" id="callSheet"><div class="grab"></div><h3><i class="fa-solid fa-bell-concierge"></i>Call staff to your table<button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
-    <div class="calls"><button data-call="help"><i class="fa-solid fa-hand"></i>Need help</button><button data-call="bill"><i class="fa-solid fa-receipt"></i>The bill</button><button data-call="water"><i class="fa-solid fa-glass-water"></i>Water</button></div></div>
-  <div class="sheet" id="menuSheet"><div class="grab"></div><h3><i class="fa-solid fa-book-open"></i>Menu<button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
+  <div class="sheet" id="callSheet"><div class="grab"></div><h3><i class="fa-solid fa-bell-concierge"></i><span data-t="callT">Call staff to your table</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
+    <div class="calls"><button data-call="help"><i class="fa-solid fa-hand"></i><span data-t="needHelp">Need help</span></button><button data-call="bill"><i class="fa-solid fa-receipt"></i><span data-t="theBill">The bill</span></button><button data-call="water"><i class="fa-solid fa-glass-water"></i><span data-t="water">Water</span></button></div></div>
+  <div class="sheet" id="menuSheet"><div class="grab"></div><h3><i class="fa-solid fa-book-open"></i><span data-t="menu">Menu</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
     <div class="mtabs" id="mtabs"></div><div class="mfilters" id="mfilters"></div><div class="avoid" id="avoid" hidden></div><div class="msearch"><i class="fa-solid fa-magnifying-glass"></i><input id="mq" placeholder="Search — matcha, pistachio…" autocomplete="off"></div><div class="mlist" id="mlist"></div><div id="mcart"></div></div>
   <div id="cartHost"></div>
-  <div class="sheet" id="cartSheet"><div class="grab"></div><h3><i class="fa-solid fa-basket-shopping"></i>Your cart<button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
-    <div class="clist" id="clist"></div><div class="ctot"><span>Total</span><span id="ctot"></span></div>
-    <div class="cnote"><i class="fa-solid fa-wand-magic-sparkles"></i>The AI checks any choices with you (size, milk), then confirms.</div>
-    <div class="cacts"><button class="more" id="cmore"><i class="fa-solid fa-plus"></i>Add more</button><button class="go" id="cgo"><i class="fa-solid fa-paper-plane"></i>Send to order</button></div></div>
+  <div class="sheet" id="cartSheet"><div class="grab"></div><h3><i class="fa-solid fa-basket-shopping"></i><span data-t="yourCart">Your cart</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
+    <div class="clist" id="clist"></div><div class="ctot"><span data-t="total">Total</span><span id="ctot"></span></div>
+    <div class="cnote"><i class="fa-solid fa-wand-magic-sparkles"></i><span data-t="cartNote">The AI checks any choices with you (size, milk), then confirms.</span></div>
+    <div class="cacts"><button class="more" id="cmore"><i class="fa-solid fa-plus"></i><span data-t="addMore">Add more</span></button><button class="go" id="cgo"><i class="fa-solid fa-paper-plane"></i><span data-t="sendOrder">Send to order</span></button></div></div>
   <div class="sheet" id="itemSheet"><div class="grab"></div><button class="x ix" data-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
     <div class="ibody" id="ibody"></div>
     <div class="ifoot"><span class="qty big"><button id="iminus" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span id="iqty">1</span><button id="iplus" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span><button class="iadd" id="iadd">Add</button></div></div>
   <div class="sheet" id="docSheet"><div class="grab"></div><h3><i class="fa-solid fa-receipt"></i><span id="doct">Receipt</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3><iframe class="docframe" id="docf" title="Document"></iframe></div>
   <div class="sheet" id="tabSheet"><div class="grab"></div><h3><i class="fa-solid fa-file-invoice"></i><span data-t="tabTitle">Your table's tab</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3><div class="tbody" id="tbody"></div></div>
+  <div class="sheet" id="meSheet"><div class="grab"></div><h3><i class="fa-solid fa-user"></i><span data-t="meTitle">You</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3><div class="tbody" id="mebody"></div></div>
   <div class="sheet" id="tipSheet"><div class="grab"></div><h3><i class="fa-solid fa-hand-holding-heart"></i><span data-t="tipTitle">Tip the team</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3><div class="tbody" id="tipbody"></div></div>
   <div class="zoom" id="zoom" hidden><img id="zoomimg" alt=""><button class="x" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
   <div class="charpop" id="charpop" aria-hidden="true"><div class="bub" id="charbub"></div><img id="charimg" alt=""></div>
@@ -318,6 +326,7 @@
   const api = (p) => `${location.origin}${p}`;
   const $ = (id) => document.getElementById(id);
   const log = $("log"), input = $("in"), send = $("send"), chips = $("chips"), geoPill = $("geo"), quick = $("quick"), banner = $("banner");
+  const sentHere = [];
   let booted = false, session = null, lastAt = null, geo = null, polling = null, typingRow = null, askedRemember = false, identifyTimer = null;
   const seen = new Set();
   const LS = { get: (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
@@ -364,11 +373,15 @@
     if (!line) return codeChips(text);
     line.split("▸").map((x) => x.replace(EMOJI, "").trim()).filter(Boolean).slice(0, 4).forEach((label, i) => {
       const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.style.animationDelay = `${i * 60}ms`;
-      b.innerHTML = `<i class="fa-solid ${CHIP_ICON(label)}"></i>${esc(label)}`;
-      b.onclick = /^(browse |see |show |the |full )*(menu|المنيو|منيو|el menu)$/i.test(label) ? () => { chips.innerHTML = ""; openMenu(); } : () => { input.value = label; sendMsg(); };
+      b.innerHTML = `<i class="fa-solid ${CHIP_ICON(label)}"></i>${esc(chipLabel(label))}`;
+      b.onclick = /^(browse |see |show |the |full )*(menu|المنيو|منيو|el menu)$/i.test(label) ? () => { chips.innerHTML = ""; openMenu(); }
+        : /^(change something|edit|change|عدّل|غيّر حاجة|ghayar|3adel)/i.test(label) ? () => { chips.innerHTML = ""; add("ai", T("whatChange")); input.focus(); }
+        : () => { input.value = label; sendMsg(); };
       chips.appendChild(b);
     });
   }
+  const CHIP_T = { "confirm": "cConfirm", "change something": "cChange", "cash": "cCash", "card": "cCard", "online": "cOnline", "browse menu": "cMenu", "order now": "cOrderNow", "yes": "cYes", "no": "cNo" };
+  const chipLabel = (l) => (lang === "ar" && CHIP_T[String(l).toLowerCase().trim()]) ? T(CHIP_T[String(l).toLowerCase().trim()]) : l;
   const stripChipLine = (t) => (t || "").split("\n").filter((l) => !l.trim().startsWith("▸")).join("\n").trim();
   function setGeoPill(status, dist) {
     const map = { ok: ["ok", "fa-location-dot", "At the café"], outside: ["warn", "fa-location-arrow", dist ? `${dist > 999 ? (dist / 1000).toFixed(1) + " km" : dist + " m"} away` : "Not here"], missing: ["warn", "fa-location-crosshairs", "Location off"] };
@@ -383,7 +396,7 @@
   }
   function setBanner(code, members) {
     if (!code || session?.showroom) { banner.innerHTML = ""; return; }
-    banner.innerHTML = `<div class="banner"><i class="fa-solid fa-users"></i><span>Table code <b>${esc(code)}</b><br>Friends at this table enter it to order too${members > 1 ? ` · ${members} phones` : ""}</span></div>`;
+    banner.innerHTML = `<div class="banner"><i class="fa-solid fa-users"></i><span>${T("tableCode")} <b>${esc(code)}</b><br>${T("friendsCode")}${members > 1 ? ` · ${members} ${T("phones")}` : ""}</span></div>`;
   }
 
   async function openSession(extra = {}) {
@@ -431,16 +444,16 @@
     const greet = `${dayHello()} ${T("welcomeTo")} ${R.name || ""}.${cairoHour() < 12 ? " " + T("coffeeFirst") : ""}`.trim();
     const name = j.guest?.name ? j.guest.name.split(" ")[0] : null;
     if (j.disputed) sys("fa-flag", "Table reclaimed — the counter has been told someone else was ordering here.");
-    if (j.status === "member") add("ai", `You've joined *table ${j.table}*. Order anything — it all goes on the same table.`);
-    else if (name && j.guest?.usual?.length) add("ai", `Welcome back, *${name}*! You're at *table ${j.table}*.`);
-    else add("ai", name ? `Welcome back, *${name}*! You're at *table ${j.table}*. What are we having today?` : `${greet}\n\nYou're at *table ${j.table}*. Tell me what you'd like, or tap the menu below.`);
+    if (j.status === "member") add("ai", T("joined").replace("{t}", j.table));
+    else if (name && j.guest?.usual?.length) add("ai", T("backAt").replace("{n}", name).replace("{t}", j.table));
+    else add("ai", name ? T("backWhat").replace("{n}", name).replace("{t}", j.table) : `${greet}\n\n${T("youAt").replace("{t}", j.table)}`);
     if (j.guest) askedRemember = true;
     if (j.status !== "member") { if (j.guest?.usual?.length) usualCard(j.guest.usual); else moodCard(!!name); }
     if (j.guest?.usual?.length && !quick.querySelector("[data-usual]")) {
-      const b = document.createElement("button"); b.dataset.usual = "1"; b.innerHTML = '<i class="fa-solid fa-rotate-left"></i>My usual';
+      const b = document.createElement("button"); b.dataset.usual = "1"; b.innerHTML = `<i class="fa-solid fa-rotate-left"></i><span data-t="myUsual">${T("myUsual")}</span>`;
       b.addEventListener("click", () => repeatUsual(j.guest.usual)); quick.prepend(b);
     }
-    if (!quick.querySelector("[data-mood]")) { const b = document.createElement("button"); b.dataset.mood = "1"; b.innerHTML = '<i class="fa-solid fa-face-smile"></i>Pick for my mood'; b.addEventListener("click", () => moodCard(true, true)); quick.insertBefore(b, quick.children[1] || null); }
+    if (!quick.querySelector("[data-mood]")) { const b = document.createElement("button"); b.dataset.mood = "1"; b.innerHTML = `<i class="fa-solid fa-face-smile"></i><span data-t="pickMood">${T("pickMood")}</span>`; b.addEventListener("click", () => moodCard(true, true)); quick.insertBefore(b, quick.children[1] || null); }
     input.disabled = false; send.disabled = false; quick.hidden = false; $("callBtn").hidden = false;
     clearInterval(polling); poll(); polling = setInterval(poll, 2000);
     loadCart().then(() => toParent({ type: "kk:ready" }));
@@ -467,22 +480,24 @@
     if (askedRemember) return;
     askedRemember = true;
     const row = document.createElement("div"); row.className = "card";
-    row.innerHTML = `<h4><i class="fa-solid fa-heart"></i>Want us to remember you?</h4><p>Next visit we'll greet you by name and have your usual one tap away.</p>
-      <div class="code rem"><input id="rname2" maxlength="30" placeholder="Your first name" autocomplete="given-name"><button class="go" id="rgo" aria-label="Remember me"><i class="fa-solid fa-check"></i></button></div>
-      <div class="acts"><button class="skip" id="skip">Not now</button></div>
-      <div class="fine"><i class="fa-solid fa-lock"></i> Saved on this phone only — no number needed. We keep your name and orders at this café; ask staff any time to delete them.</div>`;
+    row.innerHTML = `<h4><i class="fa-solid fa-heart"></i>${T("remT")}</h4><p>${T("remB")}</p>
+      <div class="me-row" style="margin:10px 0 8px"><input id="rname2" maxlength="30" placeholder="${esc(T("namePh"))}" autocomplete="given-name"></div>
+      <div class="me-row"><input id="rphone2" inputmode="tel" maxlength="20" placeholder="${esc(T("remPhonePh"))}" autocomplete="tel"><button id="rgo"><i class="fa-solid fa-check"></i></button></div>
+      <div id="rcode"></div><div class="acts"><button class="skip" id="skip">${T("notNow2")}</button></div>
+      <div class="fine"><i class="fa-solid fa-lock"></i> ${T("remFine")}</div>`;
     log.appendChild(row); log.scrollTop = log.scrollHeight;
     $("skip").onclick = () => row.remove();
-    const save = async () => {
-      const name = $("rname2").value.trim(); if (!name) return $("rname2").focus();
+    $("rgo").onclick = async () => {
+      const name = $("rname2").value.trim(), phone = $("rphone2").value.trim();
+      if (!name && !phone) return $("rname2").focus();
       $("rgo").disabled = true;
-      const r = await fetch(api("/api/widget/remember"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, name }) }).catch(() => null);
-      const j = r && r.ok ? await r.json() : null;
-      if (!j?.guest_token) { $("rgo").disabled = false; return sys("fa-rotate-right", "Couldn't save that — try again."); }
-      LS.set(guestKey, { token: j.guest_token });
-      row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>Nice to meet you, ${esc(j.name.split(" ")[0])}!</h4><p>We'll remember you next time you sit down.</p>`;
+      const j = await saveMe({ ...(name ? { name } : {}), ...(phone ? { phone } : {}) });
+      $("rgo").disabled = false;
+      if (j?.error === "bad_phone") return sys("fa-phone", T("badPhone"));
+      if (!j?.ok) return sys("fa-rotate-right", "Couldn't save that — try again.");
+      if (phone) await startCode(phone, name, $("rcode"), () => { row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>${esc(T("phoneOk"))}</h4>`; });
+      else row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>${esc(T("niceMeet").replace("{n}", name.split(" ")[0]))}</h4><p>${T("remNext")}</p>`;
     };
-    $("rgo").onclick = save; $("rname2").addEventListener("keydown", (e) => { if (e.key === "Enter") save(); });
   }
 
   async function poll() {
@@ -500,6 +515,12 @@
     for (const m of j.messages || []) {
       const key = `${m.at}|${m.sender}|${(m.message || "").slice(0, 40)}`;
       if (seen.has(key)) continue; seen.add(key); lastAt = m.at;
+      if (m.sender === "guest" || m.sender === "user") {
+        // messages typed in THIS page are already on screen; anything else (a reload, another tab) is drawn
+        const k = String(m.message || "").trim(); const i = sentHere.indexOf(k);
+        if (i > -1) sentHere.splice(i, 1); else add("me", k);
+        continue;
+      }
       if (m.sender === "ai" || m.sender === "staff") {
         showTyping(false); add("ai", stripChipLine(m.message), m.media_type === "image" ? m.media_url : null); chipsFrom(m.message);
         if (booted && /\.pdf\b/.test(m.message || "") && !/\/receipts?\//i.test(m.message || "")) setTimeout(openMenu, 500);
@@ -520,7 +541,7 @@
     el.dataset.stage = String(stage);
     const labels = [["fa-receipt", "Received"], ["fa-mug-hot", "Making"], ["fa-bell", "Ready"], ["fa-circle-check", "Served"]];
     el.innerHTML = stage < 0 ? `<div class="top"><span><i class="fa-solid fa-ban"></i> Order <b>${esc(o.code)}</b> was cancelled</span></div>`
-      : `<div class="top"><span>Order <b>${esc(o.code)}</b></span><span>${esc((o.items || []).join(" · ")).slice(0, 60)}</span></div><div class="steps">${labels.map(([ic, l], i) => `<div class="${i < stage ? "done" : i === stage ? "now" : ""}"><i class="fa-solid ${ic}"></i>${T(["received", "making", "ready", "served"][i])}</div>`).join("")}</div><div class="bar"><i style="width:${[8, 40, 72, 100][stage]}%"></i></div>${stage === 3 ? `<button class="again" data-again><i class="fa-solid fa-rotate-right"></i>${T("again")}</button>` : ""}`;
+      : `<div class="top"><span>${T("orderLbl")} <b>${esc(o.code)}</b></span><span>${esc((o.items || []).join(" · ")).slice(0, 60)}</span></div><div class="steps">${labels.map(([ic, l], i) => `<div class="${i < stage ? "done" : i === stage ? "now" : ""}"><i class="fa-solid ${ic}"></i>${T(["received", "making", "ready", "served"][i])}</div>`).join("")}</div><div class="bar"><i style="width:${[8, 40, 72, 100][stage]}%"></i></div>${stage === 3 ? `<button class="again" data-again><i class="fa-solid fa-rotate-right"></i>${T("again")}</button>` : ""}`;
     const ag = el.querySelector("[data-again]"); if (ag) ag.onclick = () => anotherRound(o);
     onStage(o, stage, prevStage);
     if (stage === 3 && !rated) setTimeout(rateCard, 1500);
@@ -529,7 +550,7 @@
   function rateCard() {
     if (rated) return; rated = true;
     const row = document.createElement("div"); row.className = "card";
-    row.innerHTML = `<h4><i class="fa-solid fa-star"></i>How was everything?</h4><div class="stars">${[1, 2, 3, 4, 5].map((n) => `<button data-r="${n}" aria-label="${n} stars"><i class="fa-solid fa-star"></i></button>`).join("")}</div><div id="rmore"></div>`;
+    row.innerHTML = `<h4><i class="fa-solid fa-star"></i>${T("howWas")}</h4><div class="stars">${[1, 2, 3, 4, 5].map((n) => `<button data-r="${n}" aria-label="${n} stars"><i class="fa-solid fa-star"></i></button>`).join("")}</div><div id="rmore"></div>`;
     log.appendChild(row); log.scrollTop = log.scrollHeight;
     const stars = row.querySelectorAll("[data-r]");
     stars.forEach((b) => { b.onmouseenter = () => stars.forEach((x) => x.classList.toggle("on", +x.dataset.r <= +b.dataset.r)); b.onclick = () => pick(+b.dataset.r); });
@@ -538,17 +559,17 @@
       const more = row.querySelector("#rmore");
       const submit = async (comment = "") => {
         const r = await fetch(api("/api/widget/feedback"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, rating: n, comment }) }).then((x) => x.json()).catch(() => null);
-        more.innerHTML = n >= 4 && r?.review_url ? `<p>Thank you! Would you share it on Google? It helps us a lot.</p><a class="wa" style="background:var(--brand)" href="${esc(r.review_url)}" target="_blank" rel="noopener"><i class="fa-brands fa-google"></i>Leave a review</a>` : `<p>Thank you — the manager will read this today.</p>`;
+        more.innerHTML = n >= 4 && r?.review_url ? `<p>${T("thanksGoogle")}</p><a class="wa" style="background:var(--brand)" href="${esc(r.review_url)}" target="_blank" rel="noopener"><i class="fa-brands fa-google"></i>${T("leaveReview")}</a>` : `<p>${T("thanksMgr")}</p>`;
       };
       if (n >= 4) return submit();
-      more.innerHTML = `<p>Sorry about that. What went wrong? Only the manager sees this.</p><textarea id="rc" rows="2" placeholder="Tell us briefly…"></textarea><button class="send2" id="rs">Send</button>`;
+      more.innerHTML = `<p>${T("sorry")}</p><textarea id="rc" rows="2" placeholder="${esc(T("tellBrief"))}"></textarea><button class="send2" id="rs">${T("send")}</button>`;
       row.querySelector("#rs").onclick = () => submit(row.querySelector("#rc").value);
     }
   }
 
   async function sendMsg() {
     const text = input.value.trim(); if (!text || !session) return;
-    input.value = ""; chips.innerHTML = ""; add("me", text); showTyping(true);
+    input.value = ""; chips.innerHTML = ""; add("me", text); sentHere.push(text); showTyping(true);
     if (!geo) geo = await getGeo();
     const r = await fetch(api("/api/widget/send"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, message: text, geo }) }).catch(() => null);
     if (r?.status === 409) { showTyping(false); clearInterval(polling); return gate("fa-user-slash", "Someone at this table took it over", "If this is your table, scan its code again and tap “That's not my table”."); }
@@ -572,7 +593,7 @@
     closeSheets();
     const r = await fetch(api("/api/widget/call-staff"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, reason: b.dataset.call }) }).then((x) => x.json()).catch(() => null);
     if (!r?.ok) return sys("fa-rotate-right", "Couldn't reach the counter — try again.");
-    sys("fa-bell-concierge", r.already ? "Staff already know — someone is on the way." : "Staff are on their way to your table.");
+    sys("fa-bell-concierge", r.already ? T("staffKnow") : T("staffComing"));
   });
   // menu drawer
   let MENU = null, mcat = null;
@@ -648,7 +669,7 @@
     const { it, picks, qty } = picking;
     const missing = (it.options || []).filter((g) => g.required && !(picks[g.key] || []).length);
     $("ibody").innerHTML = `${phHTML(it, "ihero")}<div class="ihead"><div><h4>${esc(it.name)}</h4>${it.description ? `<p>${esc(it.description)}</p>` : ""}${popCount(it.name) ? `<p style="color:#a1361c;font-weight:700"><i class="fa-solid fa-fire"></i> ${T("orderedToday").replace("{n}", popCount(it.name))}</p>` : ""}</div>${heartBtn(it.name)}</div>${warnFor(it).map((w) => `<div class="warnline"><i class="fa-solid fa-triangle-exclamation"></i>${esc(T("mentions"))} ${esc(T(w))} — ${esc(T("confirmStaff"))}</div>`).join("")}
-      ${(it.options || []).map((g) => `<div class="ogrp"><div class="olab">${esc(g.label)}${g.required ? '<span class="req">Required</span>' : g.multi ? '<span>Pick any</span>' : '<span>Optional</span>'}</div><div class="ochips">${g.choices.map((c) => {
+      ${(it.options || []).map((g) => `<div class="ogrp"><div class="olab">${esc(g.label)}${g.required ? `<span class="req">${T("required")}</span>` : g.multi ? `<span>${T("pickAny")}</span>` : `<span>${T("optional")}</span>`}</div><div class="ochips">${g.choices.map((c) => {
         const on = (picks[g.key] || []).includes(c.name);
         const extra = c.price != null ? `${c.price}` : c.delta ? `+${c.delta}` : "";
         return `<button class="oc ${on ? "on" : ""}" data-g="${esc(g.key)}" data-c="${esc(c.name)}">${on ? '<i class="fa-solid fa-check"></i>' : ""}${esc(c.name)}${extra ? `<small>${extra}</small>` : ""}</button>`; }).join("")}</div></div>`).join("")}
@@ -661,7 +682,7 @@
     });
     $("iqty").textContent = qty;
     $("iadd").disabled = missing.length > 0;
-    $("iadd").innerHTML = missing.length ? `Choose ${esc(missing[0].label.toLowerCase())}` : `<i class="fa-solid fa-basket-shopping"></i>Add · ${linePrice(it, picks) * qty} ${esc(MENU.currency)}`;
+    $("iadd").innerHTML = missing.length ? esc(T("choose").replace("{x}", missing[0].label.toLowerCase())) : `<i class="fa-solid fa-basket-shopping"></i>${T("addBtn")} · ${linePrice(it, picks) * qty} ${esc(MENU.currency)}`;
   }
   $("iminus").onclick = () => { picking.note = $("inote").value; picking.qty = Math.max(1, picking.qty - 1); drawItem(); };
   $("iplus").onclick = () => { picking.note = $("inote").value; picking.qty = Math.min(9, picking.qty + 1); drawItem(); };
@@ -672,23 +693,32 @@
   };
 
   // ---------- mood + usual: get the guest talking to the AI ----------
-  const MOODS = [["fa-bed", "Sleepy", "I'm sleepy — wake me up! What do you recommend?"], ["fa-cookie-bite", "Sweet tooth", "I'm craving something sweet — what should I get?"],
-    ["fa-snowflake", "Hot day", "It's hot — I want something cold and refreshing. What do you suggest?"], ["fa-utensils", "Hungry", "I'm hungry — what's good to eat here?"],
-    ["fa-leaf", "Matcha mood", "I'm in a matcha mood — which one should I try?"], ["fa-wand-magic-sparkles", "Surprise me", "Surprise me! Pick something you think I'll love."]];
+  // every mood is a QUESTION — "Surprise me! Pick something" read as an order and put a latte on the bill
+  const MOOD_KEYS = ["sleepy", "sweet", "hot", "hungry", "matcha", "surprise"];
+  const MOODS = [["fa-bed", "mSleepy", "sleepyMsg"], ["fa-cookie-bite", "mSweet", "sweetMsg"], ["fa-snowflake", "mHot", "hotMsg"], ["fa-utensils", "mHungry", "hungryMsg"], ["fa-leaf", "mMatcha", "matchaMsg"], ["fa-wand-magic-sparkles", "mSurprise", "surpriseMsg"]];
   function moodCard(known, again) {
     if (!again && document.querySelector(".mood")) return;
     const row = document.createElement("div"); row.className = "card mood";
-    row.innerHTML = `<h4><i class="fa-solid fa-face-smile"></i>${known ? "What are you in the mood for?" : "First time here? Tell me your mood"}</h4><p>Pick one and I'll choose something for you from the menu.</p><div class="moods">${MOODS.map(([ic, l], k) => `<button data-m="${k}"><i class="fa-solid ${ic}"></i>${l}</button>`).join("")}</div>`;
+    const lm = profile?.last_mood, lmItem = lm?.item && findItem(lm.item);
+    const recall = lm && lmItem && Date.now() - new Date(lm.at).getTime() > 3 * 3600_000;
+    row.innerHTML = `<h4><i class="fa-solid fa-face-smile"></i>${T(known || recall ? "moodKnown" : "moodFirst")}</h4><p>${recall ? esc(T("lastMood").replace("{mood}", T("was_" + lm.mood)).replace("{item}", lm.item)) : T("moodBody")}</p>${recall ? `<div class="acts" style="margin:4px 0 10px"><button class="wa" data-again style="background:var(--brand);border:0;font:inherit;font-weight:700;cursor:pointer"><i class="fa-solid fa-rotate-left"></i>${esc(T("againItem").replace("{item}", lm.item))}</button></div>` : ""}<div class="moods">${MOODS.map(([ic, l], k) => `<button data-m="${k}"><i class="fa-solid ${ic}"></i>${T(l)}</button>`).join("")}</div>`;
     log.appendChild(row); log.scrollTop = log.scrollHeight;
-    row.querySelectorAll("[data-m]").forEach((b) => b.onclick = () => { row.querySelectorAll("button").forEach((x) => x.disabled = true); b.classList.add("on"); input.value = MOODS[+b.dataset.m][2]; sendMsg(); });
+    const ag = row.querySelector("[data-again]");
+    if (ag) ag.onclick = () => { if (lmItem.options?.length) openItem(lmItem.name); else { addLine(lmItem, {}, 1, null); drawCartSheet(); openSheet($("cartSheet")); } };
+    row.querySelectorAll("[data-m]").forEach((b) => b.onclick = () => {
+      row.querySelectorAll("button").forEach((x) => x.disabled = true); b.classList.add("on");
+      // today's mood is remembered as history (with what they order next), never as a preference
+      fetch(api("/api/widget/profile"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, last_mood: MOOD_KEYS[+b.dataset.m] }) }).catch(() => {});
+      input.value = T(MOODS[+b.dataset.m][2]); sendMsg();
+    });
   }
   const usualText = (u) => u.map((l) => `${l.qty > 1 ? l.qty + "× " : ""}${l.name}${l.options?.length ? ` (${l.options.join(", ")})` : ""}`).join(" + ");
   function usualCard(u) {
     const row = document.createElement("div"); row.className = "card usual";
-    row.innerHTML = `<h4><i class="fa-solid fa-rotate-left"></i>Your usual?</h4><p><b>${esc(usualText(u))}</b></p>
-      <div class="acts"><button class="wa" data-yes><i class="fa-solid fa-check"></i>Same again</button><button class="skip" data-new>Something new</button></div>`;
+    row.innerHTML = `<h4><i class="fa-solid fa-rotate-left"></i>${T("usualQ")}</h4><p><b>${esc(usualText(u))}</b></p>
+      <div class="acts"><button class="wa" data-yes><i class="fa-solid fa-check"></i>${T("sameAgain")}</button><button class="skip" data-new>${T("somethingNew")}</button></div>`;
     log.appendChild(row); log.scrollTop = log.scrollHeight;
-    row.querySelector("[data-yes]").onclick = () => { repeatUsual(u); row.querySelector(".acts").innerHTML = '<p class="fine"><i class="fa-solid fa-basket-shopping"></i> In your cart — change anything, then Order.</p>'; };
+    row.querySelector("[data-yes]").onclick = () => { repeatUsual(u); row.querySelector(".acts").innerHTML = `<p class="fine"><i class="fa-solid fa-basket-shopping"></i> ${T("inCart")}</p>`; };
     row.querySelector("[data-new]").onclick = () => { row.remove(); moodCard(true); };
   }
   async function repeatUsual(u) {
@@ -744,8 +774,8 @@
     setTimeout(() => f.remove(), 650);
   }
   const barHTML = (inSheet) => `<div class="cartbar"><span class="ic"><i class="fa-solid fa-basket-shopping"></i><b>${cartCount()}</b></span>
-    <span class="sum">${cartTotal()} ${esc(MENU?.currency || "EGP")}<small>${cartCount()} item${cartCount() > 1 ? "s" : ""} in your cart</small></span>
-    <button class="view" data-view><i class="fa-solid fa-list"></i>${inSheet ? "Cart" : "Review"}</button><button class="go" data-go><i class="fa-solid fa-paper-plane"></i>Order</button></div>`;
+    <span class="sum">${cartTotal()} ${esc(MENU?.currency || "EGP")}<small>${T(cartCount() > 1 ? "cartNs" : "cartN").replace("{n}", cartCount())}</small></span>
+    <button class="view" data-view><i class="fa-solid fa-list"></i>${inSheet ? T("cartBtn") : T("review")}</button><button class="go" data-go><i class="fa-solid fa-paper-plane"></i>${T("order")}</button></div>`;
   // embedded on the café's own site: the page's "+" buttons fill this cart, and the page shows the count
   function toParent(msg) { try { if (parent !== window) parent.postMessage(msg, "*"); } catch {} }
   function drawCart(bump) {
@@ -761,7 +791,7 @@
   function drawCartSheet() {
     if (!cart.length) { closeSheets(); return; }
     $("clist").innerHTML = cart.map((l) => `<div class="cl">${phHTML(findItem(l.name) || { name: l.name, photo: l.photo })}
-      <div><b>${esc(l.name)}</b><small>${[...(l.opts || []), l.note ? `“${l.note}”` : ""].filter(Boolean).map(esc).join(" · ") || "As it comes"}</small><small class="lp">${l.price} ${esc(MENU?.currency || "EGP")}${l.by && l.by !== me ? ` · <span style="color:var(--muted);font-weight:600">${esc(l.by)}</span>` : ""}</small></div>
+      <div><b>${esc(l.name)}</b><small>${[...(l.opts || []), l.note ? `“${l.note}”` : ""].filter(Boolean).map(esc).join(" · ") || T("asItComes")}</small><small class="lp">${l.price} ${esc(MENU?.currency || "EGP")}${l.by && l.by !== me ? ` · <span style="color:var(--muted);font-weight:600">${esc(l.by)}</span>` : ""}</small></div>
       <span class="qty"><button data-dec="${esc(l.key || l.name)}" aria-label="One less"><i class="fa-solid fa-minus"></i></button><span>${l.qty}</span><button data-inc="${esc(l.key || l.name)}" aria-label="One more"><i class="fa-solid fa-plus"></i></button></span></div>`).join("");
     $("ctot").textContent = `${cartTotal()} ${MENU?.currency || "EGP"}`;
     wireQty($("clist"));
@@ -819,7 +849,26 @@
       tipWho: "Who would you like to thank?", wholeCafe: "The whole café", barTeam: "The bar team", kitchenTeam: "The kitchen team", floorTeam: "The floor team", other: "Other", tipNote: "A note for them (optional)",
       sendTip: "Add {a} EGP tip", back: "Back", tipThanks: "Thank you! {a} EGP added to your table's bill for {t}.", billCalled: "Staff are bringing your bill.", addedBy: "{who} added {item}", langSet: "Language: English",
       orderIn: "Order's in!", itsReady: "It's ready!", enjoy: "Enjoy!", loveIt: "You're the best!", addIt: "Add the {item}", somethingElse: "Something else", whatsPopular: "What's popular?", makeLarge: "Make it large",
-      whatPopularMsg: "What's popular today?", elseMsg: "Something else please", largeMsg: "Make it large" },
+      whatPopularMsg: "What's popular today?", elseMsg: "Something else please", largeMsg: "Make it large",
+      cartN: "{n} item in your cart", cartNs: "{n} items in your cart", review: "Review", cartBtn: "Cart", order: "Order", yourCart: "Your cart", total: "Total", cartNote: "The AI checks any choices with you (size, milk), then confirms.",
+      addMore: "Add more", sendOrder: "Send to order", asItComes: "As it comes", required: "Required", pickAny: "Pick any", addBtn: "Add", choose: "Choose {x}",
+      moodFirst: "First time here? Tell me your mood", moodKnown: "What are you in the mood for?", moodBody: "Pick one and I'll choose something for you from the menu.", pickMood: "Pick for my mood", myUsual: "My usual",
+      mSleepy: "Sleepy", mSweet: "Sweet tooth", mHot: "Hot day", mHungry: "Hungry", mMatcha: "Matcha mood", mSurprise: "Surprise me",
+      usualQ: "Your usual?", sameAgain: "Same again", somethingNew: "Something new", inCart: "In your cart — change anything, then Order.",
+      remT: "Want us to remember you?", remB: "Next visit we'll greet you by name and have your usual one tap away.", remPh: "Your first name", notNow2: "Not now", remFine: "Saved on this phone only — no number needed. We keep your name and orders at this café; ask staff any time to delete them.", niceMeet: "Nice to meet you, {n}!", remNext: "We'll remember you next time you sit down.",
+      howWas: "How was everything?", thanksGoogle: "Thank you! Would you share it on Google? It helps us a lot.", leaveReview: "Leave a review", thanksMgr: "Thank you — the manager will read this today.", sorry: "Sorry about that. What went wrong? Only the manager sees this.", tellBrief: "Tell us briefly…", send: "Send",
+      callT: "Call staff to your table", needHelp: "Need help", theBill: "The bill", water: "Water", staffComing: "Staff are on their way to your table.", staffKnow: "Staff already know — someone is on the way.",
+      tableCode: "Table code", friendsCode: "Friends at this table enter it to order too", phones: "phones", youAt: "You're at *table {t}*. Tell me what you'd like, or tap the menu below.", backAt: "Welcome back, *{n}*! You're at *table {t}*.", backWhat: "Welcome back, *{n}*! You're at *table {t}*. What are we having today?", joined: "You've joined *table {t}*. Order anything — it all goes on the same table.",
+      searchPh: "Search — matcha, pistachio…", orderLbl: "Order", whatChange: "Sure — what would you like to change? e.g. “make it large”, “remove the cookie”, “oat milk”.",
+      lastMood: "Last time you were {mood} and went with the {item}. Want it again, or is today a different mood?", againItem: "{item} again",
+      was_sleepy: "sleepy", was_sweet: "craving something sweet", was_hot: "feeling the heat", was_hungry: "hungry", was_matcha: "in a matcha mood", was_surprise: "up for a surprise",
+      meTitle: "You", callMe: "What should we call you?", namePh: "Your name", save: "Save", phoneLbl: "Your phone (WhatsApp)", phonePh: "01x xxxx xxxx", sendCode: "Send code", codePh: "4-digit code", verify: "Verify",
+      verified: "Verified", unverified: "Not verified yet", phoneWhy: "We send a 4-digit code to your WhatsApp — you stay right here. Verified numbers bring back your usual on any phone, and your WhatsApp orders too.",
+      codeSent: "Code sent to your WhatsApp — type it here.", codesOff: "Saved. WhatsApp codes are switching on soon — until your number is verified, your history stays on this phone.", badPhone: "That doesn't look like a phone number.", wrongCode: "Wrong code — {n} tries left.", codeExpired: "That code expired — send a new one.",
+      phoneOk: "Number verified — we'll know you on any phone.", saved: "Saved ✓", prefs: "Your preferences", milkDefault: "Default milk", none: "None", darkMode: "Dark mode", on: "On", off: "Off", remembered: "What we remember", usualIs: "Your usual: {u}", lastMoodIs: "Last mood: {m}", favN: "{n} favourites",
+      nothingYet: "Nothing yet — order once and we'll remember.", forgetMe: "Forget me on this phone", forgotten: "Done — this phone won't remember you.", remPhonePh: "Phone for a WhatsApp code (optional)",
+      cConfirm: "Confirm", cChange: "Change something", cCash: "Cash", cCard: "Card", cOnline: "Online", cMenu: "Browse Menu", cOrderNow: "Order now", cYes: "Yes", cNo: "No",
+      sleepyMsg: "I'm sleepy — what would you recommend to wake me up?", sweetMsg: "I'm craving something sweet — what would you recommend?", hotMsg: "It's hot — what cold, refreshing drink would you recommend?", hungryMsg: "I'm hungry — what would you recommend to eat?", matchaMsg: "I'm in a matcha mood — which one would you recommend?", surpriseMsg: "Surprise me — what would you recommend for me today?" },
     ar: { menu: "المنيو", tab: "حسابي", tip: "بقشيش للفريق", tabTitle: "حساب الترابيزة", tipTitle: "بقشيش للفريق", welcomeTo: "أهلاً بيك في", received: "اتستلم", making: "بيتعمل", ready: "جاهز", served: "اتقدم",
       again: "جولة كمان؟", orderedToday: "اتطلب {n} مرات هنا النهارده", mentions: "فيه", confirmStaff: "اتأكد دايماً من الفريق", comments: "ملاحظات", optional: "اختياري", notePh: "ثلج أقل، سخن زيادة، من غير سكر…",
       popular: "الأكثر طلباً", soldOut: "خلص", notNow: "مش دلوقتي", nToday: "{n} النهارده", nothing: "مفيش نتايج.", nuts: "مكسرات", dairy: "ألبان", gluten: "جلوتين", caffeine: "كافيين",
@@ -833,7 +882,26 @@
       tipWho: "تحب تشكر مين؟", wholeCafe: "الكافيه كله", barTeam: "فريق البار", kitchenTeam: "فريق المطبخ", floorTeam: "فريق الصالة", other: "مبلغ تاني", tipNote: "كلمة ليهم (اختياري)",
       sendTip: "ضيف بقشيش {a} جنيه", back: "رجوع", tipThanks: "شكراً! {a} جنيه اتضافوا على حساب الترابيزة لـ {t}.", billCalled: "الحساب جاي لك.", addedBy: "{who} ضاف {item}", langSet: "اللغة: عربي",
       orderIn: "الطلب وصل!", itsReady: "جاهز!", enjoy: "بالهنا!", loveIt: "انت جامد!", addIt: "ضيف {item}", somethingElse: "حاجة تانية", whatsPopular: "إيه الأكثر طلباً؟", makeLarge: "خليه لارج",
-      whatPopularMsg: "إيه الأكثر طلباً النهارده؟", elseMsg: "حاجة تانية لو سمحت", largeMsg: "خليه لارج" },
+      whatPopularMsg: "إيه الأكثر طلباً النهارده؟", elseMsg: "حاجة تانية لو سمحت", largeMsg: "خليه لارج",
+      cartN: "{n} صنف في السلة", cartNs: "{n} أصناف في السلة", review: "مراجعة", cartBtn: "السلة", order: "اطلب", yourCart: "سلتك", total: "الإجمالي", cartNote: "الذكاء الاصطناعي هيتأكد معاك من الاختيارات (الحجم، اللبن) وبعدين يأكد.",
+      addMore: "ضيف كمان", sendOrder: "ابعت الطلب", asItComes: "زي ما هو", required: "مطلوب", pickAny: "اختار براحتك", addBtn: "ضيف", choose: "اختار {x}",
+      moodFirst: "أول مرة هنا؟ قولّي مودك", moodKnown: "مودك إيه النهارده؟", moodBody: "اختار واحد وأنا أختارلك حاجة من المنيو.", pickMood: "اختارلي على مودي", myUsual: "طلبي المعتاد",
+      mSleepy: "نعسان", mSweet: "عايز حاجة حلوة", mHot: "الجو حر", mHungry: "جعان", mMatcha: "مود ماتشا", mSurprise: "فاجئني",
+      usualQ: "طلبك المعتاد؟", sameAgain: "نفس الطلب", somethingNew: "حاجة جديدة", inCart: "في السلة — غيّر اللي تحبه وبعدين اطلب.",
+      remT: "تحب نفتكرك؟", remB: "المرة الجاية هنرحب بيك باسمك وطلبك المعتاد على دوسة واحدة.", remPh: "اسمك الأول", notNow2: "مش دلوقتي", remFine: "بيتحفظ على الموبايل ده بس — من غير رقم. بنحتفظ باسمك وطلباتك في الكافيه ده؛ اطلب من الفريق تمسحهم في أي وقت.", niceMeet: "اتشرفنا يا {n}!", remNext: "هنفتكرك المرة الجاية.",
+      howWas: "إيه رأيك في كل حاجة؟", thanksGoogle: "شكراً! ممكن تكتب رأيك على جوجل؟ بيفرق معانا جداً.", leaveReview: "اكتب تقييم", thanksMgr: "شكراً — المدير هيقرا ده النهارده.", sorry: "آسفين جداً. إيه اللي حصل؟ المدير بس اللي هيشوف ده.", tellBrief: "قولّنا باختصار…", send: "ابعت",
+      callT: "نادي حد من الفريق", needHelp: "محتاج مساعدة", theBill: "الحساب", water: "مية", staffComing: "حد من الفريق جاي لترابيزتك.", staffKnow: "الفريق عارف — حد جاي.",
+      tableCode: "كود الترابيزة", friendsCode: "صحابك على نفس الترابيزة يدخلوه ويطلبوا معاك", phones: "موبايلات", youAt: "انت على *ترابيزة {t}*. قولّي تحب إيه، أو افتح المنيو تحت.", backAt: "أهلاً تاني يا *{n}*! انت على *ترابيزة {t}*.", backWhat: "أهلاً تاني يا *{n}*! انت على *ترابيزة {t}*. هنطلب إيه النهارده؟", joined: "دخلت *ترابيزة {t}*. اطلب اللي تحبه — كله على نفس الترابيزة.",
+      searchPh: "دوّر — ماتشا، فستق…", orderLbl: "طلب", whatChange: "أكيد — تحب تغيّر إيه؟ مثلاً «خليه لارج»، «شيل الكوكي»، «لبن شوفان».",
+      lastMood: "آخر مرة كنت {mood} واخترت {item}. تحبه تاني، ولا مودك النهارده حاجة تانية؟", againItem: "{item} تاني",
+      was_sleepy: "نعسان", was_sweet: "نفسك في حاجة حلوة", was_hot: "حرّان", was_hungry: "جعان", was_matcha: "في مود ماتشا", was_surprise: "عايز مفاجأة",
+      meTitle: "حسابك", callMe: "نناديك بإيه؟", namePh: "اسمك", save: "حفظ", phoneLbl: "رقمك (واتساب)", phonePh: "01x xxxx xxxx", sendCode: "ابعت الكود", codePh: "كود من ٤ أرقام", verify: "تأكيد",
+      verified: "متأكد", unverified: "لسه متأكدش", phoneWhy: "هنبعتلك كود من ٤ أرقام على الواتساب — وانت هنا. الرقم المتأكد بيرجعلك طلبك المعتاد على أي موبايل، وطلباتك على الواتساب كمان.",
+      codeSent: "الكود اتبعت على الواتساب — اكتبه هنا.", codesOff: "اتحفظ. أكواد الواتساب هتشتغل قريب — لحد ما رقمك يتأكد، تاريخك بيفضل على الموبايل ده بس.", badPhone: "ده مش شكل رقم موبايل.", wrongCode: "الكود غلط — فاضل {n} محاولات.", codeExpired: "الكود خلص — ابعت واحد جديد.",
+      phoneOk: "الرقم اتأكد — هنعرفك على أي موبايل.", saved: "اتحفظ ✓", prefs: "تفضيلاتك", milkDefault: "اللبن الافتراضي", none: "ولا حاجة", darkMode: "الوضع الليلي", on: "شغال", off: "مقفول", remembered: "اللي فاكرينه", usualIs: "طلبك المعتاد: {u}", lastMoodIs: "آخر مود: {m}", favN: "{n} في المفضلة",
+      nothingYet: "لسه مفيش — اطلب مرة وهنفتكر.", forgetMe: "انسى بياناتي على الموبايل ده", forgotten: "تمام — الموبايل ده مش هيفتكرك.", remPhonePh: "رقمك عشان كود واتساب (اختياري)",
+      cConfirm: "تأكيد", cChange: "غيّر حاجة", cCash: "كاش", cCard: "كارت", cOnline: "أونلاين", cMenu: "المنيو", cOrderNow: "اطلب دلوقتي", cYes: "أيوه", cNo: "لا",
+      sleepyMsg: "أنا نعسان — ترشحلي إيه يصحيني؟", sweetMsg: "نفسي في حاجة حلوة — ترشحلي إيه؟", hotMsg: "الجو حر — ترشحلي مشروب ساقع منعش؟", hungryMsg: "أنا جعان — ترشحلي آكل إيه؟", matchaMsg: "أنا في مود ماتشا — ترشحلي أنهي واحدة؟", surpriseMsg: "فاجئني — ترشحلي إيه النهارده؟" },
   };
   let lang = (LS.get("kk:lang") || "en");
   const T = (k) => (STR[lang === "ar" ? "ar" : "en"][k] ?? STR.en[k] ?? k);
@@ -841,7 +909,9 @@
     const app = document.querySelector(".app"); app.dir = lang === "ar" ? "rtl" : "ltr";
     document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = T(el.dataset.t); });
     $("langBtn").textContent = lang === "ar" ? "ع" : lang === "franco" ? "Fr" : "EN";
-    input.placeholder = T("ph");
+    input.placeholder = T("ph"); $("mq").placeholder = T("searchPh");
+    banner.innerHTML && session && setBanner(session.join_code, lastTable?.tab?.phones || 1);
+    if (cart.length) drawCart();
     if (MENU && $("menuSheet").classList.contains("open")) { buildTabs(); drawMenu(); }
   }
   $("langBtn").onclick = async () => {
@@ -856,9 +926,9 @@
     const pref = LS.get("kk:theme");
     const dark = pref ? pref === "dark" : (matchMedia("(prefers-color-scheme: dark)").matches || cairoHour() >= 19 || cairoHour() < 6);
     document.body.classList.toggle("dark", dark);
-    $("themeBtn").innerHTML = `<i class="fa-solid ${dark ? "fa-sun" : "fa-moon"}"></i>`;
+
   }
-  $("themeBtn").onclick = () => { LS.set("kk:theme", document.body.classList.contains("dark") ? "light" : "dark"); applyTheme(); buzz(8); };
+
   applyTheme(); applyLang();
 
   // ---------- time of day ----------
@@ -1093,6 +1163,58 @@
     draw();
   }
 
+  // ---------- "Me": what to call you, your phone (WhatsApp code), preferences, what we remember, forget me ----------
+  async function saveMe(body) {
+    const r = await fetch(api("/api/widget/me"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, ...body }) }).catch(() => null);
+    const j = r ? await r.json().catch(() => null) : null;
+    if (j?.guest_token) LS.set(guestKey, { token: j.guest_token });
+    if (j?.profile) { profile = j.profile; if (profile.name) me = profile.name.split(" ")[0]; }
+    return j;
+  }
+  async function startCode(phone, name, host, done) {
+    const r = await fetch(api("/api/widget/otp/start"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, phone, name, lang }) }).then((x) => x.json()).catch(() => null);
+    if (!r?.sent) { host.innerHTML = `<p class="hint">${esc(T(r?.error === "bad_phone" ? "badPhone" : "codesOff"))}</p>`; return false; }
+    host.innerHTML = `<p class="hint">${esc(T("codeSent"))}${r.dev_code ? ` <b>(test: ${esc(r.dev_code)})</b>` : ""}</p><div class="me-row" style="margin-top:6px"><input id="otpin" inputmode="numeric" maxlength="4" placeholder="${esc(T("codePh"))}" autocomplete="one-time-code"><button id="otpgo">${esc(T("verify"))}</button></div><p class="hint" id="otpmsg"></p>`;
+    const go = async () => {
+      const v = await fetch(api("/api/widget/otp/verify"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, code: $("otpin").value.trim() }) }).then((x) => x.json()).catch(() => null);
+      if (v?.ok) { LS.set(guestKey, { token: v.guest_token }); profile = v.profile; if (profile?.name) me = profile.name.split(" ")[0]; buzz([20, 30, 20]); done?.(); return; }
+      $("otpmsg").textContent = v?.error === "wrong_code" ? T("wrongCode").replace("{n}", v.left) : T("codeExpired");
+    };
+    $("otpgo").onclick = go; $("otpin").addEventListener("input", () => { if (/^\d{4}$/.test($("otpin").value)) go(); });
+    return true;
+  }
+  $("meBtn").onclick = () => { drawMe(); openSheet($("meSheet")); };
+  function drawMe() {
+    const p = profile || {}, nm = p.name || "", dark = document.body.classList.contains("dark");
+    const u = session?.guest?.usual;
+    const know = [u?.length ? T("usualIs").replace("{u}", usualText(u)) : null, p.last_mood ? T("lastMoodIs").replace("{m}", T("was_" + p.last_mood.mood)) : null, favs.length ? T("favN").replace("{n}", favs.length) : null].filter(Boolean);
+    $("mebody").innerHTML = `<div class="me-av">${esc((nm || "?").slice(0, 1).toUpperCase())}</div>
+      <div class="me-sec"><label>${T("callMe")}</label><div class="me-row"><input id="mename" maxlength="30" value="${esc(nm)}" placeholder="${esc(T("namePh"))}"><button id="menamego">${T("save")}</button></div></div>
+      <div class="me-sec"><label>${T("phoneLbl")}${p.phone ? `<span class="badge2 ${p.verified ? "ok" : "wait"}"><i class="fa-solid ${p.verified ? "fa-circle-check" : "fa-hourglass-half"}"></i>${T(p.verified ? "verified" : "unverified")}</span>` : ""}</label>
+        ${p.verified ? `<p class="hint" style="margin:0">${esc(p.phone)}</p>` : `<div class="me-row"><input id="mephone" inputmode="tel" maxlength="20" placeholder="${esc(p.phone || T("phonePh"))}"><button id="mephonego">${T("sendCode")}</button></div><div id="mecode"></div><p class="hint">${T("phoneWhy")}</p>`}</div>
+      <div class="me-sec"><label>${T("prefs")}</label>
+        <p class="hint" style="margin:0 0 6px">${T("milkDefault")}</p><div class="ochips" id="memilk">${["", "Regular", "Skim", "Oat", "Coconut"].map((m) => `<button class="oc ${String(p.default_milk || "") === m ? "on" : ""}" data-milk="${m}">${m ? esc(m) : T("none")}</button>`).join("")}</div>
+        <p class="hint" style="margin:10px 0 6px">${T("avoidLbl")}</p><div class="ochips" id="meavoid">${Object.keys(AVOID).map((a) => `<button class="oc ${avoid.includes(a) ? "on" : ""}" data-av="${a}">${esc(T(a))}</button>`).join("")}</div>
+        <p class="hint" style="margin:10px 0 6px">${T("darkMode")}</p><div class="ochips"><button class="oc ${dark ? "on" : ""}" data-dark="1">${T("on")}</button><button class="oc ${dark ? "" : "on"}" data-dark="0">${T("off")}</button></div></div>
+      <div class="me-sec"><label>${T("remembered")}</label><div class="me-know">${know.length ? know.map((k) => `<div><i class="fa-solid fa-check"></i>${esc(k)}</div>`).join("") : `<div class="hint">${T("nothingYet")}</div>`}</div></div>
+      <div class="me-sec"><button class="forget" id="meforget"><i class="fa-solid fa-user-slash"></i> ${T("forgetMe")}</button></div>`;
+    $("menamego").onclick = async () => { const v = $("mename").value.trim(); if (!v) return; const j = await saveMe({ name: v }); if (j?.ok) { sys("fa-user-check", T("saved")); drawMe(); } };
+    const pg = $("mephonego");
+    if (pg) pg.onclick = async () => {
+      const ph = $("mephone").value.trim(); if (!ph) return $("mephone").focus();
+      const j = await saveMe({ phone: ph }); if (j?.error === "bad_phone") return ($("mecode").innerHTML = `<p class="hint">${esc(T("badPhone"))}</p>`);
+      await startCode(ph, profile?.name, $("mecode"), () => { sys("fa-circle-check", T("phoneOk")); drawMe(); });
+    };
+    $("memilk").querySelectorAll("[data-milk]").forEach((b) => b.onclick = async () => { const r = await fetch(api("/api/widget/profile"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, default_milk: b.dataset.milk || null }) }).then((x) => x.json()).catch(() => null); if (r?.profile) profile = { ...profile, ...r.profile }; drawMe(); });
+    $("meavoid").querySelectorAll("[data-av]").forEach((b) => b.onclick = () => { const a = b.dataset.av; avoid = avoid.includes(a) ? avoid.filter((x) => x !== a) : [...avoid, a]; LS.set("kk:avoid", avoid); drawMe(); });
+    $("mebody").querySelectorAll("[data-dark]").forEach((b) => b.onclick = () => { LS.set("kk:theme", b.dataset.dark === "1" ? "dark" : "light"); applyTheme(); drawMe(); });
+    $("meforget").onclick = async () => {
+      await fetch(api("/api/widget/forget"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId }) }).catch(() => {});
+      try { localStorage.removeItem(guestKey); localStorage.removeItem("kk:favs"); localStorage.removeItem("kk:avoid"); } catch {}
+      profile = null; favs = []; avoid = []; me = "You"; if (session) session.guest = null; closeSheets(); sys("fa-user-slash", T("forgotten"));
+    };
+  }
+
   // ---------- voice ordering (same transcription as WhatsApp voice notes) ----------
   let rec = null, chunks = [], recT;
   $("mic").onclick = async () => {
@@ -1118,19 +1240,12 @@
   };
 
   // ---------- after the session opens: taste greeting, habit offer, quiz later ----------
-  let quizShown = false;
   async function afterSession(j) {
     profile = j.profile || null; me = j.guest?.name ? j.guest.name.split(" ")[0] : me;
     $("mic").disabled = !navigator.mediaDevices?.getUserMedia;
     if (profile?.language && profile.language !== lang && !LS.get("kk:lang")) { lang = profile.language; applyLang(); }
     applyLang();
     await ensureMenu();
-    // "Matcha person, right?" — a real favourite from that side of the menu
-    if (j.guest?.name && profile?.taste && profile.taste !== "both" && j.status !== "member") {
-      const re = profile.taste === "matcha" ? /matcha/i : /hot koffee|kold koffee|blended koffee/i;
-      const pick = MENU.categories.filter((c) => re.test(c.name)).flatMap((c) => c.items).filter((i) => !i.unavailable).sort((a, b) => (b.bestseller - a.bestseller) || (popCount(b.name) - popCount(a.name)))[0];
-      if (pick) add("ai", T("tasteBack").replace("{taste}", profile.taste === "matcha" ? T("matcha") : T("coffee")).replace("{item}", `*${pick.name}*`));
-    }
     if (profile?.habit && !profile.default_milk) habitCard(profile.habit);
   }
   function habitCard(h) {
@@ -1144,25 +1259,6 @@
       row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>${esc(T("habitDone").replace("{m}", h.milk))}</h4>`;
     };
   }
-  function quizCard() {
-    if (quizShown || profile?.taste) return; quizShown = true;
-    const row = document.createElement("div"); row.className = "card quiz"; const ans = {};
-    row.innerHTML = `<h4><i class="fa-solid fa-face-grin-stars"></i>${esc(T("quizT"))}</h4><p>${esc(T("q1"))}</p><div class="ochips">${[["coffee", "fa-mug-hot"], ["matcha", "fa-leaf"], ["both", "fa-heart"]].map(([k, ic]) => `<button class="oc" data-t1="${k}"><i class="fa-solid ${ic}"></i>${esc(T(k))}</button>`).join("")}</div>
-      <p class="q2">${esc(T("q2"))}</p><div class="ochips">${[["cozy", "fa-mug-saucer"], ["energetic", "fa-bolt"], ["treat", "fa-cake-candles"]].map(([k, ic]) => `<button class="oc" data-t2="${k}"><i class="fa-solid ${ic}"></i>${esc(T(k))}</button>`).join("")}</div>`;
-    log.appendChild(row); log.scrollTop = log.scrollHeight;
-    const save = async () => {
-      if (!ans.taste || !ans.vibe) return;
-      const r = await fetch(api("/api/widget/profile"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, taste: ans.taste, vibe: ans.vibe }) }).then((x) => x.json()).catch(() => null);
-      if (r?.profile) profile = r.profile;
-      setTimeout(() => { row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>${esc(T("quizDone"))}</h4>`; }, 500);
-    };
-    row.querySelectorAll("[data-t1]").forEach((b) => b.onclick = () => { ans.taste = b.dataset.t1; row.querySelectorAll("[data-t1]").forEach((x) => x.classList.toggle("on", x === b)); buzz(6); save(); });
-    row.querySelectorAll("[data-t2]").forEach((b) => b.onclick = () => { ans.vibe = b.dataset.t2; row.querySelectorAll("[data-t2]").forEach((x) => x.classList.toggle("on", x === b)); buzz(6); save(); });
-  }
-  // the quiz comes after the guest's first real exchange with the AI — never as a wall at the start
-  const _sendMsg = sendMsg;
-  let sentCount = 0;
-  sendMsg = async function () { const r = await _sendMsg(); if (++sentCount === 1) setTimeout(quizCard, 9000); return r; };
 
   setInterval(async () => { const g = await getGeo(); if (g) geo = g; }, 45000);
   start();

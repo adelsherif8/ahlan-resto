@@ -3023,7 +3023,7 @@ LANGUAGE (last line so everything above stays cacheable): the conversation's lan
       // confirm reads like the paper receipt FIRST, then one clear ask under it
       const billFirst = outcome.kind === "confirm_order";
       const askLine = reply;
-      reply = `${billFirst ? "" : `${reply}\n\n`}${renderBill({
+      const billText = renderBill({
         lang: LANGV,
         arName: arNameOf,
         branchPin: outcome.branch_pin || null,
@@ -3041,7 +3041,27 @@ LANGUAGE (last line so everything above stays cacheable): the conversation's lan
         restaurant: config.name,
         slug: config.slug,
         when: new Date().toLocaleString("en-GB", { timeZone: config.basic_info?.timezone || "Africa/Cairo", hour12: true, day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }),
-      })}${billFirst ? `\n\n${askLine}` : ""}`;
+      });
+      // NO BILL ON REPEAT. While a draft waits for "confirm", chit-chat / a question gets
+      // answered and the draft re-confirmed — which re-sent the WHOLE bill under every
+      // reply ("3amleen eh" → receipt, again). If the guest already has this exact bill on
+      // screen in our last messages, the reply answers them and adds one reminder line.
+      // A changed bill (item added, payment picked) always shows in full.
+      // items + total + the payment line: picking a payment method changes the bill, so it shows once more
+      const core = billText.split("\n").filter((l) => /^• |Total Due|الإجمالي المطلوب|^💳/.test(l)).join("\n");
+      const recentAi = [...(input.history || [])].reverse().filter((h) => h.role === "ai").slice(0, 4).map((h) => String(h.message || ""));
+      // every item line AND the total must already be in one recent message (they sit apart there,
+      // between rules/subtotal/service lines — so check line by line, not as one block)
+      const coreLines = core.split("\n").filter(Boolean);
+      const shownAlready = outcome.kind !== "order_placed" && coreLines.length > 0 && recentAi.some((m) => coreLines.every((l) => m.includes(l)));
+      if (shownAlready && outcome.kind === "ask_payment") {
+        // still waiting on HOW they pay: ask that again, no bill (it's right above), no "confirm" yet
+        reply = [askLine].filter(Boolean).join("\n\n");
+      } else if (shownAlready) {
+        const remind = L2("🧾 Your order is ready to send — tap *Confirm* when you are, or tell me what to change.", "🧾 طلبك جاهز — دوس *تأكيد* لما تحب، أو قولّي تغيّر إيه.", "🧾 El order gahz — dos *Confirm* lama te7eb, aw 2olli teghayar eh.");
+        const ask = billFirst ? "" : askLine;
+        reply = [outcome.side_answer || null, ask && !/akked w hayro7|send it to the kitchen|هيروح للمطبخ/i.test(ask) ? ask : null, remind].filter(Boolean).join("\n\n");
+      } else reply = `${billFirst ? "" : `${reply}\n\n`}${billText}${billFirst ? `\n\n${askLine}` : ""}`;
       }
     }
     // the ticket code is the guest's receipt — never let a confirmation go out without it
@@ -3124,7 +3144,7 @@ LANGUAGE (last line so everything above stays cacheable): the conversation's lan
       || (outcome.type_first && !!(outcome.items?.length));
     let doc = null;
     if (outcome.kind === "order_placed" && outcome.receipt_url) {
-      doc = { url: outcome.receipt_url, caption: `Receipt ${outcome.code}`, filename: `${outcome.code}.pdf` };
+      doc = { url: outcome.receipt_url, caption: L2(`Receipt ${outcome.code}`, `إيصال ${outcome.code}`, `El esal ${outcome.code}`), filename: `${outcome.code}.pdf` };
     } else if (!menuAlreadyShown && NEEDS_MENU.includes(outcome.kind)) {
       const mc = config.menu_config || {};
       const pdf = mc.pdf_url

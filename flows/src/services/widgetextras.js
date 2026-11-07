@@ -1,8 +1,9 @@
 // Table-chat extras (docs/KOFFEE-KULTURE-DINE-IN.md): busy level, popular today, the shared table
-// cart, the running tab with per-phone shares, tips, voice ordering, guest profile (taste / vibe /
-// default milk / language) and per-drink thumbs. Everything here is COUNTED from rows — orders,
+// cart, the running tab with per-phone shares, tips, voice ordering, guest profile (default milk /
+// language / last mood + what they ordered after it) and per-drink thumbs. Everything here is COUNTED from rows — orders,
 // claims, diner preferences — never estimated by a model.
-import { effectiveSession, liveClaim, isShowroom } from "./tabletoken.js";
+import crypto from "node:crypto";
+import { effectiveSession, liveClaim, isShowroom, rememberDevice, linkPhone, guestToken, cleanGuestName, GUEST_KEY_RE } from "./tabletoken.js";
 import { notifyDashboard } from "./chatlog.js";
 import { transcribeAudio } from "./media.js";
 import { setSessionLanguage } from "../flows/buffering.js";
@@ -101,10 +102,119 @@ export async function profileOf(db, runAs) {
   }
   const top = Object.entries(milks).sort((a, b) => b[1] - a[1])[0];
   const habit = top && top[1] >= 3 && top[1] / drinks >= 0.6 ? { milk: top[0], times: top[1], of: drinks } : null;
-  return { taste: p.taste || null, vibe: p.vibe || null, default_milk: p.default_milk || null, language: d?.preferences?.language || null, habit };
+  // mood is for TODAY, never a preference — but we remember it as history: the last mood they
+  // picked and what they actually ordered right after it (the first order following the pick)
+  let last_mood = null;
+  if (p.last_mood?.mood && p.last_mood?.at) {
+    const { data: after } = await db.from("orders").select("items,created_at").eq("phone_number", runAs).neq("status", "cancelled").gte("created_at", p.last_mood.at).order("created_at").limit(1);
+    const item = after?.[0]?.items?.[0]?.name || null;
+    last_mood = { mood: p.last_mood.mood, at: p.last_mood.at, item };
+  }
+  const verified = /^\+\d{8,15}$/.test(runAs);
+  const phone = verified ? runAs : d?.preferences?.phone_unverified || null;
+  return { name: d?.name || null, phone: phone ? maskPhone(phone) : null, verified, default_milk: p.default_milk || null, language: d?.preferences?.language || null, habit, last_mood };
+}
+
+export const maskPhone = (p) => String(p).replace(/^(\+\d{2})(\d+)(\d{4})$/, (m, a, mid, z) => `${a} ${"•".repeat(Math.max(3, mid.length))}${z}`);
+// Egyptian numbers typed any way ("01012345678", "201012345678", "+20 10 1234 5678") → +201012345678
+export function normalizePhone(raw) {
+  let d = String(raw || "").replace(/[^\d+]/g, "");
+  if (d.startsWith("00")) d = "+" + d.slice(2);
+  if (/^01\d{9}$/.test(d)) d = "+2" + d;
+  else if (/^20\d{10}$/.test(d)) d = "+" + d;
+  else if (/^1\d{9}$/.test(d)) d = "+20" + d;
+  return /^\+\d{10,15}$/.test(d) ? d : null;
+}
+
+// one-time codes for "remember me" — sent by WhatsApp authentication template (table_login_code)
+const otps = new Map(); // sessionId → { phone, code, exp, tries, name }
+setInterval(() => { const now = Date.now(); for (const [k, v] of otps) if (v.exp < now) otps.delete(k); }, 60_000).unref?.();
+async function sendOtp(phone, code, lang) {
+  const token = process.env.WA_TOKEN, pnid = process.env.WA_PHONE_NUMBER_ID;
+  if (!token || !pnid) return { sent: false, reason: "whatsapp_not_configured" };
+  const body = { messaging_product: "whatsapp", to: phone.replace(/^\+/, ""), type: "template",
+    template: { name: process.env.WIDGET_OTP_TEMPLATE || "table_login_code", language: { code: lang === "ar" ? "ar" : "en_US" },
+      components: [{ type: "body", parameters: [{ type: "text", text: code }] }, { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: code }] }] } };
+  const r = await fetch(`https://graph.facebook.com/v21.0/${pnid}/messages`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((x) => x.json()).catch((e) => ({ error: { message: e.message } }));
+  if (r.error) return { sent: false, reason: /template/i.test(r.error.message || "") ? "codes_unavailable" : "send_failed", detail: r.error.message };
+  return { sent: true };
 }
 
 export function registerWidgetExtras(app, { widgetTenant, widgetGuard, rateLimit, widgetKey }) {
+  // ---- "Me": what to call them + their phone (unverified until the WhatsApp code comes back) ----
+  app.post("/api/widget/me", rateLimit("widget-me", 20, 60_000, widgetKey), async (req, res) => {
+    const w = await widgetTenant(req, res); if (!w) return;
+    try {
+      const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+      const db = w.tenant.db;
+      let runAs = await effectiveSession(db, sessionId), token = null;
+      const name = req.body?.name !== undefined ? cleanGuestName(req.body.name) : null;
+      if (name) {
+        if (runAs === sessionId) { runAs = await rememberDevice(w.tenant, sessionId, name); token = guestToken(w.tenant.record, runAs); }
+        else await db.from("diners").update({ name }).eq("phone_number", runAs);
+      }
+      if (req.body?.phone !== undefined) {
+        const phone = req.body.phone ? normalizePhone(req.body.phone) : null;
+        if (req.body.phone && !phone) return res.status(400).json({ error: "bad_phone" });
+        // a number alone never invents a profile ("Welcome back, Guest!") — it waits on this visit's
+        // row until the WhatsApp code proves it; with a name it rides on the remembered guest
+        if (!/^\+/.test(runAs)) await patchPrefs(db, runAs, { phone_unverified: phone });
+      }
+      if (!token && runAs !== sessionId) token = guestToken(w.tenant.record, runAs);
+      res.json({ ok: true, profile: await profileOf(db, runAs), guest_token: token });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/widget/otp/start", rateLimit("widget-otp", 4, 10 * 60_000, widgetKey), async (req, res) => {
+    const w = await widgetTenant(req, res); if (!w) return;
+    try {
+      const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+      const phone = normalizePhone(req.body?.phone);
+      if (!phone) return res.status(400).json({ error: "bad_phone" });
+      const code = String(crypto.randomInt(1000, 10000));
+      otps.set(sessionId, { phone, code, exp: Date.now() + 10 * 60_000, tries: 0, name: cleanGuestName(req.body?.name) || null });
+      // local test servers only: OTP_DEV_ECHO=1 returns the code instead of messaging it
+      if (process.env.OTP_DEV_ECHO === "1") return res.json({ sent: true, dev_code: code });
+      const r = await sendOtp(phone, code, req.body?.lang);
+      if (!r.sent) otps.delete(sessionId);
+      res.json({ sent: r.sent, reason: r.reason || null });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/widget/otp/verify", rateLimit("widget-otp-verify", 10, 10 * 60_000, widgetKey), async (req, res) => {
+    const w = await widgetTenant(req, res); if (!w) return;
+    try {
+      const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+      const o = otps.get(sessionId);
+      if (!o || o.exp < Date.now()) return res.status(400).json({ error: "expired" });
+      if (++o.tries > 5) { otps.delete(sessionId); return res.status(429).json({ error: "too_many_tries" }); }
+      if (String(req.body?.code || "").trim() !== o.code) return res.status(400).json({ error: "wrong_code", left: 5 - o.tries });
+      otps.delete(sessionId);
+      const db = w.tenant.db;
+      const before = await effectiveSession(db, sessionId);
+      const prev = before !== sessionId ? await prefsOf(db, before) : null;
+      await linkPhone(w.tenant, sessionId, o.phone, o.name || prev?.name || null);
+      // a device-remembered guest becomes their phone: orders, name, profile move over
+      if (GUEST_KEY_RE.test(before)) {
+        await db.from("orders").update({ phone_number: o.phone }).eq("phone_number", before).then(() => {}, () => {});
+        const ph = await prefsOf(db, o.phone);
+        await db.from("diners").update({ ...(ph?.name ? {} : { name: prev?.name || o.name || null }), preferences: { ...(prev?.preferences || {}), ...(ph?.preferences || {}), widget_profile: { ...(prev?.preferences?.widget_profile || {}), ...(ph?.preferences?.widget_profile || {}) }, phone_unverified: null } }).eq("phone_number", o.phone);
+      }
+      res.json({ ok: true, guest_token: guestToken(w.tenant.record, o.phone), profile: await profileOf(db, o.phone) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // forget me on this phone: the table session stops running as them; the browser drops its token
+  app.post("/api/widget/forget", rateLimit("widget-forget", 6, 60_000, widgetKey), async (req, res) => {
+    const w = await widgetTenant(req, res); if (!w) return;
+    try {
+      const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
+      const d = await prefsOf(w.tenant.db, sessionId);
+      if (d?.id) { const { linked_phone, ...rest } = d.preferences || {}; await w.tenant.db.from("diners").update({ preferences: rest }).eq("id", d.id); }
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // shared table cart: last write wins, every phone at the table polls it
   app.post("/api/widget/cart", rateLimit("widget-cart", 90, 60_000, widgetKey), async (req, res) => {
     const w = await widgetTenant(req, res); if (!w) return;
@@ -162,7 +272,9 @@ export function registerWidgetExtras(app, { widgetTenant, widgetGuard, rateLimit
       const runAs = await effectiveSession(w.tenant.db, sessionId);
       const cur = (await prefsOf(w.tenant.db, runAs))?.preferences || {};
       const p = { ...(cur.widget_profile || {}) };
-      for (const k of ["taste", "vibe", "default_milk"]) if (k in (req.body || {})) p[k] = req.body[k] ? String(req.body[k]).slice(0, 30) : null;
+      if ("default_milk" in (req.body || {})) p.default_milk = req.body.default_milk ? String(req.body.default_milk).slice(0, 30) : null;
+      const MOODS = ["sleepy", "sweet", "hot", "hungry", "matcha", "surprise"];
+      if (MOODS.includes(req.body?.last_mood)) p.last_mood = { mood: req.body.last_mood, at: new Date().toISOString() };
       const patch = { widget_profile: p };
       const lang = req.body?.language;
       if (["en", "ar", "franco"].includes(lang)) {

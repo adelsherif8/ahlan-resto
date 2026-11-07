@@ -35,7 +35,11 @@ export async function sessionPrecheck(db, sessionId, history) {
   // boilerplate), tripping a handoff mid-order and killing the order. The reported
   // "same wrong answer" loop is prevented upstream now (order-flow handoff + per-session
   // lock), so exact-match is the safe, sufficient backstop here.
-  const aiTurns = (history || []).filter((h) => h.role === "ai").map((h) => h.message);
+  // the handoff line itself is not "the bot stuck": counting it made every message after a
+  // handoff trigger the same handoff again, forever (a table guest asking "what pastries do
+  // you have?" got "a team member will help" on repeat). It fires once; then we answer again.
+  const HANDOFF_LINE = /team member to help you directly|حد من الفريق يساعدك|7ad men el team ysa3dak/;
+  const aiTurns = (history || []).filter((h) => h.role === "ai" && !HANDOFF_LINE.test(String(h.message || ""))).map((h) => h.message);
   // …except the ORDER STATUS CARD: "where's my order?" then "how long?" legitimately get
   // the same card twice — that is the answer, not the bot stuck (it tripped a human
   // handoff on the guest's next word, "can I cancel?").
