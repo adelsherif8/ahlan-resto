@@ -1,385 +1,378 @@
 ---
-// Koffee Kulture — the café's own site. Our one addition is the chat bubble bottom-right,
-// which opens the real dine-in widget (flows) on the showroom table DEMO at Arkan.
-// Icons: Font Awesome 6 (no emoji anywhere on the page).
+// Koffee Kulture — the café's own site, built from its real photos (Talabat menu shots, CairoScene
+// branch photos) and the moon-faced characters from its printed menu. Our addition: the chat bubble
+// bottom-right and the "your table runs itself" section, both the real dine-in system (flows) on the
+// showroom table DEMO at Arkan (exempt from the geofence).
 import Base from '../../layouts/Base.astro';
 
 const FLOWS = 'https://flows.munadim.com';
 const DEMO_TOKEN = 'v1.eyJ2IjoxLCJiIjoiYXJrYW4iLCJ0IjoiREVNTyIsInIiOiJkMGNkMmM4Ni0xN2UyLTQ4ZTUtOTc0MC1hOGM5MWMxZWE2ZDkifQ.76OJRQTeb-Q9lGOrgh_9of6TdWfAe833W4GHkgjEQ7Y';
 const widgetUrl = `${FLOWS}/t/${DEMO_TOKEN}?r=koffee-kulture`;
-const LOGO = 'https://sxthftiqvaojbdyjizjr.supabase.co/storage/v1/object/public/brand/koffee-kulture/logo.jpg?v=1';
+const I = '/koffee';
 
-const menu = [
-  { key: 'hot', name: 'Hot Koffee', icon: 'fa-mug-hot', items: [['Espresso', 80, 'Double shot of the house blend'], ['Flat White', 110, 'Double espresso, steamed milk'], ['Kappuccino', 125, 'Espresso, steamed milk foam'], ['Spanish Latte', 135, 'Espresso, milk, condensed milk'], ['Salted Karamel Latte', 135, 'Double espresso, salted caramel'], ['Pistachio Latte', 175, 'Steamed milk, pistachio syrup']] },
-  { key: 'cold', name: 'Kold & Blended', icon: 'fa-glass-water', note: 'M / L', items: [['Iced Spanish Latte', '125 / 145', 'Milk, espresso, condensed milk'], ['Iced Salted Karamel', '125 / 145', 'Creamy, salted caramel syrup'], ['Iced Pistachio Latte', '165 / 185', 'Iced latte, pistachio'], ['Blended Spanish Latte', '125 / 145', 'Strong coffee, condensed milk, ice'], ['Karamel Koffee Frappe', '125 / 145', 'Coffee, caramel, milk, ice'], ['Iced Banana Bread Latte', '155 / 175', 'Banana, cinnamon, milk']] },
-  { key: 'matcha', name: 'Matcha Kulture', icon: 'fa-leaf', items: [['Hot Matcha Latte', 150, 'Best with skim or coconut milk'], ['Hot Salted Karamel Matcha', 165, 'Hot matcha, salted caramel'], ['Hot Pistachio Matcha', 185, 'Matcha, pistachio, hot milk'], ['Iced Matcha Latte', '140 / 160', 'Iced, whisked to order'], ['Blended Strawberry Matcha', '165 / 185', 'Matcha, strawberry sauce'], ['Blended Pistachio Matcha', '180 / 195', 'Matcha, pistachio sauce']] },
-  { key: 'bakery', name: 'Bakery', icon: 'fa-bread-slice', items: [['All Butter Kroissant', 80, 'Viennoise, butter-rich'], ['Pistachio Kroissant', 120, 'Pistachio from Italy'], ['Pistachio Konafa Kroissant', 180, 'Kunafa, pistachio, chocolate'], ['Almond Kroissant', 110, 'Almond cream, toasted almonds'], ['Caprese Kroissant', 250, 'Mozzarella, pesto, cherry tomato'], ['Labneh & Zaatar Kroissant', 270, 'Turkish labneh, fresh zaatar']] },
-  { key: 'breakfast', name: 'Breakfast', icon: 'fa-egg', items: [['The LA Benedict', 320, 'Smoked salmon, avocado, dill hollandaise'], ['Shroom Truffle Benedict', 225, 'Mushrooms, spinach, truffle hollandaise'], ['The Klassic Omelette', 190, 'Folded, parmesan'], ['Mushroom Invasion Omelette', 290, 'Thyme mushrooms, fried brie'], ['Savory Breakfast Bagel', 275, 'Scrambled egg, halloumi, spinach'], ['Pistachio Pancakes', 370, 'Pistachio sauce, fresh cream']] },
-  { key: 'bagels', name: 'Bagels & Sandwiches', icon: 'fa-burger', items: [['Cream Cheese Bagel', 170, 'Baked daily'], ['Lunch Bagel', 285, 'Grilled chicken, Caesar, parmesan'], ['Philly Steak Bagel', 395, 'Steak, mushrooms, cheddar'], ['Kulture Bagel', 390, 'Salmon, avocado, honey mustard'], ['Sub Out', 290, 'Avocado, chicken, sweet chili mayo'], ['Spicy Tunacado', 310, 'Tuna, pesto, jalapeño, guacamole']] },
-  { key: 'refresh', name: 'Refreshers', icon: 'fa-lemon', items: [['Raspberry Mojito', 140, 'Raspberry, mint, lemon'], ['Ocean Breeze', 150, 'Lemon soda, coconut, blue curaçao'], ['Coco Berry Redbull', 190, 'Red Bull, coconut, berries'], ['Passion Lemonade', 140, 'Passion fruit, lemon'], ['Love Story Smoothie', 170, 'Pineapple, passion fruit, peach'], ['Peach Ice Tea', 130, 'Peach iced tea']] },
-  { key: 'sweet', name: 'Sweet Tooth', icon: 'fa-cake-candles', items: [['San Sebastian Cheesecake', 195, 'Basque-style'], ['Tiramisu Jar', 190, 'Made with our koffee'], ['Vanilla Berry Cake', 240, 'Ganache, raspberry, berries'], ['Brookies', 110, 'Brownie meets cookie'], ['Kinder Cookie', 115, 'Kinder spread filling'], ['Salted Caramel Kan Kake', 245, 'Brownie, salted caramel']] },
+// [name, price, description, photo?]
+type Item = [string, number | string, string, string?];
+const menu: { key: string; name: string; icon: string; char: string; tint: string; items: Item[] }[] = [
+  { key: 'hot', name: 'Hot Koffee', icon: 'fa-mug-hot', char: 'char-chair', tint: '#FDE7D7', items: [
+    ['Spanish Latte', 135, 'Espresso, milk, condensed milk'], ['Kappuccino', 125, 'Espresso, steamed milk foam'],
+    ['Flat White', 110, 'Double espresso, steamed milk'], ['Salted Karamel Latte', 135, 'Double espresso, salted caramel'],
+    ['Pistachio Latte', 175, 'Steamed milk, Italian pistachio'], ['Honey Cinnamon Latte', 145, 'Honey cinnamon sauce'] ] },
+  { key: 'cold', name: 'Kold Koffee', icon: 'fa-glass-water', char: 'char-sip', tint: '#E3F1FF', items: [
+    ['Iced Spanish Latte', '125 / 145', 'Milk, espresso, condensed milk'], ['Iced Salted Karamel', '125 / 145', 'Creamy, salted caramel'],
+    ['Iced Pistachio Latte', '165 / 185', 'Iced latte, pistachio'], ['Iced Banana Bread Latte', '155 / 175', 'Banana, cinnamon, milk'],
+    ['Blended Spanish Latte', '125 / 145', 'Strong coffee, condensed milk, ice'], ['Karamel Koffee Frappe', '125 / 145', 'Coffee, caramel, milk, ice'] ] },
+  { key: 'matcha', name: 'Matcha Kulture', icon: 'fa-leaf', char: 'char-walk', tint: '#E4F5DF', items: [
+    ['Blended Dirty Matcha', '165 / 185', 'Espresso blend over matcha', 'dirty-matcha.jpg'], ['Blended Matcha', '155 / 175', 'Matcha blended with milk'],
+    ['Hot Salted Karamel Matcha', 165, 'Hot matcha, salted caramel'], ['Iced Matcha Latte', '140 / 160', 'Whisked to order'],
+    ['Blended Strawberry Matcha', '165 / 185', 'Matcha, strawberry sauce'], ['Blended Pistachio Matcha', '180 / 195', 'Matcha, pistachio sauce'] ] },
+  { key: 'refresh', name: 'Refreshers', icon: 'fa-lemon', char: 'char-dance', tint: '#FFE3EF', items: [
+    ['Pink Redbull', 190, 'Red Bull, strawberry, vanilla-cherry', 'pink-redbull.jpg'], ['Coco Berry Redbull', 190, 'Red Bull, coconut, berries'],
+    ['Raspberry Mojito', 140, 'Raspberry, mint, lemon'], ['Ocean Breeze', 150, 'Lemon soda, coconut, blue curaçao'],
+    ['Love Story Smoothie', 170, 'Pineapple, passion fruit, peach'], ['Passion Lemonade', 140, 'Passion fruit, lemon'] ] },
+  { key: 'bakery', name: 'Bakery & Breakfast', icon: 'fa-bread-slice', char: 'char-travel', tint: '#FFF1D6', items: [
+    ['Pistachio Konafa Kroissant', 180, 'Kunafa, pistachio, chocolate'], ['All Butter Kroissant', 80, 'Viennoise, butter-rich'],
+    ['The LA Benedict', 320, 'Smoked salmon, avocado, dill hollandaise'], ['Mushroom Invasion Omelette', 290, 'Thyme mushrooms, fried brie'],
+    ['Pistachio Pancakes', 370, 'Pistachio sauce, fresh cream'], ['Savory Breakfast Bagel', 275, 'Scrambled egg, halloumi, spinach'] ] },
+  { key: 'bagels', name: 'Bagels & Sandwiches', icon: 'fa-burger', char: 'char-guitar', tint: '#EFE6FF', items: [
+    ['Philly Steak Bagel', 395, 'Steak fillet, mushrooms, cheddar', 'philly-bagel.jpg'], ['Kulture Bagel', 390, 'Salmon, avocado, honey mustard', 'kulture-bagel.jpg'],
+    ['Lunch Bagel', 285, 'Grilled chicken, Caesar, parmesan'], ['Sub Out', 290, 'Avocado, chicken, sweet chili mayo'],
+    ['Spicy Tunacado', 310, 'Tuna, pesto, jalapeño, guacamole'], ['Cream Cheese Bagel', 170, 'Baked daily'] ] },
+  { key: 'sweet', name: 'Sweet Tooth', icon: 'fa-cake-candles', char: 'char-kroissant', tint: '#FFE9DE', items: [
+    ['Almond Salted Caramel Cake', 245, 'Salted caramel, caramelised almonds', 'almond-cake.jpg'], ['Brookies', 110, 'Brownie meets cookie', 'brookies.jpg'],
+    ['Kinder Cookie', 115, 'Kinder spread filling', 'kinder-cookie.jpg'], ['Chocolate Chip Cookie', 100, 'Milk chocolate, a note of coffee', 'choc-cookie.jpg'],
+    ['San Sebastian Cheesecake', 195, 'Basque-style'], ['Tiramisu Jar', 190, 'Made with our koffee'] ] },
+];
+const CHARS = ['char-chair', 'char-sip', 'char-walk', 'char-dance', 'char-travel', 'char-guitar', 'char-kroissant', 'char-hug'];
+const marquee = ['Spanish Latte', 'Dirty Matcha', 'Pistachio Konafa Kroissant', 'Pink Redbull', 'Philly Steak Bagel', 'Brookies', 'Salted Karamel', 'Love Story Smoothie'];
+const does = [
+  ['fa-comments', 'Takes the order', 'Sizes, oat milk, extra shot, "same as last time" — English, Arabic or Franco.'],
+  ['fa-wand-magic-sparkles', 'Suggests the add-on', 'A kroissant with the latte, at the moment it fits.'],
+  ['fa-chair', 'Knows the table', 'Every ticket carries its table. Nobody at another table can order to yours.'],
+  ['fa-arrows-split-up-and-left', 'Routes it', 'Drinks to the bar screen, food to the kitchen, the same second.'],
+  ['fa-list-check', 'Tracks it', 'Received, making, ready, served — live on the guest\'s phone.'],
+  ['fa-bell-concierge', 'Calls staff', '"The bill", "water", "help" — one tap, a chime at the counter.'],
+  ['fa-user-check', 'Remembers regulars', '"Welcome back, Sara — your usual?"'],
+  ['fa-star', 'Collects reviews', 'Happy guests go to Google; unhappy ones reach the manager privately.'],
+  ['fa-chart-line', 'Reports to you', 'Orders, average check, add-on rate, kitchen time — per branch.'],
 ];
 const branches = [
-  { name: 'Arkan Plaza', area: 'Sheikh Zayed' }, { name: 'Golf Central', area: 'Palm Hills' },
-  { name: 'U Venues', area: 'New Cairo' }, { name: 'District 5', area: 'New Cairo' },
-  { name: 'O1 Kitchen Mall', area: 'New Cairo' }, { name: 'Lake District', area: 'Mivida' },
-  { name: 'Ivory', area: 'Villette by Sodic' },
-];
-// what the AI handles across the whole visit (each one is live in the table chat)
-const does = [
-  { icon: 'fa-comments', title: 'Takes the order', text: 'Sizes, oat milk, extra shot, "same as last time" — in English, Arabic or Franco.' },
-  { icon: 'fa-wand-magic-sparkles', title: 'Suggests the add-on', text: 'A kroissant with the latte, at the moment it fits. Never pushy.' },
-  { icon: 'fa-chair', title: 'Knows the table', text: 'Every ticket carries its table number. Nobody at another table can order to yours.' },
-  { icon: 'fa-arrows-split-up-and-left', title: 'Routes it', text: 'Drinks to the bar screen, food to the kitchen screen, at the same second.' },
-  { icon: 'fa-list-check', title: 'Tracks it', text: 'Received, making, ready, served — the guest sees it live on their phone.' },
-  { icon: 'fa-bell-concierge', title: 'Calls staff', text: '"Need help", "the bill", "water" — one tap, the counter hears a chime.' },
-  { icon: 'fa-user-check', title: 'Remembers regulars', text: 'Next visit: "Welcome back, Sara — your usual?" Verified once on WhatsApp.' },
-  { icon: 'fa-star', title: 'Collects reviews', text: 'Happy guests go to Google. Unhappy ones reach the manager privately, the same day.' },
-  { icon: 'fa-chart-line', title: 'Reports to you', text: 'Orders, average check, add-on rate, kitchen time and peak hours, per branch.' },
-];
-const steps = [
-  { icon: 'fa-qrcode', title: 'Scan', text: 'The code on your table opens the chat already knowing where you sit.' },
-  { icon: 'fa-comments', title: 'Say it', text: '"Large iced spanish latte, oat milk, and a pistachio kroissant." Done.' },
-  { icon: 'fa-bell-concierge', title: 'Served', text: 'The ticket reaches the counter with your table number. Pay there as usual.' },
+  ['Arkan Plaza', 'Sheikh Zayed'], ['Golf Central', 'Palm Hills'], ['U Venues', 'New Cairo'], ['District 5', 'New Cairo'],
+  ['O1 Kitchen Mall', 'New Cairo'], ['Lake District', 'Mivida'], ['Ivory', 'Villette by Sodic'],
 ];
 ---
 
 <Base
   lang="en"
   title="Koffee Kulture — Specialty Koffee & Breakfast Kulture"
-  description="Different People, Different Kultures, Different KOFFEE KUPS. Specialty coffee, matcha, kroissants, bagels and all-day breakfast in Sheikh Zayed and New Cairo. Order from your table."
+  description="Different People, Different Kultures, Different KOFFEE KUPS. Specialty coffee, matcha, kroissants and bagels in Sheikh Zayed and New Cairo. Order from your table."
   path="koffee-kulture"
 >
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
   <div class="kk">
-    <header class="top" id="top-bar">
-      <a class="brand" href="#top"><img src={LOGO} alt="Koffee Kulture" width="40" height="40" /><span>Koffee Kulture</span></a>
+    <header class="top" id="topbar">
+      <a class="brand" href="#top"><img src={`${I}/logo.jpg`} alt="Koffee Kulture" width="44" height="44" /><span>Koffee Kulture</span></a>
       <nav>
-        <a href="#menu">Menu</a>
-        <a href="#how">How to order</a>
-        <a href="#branches">Branches</a>
+        <a href="#kans">Kans</a><a href="#menu">Menu</a><a href="#table">Order at the table</a><a href="#branches">Branches</a>
         <button class="btn sm" data-open-chat><i class="fa-solid fa-mug-saucer"></i><span>Order</span></button>
       </nav>
     </header>
 
+    <!-- HERO -->
     <section class="hero" id="top">
-      <div class="blob b1"></div><div class="blob b2"></div>
-      <div class="hero-in">
+      <div class="hero-copy">
         <p class="tag reveal"><i class="fa-solid fa-seedling"></i> Specialty Koffee &amp; Breakfast Kulture</p>
-        <h1 class="reveal">Different People.<br>Different Kultures.<br><em>Different Koffee Kups.</em></h1>
-        <p class="lede reveal">Espresso pulled to order, matcha whisked by hand, kroissants baked through the day and breakfast till midnight. Seven homes across Sheikh Zayed and New Cairo.</p>
+        <h1 class="reveal">
+          <span class="w">Different</span> <span class="w">People.</span><br />
+          <span class="w">Different</span> <span class="w">Kultures.</span><br />
+          <span class="w pink">Different</span> <span class="w green">Koffee Kups.</span>
+        </h1>
+        <p class="lede reveal">Espresso pulled to order, matcha whisked by hand, kroissants baked all day and coffee you take home in a kan. Seven homes across Sheikh Zayed and New Cairo.</p>
         <div class="cta reveal">
           <button class="btn lg" data-open-chat><i class="fa-solid fa-comment-dots"></i> Order from your table</button>
           <a class="btn lg ghost" href="#menu"><i class="fa-solid fa-book-open"></i> See the menu</a>
         </div>
         <p class="hours reveal"><span class="dot"></span><span id="open-state">Open daily 7:30 AM – 12:00 AM</span></p>
       </div>
-      <div class="cup reveal" aria-hidden="true">
-        <div class="steam"><span></span><span></span><span></span></div>
-        <i class="fa-solid fa-mug-hot"></i>
+      <div class="hero-art" id="heroArt">
+        <div class="blob" aria-hidden="true"></div>
+        <svg class="asterisk" viewBox="0 0 100 100" aria-hidden="true"><g stroke="#3DAE2B" stroke-width="13" stroke-linecap="round"><path d="M50 8v84M8 50h84M20 20l60 60M80 20L20 80"/></g></svg>
+        <img class="hero-photo" src={`${I}/hero-can.jpg`} alt="A Koffee Kulture kan held up at the beach" />
+        <img class="char c1" data-depth="18" src={`${I}/char-guitar.png`} alt="" aria-hidden="true" />
+        <img class="char c2" data-depth="-14" src={`${I}/char-sip.png`} alt="" aria-hidden="true" />
+        <span class="spark s1" aria-hidden="true">✦</span><span class="spark s2" aria-hidden="true">✦</span><span class="spark s3" aria-hidden="true">✦</span>
       </div>
     </section>
 
-    <section class="strip">
-      <div class="stat reveal"><i class="fa-solid fa-location-dot"></i><b data-count="7">0</b><span>branches</span></div>
-      <div class="stat reveal"><i class="fa-solid fa-utensils"></i><b data-count="170" data-suffix="+">0</b><span>things to order</span></div>
-      <div class="stat reveal"><i class="fa-solid fa-leaf"></i><b data-count="22">0</b><span>matcha drinks</span></div>
-      <div class="stat reveal"><i class="fa-regular fa-clock"></i><b>7:30–00:00</b><span>every day</span></div>
+    <!-- MARQUEE -->
+    <div class="marquee" aria-hidden="true">
+      <div class="track">
+        {[...marquee, ...marquee].map((m) => (<span>{m}<i class="fa-solid fa-star-of-life"></i></span>))}
+      </div>
+    </div>
+
+    <!-- KANS -->
+    <section class="kans" id="kans">
+      <div class="head reveal">
+        <p class="tag pinkbg"><i class="fa-solid fa-bottle-water"></i> The Kan Kulture</p>
+        <h2>Our koffee comes in a kan.</h2>
+        <p class="sub">Iced, sealed and made to travel — the thing everyone photographs.</p>
+      </div>
+      <div class="kan-grid">
+        <figure class="kan tilt reveal" style="--d:0ms"><img src={`${I}/cans.jpg`} alt="Four Koffee Kulture kans: berry, vanilla, matcha and purple" /><figcaption>Refreshers in a kan</figcaption></figure>
+        <figure class="kan tilt tall reveal" style="--d:90ms"><img src={`${I}/matcha-cans.jpg`} alt="Matcha kans" /><figcaption>Matcha, sealed fresh</figcaption></figure>
+        <figure class="kan tilt reveal" style="--d:180ms"><img src={`${I}/dirty-matcha.jpg`} alt="Blended Dirty Matcha kan" /><figcaption>Blended Dirty Matcha</figcaption></figure>
+        <figure class="kan tilt reveal" style="--d:270ms"><img src={`${I}/pink-redbull.jpg`} alt="Pink Redbull kan" /><figcaption>Pink Redbull</figcaption></figure>
+      </div>
     </section>
 
+    <!-- MENU -->
     <section class="menu" id="menu">
+      <img class="side-char" src={`${I}/char-chair.png`} alt="" aria-hidden="true" />
       <div class="head reveal">
-        <h2>The Menu</h2>
+        <p class="tag"><i class="fa-solid fa-book-open"></i> The Menu</p>
+        <h2>Pick something. Or let the chat pick for you.</h2>
         <p class="sub">EGP, VAT inclusive · 12% service on dine-in · plant milk +40 · extra shot +35</p>
       </div>
       <div class="tabs reveal" role="tablist">
-        {menu.map((c, i) => (
-          <button class={`tab ${i === 0 ? 'on' : ''}`} role="tab" data-tab={c.key}><i class={`fa-solid ${c.icon}`}></i>{c.name}</button>
-        ))}
+        {menu.map((c, i) => (<button class={`tab ${i === 0 ? 'on' : ''}`} role="tab" data-tab={c.key}><i class={`fa-solid ${c.icon}`}></i>{c.name}</button>))}
       </div>
-      <div class="search reveal"><i class="fa-solid fa-magnifying-glass"></i><input id="q" placeholder="Search the menu — matcha, pistachio, bagel…" autocomplete="off" /></div>
+      <div class="search reveal"><i class="fa-solid fa-magnifying-glass"></i><input id="q" placeholder="Search — matcha, pistachio, bagel…" autocomplete="off" /></div>
       <div class="board">
         {menu.map((c, i) => (
-          <div class={`panel-cat ${i === 0 ? 'on' : ''}`} data-cat={c.key}>
-            {c.items.map(([n, p, d]) => (
+          <div class={`cat ${i === 0 ? 'on' : ''}`} data-cat={c.key}>
+            {c.items.map(([n, p, d, ph], j) => (
               <article class="item" data-name={`${n} ${d}`.toLowerCase()}>
-                <div class="ic"><i class={`fa-solid ${c.icon}`}></i></div>
-                <div class="tx"><b>{n}</b><span>{d}</span></div>
-                <div class="pr">{p}<small>EGP</small></div>
-                <button class="add" data-ask={`I'd like ${n}`} aria-label={`Order ${n}`}><i class="fa-solid fa-plus"></i></button>
+                <div class="pic" style={`--tint:${c.tint}`}>
+                  {ph ? <img src={`${I}/${ph}`} alt={n} loading="lazy" /> : <img class="illus" src={`${I}/${CHARS[(i * 3 + j) % CHARS.length]}.png`} alt="" aria-hidden="true" loading="lazy" />}
+                </div>
+                <div class="info">
+                  <b>{n}</b><span>{d}</span>
+                  <div class="row"><em>{p} <small>EGP</small></em><button class="add" data-ask={`I'd like a ${n}`} aria-label={`Order ${n}`}><i class="fa-solid fa-plus"></i></button></div>
+                </div>
               </article>
             ))}
           </div>
         ))}
-        <p class="empty" id="empty" hidden><i class="fa-regular fa-face-frown"></i> Nothing matches — ask in the chat, it knows all 170 items.</p>
+        <p class="empty" id="empty" hidden><i class="fa-regular fa-face-frown"></i> Nothing matches — ask the chat, it knows all 170 items.</p>
       </div>
     </section>
 
-    <section class="how" id="how">
+    <!-- TABLE / BOT -->
+    <section class="tablesec" id="table">
+      <div class="table-in">
+        <div class="table-copy">
+          <p class="tag light reveal"><i class="fa-solid fa-microchip"></i> One AI, the whole visit</p>
+          <h2 class="reveal">Your table runs itself.</h2>
+          <p class="sub light reveal">Scan the code on the table and chat. The order reaches the bar and kitchen with your table number — and the AI handles everything after it.</p>
+          <ul class="does">
+            {does.map(([ic, h, t], i) => (<li class="reveal" style={`--d:${i * 45}ms`}><i class={`fa-solid ${ic}`}></i><div><b>{h}</b><span>{t}</span></div></li>))}
+          </ul>
+        </div>
+        <div class="phone-wrap reveal">
+          <img class="char c3" src={`${I}/char-walk.png`} alt="" aria-hidden="true" />
+          <div class="phone"><iframe id="demoFrame" title="Koffee Kulture table chat — live demo" allow="geolocation" loading="lazy" data-src={widgetUrl}></iframe></div>
+          <p class="live"><span class="dot"></span> Live — this is the real system on our showroom table</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSIDE -->
+    <section class="inside">
       <div class="head reveal">
-        <h2>Your table runs itself</h2>
-        <p class="sub">An AI host on every table: it takes the order, sends it to the bar and kitchen, calls staff, and remembers your regulars. No app to download.</p>
+        <p class="tag"><i class="fa-solid fa-camera-retro"></i> Inside the Kulture</p>
+        <h2>Come for the koffee. Stay for the kroissant.</h2>
       </div>
-      <div class="steps">
-        {steps.map((s, i) => (
-          <div class="step reveal" style={`--d:${i * 120}ms`}>
-            <div class="num">{i + 1}</div>
-            <i class={`fa-solid ${s.icon} big`}></i>
-            <h3>{s.title}</h3>
-            <p>{s.text}</p>
-          </div>
-        ))}
+      <div class="gallery">
+        <figure class="g g1 reveal"><img src={`${I}/storefront.jpg`} alt="Koffee Kulture storefront with its green logo" loading="lazy" /></figure>
+        <figure class="g g2 reveal" style="--d:80ms"><img src={`${I}/pancakes.jpg`} alt="Five pancakes from the new pancake menu" loading="lazy" /></figure>
+        <figure class="g g3 reveal" style="--d:160ms"><img src={`${I}/tresleches.jpg`} alt="Salted Karamel Tres Leches in its box" loading="lazy" /></figure>
+        <figure class="g g4 reveal" style="--d:240ms"><img src={`${I}/kulture-bagel.jpg`} alt="Kulture Bagel" loading="lazy" /></figure>
+        <figure class="g g5 reveal" style="--d:320ms"><img src={`${I}/almond-cake.jpg`} alt="Almond Salted Caramel Cake" loading="lazy" /></figure>
       </div>
-      <div class="does-head reveal">
-        <p class="tag"><i class="fa-solid fa-microchip"></i> One AI, the whole visit</p>
-        <h3>It doesn't stop at taking the order</h3>
-      </div>
-      <div class="does">
-        {does.map((d, i) => (
-          <div class="do reveal" style={`--d:${i * 50}ms`}>
-            <i class={`fa-solid ${d.icon}`}></i>
-            <div><b>{d.title}</b><span>{d.text}</span></div>
-          </div>
-        ))}
-      </div>
-      <div class="trust reveal">
-        <div><i class="fa-solid fa-shield-halved"></i><span>Each table's code is signed — it can't be edited to point at another table.</span></div>
-        <div><i class="fa-solid fa-location-crosshairs"></i><span>Orders only go through from inside the café. A photo of the code sent across town places nothing.</span></div>
-        <div><i class="fa-solid fa-user-check"></i><span>Nobody on staff has to confirm anything. Your table, for your visit.</span></div>
-      </div>
-      <button class="btn lg center reveal" data-open-chat><i class="fa-solid fa-comment-dots"></i> Try it now</button>
     </section>
 
+    <!-- BRANCHES -->
     <section class="branches" id="branches">
-      <div class="head reveal"><h2>Find your Kulture</h2><p class="sub">Every branch, every day, 7:30 AM – 12 AM</p></div>
-      <div class="grid">
-        {branches.map((b, i) => (
-          <div class="branch reveal" style={`--d:${i * 60}ms`}>
-            <i class="fa-solid fa-location-dot"></i>
-            <div><b>{b.name}</b><span>{b.area}</span></div>
-          </div>
-        ))}
+      <img class="side-char right" src={`${I}/char-travel.png`} alt="" aria-hidden="true" />
+      <div class="head reveal"><p class="tag"><i class="fa-solid fa-location-dot"></i> Find your Kulture</p><h2>Seven homes. Every day, 7:30 to midnight.</h2></div>
+      <div class="bgrid">
+        {branches.map(([n, a], i) => (<div class="branch reveal" style={`--d:${i * 50}ms`}><i class="fa-solid fa-location-dot"></i><div><b>{n}</b><span>{a}</span></div></div>))}
       </div>
-      <p class="contact reveal"><a href="tel:01034999123"><i class="fa-solid fa-phone"></i> 010 3499 9123</a><a href="mailto:amina@koffee-kulture.com"><i class="fa-regular fa-envelope"></i> amina@koffee-kulture.com</a></p>
+      <p class="contact reveal"><a href="tel:01034999123"><i class="fa-solid fa-phone"></i> 010 3499 9123</a></p>
     </section>
 
     <footer class="foot">
-      <span>© Koffee Kulture</span>
-      <span>Table ordering by <a href="/en">Munadim</a></span>
+      <img src={`${I}/char-hug.png`} alt="" aria-hidden="true" />
+      <div><b>Koffee Kulture</b><span>Different People. Different Kultures. Different Koffee Kups.</span></div>
+      <span class="by">Table ordering by <a href="/en">Munadim</a></span>
     </footer>
 
-    <!-- our addition: the chat bubble -->
+    <!-- the chat bubble -->
     <button class="bubble" id="kk-bubble" aria-label="Order from your table" data-open-chat>
-      <span class="ring"></span>
-      <i class="fa-solid fa-comment-dots ico-open"></i>
-      <i class="fa-solid fa-xmark ico-close"></i>
-      <span class="hint">Order from your table</span>
+      <span class="ring"></span><i class="fa-solid fa-comment-dots ico-open"></i><i class="fa-solid fa-xmark ico-close"></i><span class="hint">Order from your table</span>
     </button>
-    <div class="chat" id="kk-panel" aria-hidden="true">
-      <iframe id="kk-frame" title="Koffee Kulture — order from your table" allow="geolocation" data-src={widgetUrl}></iframe>
-    </div>
+    <div class="chat" id="kk-panel" aria-hidden="true"><iframe id="kk-frame" title="Koffee Kulture — order from your table" allow="geolocation" data-src={widgetUrl}></iframe></div>
   </div>
 
   <script>
-    const panel = document.getElementById('kk-panel');
-    const frame = document.getElementById('kk-frame');
-    const bubble = document.getElementById('kk-bubble');
-    const isOpen = () => panel.classList.contains('open');
-    function openChat(prefill) {
-      if (!frame.src) frame.src = frame.dataset.src;
+    const $ = (id: string) => document.getElementById(id) as HTMLElement;
+    const panel = $('kk-panel'), frame = $('kk-frame') as HTMLIFrameElement, bubble = $('kk-bubble');
+    function openChat(prefill?: string) {
+      if (!frame.src) frame.src = frame.dataset.src!;
       panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); bubble.classList.add('open');
-      if (prefill) {
-        const send = () => frame.contentWindow?.postMessage({ type: 'kk:prefill', text: prefill }, '*');
-        frame.dataset.loaded ? send() : frame.addEventListener('load', () => setTimeout(send, 1200), { once: true });
-      }
+      if (prefill) { const send = () => frame.contentWindow?.postMessage({ type: 'kk:prefill', text: prefill }, '*'); frame.dataset.loaded ? send() : frame.addEventListener('load', () => setTimeout(send, 1200), { once: true }); }
     }
     function closeChat() { panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); bubble.classList.remove('open'); }
     frame.addEventListener('load', () => { frame.dataset.loaded = '1'; });
-    document.querySelectorAll('[data-open-chat]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); isOpen() && b === bubble ? closeChat() : openChat(); }));
-    document.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click', () => { b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 400); openChat(b.dataset.ask); }));
+    document.querySelectorAll<HTMLElement>('[data-open-chat]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); panel.classList.contains('open') && b === bubble ? closeChat() : openChat(); }));
+    document.querySelectorAll<HTMLElement>('[data-ask]').forEach((b) => b.addEventListener('click', () => { b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 450); openChat(b.dataset.ask); }));
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeChat(); });
     setTimeout(() => bubble.classList.add('quiet'), 7000);
 
+    // in-page live demo phone loads when it scrolls near
+    const demo = $('demoFrame') as HTMLIFrameElement;
+    new IntersectionObserver((es, o) => es.forEach((e) => { if (e.isIntersecting) { demo.src = demo.dataset.src!; o.disconnect(); } }), { rootMargin: '300px' }).observe(demo);
+
     // menu tabs + search
-    const tabs = document.querySelectorAll('.tab');
-    const cats = document.querySelectorAll('.panel-cat');
-    const q = document.getElementById('q');
-    const empty = document.getElementById('empty');
-    tabs.forEach((t) => t.addEventListener('click', () => {
-      q.value = ''; filter();
-      tabs.forEach((x) => x.classList.toggle('on', x === t));
-      cats.forEach((c) => c.classList.toggle('on', c.dataset.cat === t.dataset.tab));
-    }));
+    const tabs = document.querySelectorAll<HTMLElement>('.tab'), cats = document.querySelectorAll<HTMLElement>('.cat');
+    const q = $('q') as HTMLInputElement, empty = $('empty');
+    tabs.forEach((t) => t.addEventListener('click', () => { q.value = ''; filter(); tabs.forEach((x) => x.classList.toggle('on', x === t)); cats.forEach((c) => c.classList.toggle('on', c.dataset.cat === t.dataset.tab)); }));
     function filter() {
-      const s = q.value.trim().toLowerCase();
-      document.querySelector('.board').classList.toggle('searching', !!s);
-      let hits = 0;
-      document.querySelectorAll('.item').forEach((it) => { const ok = !s || it.dataset.name.includes(s); it.classList.toggle('hide', !ok); if (ok && s) hits++; });
+      const s = q.value.trim().toLowerCase(); document.querySelector('.board')!.classList.toggle('searching', !!s); let hits = 0;
+      document.querySelectorAll<HTMLElement>('.item').forEach((it) => { const ok = !s || it.dataset.name!.includes(s); it.classList.toggle('hide', !ok); if (ok && s) hits++; });
       empty.hidden = !s || hits > 0;
     }
     q.addEventListener('input', filter);
 
-    // scroll reveal + count-up
-    const io = new IntersectionObserver((es) => es.forEach((e) => {
-      if (!e.isIntersecting) return;
-      e.target.classList.add('in'); io.unobserve(e.target);
-      const n = e.target.querySelector('[data-count]');
-      if (n) { const to = +n.dataset.count, suf = n.dataset.suffix || ''; let t0; const tick = (t) => { t0 ??= t; const p = Math.min((t - t0) / 900, 1); n.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))) + suf; if (p < 1) requestAnimationFrame(tick); }; requestAnimationFrame(tick); }
-    }), { threshold: 0.15 });
-    document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
-
-    // header shadow on scroll
-    const bar = document.getElementById('top-bar');
-    addEventListener('scroll', () => bar.classList.toggle('scrolled', scrollY > 10), { passive: true });
-
-    // open now / closed (Cairo time, 07:30–24:00)
-    const h = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Cairo' }));
-    const mins = h.getHours() * 60 + h.getMinutes();
-    const open = mins >= 450;
-    const st = document.getElementById('open-state');
-    st.textContent = open ? 'Open now · until midnight' : 'Closed now · opens 7:30 AM';
-    st.parentElement.classList.toggle('closed', !open);
+    // tilt on the kan cards
+    document.querySelectorAll<HTMLElement>('.tilt').forEach((el) => {
+      el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; el.style.transform = `perspective(800px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg) translateY(-6px)`; });
+      el.addEventListener('pointerleave', () => { el.style.transform = ''; });
+    });
+    // hero characters follow the pointer a little
+    const art = $('heroArt');
+    if (matchMedia('(pointer:fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      addEventListener('pointermove', (e) => { const x = e.clientX / innerWidth - 0.5, y = e.clientY / innerHeight - 0.5;
+        art.querySelectorAll<HTMLElement>('[data-depth]').forEach((c) => { const d = Number(c.dataset.depth); c.style.translate = `${x * d}px ${y * d}px`; }); }, { passive: true });
+    }
+    // reveal
+    // content is visible at rest; only what starts below the fold is hidden, then animated in
+    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.remove('pre'); io.unobserve(e.target); } }), { threshold: 0.08 });
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.querySelectorAll<HTMLElement>('.reveal').forEach((el) => { if (el.getBoundingClientRect().top > innerHeight) { el.classList.add('pre'); io.observe(el); } });
+    addEventListener('scroll', () => $('topbar').classList.toggle('scrolled', scrollY > 10), { passive: true });
+    // open now (Cairo)
+    const h = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Cairo' })); const open = h.getHours() * 60 + h.getMinutes() >= 450;
+    const st = $('open-state'); st.textContent = open ? 'Open now · until midnight' : 'Closed now · opens 7:30 AM'; st.parentElement!.classList.toggle('closed', !open);
   </script>
 </Base>
 
 <style>
-  .kk { --g: #3DAE2B; --g2: #2a8a1f; --gs: #e9f6e6; --ink: #14171a; --paper: #fbfaf6; --card: #fff; --muted: #6b7280; --line: rgba(0,0,0,.07); --ease: cubic-bezier(.2,.8,.2,1);
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--paper); overflow-x: clip; }
-  .kk i.fa-solid, .kk i.fa-regular { line-height: 1; }
-  /* header */
-  .top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: rgba(251,250,246,.82); backdrop-filter: blur(12px); transition: box-shadow .3s; }
-  .top.scrolled { box-shadow: 0 6px 24px rgba(0,0,0,.06); }
-  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-weight: 800; }
-  .brand img { width: 40px; height: 40px; border-radius: 11px; object-fit: cover; transition: transform .4s var(--ease); }
-  .brand:hover img { transform: rotate(-8deg) scale(1.05); }
-  .top nav { display: flex; align-items: center; gap: 20px; }
-  .top nav a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15px; position: relative; }
-  .top nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; background: var(--g); transform: scaleX(0); transition: transform .3s var(--ease); }
-  .top nav a:hover::after { transform: scaleX(1); }
-  /* buttons */
-  .btn { font: inherit; font-weight: 700; color: #fff; background: var(--g); border: 0; border-radius: 999px; padding: 12px 20px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: transform .2s var(--ease), box-shadow .2s, background .2s; box-shadow: 0 8px 20px rgba(61,174,43,.28); }
-  .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(61,174,43,.36); background: var(--g2); }
-  .btn:active { transform: translateY(0) scale(.98); }
-  .btn.sm { padding: 9px 16px; font-size: 14px; }
-  .btn.lg { padding: 15px 24px; font-size: 16px; }
-  .btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.18); }
-  .btn.ghost:hover { background: #fff; box-shadow: inset 0 0 0 1.5px var(--ink); }
-  .btn.center { display: flex; margin: 28px auto 0; width: fit-content; }
-  /* hero */
-  .hero { position: relative; max-width: 1180px; margin: 0 auto; padding: 80px 20px 40px; display: grid; grid-template-columns: 1.4fr 1fr; align-items: center; gap: 24px; }
-  .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: .45; z-index: 0; animation: float 14s ease-in-out infinite; }
-  .b1 { width: 380px; height: 380px; background: #c8eec0; top: -40px; right: 8%; }
-  .b2 { width: 260px; height: 260px; background: #f4e1c1; bottom: 0; left: 30%; animation-delay: -6s; }
-  @keyframes float { 50% { transform: translate(30px, -24px) scale(1.08); } }
-  .hero-in { position: relative; z-index: 1; }
-  .tag { display: inline-flex; align-items: center; gap: 8px; letter-spacing: .14em; text-transform: uppercase; font-size: 12px; color: var(--g2); font-weight: 800; background: var(--gs); padding: 7px 12px; border-radius: 999px; margin: 0 0 18px; }
-  .hero h1 { font-size: clamp(40px, 6.6vw, 76px); line-height: .98; margin: 0 0 20px; letter-spacing: -.02em; }
-  .hero h1 em { font-style: normal; background: linear-gradient(90deg, var(--g), #7fd36b, var(--g)); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 6s linear infinite; }
-  @keyframes shine { to { background-position: 200% center; } }
-  .lede { font-size: 19px; line-height: 1.55; max-width: 54ch; color: #3a3f44; }
-  .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
-  .hours { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; color: var(--muted); font-size: 14px; }
-  .hours .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g); box-shadow: 0 0 0 0 rgba(61,174,43,.6); animation: ping 2s infinite; }
-  .hours.closed .dot { background: #d97706; animation: none; }
-  @keyframes ping { 70% { box-shadow: 0 0 0 10px rgba(61,174,43,0); } 100% { box-shadow: 0 0 0 0 rgba(61,174,43,0); } }
-  .cup { position: relative; z-index: 1; justify-self: center; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #fff, var(--gs)); display: grid; place-items: center; box-shadow: 0 30px 60px rgba(61,174,43,.18); }
-  .cup > i { font-size: 110px; color: var(--g); }
-  .steam { position: absolute; top: 46px; left: 50%; transform: translateX(-60%); display: flex; gap: 12px; }
-  .steam span { width: 6px; height: 34px; border-radius: 6px; background: rgba(61,174,43,.35); animation: steam 2.6s ease-in-out infinite; }
-  .steam span:nth-child(2) { animation-delay: .4s; } .steam span:nth-child(3) { animation-delay: .8s; }
-  @keyframes steam { 0% { transform: translateY(10px) scaleY(.6); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-26px) scaleY(1.1); opacity: 0; } }
-  /* stats */
-  .strip { max-width: 1180px; margin: 10px auto 0; padding: 0 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; transition: transform .3s var(--ease), box-shadow .3s; }
-  .stat:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,.06); }
-  .stat i { grid-row: span 2; width: 44px; height: 44px; border-radius: 12px; background: var(--gs); color: var(--g2); display: grid; place-items: center; font-size: 18px; }
-  .stat b { font-size: 24px; color: var(--ink); } .stat span { color: var(--muted); font-size: 13px; }
-  /* sections */
-  .menu, .how, .branches { max-width: 1180px; margin: 0 auto; padding: 84px 20px 0; }
-  .head h2 { font-size: clamp(30px, 4vw, 44px); margin: 0 0 6px; letter-spacing: -.01em; }
-  .sub { color: var(--muted); margin: 0 0 22px; font-size: 15px; }
-  /* menu */
-  .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: none; }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 700; font-size: 14px; padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; transition: all .25s var(--ease); }
-  .tab i { color: var(--g2); transition: color .25s; }
-  .tab:hover { border-color: var(--g); transform: translateY(-1px); }
-  .tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
-  .tab.on i { color: #9be38b; }
-  .search { position: relative; margin: 6px 0 18px; max-width: 460px; }
-  .search i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); }
-  .search input { width: 100%; font: inherit; padding: 13px 16px 13px 44px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); outline: none; transition: border-color .2s, box-shadow .2s; }
-  .search input:focus { border-color: var(--g); box-shadow: 0 0 0 4px var(--gs); }
-  .panel-cat { display: none; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
-  .panel-cat.on, .board.searching .panel-cat { display: grid; }
-  .panel-cat.on .item { animation: rise .45s var(--ease) both; }
-  .panel-cat.on .item:nth-child(2) { animation-delay: .04s } .panel-cat.on .item:nth-child(3) { animation-delay: .08s } .panel-cat.on .item:nth-child(4) { animation-delay: .12s } .panel-cat.on .item:nth-child(5) { animation-delay: .16s } .panel-cat.on .item:nth-child(6) { animation-delay: .2s }
-  .board.searching .panel-cat { margin-bottom: 12px; }
-  @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-  .item { display: grid; grid-template-columns: 44px 1fr auto 40px; align-items: center; gap: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; transition: transform .25s var(--ease), box-shadow .25s, border-color .25s; }
-  .item:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0,0,0,.07); border-color: rgba(61,174,43,.35); }
-  .item.hide { display: none; }
-  .item .ic { width: 44px; height: 44px; border-radius: 12px; background: var(--gs); color: var(--g2); display: grid; place-items: center; }
-  .item .tx { display: flex; flex-direction: column; min-width: 0; } .item .tx b { font-size: 15px; } .item .tx span { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .item .pr { font-weight: 800; white-space: nowrap; } .item .pr small { font-weight: 600; color: var(--muted); font-size: 11px; margin-left: 3px; }
-  .add { width: 40px; height: 40px; border-radius: 12px; border: 0; background: var(--ink); color: #fff; cursor: pointer; transition: transform .2s var(--ease), background .2s; }
-  .add:hover { background: var(--g); transform: rotate(90deg); }
-  .add.pop { animation: pop .4s var(--ease); }
-  @keyframes pop { 50% { transform: scale(1.25); background: var(--g); } }
-  .empty { color: var(--muted); display: flex; align-items: center; gap: 8px; padding: 18px 0; }
-  /* how */
-  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .step { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 28px 24px; transition: transform .3s var(--ease), box-shadow .3s; }
-  .step:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(0,0,0,.07); }
-  .step .num { position: absolute; top: 18px; right: 20px; font-size: 54px; font-weight: 900; color: var(--gs); line-height: 1; }
-  .step .big { font-size: 30px; color: var(--g); width: 62px; height: 62px; border-radius: 18px; background: var(--gs); display: grid; place-items: center; transition: transform .4s var(--ease); }
-  .step:hover .big { transform: rotate(-8deg) scale(1.08); }
-  .step h3 { margin: 18px 0 6px; font-size: 20px; } .step p { margin: 0; color: #444; line-height: 1.5; }
-  .trust { margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: var(--ink); color: #e9ecef; border-radius: 22px; padding: 22px; }
-  .trust div { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.5; }
-  .trust i { color: #9be38b; font-size: 18px; margin-top: 2px; }
-  .does-head { margin-top: 40px; }
-  .does-head h3 { font-size: clamp(24px, 3vw, 32px); margin: 0 0 16px; letter-spacing: -.01em; }
-  .does { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
-  .do { display: flex; gap: 14px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; transition: transform .25s var(--ease), border-color .25s, box-shadow .25s; }
-  .do:hover { transform: translateY(-4px); border-color: rgba(61,174,43,.45); box-shadow: 0 14px 30px rgba(0,0,0,.06); }
-  .do > i { flex: 0 0 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--gs); color: var(--g2); font-size: 18px; transition: transform .35s var(--ease); }
-  .do:hover > i { transform: rotate(-8deg) scale(1.08); }
-  .do b { display: block; font-size: 16px; margin-bottom: 3px; } .do span { color: #4a5056; font-size: 14px; line-height: 1.5; }
-  @media (max-width: 860px) { .does { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 560px) { .does { grid-template-columns: 1fr; } }
-  /* branches */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-  .branch { display: flex; gap: 14px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; transition: transform .25s var(--ease), border-color .25s; }
-  .branch:hover { transform: translateY(-3px); border-color: var(--g); }
-  .branch > i { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--gs); color: var(--g2); }
-  .branch b { display: block; } .branch span { color: var(--muted); font-size: 14px; }
-  .contact { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 20px; }
-  .contact a { color: var(--ink); text-decoration: none; font-weight: 600; display: inline-flex; gap: 8px; align-items: center; }
-  .contact a i { color: var(--g2); }
-  .foot { display: flex; justify-content: space-between; padding: 40px 20px 120px; margin-top: 70px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
-  .foot a { color: var(--g2); font-weight: 700; }
-  /* reveal */
-  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s var(--ease), transform .7s var(--ease); transition-delay: var(--d, 0ms); }
-  .reveal.in { opacity: 1; transform: none; }
-  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .blob, .steam span, .hero h1 em, .hours .dot, .bubble .ring { animation: none; } }
-  /* the chat bubble */
-  .bubble { position: fixed; right: 20px; bottom: 20px; z-index: 60; height: 60px; min-width: 60px; display: flex; align-items: center; gap: 10px; padding: 0 20px 0 18px; background: var(--g); color: #fff; border: 0; border-radius: 999px; box-shadow: 0 16px 38px rgba(61,174,43,.45); cursor: pointer; font: inherit; font-weight: 700; transition: background .25s, padding .3s var(--ease), transform .2s var(--ease); }
-  .bubble:hover { transform: scale(1.05); }
-  .bubble i { font-size: 22px; transition: transform .3s var(--ease), opacity .2s; }
-  .bubble .ico-close { position: absolute; left: 19px; opacity: 0; transform: rotate(-90deg); }
-  .bubble .ring { position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 0 rgba(61,174,43,.55); animation: ring 2.4s infinite; pointer-events: none; }
-  @keyframes ring { 70% { box-shadow: 0 0 0 16px rgba(61,174,43,0); } 100% { box-shadow: 0 0 0 0 rgba(61,174,43,0); } }
-  .bubble .hint { white-space: nowrap; max-width: 220px; overflow: hidden; transition: max-width .35s var(--ease), opacity .3s; }
-  .bubble.quiet .hint, .bubble.open .hint { max-width: 0; opacity: 0; }
-  .bubble.quiet, .bubble.open { padding: 0 19px; gap: 0; }
-  .bubble.open { background: var(--ink); box-shadow: 0 10px 26px rgba(0,0,0,.25); }
-  .bubble.open .ring { animation: none; }
-  .bubble.open .ico-open { opacity: 0; transform: rotate(90deg); }
-  .bubble.open .ico-close { opacity: 1; transform: none; }
-  .chat { position: fixed; right: 20px; bottom: 94px; z-index: 59; width: min(400px, calc(100vw - 32px)); height: min(660px, calc(100dvh - 120px)); border-radius: 24px; overflow: hidden; background: #fff; box-shadow: 0 30px 80px rgba(0,0,0,.28); transform-origin: bottom right; transform: translateY(16px) scale(.92); opacity: 0; pointer-events: none; transition: transform .35s var(--ease), opacity .25s; }
-  .chat.open { transform: none; opacity: 1; pointer-events: auto; }
-  .chat iframe { width: 100%; height: 100%; border: 0; display: block; }
-  @media (max-width: 860px) { .hero { grid-template-columns: 1fr; padding-top: 48px; } .cup { width: 180px; height: 180px; order: -1; justify-self: start; } .cup > i { font-size: 72px; } .steam { top: 26px; } .strip, .steps, .trust { grid-template-columns: 1fr 1fr; } .trust { grid-template-columns: 1fr; } }
-  @media (max-width: 560px) { .top nav a { display: none; } .strip, .steps { grid-template-columns: 1fr; } .item { grid-template-columns: 40px 1fr auto 36px; gap: 10px; } .panel-cat { grid-template-columns: 1fr; } .chat { right: 0; bottom: 0; width: 100vw; height: 100dvh; border-radius: 0; } .bubble.open { bottom: auto; top: 14px; right: 14px; height: 44px; min-width: 44px; padding: 0 12px; z-index: 61; } .bubble.open .ico-close { left: 13px; } }
+  .kk { --g:#3DAE2B; --g2:#24871a; --gs:#E4F5DF; --pink:#E85BAE; --ps:#FFE3EF; --ink:#17191b; --paper:#F4F3EF; --card:#fff; --muted:#666c72; --line:rgba(0,0,0,.08); --ease:cubic-bezier(.2,.8,.2,1);
+    --disp:"Fredoka",ui-rounded,system-ui,sans-serif; font-family:"Figtree",system-ui,sans-serif; color:var(--ink); background:var(--paper); overflow-x:clip; }
+  .kk h1, .kk h2, .kk h3 { font-family:var(--disp); }
+  .top { position:sticky; top:env(safe-area-inset-top,0px); z-index:30; display:flex; align-items:center; justify-content:space-between; padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px)); background:rgba(244,243,239,.85); backdrop-filter:blur(12px); transition:box-shadow .3s; }
+  .top.scrolled { box-shadow:0 6px 24px rgba(0,0,0,.07); }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink); font:600 19px var(--disp); }
+  .brand img { width:44px; height:44px; border-radius:12px; object-fit:cover; transition:transform .5s var(--ease); }
+  .brand:hover img { transform:rotate(-12deg) scale(1.08); }
+  .top nav { display:flex; align-items:center; gap:22px; } .top nav a { color:var(--ink); text-decoration:none; font-weight:600; font-size:15px; position:relative; }
+  .top nav a::after { content:''; position:absolute; left:0; right:0; bottom:-5px; height:3px; border-radius:3px; background:var(--pink); transform:scaleX(0); transition:transform .3s var(--ease); }
+  .top nav a:hover::after { transform:scaleX(1); }
+  .btn { font:inherit; font-weight:700; color:#fff; background:var(--g); border:0; border-radius:999px; padding:12px 20px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:10px; box-shadow:0 8px 20px rgba(61,174,43,.3); transition:transform .2s var(--ease), box-shadow .2s, background .2s; }
+  .btn:hover { transform:translateY(-2px) rotate(-1deg); background:var(--g2); box-shadow:0 12px 26px rgba(61,174,43,.38); } .btn:active { transform:scale(.97); }
+  .btn.sm { padding:9px 16px; font-size:14px; } .btn.lg { padding:15px 24px; font-size:16px; }
+  .btn.ghost { background:#fff; color:var(--ink); box-shadow:inset 0 0 0 2px var(--ink); } .btn.ghost:hover { background:var(--ps); }
+  .tag { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--g2); background:var(--gs); padding:7px 13px; border-radius:999px; margin:0 0 16px; }
+  .tag.pinkbg { color:#b3247b; background:var(--ps); } .tag.light { color:#bff0b2; background:rgba(255,255,255,.1); }
+  .hero { max-width:1200px; margin:0 auto; padding:56px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px)); display:grid; grid-template-columns:1.15fr 1fr; gap:30px; align-items:center; }
+  .hero h1 { font-size:clamp(42px,6.4vw,82px); line-height:.98; margin:0 0 20px; letter-spacing:-.01em; font-weight:700; }
+  .hero h1 .w { display:inline-block; animation:pop-in .7s var(--ease) both; } .hero h1 .w:nth-child(2){animation-delay:.07s} .hero h1 .w:nth-child(4){animation-delay:.14s} .hero h1 .w:nth-child(5){animation-delay:.21s} .hero h1 .w:nth-child(7){animation-delay:.28s} .hero h1 .w:nth-child(8){animation-delay:.35s}
+  .hero h1 .pink { color:var(--pink); } .hero h1 .green { color:var(--g); }
+  @keyframes pop-in { from { opacity:0; transform:translateY(24px) rotate(-3deg); } to { opacity:1; transform:none; } }
+  .lede { font-size:19px; line-height:1.55; max-width:52ch; color:#3d4247; }
+  .cta { display:flex; gap:12px; flex-wrap:wrap; margin-top:24px; }
+  .hours { display:inline-flex; align-items:center; gap:8px; margin-top:18px; color:var(--muted); font-size:14px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--g); animation:ping 2s infinite; } .hours.closed .dot { background:#d97706; animation:none; }
+  @keyframes ping { 0% { box-shadow:0 0 0 0 rgba(61,174,43,.55); } 70% { box-shadow:0 0 0 10px rgba(61,174,43,0); } 100% { box-shadow:0 0 0 0 rgba(61,174,43,0); } }
+  .hero-art { position:relative; aspect-ratio:1/1.05; max-width:520px; width:100%; justify-self:center; }
+  .blob { position:absolute; inset:6% 4% 4% 8%; background:var(--pink); border-radius:46% 54% 42% 58% / 52% 40% 60% 48%; animation:morph 12s ease-in-out infinite; }
+  @keyframes morph { 50% { border-radius:58% 42% 56% 44% / 42% 58% 42% 58%; transform:rotate(6deg); } }
+  .asterisk { position:absolute; width:22%; left:-2%; bottom:6%; animation:spin 14s linear infinite; z-index:3; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .hero-photo { position:absolute; inset:14% 14% 12% 18%; width:68%; height:74%; object-fit:cover; border-radius:28px; box-shadow:0 30px 60px rgba(0,0,0,.25); transform:rotate(3deg); z-index:2; animation:bob 6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform:rotate(1deg) translateY(-12px); } }
+  .char { position:absolute; z-index:4; pointer-events:none; filter:drop-shadow(0 10px 14px rgba(0,0,0,.18)); transition:translate .25s ease-out; }
+  .c1 { width:36%; right:-6%; bottom:-4%; animation:sway 5s ease-in-out infinite; } .c2 { width:44%; left:-10%; top:-2%; animation:sway 6.5s ease-in-out infinite reverse; }
+  @keyframes sway { 50% { transform:rotate(-4deg) translateY(-8px); } }
+  .spark { position:absolute; z-index:4; color:var(--g); font-size:30px; animation:twinkle 2.4s ease-in-out infinite; } .s1 { top:4%; right:12%; } .s2 { top:46%; right:-3%; animation-delay:.8s; color:#fff; } .s3 { bottom:22%; left:4%; animation-delay:1.4s; }
+  @keyframes twinkle { 50% { transform:scale(.4) rotate(90deg); opacity:.4; } }
+  .marquee { background:var(--g); color:#fff; overflow:hidden; padding:16px 0; transform:rotate(-1.2deg); margin:20px -10px; }
+  .track { display:flex; gap:34px; width:max-content; animation:slide 30s linear infinite; font:600 26px var(--disp); white-space:nowrap; }
+  .track span { display:inline-flex; align-items:center; gap:34px; } .track i { font-size:16px; color:#c9f5bd; }
+  @keyframes slide { to { transform:translateX(-50%); } }
+  section.kans, section.menu, section.inside, section.branches { position:relative; max-width:1200px; margin:0 auto; padding:80px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px)); }
+  .head h2 { font-size:clamp(30px,4.2vw,48px); margin:0 0 8px; line-height:1.05; text-wrap:balance; } .sub { color:var(--muted); font-size:16px; margin:0 0 24px; max-width:60ch; }
+  .sub.light { color:#c7ccd1; }
+  .kan-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:end; }
+  .kan { margin:0; position:relative; border-radius:24px; overflow:hidden; background:#fff; box-shadow:0 12px 30px rgba(0,0,0,.08); transition:transform .35s var(--ease), box-shadow .35s; aspect-ratio:3/4; }
+  .kan.tall { aspect-ratio:3/4.6; } .kan img { width:100%; height:100%; object-fit:cover; transition:transform .6s var(--ease); }
+  .kan:hover { box-shadow:0 22px 44px rgba(0,0,0,.16); } .kan:hover img { transform:scale(1.06); }
+  .kan figcaption { position:absolute; left:12px; bottom:12px; background:#fff; padding:7px 12px; border-radius:999px; font-weight:700; font-size:13.5px; box-shadow:0 6px 16px rgba(0,0,0,.12); }
+  .side-char { position:absolute; width:150px; right:0; top:30px; opacity:.95; animation:sway 7s ease-in-out infinite; pointer-events:none; } .side-char.right { right:-10px; top:auto; bottom:0; }
+  .tabs { display:flex; gap:8px; overflow-x:auto; padding:4px 2px 12px; scrollbar-width:none; } .tabs::-webkit-scrollbar { display:none; }
+  .tab { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; font:inherit; font-weight:700; font-size:14px; padding:10px 16px; border-radius:999px; border:2px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; transition:all .25s var(--ease); }
+  .tab i { color:var(--g); } .tab:hover { border-color:var(--pink); transform:translateY(-2px); } .tab.on { background:var(--ink); color:#fff; border-color:var(--ink); } .tab.on i { color:#9be38b; }
+  .search { position:relative; max-width:440px; margin:4px 0 20px; } .search i { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--muted); }
+  .search input { width:100%; font:inherit; padding:13px 16px 13px 44px; border-radius:16px; border:2px solid var(--line); background:#fff; outline:none; transition:border-color .2s, box-shadow .2s; } .search input:focus { border-color:var(--g); box-shadow:0 0 0 4px var(--gs); }
+  .cat { display:none; grid-template-columns:repeat(3,1fr); gap:16px; } .cat.on, .board.searching .cat { display:grid; } .board.searching .cat { margin-bottom:16px; }
+  .cat.on .item { animation:rise .5s var(--ease) both; } .cat.on .item:nth-child(2){animation-delay:.05s} .cat.on .item:nth-child(3){animation-delay:.1s} .cat.on .item:nth-child(4){animation-delay:.15s} .cat.on .item:nth-child(5){animation-delay:.2s} .cat.on .item:nth-child(6){animation-delay:.25s}
+  @keyframes rise { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+  .item { background:#fff; border-radius:22px; overflow:hidden; box-shadow:0 8px 22px rgba(0,0,0,.06); transition:transform .3s var(--ease), box-shadow .3s; display:flex; flex-direction:column; }
+  .item:hover { transform:translateY(-6px) rotate(-.4deg); box-shadow:0 18px 38px rgba(0,0,0,.12); } .item.hide { display:none; }
+  .pic { aspect-ratio:4/3; background:var(--tint); display:grid; place-items:center; overflow:hidden; }
+  .pic img { width:100%; height:100%; object-fit:cover; transition:transform .6s var(--ease); } .item:hover .pic img { transform:scale(1.07); }
+  .pic img.illus { width:62%; height:auto; object-fit:contain; } .item:hover .pic img.illus { transform:rotate(-6deg) scale(1.08); }
+  .info { padding:14px 16px 16px; display:flex; flex-direction:column; gap:4px; flex:1; } .info b { font:600 18px var(--disp); } .info span { color:var(--muted); font-size:13.5px; line-height:1.4; }
+  .info .row { margin-top:auto; padding-top:10px; display:flex; align-items:center; justify-content:space-between; } .info em { font-style:normal; font-weight:800; font-size:16px; } .info em small { color:var(--muted); font-weight:600; font-size:11px; }
+  .add { width:42px; height:42px; border-radius:14px; border:0; background:var(--ink); color:#fff; cursor:pointer; transition:transform .25s var(--ease), background .2s; } .add:hover { background:var(--pink); transform:rotate(90deg) scale(1.05); }
+  .add.pop { animation:pop .45s var(--ease); } @keyframes pop { 50% { transform:scale(1.3); background:var(--g); } }
+  .empty { color:var(--muted); display:flex; gap:8px; align-items:center; padding:16px 0; }
+  section.tablesec { margin-top:90px; background:var(--ink); color:#fff; padding:80px 0; border-radius:40px 40px 0 0; position:relative; }
+  .table-in { max-width:1200px; margin:0 auto; padding:0 max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px)); display:grid; grid-template-columns:1.1fr .9fr; gap:40px; align-items:center; }
+  .tablesec h2 { font-size:clamp(34px,4.6vw,56px); margin:0 0 10px; color:#fff; }
+  .does { list-style:none; padding:0; margin:20px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .does li { display:flex; gap:12px; align-items:flex-start; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:14px; transition:transform .3s var(--ease), background .3s; }
+  .does li:hover { transform:translateY(-4px); background:rgba(255,255,255,.1); }
+  .does i { flex:0 0 38px; height:38px; border-radius:12px; display:grid; place-items:center; background:var(--g); color:#fff; } .does b { display:block; font-size:15px; } .does span { color:#c7ccd1; font-size:13px; line-height:1.45; }
+  .phone-wrap { position:relative; justify-self:center; } .c3 { position:absolute; width:150px; left:-110px; bottom:30px; animation:sway 5.5s ease-in-out infinite; z-index:2; pointer-events:none; }
+  .phone { width:340px; height:680px; border-radius:46px; background:#0b0c0d; padding:11px; box-shadow:0 40px 80px rgba(0,0,0,.5), inset 0 0 0 2px #2a2d30; }
+  .phone iframe { width:100%; height:100%; border:0; border-radius:36px; background:#fff; }
+  .live { display:flex; align-items:center; gap:8px; justify-content:center; color:#c7ccd1; font-size:13px; margin-top:14px; }
+  .gallery { display:grid; grid-template-columns:2fr 1fr 1fr; grid-template-rows:240px 240px; gap:14px; }
+  .g { margin:0; border-radius:24px; overflow:hidden; } .g img { width:100%; height:100%; object-fit:cover; transition:transform .7s var(--ease); } .g:hover img { transform:scale(1.07); }
+  .g1 { grid-row:span 2; }
+  .bgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .branch { display:flex; gap:12px; align-items:center; background:#fff; border-radius:18px; padding:16px; border:2px solid transparent; transition:transform .25s var(--ease), border-color .25s; }
+  .branch:hover { transform:translateY(-4px); border-color:var(--pink); } .branch > i { width:40px; height:40px; border-radius:12px; display:grid; place-items:center; background:var(--ps); color:#c22b85; }
+  .branch b { display:block; font-family:var(--disp); font-weight:600; font-size:17px; } .branch span { color:var(--muted); font-size:14px; }
+  .contact { margin-top:18px; } .contact a { color:var(--ink); font-weight:700; text-decoration:none; } .contact i { color:var(--g); margin-right:6px; }
+  .foot { margin-top:80px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:24px max(16px,env(safe-area-inset-right,0px)) 120px max(16px,env(safe-area-inset-left,0px)); border-top:1px solid var(--line); color:var(--muted); font-size:14px; }
+  .foot img { width:90px; } .foot b { display:block; color:var(--ink); font:600 18px var(--disp); } .foot .by { margin-left:auto; } .foot a { color:var(--g2); font-weight:700; }
+  .reveal { transition:opacity .7s var(--ease), transform .7s var(--ease); transition-delay:var(--d,0ms); } .reveal.pre { opacity:0; transform:translateY(20px); }
+  @media (prefers-reduced-motion: reduce) { .reveal { transition:none; } .blob, .asterisk, .hero-photo, .char, .spark, .track, .side-char, .c3, .dot, .hero h1 .w { animation:none !important; } }
+  .bubble { position:fixed; right:calc(20px + env(safe-area-inset-right,0px)); bottom:calc(20px + env(safe-area-inset-bottom,0px)); z-index:60; height:60px; min-width:60px; display:flex; align-items:center; gap:10px; padding:0 20px 0 18px; background:var(--g); color:#fff; border:0; border-radius:999px; box-shadow:0 16px 38px rgba(61,174,43,.45); cursor:pointer; font:inherit; font-weight:700; transition:background .25s, padding .3s var(--ease), transform .2s; }
+  .bubble:hover { transform:scale(1.05); } .bubble i { font-size:22px; transition:transform .3s var(--ease), opacity .2s; }
+  .bubble .ico-close { position:absolute; left:19px; opacity:0; transform:rotate(-90deg); }
+  .bubble .ring { position:absolute; inset:0; border-radius:inherit; animation:ring 2.4s infinite; pointer-events:none; }
+  @keyframes ring { 0% { box-shadow:0 0 0 0 rgba(61,174,43,.55); } 70% { box-shadow:0 0 0 16px rgba(61,174,43,0); } 100% { box-shadow:0 0 0 0 rgba(61,174,43,0); } }
+  .bubble .hint { white-space:nowrap; max-width:220px; overflow:hidden; transition:max-width .35s var(--ease), opacity .3s; }
+  .bubble.quiet .hint, .bubble.open .hint { max-width:0; opacity:0; } .bubble.quiet, .bubble.open { padding:0 19px; gap:0; }
+  .bubble.open { background:var(--ink); } .bubble.open .ring { animation:none; } .bubble.open .ico-open { opacity:0; transform:rotate(90deg); } .bubble.open .ico-close { opacity:1; transform:none; }
+  .chat { position:fixed; right:calc(20px + env(safe-area-inset-right,0px)); bottom:94px; z-index:59; width:min(400px,calc(100vw - 32px)); height:min(660px,calc(100dvh - 120px)); border-radius:24px; overflow:hidden; background:#fff; box-shadow:0 30px 80px rgba(0,0,0,.3); transform-origin:bottom right; transform:translateY(16px) scale(.92); opacity:0; pointer-events:none; transition:transform .35s var(--ease), opacity .25s; }
+  .chat.open { transform:none; opacity:1; pointer-events:auto; } .chat iframe { width:100%; height:100%; border:0; display:block; }
+  @media (max-width: 980px) { .hero, .table-in { grid-template-columns:1fr; } .hero-art { max-width:420px; } .kan-grid { grid-template-columns:1fr 1fr; } .cat { grid-template-columns:1fr 1fr; } .bgrid { grid-template-columns:1fr 1fr; } .does { grid-template-columns:1fr; } .c3 { display:none; } .side-char { display:none; } .gallery { grid-template-columns:1fr 1fr; grid-template-rows:200px 200px 200px; } .g1 { grid-row:span 1; grid-column:span 2; } }
+  @media (max-width: 560px) { .top nav a { display:none; } .cat { grid-template-columns:1fr; } .phone { width:min(340px,86vw); height:620px; } .chat { right:0; bottom:0; width:100vw; height:100dvh; border-radius:0; } .bubble.open { bottom:auto; top:14px; right:14px; height:44px; min-width:44px; padding:0 12px; z-index:61; } .bubble.open .ico-close { left:13px; } .foot .by { margin-left:0; } }
 </style>
