@@ -13,7 +13,7 @@ const DEMO_TOKEN = 'v1.eyJ2IjoxLCJiIjoiYXJrYW4iLCJ0IjoiREVNTyIsInIiOiJkMGNkMmM4N
 const widgetUrl = `${FLOWS}/t/${DEMO_TOKEN}?r=koffee-kulture`;
 const I = '/koffee';
 
-type LiveItem = { name: string; description?: string; price: number; price_l?: number | null; bestseller?: boolean };
+type LiveItem = { name: string; description?: string; price: number; price_l?: number | null; bestseller?: boolean; photo?: string | null };
 const live = await fetch(`${FLOWS}/api/widget/menu?slug=koffee-kulture&token=${encodeURIComponent(DEMO_TOKEN)}`).then((r) => r.json());
 if (!live?.categories?.length) throw new Error('KK menu unavailable at build time');
 const cats: { name: string; items: LiveItem[] }[] = live.categories.filter((c: any) => c.items?.length);
@@ -27,6 +27,8 @@ const PHOTO: Record<string, [string, boolean]> = {
   'Salted Caramel Tres Leches': ['tresleches.jpg', false],
 };
 const CHARS = ['char-chair', 'char-sip', 'char-walk', 'char-dance', 'char-travel', 'char-guitar', 'char-kroissant', 'char-hug'];
+// local shots first, else KK's own product photo from the live menu (studio shots on white → blended)
+const photoOf = (i: LiveItem): [string, boolean] | null => PHOTO[i.name] ? [`${I}/${PHOTO[i.name][0]}`, PHOTO[i.name][1]] : i.photo ? [i.photo, true] : null;
 const CAT_CHAR = ['char-chair', 'char-sip', 'char-dance', 'char-hug', 'char-walk', 'char-guitar', 'char-kroissant', 'char-travel'];
 const TINTS = ['#FFE1EF', '#DDF3D8', '#FFF0C2', '#FFE6D6', '#E6EEFF', '#F1E6FF'];
 const short = (n: string) => n.replace(/ Kulture$/, '').replace(/^The /, '');
@@ -127,7 +129,7 @@ const maps = (b: string, a: string) => `https://www.google.com/maps/search/${enc
         <div class="fgrid">
           {favs.map((f, i) => (
             <article class="fav reveal" style={`--bg:${favArt[i][1]};--d:${i}`}>
-              <div class="art"><img src={`${I}/${favArt[i][0]}.png`} alt="" loading="lazy" /></div>
+              <div class={`art${photoOf(f) ? ' real' : ''}`}>{photoOf(f) ? <img class="mult" src={photoOf(f)![0]} alt={f.name} loading="lazy" /> : <img src={`${I}/${favArt[i][0]}.png`} alt="" loading="lazy" />}</div>
               <h3>{f.name}</h3><p>{f.description}</p>
               <div class="row"><span class="price">{priceOf(f)} <small>EGP</small></span><button class="add" data-add={f.name} aria-label={`Add ${f.name}`}><i class="fa-solid fa-plus"></i></button></div>
             </article>
@@ -153,10 +155,10 @@ const maps = (b: string, a: string) => `https://www.google.com/maps/search/${enc
               </aside>
               <div class="rows">
                 {c.items.map((it, j) => {
-                  const ph = PHOTO[it.name];
+                  const ph = photoOf(it);
                   return (
                     <article class="item" data-name={`${it.name} ${it.description || ''}`.toLowerCase()}>
-                      {ph ? <div class={`thumb${ph[1] ? '' : ' cover'}`} style={`--bg:${TINTS[(ci + j) % TINTS.length]}`}><img class={ph[1] ? 'mult' : ''} src={`${I}/${ph[0]}`} alt={it.name} loading="lazy" /></div>
+                      {ph ? <div class={`thumb${ph[1] ? '' : ' cover'}`} style={`--bg:${TINTS[(ci + j) % TINTS.length]}`}><img class={ph[1] ? 'mult' : ''} src={ph[0]} alt={it.name} loading="lazy" /></div>
                         : <div class="thumb chr" style={`--bg:${TINTS[(ci + j) % TINTS.length]}`}><img src={`${I}/${CHARS[(ci * 5 + j * 3) % CHARS.length]}.png`} alt="" loading="lazy" /></div>}
                       <div class="txt"><h4>{it.name}{it.bestseller && <span class="pop"><i class="fa-solid fa-star"></i> Popular</span>}</h4>{it.description && <p>{it.description}</p>}</div>
                       <span class="price">{priceOf(it)}<small>EGP</small></span>
@@ -377,6 +379,7 @@ const maps = (b: string, a: string) => `https://www.google.com/maps/search/${enc
   .fav:hover { transform:translateY(-6px) rotate(-1deg); box-shadow:10px 10px 0 var(--ink); }
   .fav .art { aspect-ratio:4/3; display:grid; place-items:center; } .fav .art img { max-height:100%; width:auto; transition:transform .4s var(--pop); }
   .fav:hover .art img { transform:rotate(-4deg) scale(1.06); }
+  .fav .art.real { isolation:isolate; } .fav .art.real img { width:100%; height:100%; object-fit:contain; }
   .fav h3 { font-size:24px; line-height:1; margin-top:8px; } .fav p { font-size:14px; color:var(--muted); margin:6px 0 14px; flex:1; }
   .row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .price { font-weight:700; font-size:17px; } .price small { font-size:12px; color:var(--muted); font-weight:600; }
