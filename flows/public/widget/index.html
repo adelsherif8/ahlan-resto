@@ -219,6 +219,8 @@
   .me-sec label { display: block; font-weight: 800; font-size: 14px; margin-bottom: 6px; } .me-sec .hint { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
   .me-row { display: flex; gap: 8px; } .me-row input { flex: 1; min-width: 0; font: inherit; padding: 11px 12px; border-radius: 12px; border: 1.5px solid #e3e5e8; outline: none; } .me-row input:focus { border-color: var(--brand); }
   .me-row button { font: inherit; font-weight: 800; border: 0; border-radius: 12px; padding: 0 14px; background: var(--brand); color: #fff; cursor: pointer; white-space: nowrap; } .me-row button:disabled { opacity: .5; }
+  .seg { display: inline-flex; background: #f1f2f4; border-radius: 12px; padding: 3px; margin-bottom: 8px; } .seg button { font: inherit; font-weight: 800; font-size: 13.5px; border: 0; background: none; padding: 8px 14px; border-radius: 10px; cursor: pointer; min-height: 36px; display: inline-flex; gap: 6px; align-items: center; } .seg button.on { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.12); color: var(--brand); }
+  body.dark .seg { background: #22211c; } body.dark .seg button.on { background: #2f2d26; }
   .badge2 { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; font-weight: 800; border-radius: 999px; padding: 3px 9px; margin-left: 6px; } .badge2.ok { background: var(--brand-soft); color: #1f7a16; } .badge2.wait { background: #fff3e0; color: #8a4f00; }
   .me-av { width: 64px; height: 64px; border-radius: 50%; background: var(--brand); color: #fff; display: grid; place-items: center; font: 400 28px "Bagel Fat One", "Rubik", sans-serif; margin: 4px auto 6px; }
   .me-know { display: grid; gap: 6px; font-size: 13.5px; } .me-know div { display: flex; gap: 8px; align-items: center; } .me-know i { color: var(--brand); width: 16px; }
@@ -500,24 +502,29 @@
   function rememberCard() {
     if (askedRemember) return;
     askedRemember = true;
+    let kind = "phone";
     const row = document.createElement("div"); row.className = "card";
     row.innerHTML = `<h4><i class="fa-solid fa-heart"></i>${T("remT")}</h4><p>${T("remB")}</p>
       <div class="me-row" style="margin:10px 0 8px"><input id="rname2" maxlength="30" placeholder="${esc(T("namePh"))}" autocomplete="given-name"></div>
-      <div class="me-row"><input id="rphone2" inputmode="tel" maxlength="20" placeholder="${esc(T("remPhonePh"))}" autocomplete="tel"><button id="rgo"><i class="fa-solid fa-check"></i></button></div>
+      <div class="seg" id="rseg"><button data-k="phone" class="on"><i class="fa-solid fa-mobile-screen"></i>${T("viaPhone")}</button><button data-k="email"><i class="fa-solid fa-envelope"></i>${T("viaEmail")}</button></div>
+      <div class="me-row"><input id="rcontact" inputmode="tel" maxlength="80" placeholder="${esc(T("phonePh"))}" autocomplete="tel"><button id="rgo"><i class="fa-solid fa-check"></i></button></div>
       <div id="rcode"></div><div class="acts"><button class="skip" id="skip">${T("notNow2")}</button></div>
       <div class="fine"><i class="fa-solid fa-lock"></i> ${T("remFine")}</div>`;
     log.appendChild(row); log.scrollTop = log.scrollHeight;
+    row.querySelectorAll("#rseg [data-k]").forEach((b) => b.onclick = () => {
+      kind = b.dataset.k; row.querySelectorAll("#rseg [data-k]").forEach((x) => x.classList.toggle("on", x === b));
+      const ci = $("rcontact"); ci.value = ""; ci.placeholder = T(kind === "email" ? "emailPh" : "phonePh"); ci.inputMode = kind === "email" ? "email" : "tel"; ci.type = kind === "email" ? "email" : "text"; ci.autocomplete = kind === "email" ? "email" : "tel"; ci.focus();
+    });
     $("skip").onclick = () => row.remove();
     $("rgo").onclick = async () => {
-      const name = $("rname2").value.trim(), phone = $("rphone2").value.trim();
-      if (!name && !phone) return $("rname2").focus();
+      const name = $("rname2").value.trim(), contact = $("rcontact").value.trim();
+      if (!contact) { $("rcode").innerHTML = `<p class="hint">${esc(T("needContact"))}</p>`; return $("rcontact").focus(); }
       $("rgo").disabled = true;
-      const j = await saveMe({ ...(name ? { name } : {}), ...(phone ? { phone } : {}) });
+      const j = await saveMe({ ...(name ? { name } : {}), [kind]: contact });
       $("rgo").disabled = false;
-      if (j?.error === "bad_phone") return sys("fa-phone", T("badPhone"));
+      if (j?.error === "bad_phone" || j?.error === "bad_email") { $("rcode").innerHTML = `<p class="hint">${esc(T(j.error === "bad_email" ? "badEmail" : "badPhone"))}</p>`; return; }
       if (!j?.ok) return sys("fa-rotate-right", "Couldn't save that — try again.");
-      if (phone) await startCode(phone, name, $("rcode"), () => { row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>${esc(T("phoneOk"))}</h4>`; });
-      else row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>${esc(T("niceMeet").replace("{n}", name.split(" ")[0]))}</h4><p>${T("remNext")}</p>`;
+      await startCode(contact, name, $("rcode"), () => { row.innerHTML = `<h4><i class="fa-solid fa-circle-check"></i>${esc(name ? T("niceMeet").replace("{n}", name.split(" ")[0]) : T("phoneOk"))}</h4><p>${T("remNext")}</p>`; }, kind);
     };
   }
 
@@ -903,10 +910,11 @@
       searchPh: "Search — matcha, pistachio…", orderLbl: "Order", whatChange: "Sure — what would you like to change? e.g. “make it large”, “remove the cookie”, “oat milk”.",
       lastMood: "Last time you were {mood} and went with the {item}. Want it again, or is today a different mood?", againItem: "{item} again",
       was_sleepy: "sleepy", was_sweet: "craving something sweet", was_hot: "feeling the heat", was_hungry: "hungry", was_matcha: "in a matcha mood", was_surprise: "up for a surprise",
+      viaPhone: "Phone", viaEmail: "Email", emailLbl: "Your email", emailPh: "you@example.com", rememberBy: "Remember me by", contactLbl: "Phone or email — pick one", badEmail: "That doesn't look like an email address.", codeSentMail: "Code sent to your email — type it here (check spam too).", emailOff: "Saved. Email codes switch on in a moment — until it's verified, your history stays on this phone.", verifiedVia: "Verified by {v}", remMailPh: "Your email", needContact: "Add a phone or an email so we can remember you.",
       meTitle: "You", callMe: "What should we call you?", namePh: "Your name", save: "Save", phoneLbl: "Your phone (WhatsApp)", phonePh: "01x xxxx xxxx", sendCode: "Send code", codePh: "4-digit code", verify: "Verify",
-      verified: "Verified", unverified: "Not verified yet", phoneWhy: "We send a 4-digit code to your WhatsApp — you stay right here. Verified numbers bring back your usual on any phone, and your WhatsApp orders too.",
+      verified: "Verified", unverified: "Not verified yet", phoneWhy: "We send a 4-digit code to your WhatsApp or email — you stay right here. Once verified, your usual comes back on any phone.",
       codeSent: "Code sent to your WhatsApp — type it here.", codesOff: "Saved. WhatsApp codes are switching on soon — until your number is verified, your history stays on this phone.", badPhone: "That doesn't look like a phone number.", wrongCode: "Wrong code — {n} tries left.", codeExpired: "That code expired — send a new one.",
-      phoneOk: "Number verified — we'll know you on any phone.", saved: "Saved ✓", prefs: "Your preferences", milkDefault: "Default milk", none: "None", darkMode: "Dark mode", on: "On", off: "Off", remembered: "What we remember", usualIs: "Your usual: {u}", lastMoodIs: "Last mood: {m}", favN: "{n} favourites",
+      phoneOk: "Verified — we'll know you on any phone.", saved: "Saved ✓", prefs: "Your preferences", milkDefault: "Default milk", none: "None", darkMode: "Dark mode", on: "On", off: "Off", remembered: "What we remember", usualIs: "Your usual: {u}", lastMoodIs: "Last mood: {m}", favN: "{n} favourites",
       nothingYet: "Nothing yet — order once and we'll remember.", forgetMe: "Forget me on this phone", forgotten: "Done — this phone won't remember you.", remPhonePh: "Phone for a WhatsApp code (optional)",
       cConfirm: "Confirm", cChange: "Change something", cCash: "Cash", cCard: "Card", cOnline: "Online", cMenu: "Browse Menu", cOrderNow: "Order now", cYes: "Yes", cNo: "No",
       sleepyMsg: "I'm sleepy — what would you recommend to wake me up?", sweetMsg: "I'm craving something sweet — what would you recommend?", hotMsg: "It's hot — what cold, refreshing drink would you recommend?", hungryMsg: "I'm hungry — what would you recommend to eat?", matchaMsg: "I'm in a matcha mood — which one would you recommend?", surpriseMsg: "Surprise me — what would you recommend for me today?" },
@@ -936,10 +944,11 @@
       searchPh: "دوّر — ماتشا، فستق…", orderLbl: "طلب", whatChange: "أكيد — تحب تغيّر إيه؟ مثلاً «خليه لارج»، «شيل الكوكي»، «لبن شوفان».",
       lastMood: "آخر مرة كنت {mood} واخترت {item}. تحبه تاني، ولا مودك النهارده حاجة تانية؟", againItem: "{item} تاني",
       was_sleepy: "نعسان", was_sweet: "نفسك في حاجة حلوة", was_hot: "حرّان", was_hungry: "جعان", was_matcha: "في مود ماتشا", was_surprise: "عايز مفاجأة",
+      viaPhone: "موبايل", viaEmail: "إيميل", emailLbl: "إيميلك", emailPh: "you@example.com", rememberBy: "افتكرني عن طريق", contactLbl: "موبايل أو إيميل — اختار واحد", badEmail: "ده مش شكل إيميل.", codeSentMail: "الكود اتبعت على إيميلك — اكتبه هنا (بص في السبام كمان).", emailOff: "اتحفظ. أكواد الإيميل هتشتغل حالاً — لحد ما يتأكد، تاريخك بيفضل على الموبايل ده بس.", verifiedVia: "متأكد عن طريق {v}", remMailPh: "إيميلك", needContact: "ضيف موبايل أو إيميل عشان نفتكرك.",
       meTitle: "حسابك", callMe: "نناديك بإيه؟", namePh: "اسمك", save: "حفظ", phoneLbl: "رقمك (واتساب)", phonePh: "01x xxxx xxxx", sendCode: "ابعت الكود", codePh: "كود من ٤ أرقام", verify: "تأكيد",
-      verified: "متأكد", unverified: "لسه متأكدش", phoneWhy: "هنبعتلك كود من ٤ أرقام على الواتساب — وانت هنا. الرقم المتأكد بيرجعلك طلبك المعتاد على أي موبايل، وطلباتك على الواتساب كمان.",
+      verified: "متأكد", unverified: "لسه متأكدش", phoneWhy: "هنبعتلك كود من ٤ أرقام على الواتساب أو الإيميل — وانت هنا. بعد التأكيد، طلبك المعتاد بيرجع على أي موبايل.",
       codeSent: "الكود اتبعت على الواتساب — اكتبه هنا.", codesOff: "اتحفظ. أكواد الواتساب هتشتغل قريب — لحد ما رقمك يتأكد، تاريخك بيفضل على الموبايل ده بس.", badPhone: "ده مش شكل رقم موبايل.", wrongCode: "الكود غلط — فاضل {n} محاولات.", codeExpired: "الكود خلص — ابعت واحد جديد.",
-      phoneOk: "الرقم اتأكد — هنعرفك على أي موبايل.", saved: "اتحفظ ✓", prefs: "تفضيلاتك", milkDefault: "اللبن الافتراضي", none: "ولا حاجة", darkMode: "الوضع الليلي", on: "شغال", off: "مقفول", remembered: "اللي فاكرينه", usualIs: "طلبك المعتاد: {u}", lastMoodIs: "آخر مود: {m}", favN: "{n} في المفضلة",
+      phoneOk: "اتأكد — هنعرفك على أي موبايل.", saved: "اتحفظ ✓", prefs: "تفضيلاتك", milkDefault: "اللبن الافتراضي", none: "ولا حاجة", darkMode: "الوضع الليلي", on: "شغال", off: "مقفول", remembered: "اللي فاكرينه", usualIs: "طلبك المعتاد: {u}", lastMoodIs: "آخر مود: {m}", favN: "{n} في المفضلة",
       nothingYet: "لسه مفيش — اطلب مرة وهنفتكر.", forgetMe: "انسى بياناتي على الموبايل ده", forgotten: "تمام — الموبايل ده مش هيفتكرك.", remPhonePh: "رقمك عشان كود واتساب (اختياري)",
       cConfirm: "تأكيد", cChange: "غيّر حاجة", cCash: "كاش", cCard: "كارت", cOnline: "أونلاين", cMenu: "المنيو", cOrderNow: "اطلب دلوقتي", cYes: "أيوه", cNo: "لا",
       sleepyMsg: "أنا نعسان — ترشحلي إيه يصحيني؟", sweetMsg: "نفسي في حاجة حلوة — ترشحلي إيه؟", hotMsg: "الجو حر — ترشحلي مشروب ساقع منعش؟", hungryMsg: "أنا جعان — ترشحلي آكل إيه؟", matchaMsg: "أنا في مود ماتشا — ترشحلي أنهي واحدة؟", surpriseMsg: "فاجئني — ترشحلي إيه النهارده؟" },
@@ -1213,10 +1222,10 @@
     if (j?.profile) { profile = j.profile; if (profile.name) me = profile.name.split(" ")[0]; }
     return j;
   }
-  async function startCode(phone, name, host, done) {
-    const r = await fetch(api("/api/widget/otp/start"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, phone, name, lang }) }).then((x) => x.json()).catch(() => null);
-    if (!r?.sent) { host.innerHTML = `<p class="hint">${esc(T(r?.error === "bad_phone" ? "badPhone" : "codesOff"))}</p>`; return false; }
-    host.innerHTML = `<p class="hint">${esc(T("codeSent"))}${r.dev_code ? ` <b>(test: ${esc(r.dev_code)})</b>` : ""}</p><div class="me-row" style="margin-top:6px"><input id="otpin" inputmode="numeric" maxlength="4" placeholder="${esc(T("codePh"))}" autocomplete="one-time-code"><button id="otpgo">${esc(T("verify"))}</button></div><p class="hint" id="otpmsg"></p>`;
+  async function startCode(contact, name, host, done, kind = "phone") {
+    const r = await fetch(api("/api/widget/otp/start"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, [kind]: contact, name, lang }) }).then((x) => x.json()).catch(() => null);
+    if (!r?.sent) { host.innerHTML = `<p class="hint">${esc(T(r?.error === "bad_phone" ? "badPhone" : r?.error === "bad_email" ? "badEmail" : kind === "email" ? "emailOff" : "codesOff"))}</p>`; return false; }
+    host.innerHTML = `<p class="hint">${esc(T(kind === "email" ? "codeSentMail" : "codeSent"))}${r.dev_code ? ` <b>(test: ${esc(r.dev_code)})</b>` : ""}</p><div class="me-row" style="margin-top:6px"><input id="otpin" inputmode="numeric" maxlength="4" placeholder="${esc(T("codePh"))}" autocomplete="one-time-code"><button id="otpgo">${esc(T("verify"))}</button></div><p class="hint" id="otpmsg"></p>`;
     const go = async () => {
       const v = await fetch(api("/api/widget/otp/verify"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, code: $("otpin").value.trim() }) }).then((x) => x.json()).catch(() => null);
       if (v?.ok) { LS.set(guestKey, { token: v.guest_token }); profile = v.profile; if (profile?.name) me = profile.name.split(" ")[0]; buzz([20, 30, 20]); done?.(); return; }
@@ -1225,6 +1234,7 @@
     $("otpgo").onclick = go; $("otpin").addEventListener("input", () => { if (/^\d{4}$/.test($("otpin").value)) go(); });
     return true;
   }
+  let meKind = "phone";
   $("meBtn").onclick = () => { drawMe(); openSheet($("meSheet")); };
   function drawMe() {
     const p = profile || {}, nm = p.name || "", dark = document.body.classList.contains("dark");
@@ -1232,8 +1242,9 @@
     const know = [u?.length ? T("usualIs").replace("{u}", usualText(u)) : null, p.last_mood ? T("lastMoodIs").replace("{m}", T("was_" + p.last_mood.mood)) : null, favs.length ? T("favN").replace("{n}", favs.length) : null].filter(Boolean);
     $("mebody").innerHTML = `<div class="me-av">${esc((nm || "?").slice(0, 1).toUpperCase())}</div>
       <div class="me-sec"><label>${T("callMe")}</label><div class="me-row"><input id="mename" maxlength="30" value="${esc(nm)}" placeholder="${esc(T("namePh"))}"><button id="menamego">${T("save")}</button></div></div>
-      <div class="me-sec"><label>${T("phoneLbl")}${p.phone ? `<span class="badge2 ${p.verified ? "ok" : "wait"}"><i class="fa-solid ${p.verified ? "fa-circle-check" : "fa-hourglass-half"}"></i>${T(p.verified ? "verified" : "unverified")}</span>` : ""}</label>
-        ${p.verified ? `<p class="hint" style="margin:0">${esc(p.phone)}</p>` : `<div class="me-row"><input id="mephone" inputmode="tel" maxlength="20" placeholder="${esc(p.phone || T("phonePh"))}"><button id="mephonego">${T("sendCode")}</button></div><div id="mecode"></div><p class="hint">${T("phoneWhy")}</p>`}</div>
+      <div class="me-sec"><label>${T("rememberBy")}${p.verified ? `<span class="badge2 ok"><i class="fa-solid fa-circle-check"></i>${esc(T("verifiedVia").replace("{v}", T(p.verified_by === "email" ? "viaEmail" : "viaPhone")))}</span>` : (p.phone || p.email) ? `<span class="badge2 wait"><i class="fa-solid fa-hourglass-half"></i>${T("unverified")}</span>` : ""}</label>
+        ${p.verified ? `<p class="hint" style="margin:0">${esc(p.verified_by === "email" ? p.email : p.phone)}</p>` : `<div class="seg" id="meseg"><button data-k="phone" class="${meKind === "phone" ? "on" : ""}"><i class="fa-solid fa-mobile-screen"></i>${T("viaPhone")}</button><button data-k="email" class="${meKind === "email" ? "on" : ""}"><i class="fa-solid fa-envelope"></i>${T("viaEmail")}</button></div>
+          <div class="me-row"><input id="mephone" ${meKind === "email" ? 'type="email" inputmode="email"' : 'inputmode="tel"'} maxlength="80" placeholder="${esc(meKind === "email" ? (p.email || T("emailPh")) : (p.phone || T("phonePh")))}"><button id="mephonego">${T("sendCode")}</button></div><div id="mecode"></div><p class="hint">${T("phoneWhy")}</p>`}</div>
       <div class="me-sec"><label>${T("prefs")}</label>
         <p class="hint" style="margin:0 0 6px">${T("milkDefault")}</p><div class="ochips" id="memilk">${["", "Regular", "Skim", "Oat", "Coconut"].map((m) => `<button class="oc ${String(p.default_milk || "") === m ? "on" : ""}" data-milk="${m}">${m ? esc(m) : T("none")}</button>`).join("")}</div>
         <p class="hint" style="margin:10px 0 6px">${T("avoidLbl")}</p><div class="ochips" id="meavoid">${Object.keys(AVOID).map((a) => `<button class="oc ${avoid.includes(a) ? "on" : ""}" data-av="${a}">${esc(T(a))}</button>`).join("")}</div>
@@ -1241,11 +1252,13 @@
       <div class="me-sec"><label>${T("remembered")}</label><div class="me-know">${know.length ? know.map((k) => `<div><i class="fa-solid fa-check"></i>${esc(k)}</div>`).join("") : `<div class="hint">${T("nothingYet")}</div>`}</div></div>
       <div class="me-sec"><button class="forget" id="meforget"><i class="fa-solid fa-user-slash"></i> ${T("forgetMe")}</button></div>`;
     $("menamego").onclick = async () => { const v = $("mename").value.trim(); if (!v) return; const j = await saveMe({ name: v }); if (j?.ok) { sys("fa-user-check", T("saved")); drawMe(); } };
+    $("mebody").querySelectorAll("#meseg [data-k]").forEach((b) => b.onclick = () => { meKind = b.dataset.k; drawMe(); $("mephone")?.focus(); });
     const pg = $("mephonego");
     if (pg) pg.onclick = async () => {
       const ph = $("mephone").value.trim(); if (!ph) return $("mephone").focus();
-      const j = await saveMe({ phone: ph }); if (j?.error === "bad_phone") return ($("mecode").innerHTML = `<p class="hint">${esc(T("badPhone"))}</p>`);
-      await startCode(ph, profile?.name, $("mecode"), () => { sys("fa-circle-check", T("phoneOk")); drawMe(); });
+      const j = await saveMe({ [meKind]: ph });
+      if (j?.error === "bad_phone" || j?.error === "bad_email") return ($("mecode").innerHTML = `<p class="hint">${esc(T(j.error === "bad_email" ? "badEmail" : "badPhone"))}</p>`);
+      await startCode(ph, profile?.name, $("mecode"), () => { sys("fa-circle-check", T("phoneOk")); drawMe(); }, meKind);
     };
     $("memilk").querySelectorAll("[data-milk]").forEach((b) => b.onclick = async () => { const r = await fetch(api("/api/widget/profile"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, token, sessionId: session.sessionId, default_milk: b.dataset.milk || null }) }).then((x) => x.json()).catch(() => null); if (r?.profile) profile = { ...profile, ...r.profile }; drawMe(); });
     $("meavoid").querySelectorAll("[data-av]").forEach((b) => b.onclick = () => { const a = b.dataset.av; avoid = avoid.includes(a) ? avoid.filter((x) => x !== a) : [...avoid, a]; LS.set("kk:avoid", avoid); drawMe(); });

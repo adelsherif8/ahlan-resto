@@ -297,13 +297,15 @@ export function verifyGuestToken(record, tok) {
   const exp = crypto.createHmac("sha256", tenantSecret(record)).update(`guest|${m[1]}`).digest();
   const got = unb64u(m[2]);
   if (got.length !== exp.length || !crypto.timingSafeEqual(got, exp)) return null;
-  try { const v = JSON.parse(unb64u(m[1]).toString("utf8")); return v.r === record.id && (/^\+\d{8,15}$/.test(v.p) || GUEST_KEY_RE.test(v.p)) ? v.p : null; } catch { return null; }
+  try { const v = JSON.parse(unb64u(m[1]).toString("utf8")); return v.r === record.id && (/^\+\d{8,15}$/.test(v.p) || GUEST_KEY_RE.test(v.p) || EMAIL_KEY_RE.test(v.p)) ? v.p : null; } catch { return null; }
 }
 
 // "remember me on this phone" — no number, no WhatsApp hop: the guest gives a first name, we mint a
 // device guest key (gst:…) and the signed token in the browser IS the identity. Same diner-row
 // machinery as a verified phone, so name, history and "my usual" all work on the next visit.
 export const GUEST_KEY_RE = /^gst:[a-f0-9]{20}$/;
+// a verified email is an identity too: "mail:<address>" in the same diner key column
+export const EMAIL_KEY_RE = /^mail:[^@\s]{1,64}@[^@\s]{1,190}\.[a-z]{2,24}$/i;
 export const cleanGuestName = (n) => String(n || "").replace(/[^\p{L}\p{M}' -]/gu, "").replace(/\s+/g, " ").trim().slice(0, 30);
 export async function rememberDevice(tenant, widgetSessionId, rawName) {
   const name = cleanGuestName(rawName);

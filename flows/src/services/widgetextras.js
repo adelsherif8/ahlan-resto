@@ -3,7 +3,7 @@
 // language / last mood + what they ordered after it) and per-drink thumbs. Everything here is COUNTED from rows — orders,
 // claims, diner preferences — never estimated by a model.
 import crypto from "node:crypto";
-import { effectiveSession, liveClaim, isShowroom, rememberDevice, linkPhone, guestToken, cleanGuestName, GUEST_KEY_RE } from "./tabletoken.js";
+import { effectiveSession, liveClaim, isShowroom, rememberDevice, linkPhone, guestToken, cleanGuestName, GUEST_KEY_RE, EMAIL_KEY_RE } from "./tabletoken.js";
 import { notifyDashboard } from "./chatlog.js";
 import { transcribeAudio } from "./media.js";
 import { setSessionLanguage } from "../flows/buffering.js";
@@ -110,12 +110,33 @@ export async function profileOf(db, runAs) {
     const item = after?.[0]?.items?.[0]?.name || null;
     last_mood = { mood: p.last_mood.mood, at: p.last_mood.at, item };
   }
-  const verified = /^\+\d{8,15}$/.test(runAs);
-  const phone = verified ? runAs : d?.preferences?.phone_unverified || null;
-  return { name: d?.name || null, phone: phone ? maskPhone(phone) : null, verified, default_milk: p.default_milk || null, language: d?.preferences?.language || null, habit, last_mood };
+  const viaPhone = /^\+\d{8,15}$/.test(runAs), viaEmail = EMAIL_KEY_RE.test(runAs);
+  const verified = viaPhone || viaEmail;
+  const phone = viaPhone ? runAs : !viaEmail ? d?.preferences?.phone_unverified || null : null;
+  const email = viaEmail ? runAs.slice(5) : !viaPhone ? d?.preferences?.email_unverified || null : null;
+  return { name: d?.name || null, phone: phone ? maskPhone(phone) : null, email: email ? maskEmail(email) : null, verified, verified_by: viaPhone ? "phone" : viaEmail ? "email" : null, default_milk: p.default_milk || null, language: d?.preferences?.language || null, habit, last_mood };
 }
 
 export const maskPhone = (p) => String(p).replace(/^(\+\d{2})(\d+)(\d{4})$/, (m, a, mid, z) => `${a} ${"•".repeat(Math.max(3, mid.length))}${z}`);
+export const maskEmail = (e) => String(e).replace(/^(.)(.*)(@.*)$/, (m, a, mid, d) => `${a}${"•".repeat(Math.min(6, Math.max(2, mid.length)))}${d}`);
+export function normalizeEmail(raw) { const e = String(raw || "").trim().toLowerCase(); return /^[^@\s]{1,64}@[^@\s]{1,190}\.[a-z]{2,24}$/.test(e) ? e : null; }
+
+// email codes go through Resend (RESEND_API_KEY on the flows service; sender OTP_EMAIL_FROM)
+async function sendEmailOtp(email, code, lang, restaurant) {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return { sent: false, reason: "email_not_configured" };
+  const ar = lang === "ar";
+  const subject = ar ? `كود التأكيد: ${code}` : `Your code: ${code}`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;border:2px solid #1b1b1b;border-radius:18px;${ar ? "direction:rtl;text-align:right;" : ""}">
+    <p style="margin:0 0 6px;font-size:15px;color:#555">${ar ? `${restaurant} — تأكيد إنك انت` : `${restaurant} — confirming it's you`}</p>
+    <p style="font-size:38px;font-weight:800;letter-spacing:8px;margin:10px 0;color:#1b1b1b">${code}</p>
+    <p style="margin:0;font-size:14px;color:#555">${ar ? "اكتب الكود ده في شات الترابيزة. صالح لمدة ١٠ دقايق. لو مش انت اللي طلبته، تجاهل الرسالة." : "Type it in the table chat. It works for 10 minutes. If this wasn't you, ignore this email."}</p></div>`;
+  const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: process.env.OTP_EMAIL_FROM || "Munadim <codes@munadim.com>", to: [email], subject, html }) }).then((x) => x.json()).catch((e) => ({ message: e.message, statusCode: 0 }));
+  if (r?.id) return { sent: true };
+  return { sent: false, reason: "email_send_failed", detail: r?.message || null };
+}
+
 // Egyptian numbers typed any way ("01012345678", "201012345678", "+20 10 1234 5678") → +201012345678
 export function normalizePhone(raw) {
   let d = String(raw || "").replace(/[^\d+]/g, "");
@@ -160,6 +181,11 @@ export function registerWidgetExtras(app, { widgetTenant, widgetGuard, rateLimit
         // row until the WhatsApp code proves it; with a name it rides on the remembered guest
         if (!/^\+/.test(runAs)) await patchPrefs(db, runAs, { phone_unverified: phone });
       }
+      if (req.body?.email !== undefined) {
+        const email = req.body.email ? normalizeEmail(req.body.email) : null;
+        if (req.body.email && !email) return res.status(400).json({ error: "bad_email" });
+        if (!/^(\+|mail:)/.test(runAs)) await patchPrefs(db, runAs, { email_unverified: email });
+      }
       if (!token && runAs !== sessionId) token = guestToken(w.tenant.record, runAs);
       res.json({ ok: true, profile: await profileOf(db, runAs), guest_token: token });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -169,15 +195,19 @@ export function registerWidgetExtras(app, { widgetTenant, widgetGuard, rateLimit
     const w = await widgetTenant(req, res); if (!w) return;
     try {
       const sessionId = await widgetGuard(req, res, w); if (!sessionId) return;
-      const phone = normalizePhone(req.body?.phone);
-      if (!phone) return res.status(400).json({ error: "bad_phone" });
+      // the guest picks ONE way to be remembered: phone (WhatsApp code) or email (emailed code)
+      const email = req.body?.email ? normalizeEmail(req.body.email) : null;
+      const phone = !email && req.body?.phone ? normalizePhone(req.body.phone) : null;
+      if (req.body?.email && !email) return res.status(400).json({ error: "bad_email" });
+      if (!email && !phone) return res.status(400).json({ error: "bad_phone" });
+      const key = email ? `mail:${email}` : phone;
       const code = String(crypto.randomInt(1000, 10000));
-      otps.set(sessionId, { phone, code, exp: Date.now() + 10 * 60_000, tries: 0, name: cleanGuestName(req.body?.name) || null });
+      otps.set(sessionId, { phone: key, code, exp: Date.now() + 10 * 60_000, tries: 0, name: cleanGuestName(req.body?.name) || null });
       // local test servers only: OTP_DEV_ECHO=1 returns the code instead of messaging it
-      if (process.env.OTP_DEV_ECHO === "1") return res.json({ sent: true, dev_code: code });
-      const r = await sendOtp(phone, code, req.body?.lang);
+      if (process.env.OTP_DEV_ECHO === "1") return res.json({ sent: true, via: email ? "email" : "phone", dev_code: code });
+      const r = email ? await sendEmailOtp(email, code, req.body?.lang, w.tenant.record.name) : await sendOtp(phone, code, req.body?.lang);
       if (!r.sent) otps.delete(sessionId);
-      res.json({ sent: r.sent, reason: r.reason || null });
+      res.json({ sent: r.sent, via: email ? "email" : "phone", reason: r.reason || null });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -198,7 +228,7 @@ export function registerWidgetExtras(app, { widgetTenant, widgetGuard, rateLimit
       if (GUEST_KEY_RE.test(before)) {
         await db.from("orders").update({ phone_number: o.phone }).eq("phone_number", before).then(() => {}, () => {});
         const ph = await prefsOf(db, o.phone);
-        await db.from("diners").update({ ...(ph?.name ? {} : { name: prev?.name || o.name || null }), preferences: { ...(prev?.preferences || {}), ...(ph?.preferences || {}), widget_profile: { ...(prev?.preferences?.widget_profile || {}), ...(ph?.preferences?.widget_profile || {}) }, phone_unverified: null } }).eq("phone_number", o.phone);
+        await db.from("diners").update({ ...(ph?.name ? {} : { name: prev?.name || o.name || null }), preferences: { ...(prev?.preferences || {}), ...(ph?.preferences || {}), widget_profile: { ...(prev?.preferences?.widget_profile || {}), ...(ph?.preferences?.widget_profile || {}) }, phone_unverified: null, email_unverified: null } }).eq("phone_number", o.phone);
       }
       res.json({ ok: true, guest_token: guestToken(w.tenant.record, o.phone), profile: await profileOf(db, o.phone) });
     } catch (e) { res.status(500).json({ error: e.message }); }
