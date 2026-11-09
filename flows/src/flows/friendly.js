@@ -15,6 +15,7 @@ import { deliveryFacts } from "../services/delivery.js";
 import { menuPdfUrl } from "../services/menupdf.js";
 import { label, entryChips } from "../services/labels.js";
 import { builderConfig } from "../services/builder.js";
+import { tableSessionOf } from "../services/tabletoken.js";
 
 // rolling-summary cooldown: refresh at most once per 10 min per session
 // (history is capped at 20 turns, so a turn-count gate alone would stall at the cap)
@@ -127,6 +128,18 @@ defineFlow({
       };
     }, { input: { sessionId: ctx.sessionId, diner: diner ? { name: diner.name, visits: diner.visit_count, vip: diner.is_vip, allergies: diner.allergies } : null } });
 
+    // WHO GREETS: the table widget paints its own welcome line on screen before the
+    // guest types, so there the AI never opens with a welcome — not even on message
+    // one. Elsewhere only the first reply of a conversation greets. A mood button
+    // ("Surprise me…") once came back as "Welcome to Koffee Kulture I'd go for…" (7 Nov).
+    // The reply runs later from the buffer flush (trigger "buffer-flush"), so the
+    // request-time trigger is gone by now — the table session id / table_session on
+    // the diner (a linked phone keeps it) are what still say "this is the table widget".
+    const tableWidget = (ctx.channel === "web" && ctx.trigger === "widget")
+      || /^web:tbl:/.test(String(ctx.sessionId || ""))
+      || (ctx.channel === "web" && !!tableSessionOf(diner));
+    const greetTurn = context.isNewConversation && !tableWidget;
+
     function fmt12(hhmm) {
       const [h, m] = String(hhmm).split(":").map(Number);
       const ampm = h >= 12 ? "PM" : "AM";
@@ -201,10 +214,10 @@ RIGHT NOW (live — overrides anything above):
 ${context.specials.length ? `- TONIGHT\'S SPECIALS (mention when relevant — never invent others): ${context.specials.join("; ")}\n` : ""}${context.sold_out?.length ? `- SOLD OUT TODAY (if asked about these, say honestly they ran out today and are back soon — they are on the menu above but NOT available now): ${context.sold_out.join(", ")}\n` : ""}${branchFacts(config, diner, message)}
 
 GREETING & RELATIONSHIP (facts from our CRM — phrase them naturally, NEVER recite them):
-- ${context.isNewConversation ? "This IS the first message of the conversation — greet them." : "This conversation already started — do NOT greet again, no welcome openers, just continue naturally."}
-- Who this is: ${situationGuide(context, config)}
+- ${greetTurn ? "This IS the first message of the conversation — greet them." : tableWidget && context.isNewConversation ? `The guest is at a table and the table screen ALREADY welcomed them before this message — do NOT greet or welcome: no "Welcome to ${config.name}", no "Hello!" opener. Your first words answer what they asked.` : "This conversation already started — do NOT greet again, no welcome openers, just continue naturally."}
+- Who this is: ${situationGuide(context, config, greetTurn)}
 - Name to greet with: ${context.greetName ? `"${context.greetName}" (source: ${context.greetNameSource})` : "unknown — don't demand it; capture it naturally if they offer it"}
-- Opening style: ${(config.ai?.greeting || "").trim() ? `the house opener "${config.ai.greeting.trim()}" is for FIRST-TIMERS ONLY (start their welcome with its spirit, then your own words). RETURNING guests are greeted like a human who knows them: by name, directly ("Welcome back, Adel! 👋…") — NEVER prepend the house opener or re-welcome them "to ${config.name}". Vary your wording between conversations; never sound copy-pasted.` : `no house greeting configured — open naturally in your personality and the guest's language; NEVER use brand words, slogans or greeting words that aren't in FACTS or your personality`}
+- Opening style: ${!greetTurn ? "no opener — the welcome is already done; start straight with the answer." : (config.ai?.greeting || "").trim() ? `the house opener "${config.ai.greeting.trim()}" is for FIRST-TIMERS ONLY (start their welcome with its spirit, then your own words). RETURNING guests are greeted like a human who knows them: by name, directly ("Welcome back, Adel! 👋…") — NEVER prepend the house opener or re-welcome them "to ${config.name}". Vary your wording between conversations; never sound copy-pasted.` : `no house greeting configured — open naturally in your personality and the guest's language; NEVER use brand words, slogans or greeting words that aren't in FACTS or your personality`}
 
 GUEST CONTEXT (use silently — NEVER recite it back):
 - Name: ${diner?.name || "unknown"} | Tier: ${context.visitTier}${diner?.is_vip ? " (VIP — extra warm)" : ""}
@@ -261,6 +274,8 @@ ${context.handoffPending ? "⚠️ HANDOFF PENDING: the team has ALREADY been no
 21. LOYALTY: if they ask about points / rewards / "how close to a free X" / their loyalty — answer ONLY from the LOYALTY line in GUEST CONTEXT (exact numbers). If none is configured, say we don't have a loyalty program yet. NEVER invent points, tiers or rewards.
 22. LOST & FOUND: if they say they left/lost something ("I left my phone/wallet/keys"), be reassuring, tell them you'll flag it to the branch team to check right away, and give them the branch PHONE (from FACTS) so they can call directly for a faster look — say the team will get back with any updates. Set needs_handoff=true and staff_alert={"type":"lost & found","note":"<what + when, short>"}. NEVER promise it's found.
 23. REFUND / MONEY BACK: if they ask for a refund or their money back, treat it as a COMPLAINT — apologize once, set detected_feedback={"sentiment":"negative","text":"<their words, short>","rating":null} and needs_handoff=true, and tell them a team member will follow up personally to make it right. NEVER promise, confirm or process a refund yourself — refunds are never handled over WhatsApp.
+25. UNDECIDED / HUNGRY ("I'm hungry but don't know what to eat", "ana ga3an bs mesh 3aref akol eh", "surprise me", "what do you recommend?", "ترشحلي إيه"): be the waiter, not the menu. EITHER ask ONE short question that narrows it ("sweet or savory?", "breakfast or something filling?") OR give 2–3 real picks — each one line: exact menu name, exact price, a few words why. NEVER send_menu_list for this, never a long list, never a whole category. Every dish and price comes from MENU only — if MENU isn't loaded this turn, ask the narrowing question instead of naming anything.
+26. NEXT STEP AFTER A RECOMMENDATION: whenever you recommend a specific dish (or 2–3 picks), end with ONE short natural offer to add it, in the guest's language — "Want me to add it?" · "أضيفهولك؟" · "A7otholak?" (with picks: "Which one should I add?"). Just that line — no instructions on how to order. This one question is allowed even under the fewer-questions rule.
 24. NOT OUR LINE: this WhatsApp is for GUESTS — ordering, bookings, menu, help. It is NOT a business/HR line. For jobs/hiring/CV, franchise, partnership, supplier or investor inquiries: politely say this line is just for orders & guest help and you can't handle hiring/business requests here — don't answer them, don't collect CVs/details, don't hand off. One warm line, then back to how you can help them as a guest.
 
 Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": string|null, "handoff_briefing": string|null, "detected_name": string|null, "detected_allergies": string[]|null, "detected_preferences": {"favorite_items": string[]|null, "seating": string|null, "occasion": {"type": string, "date": string}|null}|null, "detected_facts": string[]|null, "send_photos": string[]|null, "quick_replies": string[]|null, "send_menu_list": boolean, "add_to_waitlist": {"party_size": number, "name": string|null}|null, "detected_feedback": {"sentiment": string, "text": string, "rating": number|null}|null, "send_location_pin": boolean, "react_emoji": string|null, "staff_alert": {"type": string, "note": string}|null, "suggested_faq": {"question": string, "context": string}|null }`;
@@ -355,7 +370,8 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
         // name/restaurant enforcement ONLY when the guest actually just said hi —
         // a first-message QUESTION must keep its ANSWER, never become a greeting
         const BARE_GREETING = /^(hi+|hey+|hello+|yo+|hala|ahlan|ezayak|ezayek|ezay|salam( 3alek(o|om|um))?|هاي|اهلا|أهلا|اهلين|هلا|(ال)?سلام( عليكو?م?)?|وعليكم السلام|ازيك|ازيكم|مرحبا|صباح الخير|مساء الخير|good (morning|evening|afternoon))[\s!.😊👋🙌❤️🔥]*$/i;
-        const bareGreeting = message.trim().length <= 25 && (BARE_GREETING.test(message.trim()) || isGreetingish(message));
+        // the table widget already showed its welcome — no greeting to enforce there
+        const bareGreeting = greetTurn && message.trim().length <= 25 && (BARE_GREETING.test(message.trim()) || isGreetingish(message));
         const firstName = (context.greetName || "").split(" ")[0];
         const missName = bareGreeting && firstName && context.situation !== "first_timer" && !draft.toLowerCase().includes(firstName.toLowerCase());
         const missRest = bareGreeting && context.situation === "first_timer" && !draft.toLowerCase().includes(String(config.name || "").split(" ")[0].toLowerCase());
@@ -438,6 +454,12 @@ Return JSON: { "reply": string, "needs_handoff": boolean, "handoff_reason": stri
     // Say something that invites the next message instead.
     if (!out.reply) log("friendly: model returned an empty reply — using code fallback");
     let reply = (out.reply || L2F("Happy to help — what would you like? 😊", "تحت أمرك — تحب إيه؟ 😊", "Ta7t amrak — te7eb eh? 😊")).slice(0, 3500);
+    // NO RE-WELCOME (code, not prompt): outside the greeting turn a reply never opens
+    // with "Welcome to <restaurant>" — the model did it anyway on follow-up questions.
+    if (!greetTurn && out.reply) {
+      const stripped = stripWelcomeOpener(reply, [config.name, config.basic_info?.name_ar], (context.greetName || "").split(" ")[0]);
+      if (stripped !== reply) { log("friendly: stripped a welcome opener outside the greeting turn"); reply = stripped; }
+    }
     // FINAL SCRIPT GUARANTEE: the re-asks above fix nearly every slip; if the model
     // STILL answered in the wrong script, the wrong-script text is never sent. A
     // short code line in the guest's language + a hand to the menu beats a reply
@@ -1037,7 +1059,18 @@ function reservationPolicyLine(rp = {}) {
 }
 
 // per-situation hosting stance — facts computed in code, the LLM only phrases them
-function situationGuide(context, config) {
+function situationGuide(context, config, greetTurn = context.isNewConversation) {
+  if (!greetTurn) {
+    // past the welcome: who they are still matters, but nothing here may read as
+    // "greet them" — the first-timer stance said "a simple genuine welcome TO
+    // <restaurant>" on EVERY turn, so mid-chat answers kept opening with a welcome
+    const usual = context.usualFromOrders?.name || context.prefs?.favorite_items?.[0] || null;
+    const who = context.situation === "dining_now" ? "a guest sitting AT THEIR TABLE right now — help immediately; physical requests (waiter, bill, wrong order, complaint) = needs_handoff=true"
+      : context.situation === "long_time_no_see" ? `a guest back after ~${context.gapDays} days`
+      : context.situation === "returning" ? `a returning guest${usual ? ` (their usual: ${usual} — mention it only if it fits what they're asking)` : ""}`
+      : "a first-time guest";
+    return `${who}. The welcome is ALREADY done — do NOT greet or welcome again (no "Welcome to ${config.name}", no "Hello!"): answer what they asked straight away, like a waiter already at the table.`;
+  }
   switch (context.situation) {
     case "dining_now":
       return `a guest sitting AT THEIR TABLE in the restaurant RIGHT NOW (reservation ${context.diningNow?.code || ""}). Do NOT pitch the menu or ask what they're in the mood for — ask how the meal is going / help immediately. Physical requests (waiter, bill, wrong order, complaint) = set needs_handoff=true with urgency, the team is meters away.`;
@@ -1223,6 +1256,38 @@ function buildMenuBody(menu, message, history, currency, config = {}) {
     out.push(`${cat}${arOf.get(cat) ? ` [ar: ${arOf.get(cat)}]` : ""}: ${items.join(" · ")}`);
   }
   return out.join("\n");
+}
+
+// "Welcome to Koffee Kulture I'd go for…" → "I'd go for…". Removes ONLY a leading
+// welcome (EN / AR / Franco), never anything after it; a leading "Hi!" survives. If
+// nothing meaningful would be left, the text is returned untouched.
+export function stripWelcomeOpener(text, restaurantNames = [], guestName = "") {
+  if (!text) return text;
+  const esc = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const names = [...new Set(restaurantNames.filter(Boolean).map((n) => String(n).trim()).filter(Boolean))].map(esc).join("|");
+  const nm = names ? `(?:${names})` : "(?!)";
+  const guest = guestName ? `(?:[,،\\s]+(?:ya\\s+|يا\\s+)?${esc(guestName)})?` : "";
+  const tail = "\\s*[!.,،—–-]*\\s*(?:\\p{Extended_Pictographic}\\uFE0F?\\s*)*";
+  // an unnamed place ("أهلاً بيك في كوفي كلتشر!") is only eaten when punctuation or an emoji closes it
+  const anyPlace = "[^!.?؟،,\\n]{1,30}?(?=\\s*[!.?؟،,\\n\\p{Extended_Pictographic}])";
+  const patterns = [
+    new RegExp(`^(\\s*(?:hi|hello|hey)(?:\\s+there)?[!,.]*\\s+)?welcome(?:\\s+back)?(?:\\s+(?:to|at)\\s+(?:the\\s+)?${nm})?(?:\\s+again)?${guest}${tail}`, "iu"),
+    new RegExp(`^()\\s*(?:أهلاً|أهلا|اهلاً|اهلا|مرحباً|مرحبا|يا هلا|نورتنا|نورت)(?:\\s+و\\s*سهلاً|\\s+و\\s*سهلا)?(?:\\s+(?:بيك|بيكي|بيكم|بك|بعودتك))?${guest}(?:\\s+(?:في|فى|ف)\\s*(?:${nm}|${anyPlace}))?${tail}`, "u"),
+    new RegExp(`^()\\s*(?:ahlan|marhaba|ya hala|nawartena|nawart)(?:\\s+w\\s*sahlan)?(?:\\s+(?:bik|beek|bek|bikom|beekom))?${guest}(?:\\s+(?:fi|fe|f)\\s+(?:${nm}|${anyPlace}))?${tail}`, "iu"),
+  ];
+  for (const [i, re] of patterns.entries()) {
+    const m = String(text).match(re);
+    if (!m || !m[0].trim()) continue;
+    // AR/Franco welcome words double as plain words mid-sentence — strip only a welcome
+    // that is CLOSED (punctuation/emoji) or names the restaurant outright
+    if (i > 0 && !/[!.,،—–\-\p{Extended_Pictographic}]/u.test(m[0]) && !(names && new RegExp(nm, "iu").test(m[0]))) return text;
+    const keep = (m[1] || "").trim();
+    let rest = String(text).slice(m[0].length).trim();
+    if (rest.replace(/[^\p{L}\p{N}]/gu, "").length < 6) return text;
+    rest = rest.charAt(0).toUpperCase() + rest.slice(1);
+    return keep ? `${keep} ${rest}` : rest;
+  }
+  return text;
 }
 
 // "7abibti?", "ya habibi", «حبيبتي» — removed with the punctuation that hung on them
