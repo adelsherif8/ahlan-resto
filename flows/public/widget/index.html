@@ -315,10 +315,8 @@
     <button data-menu><i class="fa-solid fa-book-open"></i><span data-t="menu">Menu</span></button>
     <button data-tab><i class="fa-solid fa-file-invoice"></i><span data-t="tab">My tab</span></button>
     <button data-tip><i class="fa-solid fa-hand-holding-heart"></i><span data-t="tip">Tip the team</span></button>
-    <button data-q="What do you recommend?"><i class="fa-solid fa-star"></i>Recommend</button>
-    <button data-q="Something with matcha"><i class="fa-solid fa-leaf"></i>Matcha</button>
-    <button data-q="What pastries do you have?"><i class="fa-solid fa-bread-slice"></i>Pastries</button>
-    <button data-q="Where is my order?"><i class="fa-solid fa-receipt"></i>My order</button>
+    <button data-q="What do you recommend?"><i class="fa-solid fa-star"></i><span data-t="recommend">Recommend</span></button>
+    <button data-q="Where is my order?"><i class="fa-solid fa-receipt"></i><span data-t="myOrder">My order</span></button>
   </div>
   <div class="sheet-bg" id="sbg"></div>
   <div class="sheet" id="callSheet"><div class="grab"></div><h3><i class="fa-solid fa-bell-concierge"></i><span data-t="callT">Call staff to your table</span><button class="x" data-close><i class="fa-solid fa-xmark"></i></button></h3>
@@ -464,7 +462,7 @@
     setGeoPill(j.showroom ? "ok" : (j.geofence?.status || "unknown"), j.geofence?.distance_m);
     setBanner(j.join_code, 1);
     log.innerHTML = ""; seen.clear(); lastAt = null;
-    const greet = `${dayHello()} ${T("welcomeTo")} ${R.name || ""}.${cairoHour() < 12 ? " " + T("coffeeFirst") : ""}`.trim();
+    const greet = `${dayHello()} ${T("welcomeTo")} ${R.name || ""}.${KK && cairoHour() >= 5 && cairoHour() < 12 ? " " + T("coffeeFirst") : ""}`.trim();
     const name = j.guest?.name ? j.guest.name.split(" ")[0] : null;
     if (j.disputed) sys("fa-flag", "Table reclaimed — the counter has been told someone else was ordering here.");
     if (j.status === "member") add("ai", T("joined").replace("{t}", j.table));
@@ -749,7 +747,7 @@
     const row = document.createElement("div"); row.className = "card mood";
     const lm = profile?.last_mood, lmItem = lm?.item && findItem(lm.item);
     const recall = lm && lmItem && Date.now() - new Date(lm.at).getTime() > 3 * 3600_000;
-    row.innerHTML = `<h4><i class="fa-solid fa-face-smile"></i>${T(known || recall ? "moodKnown" : "moodFirst")}</h4><p>${recall ? esc(T("lastMood").replace("{mood}", T("was_" + lm.mood)).replace("{item}", lm.item)) : T("moodBody")}</p>${recall ? `<div class="acts" style="margin:4px 0 10px"><button class="wa" data-again style="background:var(--brand);border:0;font:inherit;font-weight:700;cursor:pointer"><i class="fa-solid fa-rotate-left"></i>${esc(T("againItem").replace("{item}", lm.item))}</button></div>` : ""}<div class="moods">${MOODS.map(([ic, l], k) => `<button data-m="${k}"><i class="fa-solid ${ic}"></i>${T(l)}</button>`).join("")}</div>`;
+    row.innerHTML = `<h4><i class="fa-solid fa-face-smile"></i>${T(known || recall ? "moodKnown" : "moodFirst")}</h4><p>${recall ? esc(T("lastMood").replace("{mood}", T("was_" + lm.mood)).replace("{item}", lm.item)) : T("moodBody")}</p>${recall ? `<div class="acts" style="margin:4px 0 10px"><button class="wa" data-again style="background:var(--brand);border:0;font:inherit;font-weight:700;cursor:pointer"><i class="fa-solid fa-rotate-left"></i>${esc(T("againItem").replace("{item}", lm.item))}</button></div>` : ""}<div class="moods">${MOODS.map(([ic, l], k) => (l === "mMatcha" && !KK && !(MENU?.categories || []).some((c) => /matcha/i.test(c.name)) ? "" : `<button data-m="${k}"><i class="fa-solid ${ic}"></i>${T(l)}</button>`)).join("")}</div>`;
     log.appendChild(row); log.scrollTop = log.scrollHeight;
     const ag = row.querySelector("[data-again]");
     if (ag) ag.onclick = () => { if (lmItem.options?.length) openItem(lmItem.name); else { addLine(lmItem, {}, 1, null); drawCartSheet(); openSheet($("cartSheet")); } };
@@ -911,6 +909,7 @@
       lastMood: "Last time you were {mood} and went with the {item}. Want it again, or is today a different mood?", againItem: "{item} again",
       was_sleepy: "sleepy", was_sweet: "craving something sweet", was_hot: "feeling the heat", was_hungry: "hungry", was_matcha: "in a matcha mood", was_surprise: "up for a surprise",
       viaPhone: "Phone", viaEmail: "Email", emailLbl: "Your email", emailPh: "you@example.com", rememberBy: "Remember me by", contactLbl: "Phone or email — pick one", badEmail: "That doesn't look like an email address.", codeSentMail: "Code sent to your email — type it here (check spam too).", emailOff: "Saved. Email codes switch on in a moment — until it's verified, your history stays on this phone.", verifiedVia: "Verified by {v}", remMailPh: "Your email", needContact: "Add a phone or an email so we can remember you.",
+      recommend: "Recommend", myOrder: "My order",
       meTitle: "You", callMe: "What should we call you?", namePh: "Your name", save: "Save", phoneLbl: "Your phone (WhatsApp)", phonePh: "01x xxxx xxxx", sendCode: "Send code", codePh: "4-digit code", verify: "Verify",
       verified: "Verified", unverified: "Not verified yet", phoneWhy: "We send a 4-digit code to your WhatsApp or email — you stay right here. Once verified, your usual comes back on any phone.",
       codeSent: "Code sent to your WhatsApp — type it here.", codesOff: "Saved. WhatsApp codes are switching on soon — until your number is verified, your history stays on this phone.", badPhone: "That doesn't look like a phone number.", wrongCode: "Wrong code — {n} tries left.", codeExpired: "That code expired — send a new one.",
@@ -945,6 +944,7 @@
       lastMood: "آخر مرة كنت {mood} واخترت {item}. تحبه تاني، ولا مودك النهارده حاجة تانية؟", againItem: "{item} تاني",
       was_sleepy: "نعسان", was_sweet: "نفسك في حاجة حلوة", was_hot: "حرّان", was_hungry: "جعان", was_matcha: "في مود ماتشا", was_surprise: "عايز مفاجأة",
       viaPhone: "موبايل", viaEmail: "إيميل", emailLbl: "إيميلك", emailPh: "you@example.com", rememberBy: "افتكرني عن طريق", contactLbl: "موبايل أو إيميل — اختار واحد", badEmail: "ده مش شكل إيميل.", codeSentMail: "الكود اتبعت على إيميلك — اكتبه هنا (بص في السبام كمان).", emailOff: "اتحفظ. أكواد الإيميل هتشتغل حالاً — لحد ما يتأكد، تاريخك بيفضل على الموبايل ده بس.", verifiedVia: "متأكد عن طريق {v}", remMailPh: "إيميلك", needContact: "ضيف موبايل أو إيميل عشان نفتكرك.",
+      recommend: "ترشيحات", myOrder: "طلبي",
       meTitle: "حسابك", callMe: "نناديك بإيه؟", namePh: "اسمك", save: "حفظ", phoneLbl: "رقمك (واتساب)", phonePh: "01x xxxx xxxx", sendCode: "ابعت الكود", codePh: "كود من ٤ أرقام", verify: "تأكيد",
       verified: "متأكد", unverified: "لسه متأكدش", phoneWhy: "هنبعتلك كود من ٤ أرقام على الواتساب أو الإيميل — وانت هنا. بعد التأكيد، طلبك المعتاد بيرجع على أي موبايل.",
       codeSent: "الكود اتبعت على الواتساب — اكتبه هنا.", codesOff: "اتحفظ. أكواد الواتساب هتشتغل قريب — لحد ما رقمك يتأكد، تاريخك بيفضل على الموبايل ده بس.", badPhone: "ده مش شكل رقم موبايل.", wrongCode: "الكود غلط — فاضل {n} محاولات.", codeExpired: "الكود خلص — ابعت واحد جديد.",
@@ -953,7 +953,7 @@
       cConfirm: "تأكيد", cChange: "غيّر حاجة", cCash: "كاش", cCard: "كارت", cOnline: "أونلاين", cMenu: "المنيو", cOrderNow: "اطلب دلوقتي", cYes: "أيوه", cNo: "لا",
       sleepyMsg: "أنا نعسان — ترشحلي إيه يصحيني؟", sweetMsg: "نفسي في حاجة حلوة — ترشحلي إيه؟", hotMsg: "الجو حر — ترشحلي مشروب ساقع منعش؟", hungryMsg: "أنا جعان — ترشحلي آكل إيه؟", matchaMsg: "أنا في مود ماتشا — ترشحلي أنهي واحدة؟", surpriseMsg: "فاجئني — ترشحلي إيه النهارده؟" },
   };
-  let lang = (LS.get("kk:lang") || "en");
+  let lang = LS.get("kk:lang") || (/^ar/i.test(navigator.language || "") ? "ar" : "en");
   const T = (k) => (STR[lang === "ar" ? "ar" : "en"][k] ?? STR.en[k] ?? k);
   function applyLang() {
     const app = document.querySelector(".app"); app.dir = lang === "ar" ? "rtl" : "ltr";
@@ -982,7 +982,7 @@
   applyTheme(); applyLang();
 
   // ---------- time of day ----------
-  const dayHello = () => { const h = cairoHour(); return h < 12 ? T("morning") : h < 17 ? T("afternoon") : T("evening"); };
+  const dayHello = () => { const h = cairoHour(); return h >= 5 && h < 12 ? T("morning") : h >= 12 && h < 17 ? T("afternoon") : T("evening"); };
   function orderedCats() {
     const h = cairoHour();
     const boost = h < 12 ? /bakery|egg|pancake|hot koffee|sourdough|loaf/i : h >= 17 ? /matcha|refresh|smoothie|sweet|mojito/i : null;
@@ -1036,7 +1036,8 @@
   }
 
   // ---------- "goes well with": real menu items — bestsellers / today's popular of the other kind ----------
-  const DRINK = /koffee|matcha|refresh|smoothie|klassic|mojito|lemonade|tea|water|red ?bull|non koffee/i;
+  // any restaurant's drink categories ("Drinks", "Juices", "Hot Koffee"…), not only the café's
+  const DRINK = /drink|beverage|juice|soda|coffee|koffee|espresso|latte|matcha|tea|refresh|smoothie|klassic|mojito|lemonade|shake|water|red ?bull|non koffee/i;
   const isDrink = (i) => DRINK.test(i?.category || "");
   function pairsFor(items, n = 2) {
     const all = MENU.categories.flatMap((c) => c.items).filter((i) => !i.unavailable);
@@ -1298,10 +1299,22 @@
   async function afterSession(j) {
     profile = j.profile || null; me = j.guest?.name ? j.guest.name.split(" ")[0] : me;
     $("mic").disabled = !navigator.mediaDevices?.getUserMedia;
-    if (profile?.language && profile.language !== lang && !LS.get("kk:lang")) { lang = profile.language; applyLang(); }
+    // only a REMEMBERED guest's saved choice may change the screen language (a new visit carries the restaurant default)
+    if (j.guest && profile?.language && profile.language !== lang && !LS.get("kk:lang")) { lang = profile.language; applyLang(); }
     applyLang();
     await ensureMenu();
     if (profile?.habit && !profile.default_milk) habitCard(profile.habit);
+    // two quick buttons from this restaurant's own top categories ("What burgers do you have?")
+    if (MENU && !quick.querySelector("[data-catq]")) {
+      const after = quick.querySelector('[data-q="What do you recommend?"]');
+      orderedCats().slice(0, 2).reverse().forEach((c) => {
+        const label = c.name.replace(/^(Munadim|The)\s+|\s+Kulture$/gi, "").trim();
+        const b = document.createElement("button"); b.dataset.catq = "1";
+        b.innerHTML = `<i class="fa-solid ${/drink|koffee|coffee|matcha|tea|juice|smoothie|refresh/i.test(c.name) ? "fa-mug-hot" : /dessert|sweet|cake/i.test(c.name) ? "fa-cookie-bite" : "fa-utensils"}"></i>${esc(label)}`;
+        b.onclick = () => { input.value = `What ${label.toLowerCase()} do you have?`; sendMsg(); };
+        after ? after.after(b) : quick.appendChild(b);
+      });
+    }
   }
   function habitCard(h) {
     const row = document.createElement("div"); row.className = "card";

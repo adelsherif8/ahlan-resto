@@ -538,7 +538,7 @@ export default function Orders() {
                     ) : (
                       list.map((o, n) => (
                         <Ticket
-                          key={o.id} o={o} col={col}
+                          key={o.id} o={o} col={col} station={station}
                           keyHint={kbd && isToday && col.key !== "done" && n < 9 ? n + 1 : null}
                           cursor={kbd && isToday && col.key === COLS.find((c) => c.key !== "done" && visible.some((x) => c.statuses.includes(x.status)))?.key && n === cursor}
                           flash={flash.has(String(o.id)) || matchCode(o)}
@@ -629,7 +629,10 @@ function DoneDigest({ list, avgPrep, lateCount, doneCount, onOpen }: any) {
 }
 
 const BACK: Record<string, string> = { preparing: "pending", ready: "preparing", out_for_delivery: "ready", served: "ready", delivered: "out_for_delivery" };
-const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint, onFire, onOpen, lateAfter, keyHint, onToggleItem, itemPrep, cursor }: any) {
+const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, readOnly, onAdvance, onCancel, onPrint, onFire, onOpen, lateAfter, keyHint, onToggleItem, itemPrep, cursor, station }: any) {
+  // a station screen (Bar / Kitchen) shows only ITS lines; the rest of the ticket is one quiet note
+  const elsewhere = station ? (o.items || []).filter((i: any) => i.station && i.station !== station) : [];
+  const elsewhereBy = [...new Set(elsewhere.map((i: any) => i.station))] as string[];
   const step = nextFor(o, col);
   const [copied, setCopied] = useState(false);
   const road = col.key === "road";
@@ -661,7 +664,7 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
             )}
             <t.Icon size={13} />
             {t.label}
-            {o.order_type !== "delivery" && o.table_number ? ` · T${o.table_number}` : ""}
+            {o.order_type !== "delivery" && o.table_number ? ` · T${String(o.table_number).replace(/^t/i, "")}` : ""}
           </span>
           <span className={`flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-bold tabular-nums ${
             late ? "bg-red-600 text-white" : warm ? "bg-amber-400 text-amber-950" : t.chip
@@ -674,7 +677,10 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
         <div className="px-3 pb-1 pt-0.5 text-center">
           <div className="text-2xl font-extrabold tracking-[0.15em]">{o.code}</div>
           <div className="flex items-center justify-center gap-1 text-xs uppercase tracking-widest text-neutral-500">
-            {phone.startsWith("walkin:") ? (o.diner_name || "walk-in") : (o.diner_name || phone || "guest")}
+            {phone.startsWith("walkin:") ? (o.diner_name || "walk-in")
+              // table-chat sessions / remembered devices / verified emails are ids, not something to read out
+              : /^(web:|gst:|mail:)/.test(phone) ? (o.diner_name || (o.table_number ? `Table ${String(o.table_number).replace(/^t/i, "")} guest` : "Table guest"))
+              : (o.diner_name || phone || "guest")}
             {showBranch && o.branch ? ` · ${branchName}` : ""}
             {o.order_type === "pre_order" && o.pickup_time ? (
               <span className="flex items-center gap-0.5"><Clock size={10} /> {o.pickup_time}</span>
@@ -699,7 +705,7 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
         )}
 
         <div className="divide-y divide-dashed divide-neutral-300 border-y border-dashed border-neutral-400">
-          {(o.items || []).map((i: any, idx: number) => (
+          {(o.items || []).map((i: any, idx: number) => (station && i.station && i.station !== station) ? null : (
             <div key={idx}
               onClick={(e) => { if (!readOnly && onToggleItem && !i.hold) { e.stopPropagation(); onToggleItem(o, idx); } }}
               className={`px-3 py-1.5 text-[13px] leading-snug ${i.hold ? "opacity-60" : ""} ${
@@ -728,6 +734,11 @@ const Ticket = memo(function Ticket({ o, col, flash, branchName, showBranch, rea
               ))}
             </div>
           ))}
+          {elsewhere.length > 0 && (
+            <div className="px-3 py-1 text-xs font-semibold text-neutral-500">
+              + {elsewhere.reduce((a: number, i: any) => a + Number(i.qty || 1), 0)} more at {elsewhereBy.join(" & ")}
+            </div>
+          )}
         </div>
 
         {!readOnly && (o.items || []).length > 1 && (o.items || []).some((i: any) => i.done) && (
